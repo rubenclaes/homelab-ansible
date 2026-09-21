@@ -7,3 +7,5 @@ docker_stacks_repo: git@github.com:rubenclaes/containers.git
 docker_stacks_repo_dir: /opt/containers
 docker_stacks_repo_version: master
 docker_stacks_deploy_key: "/home/{{ docker_stacks_owner }}/.ssh/containers_deploy"
+
+docker_stacks_wait_for_mounts: []
