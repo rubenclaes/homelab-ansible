@@ -1,0 +1,15 @@
+---
+# Datacenter-level configuration for pve01: storage definitions and backup
+# jobs. Safe to run repeatedly - every task is additive and nothing here
+# removes a storage, a job, or the data behind them.
+#
+#   ansible-playbook playbooks/proxmox-datacenter.yml
+#
+# Node-level networking is deliberately NOT here. It can make the node
+# unreachable, so it lives in playbooks/proxmox-network.yml behind a flag.
+- name: Proxmox datacenter configuration
+  hosts: proxmox
+  gather_facts: false
+  roles:
+    - proxmox_datacenter
+  tags: [proxmox, datacenter]

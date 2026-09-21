@@ -1,0 +1,21 @@
+---
+# pvesh on the node, not community.proxmox.proxmox_storage. The module calls
+# GET /storage/{name} even in check mode, which needs Datastore.Allocate - the
+# privilege that lets a token create, modify and DELETE storage definitions.
+# That token's secret sits in the infra vault on a laptop and on the Semaphore
+# container, and widening it to save a module call is the wrong trade when
+# pvesh as root already works. See the design spec, decision 5.
+- name: Read the current storage definitions
+  ansible.builtin.command: pvesh get /storage --output-format json
+  register: proxmox_datacenter_storage_raw
+  changed_when: false
+  # Must run under --check too: without it stdout is undefined and the
+  # comparison below fails instead of reporting no drift.
+  check_mode: false
+
+- name: Reconcile each declared storage
+  ansible.builtin.include_tasks: storage_entry.yml
+  loop: "{{ pve_storages | default([]) }}"
+  loop_control:
+    loop_var: storage
+    label: "{{ storage.id }}"

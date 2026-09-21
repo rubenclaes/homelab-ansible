@@ -34,6 +34,9 @@
 - name: Backup server
   ansible.builtin.import_playbook: pbs.yml
 
+- name: Proxmox datacenter configuration
+  ansible.builtin.import_playbook: proxmox-datacenter.yml
+
 - name: Docker stacks
   ansible.builtin.import_playbook: stacks.yml
 

@@ -1,0 +1,48 @@
+---
+# Storage definitions for pve01, transcribed from `pvesh get /storage`.
+#
+# `params` keys are the Proxmox API's own names, passed through unchanged, and
+# their VALUE TYPES matter: the reconcile compares a merged dict against the
+# live one, so a string "0" where the API returns an integer 0 reports a
+# difference on every run, forever. `content` must carry the API's ordering,
+# which is not the ordering /etc/pve/storage.cfg shows.
+#
+# `digest` is never declared. It is a checksum of the whole storage.cfg and
+# changes whenever any storage does, so declaring it would mean permanent
+# drift on every entry.
+pve_storages:
+  - id: local
+    params:
+      type: dir
+      path: /var/lib/vz
+      content: iso,import,vztmpl
+      shared: 0
+
+  - id: local-lvm
+    params:
+      type: lvmthin
+      vgname: pve
+      thinpool: data
+      content: rootdir,images
+
+  - id: vm-hdd
+    params:
+      type: zfspool
+      pool: vm-hdd
+      mountpoint: /vm-hdd
+      nodes: pve01
+      content: images,rootdir
+
+# The `pbs` storage is deliberately absent, and this is a real gap rather than
+# a tidy exclusion.
+#
+# Its API representation carries an `encryption-key` field. Telling a key
+# apart from a key's fingerprint requires reading /etc/pve/priv/storage/,
+# which the spec puts out of bounds, so the value is not safe to commit on the
+# assumption that it is harmless. Recreating the entry on a rebuilt node also
+# needs the pve@pbs password, which lives only in the PBS UI.
+#
+# Consequence: after a rebuild of pve01 this storage is restored by hand, and
+# the backups in it are unreadable without the encryption key. That key must
+# be exported once with `proxmox-backup-client key show` and kept outside this
+# repo and outside the building. See the design spec, Risk 1.

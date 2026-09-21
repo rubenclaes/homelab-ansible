@@ -1,0 +1,17 @@
+---
+# The storage and backup-job lists are inventory data, not role settings: they
+# describe this estate. They live in inventory/group_vars/proxmox/ as
+# `pve_storages` and `pve_backup_jobs`, and the tasks read them with
+# `| default([])` so a host without them skips rather than failing.
+#
+# Shape of a pve_storages entry:
+#   id:      local                     required, the storage ID
+#   params:  {}                        required, Proxmox API field names
+#
+# Shape of a pve_backup_jobs entry:
+#   id:      backup-e6cc3e8b-ac39      required, the Proxmox-generated job ID
+#   params:  {}                        required, Proxmox API field names
+#
+# This file is comments only, deliberately. Defaulting either list here would
+# let a typo'd inventory filename resolve to an empty list and report success
+# while managing nothing.

@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: proxmox_datacenter
+  author: rubenclaes
+  description: >-
+    Datacenter-level Proxmox configuration: storage definitions and backup jobs.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - system
+    - virtualization
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

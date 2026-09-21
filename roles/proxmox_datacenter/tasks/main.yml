@@ -1,0 +1,3 @@
+---
+- name: Storage definitions
+  ansible.builtin.import_tasks: storage.yml
