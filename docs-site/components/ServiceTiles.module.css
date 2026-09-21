@@ -1,0 +1,74 @@
+/* Neutral rgba rather than theme variables: these read correctly on both the
+   light and the dark theme without knowing which one is active. */
+.cat {
+  margin: 2rem 0 0;
+}
+
+.cat:first-child {
+  margin-top: 1rem;
+}
+
+/* Scoped to .cat AND tagged with the class so it beats nextra-theme-docs'
+   own heading typography, which would otherwise render this at h2 size. */
+.cat h2.label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 600;
+  opacity: 0.55;
+  margin: 0 0 0.6rem;
+  border: 0;
+  padding: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(128, 128, 128, 0.28);
+  border-radius: 0.7rem;
+  background: rgba(128, 128, 128, 0.05);
+  padding: 0.9rem 0.6rem 0.8rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.tile:hover {
+  border-color: rgba(128, 128, 128, 0.55);
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.blurb {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  opacity: 0.62;
+}
