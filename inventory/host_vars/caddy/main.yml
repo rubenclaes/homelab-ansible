@@ -59,12 +59,8 @@ caddy_sites:
 
   - { name: bazarr, host: macmini, port: 6767, desc: "Ondertitels ophalen voor Sonarr en Radarr" }
 
-  - { name: tautulli, host: macmini, port: 8181, desc: "Kijkstatistieken van Plex" }
-  - { name: jackett, host: macmini, port: 9117, desc: "Proxy voor torrent-indexers" }
-  - { name: dozzle, host: macmini, port: 8080, desc: "Live Docker-logs bekijken" }
   - { name: duplicati, host: macmini, port: 8200, desc: "Back-ups vanaf de Mac mini" }
   - { name: auth, host: macmini, port: 1411, desc: "Pocket ID — oude instantie, wordt uitgefaseerd" } # TODO: old Pocket ID instance
-  - { name: wizarr, host: macmini, port: 5690, auth: true, desc: "Uitnodigingen voor Plex en Jellyfin" }
   - { name: books, host: macmini, port: 6061, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
 
   - { name: jellyfin, host: macmini, port: 8096, desc: "Jellyfin — mediaserver naast Plex" }

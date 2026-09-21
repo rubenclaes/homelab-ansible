@@ -14,24 +14,6 @@ backlog na drie maanden niet meer te lezen.
       niet of de upgrade af is. Zet de limit op `guests:!semaphore` en patch
       semaphore met de hand of vanaf het werkstation.
 
-- [ ] **Media-stack onder Ansible brengen**
-      `media-stack` draait op docker (immich, openbooks, qbittorrent) maar
-      staat niet in `docker_stacks_list`. Het rapport laat hem zien onder
-      "Stacks buiten Ansible".
-      *Waarom:* wat niet in de lijst staat, wordt bij een herbouw niet
-      teruggezet. Immich heeft een postgres — doe dit op een rustig moment.
-      Waarschijnlijk lost het meteen de dode `torrent`-route op, want
-      qbittorrent zit in deze stack.
-
-- [ ] **PBS: semaphore (LXC 104) heeft GEEN backup** — gecontroleerd op 21-09
-      Alle andere guests zitten erin (101,102,103,106,107,108), 104 niet.
-      De jobs draaien 02:30, updates 04:00 — dat botst dus niet.
-      Er staan ook twee verweesde groepen in PBS: ct/109 en vm/110 horen
-      bij guests die niet meer bestaan.
-      *Waarom:* Semaphore draait alle andere playbooks. Als die container weg
-      is en geen backup heeft, herbouw je hem met de hand terwijl je juist
-      dán automatisering wil.
-
 - [ ] **PBS: de wekelijkse job (`backup-e6cc3e8b-ac39`) heeft nog nooit een
       backup gemaakt** — gecontroleerd op 21-09
       Storage `local` heeft content `vztmpl,import,iso`, geen `backup`-type.
@@ -50,10 +32,20 @@ backlog na drie maanden niet meer te lezen.
 
 ## Opruimen in de estate
 
-- [ ] **Route `torrent` wijst nergens heen**
-      `torrent.neodata.be` → `:8089`, daar luistert niets.
-      *Waarom:* een naam die niets doet kost je een keer tien minuten zoeken.
-      Lost zichzelf mogelijk op met de media-stack hierboven; anders weg.
+- [ ] **PBS: twee verweesde groepen** — `ct/109` en `vm/110`
+      Ze horen bij guests die niet meer bestaan.
+      *Waarom:* een back-uplijst waarin groepen staan die nergens bij horen,
+      lees je na een half jaar niet meer met vertrouwen. Opruimen is vijf
+      minuten; uitzoeken wat ct/109 ook alweer was, niet.
+
+- [ ] **Vier diensten draaien door zonder route**
+      `wizarr`, `dozzle`, `jackett` en `tautulli` zijn uit `caddy_sites`
+      gehaald, maar de processen draaien nog op de Mac mini. Ze staan niet in
+      `docker_stacks_list`, dus geen playbook zet ze stil.
+      *Waarom:* iets dat draait maar geen naam meer heeft, kost geheugen en
+      valt bij een storing niemand op. Zet ze met de hand uit op de Mini.
+      Let op: Sonarr of Radarr kunnen Jackett nog als indexer hebben staan —
+      Prowlarr doet dat werk al.
 
 - [ ] **`openbooks` draait zonder route**
       Alleen bereikbaar als `192.168.0.15:8080`.
@@ -73,8 +65,8 @@ backlog na drie maanden niet meer te lezen.
 - [ ] **Geen tests**
       Lint en `--syntax-check` zijn spellingscontrole. Niets bewijst dat een
       rol op een schone machine werkt.
-      *Waarom:* het herstelpad hierboven geeft je 80% van die zekerheid voor
-      veel minder werk. Molecule is pas daarna interessant.
+      *Waarom:* `playbooks/recovery-drill.yml` geeft je 80% van die zekerheid
+      voor veel minder werk. Molecule is pas daarna interessant.
 
 ---
 
@@ -117,6 +109,10 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] Media-stack onder Ansible: `media` staat in `docker_stacks_list` als project `media-stack`
+- [x] PBS back-upt ook LXC 104 (semaphore) — de job draait 101,102,103,104,106,107,108
+- [x] `torrent`-route leeft weer: qbittorrent kwam mee met de media-stack, precies zoals het item voorspelde
+- [x] wizarr, dozzle, jackett en tautulli uit `caddy_sites` en van `/diensten`
 - [x] Herstelpad bewezen: recovery-drill.yml bouwt, bootstrapt, baselinet en vernietigt een wegwerp-LXC
 - [x] caddy-upgrade.yml: upgradet en weigert als de Cloudflare-module verdwijnt
 - [x] SystemMaxUse=500M op alle acht hosts (docker-grafana-stack stond op 276M)
