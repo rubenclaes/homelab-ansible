@@ -14,6 +14,14 @@
         name: baseline
         tasks_from: reboot_check
 
+    - name: Measure root disk usage
+      ansible.builtin.shell: set -o pipefail; df --output=pcent / | tail -n1 | tr -dc '0-9'
+      args:
+        executable: /bin/bash
+      register: report_disk
+      changed_when: false
+      check_mode: false
+
     - name: Build this host's report line
       ansible.builtin.set_fact:
         report_row:
@@ -21,11 +29,9 @@
           os: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
           kernel: "{{ ansible_facts['kernel'] }}"
           uptime_days: "{{ (ansible_facts['uptime_seconds'] / 86400) | round(1) }}"
-          disk_used_pct: "{{ (100 - (root.size_available / root.size_total * 100)) | round(0) | int }}"
+          disk_used_pct: "{{ report_disk.stdout | int }}"
           pending: "{{ report_pending.stdout | int }}"
           reboot: "{{ baseline_reboot_needed | bool }}"
-      vars:
-        root: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | first }}"
 
     - name: Show it
       ansible.builtin.debug:
