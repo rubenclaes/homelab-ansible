@@ -1,6 +1,15 @@
 ---
-# Everything here runs on the node itself, because the sequence has to survive
-# the controller losing its connection halfway through.
+# The sequence that has to survive the controller losing its connection
+# halfway through - copy, arm, apply, verify, disarm - is split across two
+# actors on purpose, not run entirely on the node:
+#   - copy / reset-failed / arm / the eventual disarm run ON THE NODE. These
+#     are the steps that must still complete, or already be safely queued,
+#     even if the connection drops right after them.
+#   - the API apply and the reachability probe are delegate_to: localhost,
+#     run from the controller. An API call is inherently made from outside
+#     the node, and a reachability probe run ON the node it is testing would
+#     prove nothing - it would succeed by definition as long as the node's
+#     own userspace is alive, which is not the question being asked.
 # Everything below assumes the running configuration is one that worked. If a
 # previous apply is still counting down, that assumption is false: this run
 # would copy a config that may already be broken, and the earlier timer would
@@ -96,14 +105,18 @@
   delegate_to: localhost
   become: false
 
-- name: Check that both addresses still answer
+# Derived from pve_node_interfaces rather than hand-copied, so this safety
+# check always probes exactly the addresses the role just staged - a bridge
+# renumbered, added or removed in inventory changes what gets probed here
+# with no second place to remember to update. This is the one file read cold
+# under pressure; a hardcoded, silently-stale copy of inventory inside its
+# own safety check is the wrong thing for that reader to find.
+- name: Check that every declared address still answers
   ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 22
     timeout: 20
-  loop:
-    - 192.168.0.10
-    - 192.168.0.14
+  loop: "{{ pve_node_interfaces | map(attribute='cidr') | map('split', '/') | map('first') | list }}"
   delegate_to: localhost
   become: false
 

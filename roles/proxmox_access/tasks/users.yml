@@ -4,13 +4,22 @@
 # the module does not offer, and mixing a module with a CLI inside one role
 # means two failure modes and two idempotency stories for one object.
 #
-# proxmox_access_drift collects what would be created. Unlike
+# proxmox_access_missing collects what would be created. Unlike
 # proxmox_datacenter, a missing user or ACL is not an error here: creating
 # one is exactly what this role is for. Reporting and asserting on this list
 # happens in verify.yml, imported last from main.yml, not here.
-- name: Start with an empty access drift list
+#
+# LIMITATION, stated plainly: matching below is presence-only. A user is
+# looked up by userid, an ACL by (path, roleid, ugid), and once found, none
+# of its other fields are ever compared again. Change email, firstname or
+# comment on an existing pve_users entry and re-run this role, and nothing
+# happens - the existing user is left as it is, and verify.yml reports
+# success, because from this role's point of view nothing is missing. This
+# role creates what is missing; it does not reconcile the attributes of what
+# already exists.
+- name: Start with an empty access-missing list
   ansible.builtin.set_fact:
-    proxmox_access_drift: []
+    proxmox_access_missing: []
 
 - name: Read the current Proxmox users
   ansible.builtin.command: pveum user list --output-format json
@@ -23,7 +32,7 @@
 # the command task right below never runs.
 - name: Record the users that would be created
   ansible.builtin.set_fact:
-    proxmox_access_drift: "{{ proxmox_access_drift + ['user ' ~ item.userid] }}"
+    proxmox_access_missing: "{{ proxmox_access_missing + ['user ' ~ item.userid] }}"
   loop: "{{ pve_users | default([]) }}"
   loop_control:
     label: "{{ item.userid }}"
@@ -51,7 +60,7 @@
 
 - name: Record the ACLs that would be created
   ansible.builtin.set_fact:
-    proxmox_access_drift: "{{ proxmox_access_drift + ['acl ' ~ item.path ~ ' -> ' ~ item.ugid] }}"
+    proxmox_access_missing: "{{ proxmox_access_missing + ['acl ' ~ item.path ~ ' -> ' ~ item.ugid] }}"
   loop: "{{ pve_acls | default([]) }}"
   loop_control:
     label: "{{ item.path }} -> {{ item.ugid }} ({{ item.roleid }})"

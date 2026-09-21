@@ -5,18 +5,21 @@
 - name: Report which PBS objects are missing
   ansible.builtin.debug:
     msg: >-
-      {{ 'Every declared datastore and job is in place'
-         if pbs_drift | length == 0
-         else 'Would be created: ' ~ pbs_drift | join(', ') }}
+      {{ 'Every declared datastore and job exists (existing objects are not checked for drift)'
+         if pbs_missing | length == 0
+         else 'Would be created: ' ~ pbs_missing | join(', ') }}
 
 # `changed` cannot serve as the test: ansible.builtin.command is skipped
 # outright under --check, so the recap is clean whether or not anything is
 # missing. set_fact and assert do run in check mode.
 - name: Require every declared datastore and job to be in place
   ansible.builtin.assert:
-    that: pbs_drift | length == 0
+    that: pbs_missing | length == 0
     fail_msg: >-
-      Not yet in place: {{ pbs_drift | join(', ') }}.
+      Not yet in place: {{ pbs_missing | join(', ') }}.
       Run this playbook without --check to create them.
-    success_msg: "All declared datastores and jobs are in place"
+    success_msg: >-
+      All declared datastores and jobs exist. This checks presence only - a
+      field changed on an object that already exists (for example keep_last)
+      is not detected and is not reflected here.
   when: pbs_require_clean | default(false) | bool

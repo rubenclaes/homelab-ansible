@@ -54,6 +54,30 @@
           Something is using it. Not touching it.
         success_msg: "vmid {{ drill_vmid }} is free"
 
+    # This create/start pair is a deliberate near-duplicate of
+    # roles/proxmox_lxc/tasks/main.yml, not a reuse of it. That role loops
+    # over pve_lxcs to decide what is missing and to build each container's
+    # argv from a real inventory entry; feeding it a synthetic pve_lxcs entry
+    # for the drill vmid would mean satisfying that loop with a vmid the
+    # guard above exists specifically to keep OUT of pve_lxcs. Reusing the
+    # role's task file as-is is not possible without changing what the guard
+    # protects; reuse was judged impractical for that reason, not skipped for
+    # convenience.
+    #
+    # Consequence: this has already drifted from roles/proxmox_lxc, and
+    # whoever changes one should check the other:
+    #   - no start retries/delay/until here (roles/proxmox_lxc/tasks/main.yml
+    #     has retries: proxmox_lxc_start_retries) - a newly created container
+    #     can need a moment before it is startable, and this drill does not
+    #     retry through that window.
+    #   - `features` is not passed here, while real containers set it from
+    #     pve_lxcs (e.g. nesting=1).
+    #   - disk storage is hardcoded to local-lvm below; most real guests in
+    #     pve_lxcs use vm-hdd, so the drill has never exercised that storage
+    #     path.
+    #   - `onboot: false` here vs pve_lxc_defaults.onboot (true) IS correct
+    #     and intentional: this container is a throwaway, and should not
+    #     survive a node reboot.
     - name: Create the drill container
       community.proxmox.proxmox:
         api_host: "{{ pve_api_host }}"

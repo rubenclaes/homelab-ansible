@@ -9,6 +9,7 @@
 #   proxmox-lxcs.yml       creates missing LXC containers
 #   proxmox-network.yml    can make the hypervisor unreachable
 #   proxmox-autostart.yml  flips onboot on every guest
+#   recovery-drill.yml     creates AND DESTROYS a throwaway guest
 #   bootstrap.yml          first-contact root login, see README
 #   update.yml             package upgrades and reboots
 #   report.yml             read-only, but slow; scheduled separately

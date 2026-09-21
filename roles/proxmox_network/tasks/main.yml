@@ -4,6 +4,17 @@
 # That staging behaviour is Proxmox's, not ours, and it is the reason this
 # role can be run safely without a flag: by itself it changes nothing that is
 # live.
+#
+# Unlike proxmox_datacenter, pbs and proxmox_access, this role has no
+# verify.yml, no drift list and no proxmox_network_require_clean flag - it
+# relies on a plain `changed=0` under --check instead. That is a deliberate
+# choice, not an oversight: the drift-list pattern exists specifically to
+# make a decision assertable when ansible.builtin.command is involved, because
+# command is skipped outright under --check and `changed` proves nothing for
+# it. This role's only module here, community.proxmox.proxmox_node_network,
+# genuinely implements check mode, so `changed=0` under --check is already a
+# real, meaningful test - there is no gap for a drift list to fill. See "How
+# we know it worked" in the design spec.
 - name: Stage the declared interfaces
   community.proxmox.proxmox_node_network:
     api_host: "{{ pve_api_host }}"
@@ -25,7 +36,6 @@
     label: "{{ item.iface }}"
   delegate_to: localhost
   become: false
-  register: proxmox_network_staged
 
 - name: Apply the staged configuration
   ansible.builtin.import_tasks: apply.yml

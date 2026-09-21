@@ -32,6 +32,20 @@ backlog na drie maanden niet meer te lezen.
       is en geen backup heeft, herbouw je hem met de hand terwijl je juist
       dán automatisering wil.
 
+- [ ] **PBS: de wekelijkse job (`backup-e6cc3e8b-ac39`) heeft nog nooit een
+      backup gemaakt** — gecontroleerd op 21-09
+      Storage `local` heeft content `vztmpl,import,iso`, geen `backup`-type.
+      `vzdump` breekt daarom af vóór hij de vmid-lijst leest;
+      `/var/log/pve/tasks/index` toont bij elke run "can't use storage
+      'local' for backups - wrong content type" en `/var/lib/vz/dump` is
+      leeg. Dit stond eerder genoteerd als "faalt door vmid 109" — dat klopt
+      niet, en het weglaten van 109 heeft er dus niets aan veranderd.
+      *Waarom:* zolang dit als "opgelost" te boek staat, kijkt niemand er
+      nog naar. Oplossen is een keuze met gevolgen voor opslag/retentie:
+      `backup` toevoegen aan `local`'s content, of de job retargeten naar
+      `pbs` zoals de dagelijkse job al doet. Bewust hier geparkeerd, niet in
+      de proxmox-rebuild-path-branch.
+
 ---
 
 ## Opruimen in de estate

@@ -6,13 +6,22 @@
 # rather than no-ops, so a bare command would report changed on every run and
 # fail on the second.
 #
-# pbs_drift collects what would be created. As in proxmox_access, an absent
+# pbs_missing collects what would be created. As in proxmox_access, an absent
 # datastore or job is not an error here: creating it is exactly what this
 # role is for. Reporting and asserting on this list happens in verify.yml,
 # imported last from main.yml, not here.
-- name: Start with an empty drift list
+#
+# LIMITATION, stated plainly: matching below is presence-only. An object is
+# looked up by name or id alone; once it exists, none of its fields are ever
+# compared again. Change keep_last, gc_schedule, schedule, outdated_after or
+# ignore_verified in inventory and re-run this role, and nothing happens -
+# the existing object is left as it is, and verify.yml reports success,
+# because from this role's point of view nothing is missing. On this role
+# that silently includes backup retention. This role creates what is
+# missing; it does not reconcile the attributes of what already exists.
+- name: Start with an empty missing-objects list
   ansible.builtin.set_fact:
-    pbs_drift: []
+    pbs_missing: []
 
 - name: Read the current PBS datastores
   ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
@@ -25,7 +34,7 @@
 # command task right below never runs.
 - name: Record the datastores that would be created
   ansible.builtin.set_fact:
-    pbs_drift: "{{ pbs_drift + ['datastore ' ~ item.name] }}"
+    pbs_missing: "{{ pbs_missing + ['datastore ' ~ item.name] }}"
   loop: "{{ pbs_datastores | default([]) }}"
   loop_control:
     label: "{{ item.name }}"
@@ -55,7 +64,7 @@
 
 - name: Record the prune jobs that would be created
   ansible.builtin.set_fact:
-    pbs_drift: "{{ pbs_drift + ['prune job ' ~ item.id] }}"
+    pbs_missing: "{{ pbs_missing + ['prune job ' ~ item.id] }}"
   loop: "{{ pbs_prune_jobs | default([]) }}"
   loop_control:
     label: "{{ item.id }}"
@@ -88,7 +97,7 @@
 
 - name: Record the verify jobs that would be created
   ansible.builtin.set_fact:
-    pbs_drift: "{{ pbs_drift + ['verify job ' ~ item.id] }}"
+    pbs_missing: "{{ pbs_missing + ['verify job ' ~ item.id] }}"
   loop: "{{ pbs_verify_jobs | default([]) }}"
   loop_control:
     label: "{{ item.id }}"

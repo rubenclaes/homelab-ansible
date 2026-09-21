@@ -35,7 +35,7 @@ Measured against the live estate on 2026-09-21, not assumed:
 | Is the network config in `/etc/pve`? | **No.** `/etc/network/interfaces` sits outside it and would have been missed by a naive `/etc/pve` backup. |
 | Does `community.proxmox` cover this? | Partly, and less than the module names suggest. Measured against the pinned 2.0.0 rather than inferred: `proxmox_node_network` is complete (`cidr`, `gateway`, `bridge_ports`, `autostart`, `comments`). `proxmox_storage` covers `dir`, `zfspool` and `pbs` but **not `lvmthin`**, so `local-lvm` is out of its reach. `proxmox_backup_schedule` takes only `vm_name`, `vm_id`, `backup_id`, `state` — it moves a guest in or out of an **existing** job and cannot define one. `proxmox_access_acl` declares `check_mode: support: none`. No module exists for `notifications.cfg`, `datacenter.cfg`, or anything on the PBS side. |
 | How does Ansible reach `pve01`? | Over `192.168.0.14`, which is **`vmbr1`**. The default gateway is on `vmbr0` (`192.168.0.10`). Two bridges, one subnet, and the control path is not the default-route interface. |
-| Are the backup jobs healthy? | **No.** `backup-e6cc3e8b-ac39` lists vmid `109`, a guest that no longer exists. `backup-a6c792f3-ad6c` is `all` excluding only `100`, so `104` is in scope, yet PBS holds no group for `104`. The definitions are right and the execution is not. Nothing reports this. |
+| Are the backup jobs healthy? | **No.** `backup-e6cc3e8b-ac39` targets storage `local`, whose `content` is `vztmpl,import,iso` — no `backup` type. `vzdump` aborts during storage validation before it ever reads the job's vmid list; `/var/log/pve/tasks/index` carries `can't use storage 'local' for backups - wrong content type` on every run, and `/var/lib/vz/dump` is empty. This job has never produced a backup, regardless of which vmids it lists — the vmid `109` it used to list (a guest that no longer exists) was not the cause and dropping it changed nothing. `backup-a6c792f3-ad6c` is `all` excluding only `100`, so `104` is in scope, yet PBS holds no group for `104`. The definitions are right and the execution is not. Nothing reports either failure. |
 | Is the PBS storage encrypted? | Yes. `storage.cfg` carries the key's fingerprint; the key itself lives in `/etc/pve/priv/storage/`. |
 | What does the API token actually reach? | Less than assumed. `proxmox_storage` calls `GET /storage/{name}` even in check mode, and that needs `Datastore.Allocate` — a privilege distinct from the `Datastore.AllocateSpace`, `.AllocateTemplate` and `.Audit` the `AnsibleAutomation` role holds. Measured after Task 1 failed with 403 on it. |
 | Does PBS replicate anywhere? | No. `sync-job list` is empty. Every copy of every backup is in one building. |
@@ -56,11 +56,20 @@ Measured against the live estate on 2026-09-21, not assumed:
    token. The backup therefore contains no secret at all and needs no special
    handling.
 
-3. **Secrets required to *recreate* config come from the existing vault, not
-   from a dump.** Recreating the `pbs` storage entry needs a PBS password;
-   that credential belongs in the `infra` vault next to the Cloudflare and
-   Proxmox tokens already there. This keeps decision 2 intact — we never copy
-   `priv/`, we deliberately keep the few credentials we need.
+3. **Secrets required to *recreate* config were going to come from the
+   existing vault — revised: the `pbs` storage entry has no vaulted secret,
+   because it has no entry.** The original plan: recreating the `pbs` storage
+   entry needs a PBS password, and that credential belongs in the `infra`
+   vault next to the Cloudflare and Proxmox tokens already there. Decision 6
+   removed the reason to do that. It excludes the `pbs` storage entry itself,
+   over the separate `encryption-key` ambiguity described there, so a vaulted
+   password would have had no consumer — nothing in this branch would ever
+   read it. Vaulting a secret for an entry the branch does not manage is
+   pointless work with its own risk (one more credential to rotate), so this
+   decision is not carried out: the PBS password stays where it already was,
+   in the PBS UI, and `storage.yml:47-56` documents that this entry is
+   restored by hand after a rebuild. This keeps decision 2 intact either way
+   — we never copy `priv/`, and now we do not vault anything new either.
 
 4. **Reconciliation is additive, never exclusive.** Roles ensure the declared
    objects exist. They never delete an object that is present on the host but
@@ -158,8 +167,10 @@ deliberately and recorded in the commit message: vmid `109` is dropped from
 the weekly job, and the two orphaned PBS groups (`ct/109`, `vm/110`) are noted
 for manual removal since no role deletes anything.
 
-The PBS storage entry references its password and encryption key by vault
-lookup, not by literal value.
+The `pbs` storage entry is not transcribed at all — see decision 6 and
+`storage.yml:47-56`. There is therefore no vault lookup for it either; decision
+3 planned one and was abandoned when decision 6 removed the entry it would
+have served.
 
 ### Network: the part that can lock you out
 
@@ -174,11 +185,12 @@ The role therefore never applies directly:
    The module documents this explicitly: `present` and `absent` stage changes
    and do not apply them. Proxmox holds them in `/etc/network/interfaces.new`
    and the running config is untouched.
-2. Stop there unless `-e network_apply=true` was passed. `site.yml` never
-   passes it; `proxmox-network.yml` requires it.
+2. Stop there unless `-e proxmox_network_apply=true` was passed. `site.yml`
+   never passes it; `proxmox-network.yml` requires it.
 3. Before applying, copy the running `/etc/network/interfaces` aside and arm
-   a dead-man switch with `systemd-run --on-active=120`, which restores the
-   copy and runs `ifreload -a` unless cancelled.
+   a dead-man switch with `systemd-run --on-active=180` (the default; see the
+   arithmetic in `roles/proxmox_network/defaults/main.yml`), which restores
+   the copy and runs `ifreload -a` unless cancelled.
 4. Apply, then verify from the controller that both `192.168.0.10` and
    `192.168.0.14` still answer.
 5. Cancel the timer only after that verification passes. If the playbook dies
@@ -200,8 +212,18 @@ brings it back.
 
 No modules exist, so this is `proxmox-backup-manager` wrapped for idempotency.
 Each object type follows the same shape: list current state as JSON, compare
-against the declared list, create or update only on a difference, and set
-`changed_when` from that comparison rather than from the command's exit code.
+against the declared list by name or id, and create only what is absent, with
+`changed_when` set from that comparison rather than from the command's exit
+code.
+
+**This comparison is presence-only.** Once an object exists, none of its
+fields are compared again: changing `keep_last` on an existing prune job and
+re-running the role does nothing and reports success. `proxmox_access` has
+the same limit, for the same reason - see the LIMITATION comment in each
+role's task file. This role creates what is missing; it does not reconcile
+the attributes of what already exists. `proxmox_datacenter` is the one role
+in this branch that does compare fields of existing objects (`storage_entry.yml`,
+`backup_job.yml`); see "How we know it worked" below.
 
 Current state to transcribe: datastore `store1` at `/mnt/datastore/store1`
 with `gc-schedule: daily`; one prune job, `keep-last: 7`, daily; one verify
@@ -241,11 +263,17 @@ storage, backup jobs and the whole PBS side through `pvesh` and
 `proxmox-backup-manager`, which puts most of this work in that category.
 
 Those roles therefore make their decision assertable rather than inferring it
-from `changed`. Each accumulates the entries whose declared fields differ from
-live into a drift list, and carries a final task that asserts the list is empty
-when `<role>_require_clean` is passed. The acceptance test is that assertion
-under `--check`, not the recap. `set_fact` and `assert` both run in check mode,
-so the drift list is accurate there.
+from `changed`, and each carries a final task that asserts a list is empty
+when `<role>_require_clean` is passed - but the list means different things in
+different roles. `proxmox_datacenter` accumulates entries whose declared
+fields differ from live into `proxmox_datacenter_drift`, which is what
+"differ from live" means throughout this section. `pbs` and `proxmox_access`
+accumulate entries that are simply absent, into `pbs_missing` and
+`proxmox_access_missing`; per the presence-only limitation above, neither role
+ever compares the fields of an object that already exists, so there is no
+field-drift list for either of them. The acceptance test is that assertion
+under `--check`, not the recap. `set_fact` and `assert` both run in check
+mode, so these lists are accurate there.
 
 `proxmox_access_acl` declares no check-mode support for the same reason; ACLs
 are verified by a real run followed by `pveum acl list`, compared against

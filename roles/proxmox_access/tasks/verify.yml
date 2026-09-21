@@ -5,18 +5,21 @@
 - name: Report which access objects are missing
   ansible.builtin.debug:
     msg: >-
-      {{ 'Every declared user and ACL is in place'
-         if proxmox_access_drift | length == 0
-         else 'Would be created: ' ~ proxmox_access_drift | join(', ') }}
+      {{ 'Every declared user and ACL exists (existing objects are not checked for drift)'
+         if proxmox_access_missing | length == 0
+         else 'Would be created: ' ~ proxmox_access_missing | join(', ') }}
 
 # `changed` cannot serve as the test here: ansible.builtin.command is skipped
 # outright under --check, so the recap is clean whether or not anything is
 # missing. set_fact and assert do run in check mode.
 - name: Require every declared user and ACL to be in place
   ansible.builtin.assert:
-    that: proxmox_access_drift | length == 0
+    that: proxmox_access_missing | length == 0
     fail_msg: >-
-      Not yet in place: {{ proxmox_access_drift | join(', ') }}.
+      Not yet in place: {{ proxmox_access_missing | join(', ') }}.
       Run this playbook without --check to create them.
-    success_msg: "All declared users and ACLs are in place"
+    success_msg: >-
+      All declared users and ACLs exist. This checks presence only - a field
+      changed on a user or ACL that already exists is not detected and is
+      not reflected here.
   when: proxmox_access_require_clean | default(false) | bool

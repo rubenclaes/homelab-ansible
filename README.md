@@ -50,6 +50,9 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `proxmox-lxcs.yml` | `pve01` | Maakt ontbrekende LXCs uit `pve_lxcs`. |
 | `proxmox-autostart.yml` | `pve01` | Zet `onboot=1` waar dat mist. |
 | `proxmox-access.yml` | `pve01` | Zet de rechten van het API-token; verifieert zichzelf. |
+| `proxmox-datacenter.yml` | `pve01` | Storage-definities en backup-jobs uit `pve_storages`/`pve_backup_jobs`. |
+| `proxmox-network.yml` | `pve01` | Bridge-configuratie; alleen staging tenzij `-e proxmox_network_apply=true`. **Kan de host onbereikbaar maken — lees de kop van het playbook eerst.** |
+| `recovery-drill.yml` | `pve01` | Bouwt, bootstrapt en vernietigt een wegwerp-LXC om het herstelpad te bewijzen. **Vernietigt een guest — alleen met `-e drill_confirm=true`.** |
 
 ```bash
 ansible-playbook playbooks/site.yml

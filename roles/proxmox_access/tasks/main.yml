@@ -1,5 +1,7 @@
 ---
-# Manages the privileges of the Proxmox role behind the ansible@pve API token.
+# Manages the privileges of the Proxmox role behind the ansible@pve API
+# token, and - since users.yml was added - the users and ACLs declared in
+# pve_users and pve_acls.
 #
 # Read-modify-write on the FULL list, deliberately. `pveum role modify <id>`
 # with no --privs sets the privilege list to empty, which revokes API access

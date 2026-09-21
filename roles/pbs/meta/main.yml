@@ -3,7 +3,8 @@ galaxy_info:
   role_name: pbs
   author: rubenclaes
   description: >-
-    Installs Proxmox Backup Server. Datastores and jobs stay owned by PBS.
+    Installs Proxmox Backup Server and declares its datastore and its prune
+    and verify jobs from pbs_datastores, pbs_prune_jobs and pbs_verify_jobs.
   license: MIT
   min_ansible_version: "2.17"
   platforms:

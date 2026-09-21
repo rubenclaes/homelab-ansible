@@ -11,9 +11,21 @@
 #
 # Two corrections to the live state are made here deliberately:
 #   - vmid 109 is dropped from the weekly job. That guest no longer exists,
-#     so the job has been failing on it.
+#     so it is a stale reference and does not belong in an accurate
+#     transcription. It is NOT why the job has been failing - see below.
 #   - The orphaned PBS groups ct/109 and vm/110 are NOT touched. No role here
 #     deletes anything; remove them by hand in the PBS UI.
+#
+# This weekly job has never produced a backup, for a reason unrelated to its
+# vmid list: its storage, `local`, has content `vztmpl,import,iso` - no
+# `backup` type. vzdump aborts during storage validation before it ever reads
+# which vmids to back up. Confirmed live on pve01: /var/log/pve/tasks/index
+# carries "can't use storage 'local' for backups - wrong content type" on
+# every run of this job, and /var/lib/vz/dump is empty. Dropping vmid 109
+# above is a faithful transcription and changes nothing about whether this
+# job works. Fixing it - giving `local` the `backup` content type, or
+# retargeting the job at `pbs` - is an estate decision with retention
+# consequences and is deliberately left to TODO.md, not done here.
 pve_backup_jobs:
   - id: backup-e6cc3e8b-ac39
     params:
