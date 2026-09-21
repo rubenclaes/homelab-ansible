@@ -126,10 +126,13 @@
             name: python3-requests
             state: present
 
-        # `until` filters on the image's own creation timestamp, not on when it
-        # was pulled: a long-stable upstream image counts as old even if it
-        # arrived yesterday. It is still only ever an *unused* image -- one no
-        # container references -- so the cost of being wrong is a re-pull.
+        # Images are age-filtered, build cache is not, because the two cost
+        # different things to get wrong. An image that turns out to be needed
+        # has to be pulled again over the network; build cache only has to be
+        # rebuilt. `until` also measures the image's own creation timestamp
+        # rather than when it was pulled, so a long-stable upstream image
+        # counts as old even if it arrived yesterday -- another reason to keep
+        # a window on images and not on derived cache.
         #
         # containers and volumes are false by default; they are spelled out
         # because in a playbook that deletes, intent beats defaults.
@@ -140,14 +143,13 @@
             images: true
             images_filters:
               dangling: false
-              # noqa comments: ansible-lint sees the key name `until` and
-              # applies its rule for conditional expressions, which want a bare
-              # variable. This `until` is a Docker filter value, where a bare
-              # name would be passed through as the literal string.
+              # ansible-lint sees the key name `until` and applies its rule for
+              # conditional expressions, which want a bare variable. This
+              # `until` is a Docker filter value, where a bare name would be
+              # passed through as the literal string. Hence the task-level noqa.
               until: "{{ cleanup_docker_until }}"
             builder_cache: true
-            builder_cache_filters:
-              until: "{{ cleanup_docker_until }}"
+            builder_cache_all: true
             networks: true
             containers: false
             volumes: false

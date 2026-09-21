@@ -154,7 +154,7 @@ ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true --limit docker
 | Waar | Wat | Wat niet |
 |---|---|---|
 | `linux` | `apt autoremove` + `autoclean`, `journalctl --vacuum-time` | gepinde pakketten; dpkg holds blijven staan |
-| `docker_hosts` | ongebruikte images, build cache, losse networks | **volumes**, en containers — draaiend of gestopt |
+| `docker_hosts` | ongebruikte images (ouder dan `cleanup_docker_until`), *alle* build cache, losse networks | **volumes**, en containers — draaiend of gestopt |
 
 - **Volumes nooit, op geen enkele instelling.** Daar staat de data van de stacks
   in; zo'n volume weggooien is een restore, geen opruiming.
@@ -164,6 +164,10 @@ ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true --limit docker
 - `cleanup_docker_until` (720h) kijkt naar de *aanmaakdatum* van het image, niet
   naar wanneer het binnengehaald is. Een lang stabiel upstream-image geldt dus
   als oud, ook al is het gisteren gepulld.
+- **Build cache valt met opzet niet onder dat venster.** Een image dat toch nog
+  nodig blijkt moet over de lijn opnieuw gepulld worden; build cache hoeft
+  alleen opnieuw gebouwd te worden. Daarom `builder_cache_all: true` en geen
+  filter: op `docker` stond daar 5,2 GB in met nul actieve entries.
 - `cleanup_apply` staat met opzet **niet** in `group_vars`. Dat is de schakelaar
   die een rapport in een verwijdering verandert, dus hij hoort per run of per
   Semaphore-template; een default daar zou elke run destructief maken. Hij wordt

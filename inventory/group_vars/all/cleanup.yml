@@ -11,6 +11,11 @@
 # How much journal history to keep. Passed to `journalctl --vacuum-time`.
 cleanup_journal_keep: 14d
 
-# Age below which an unused Docker image or build cache entry is left alone.
-# Measured against the image's creation time, not its pull time.
+# Age below which an unused Docker image is left alone. Measured against the
+# image's creation time, not its pull time, so a long-stable upstream image
+# counts as old even when it was pulled yesterday.
+#
+# Build cache is deliberately NOT governed by this: it is derived data, so the
+# cost of pruning it wrongly is a rebuild, not a pull. See builder_cache_all
+# in the playbook.
 cleanup_docker_until: 720h
