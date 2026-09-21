@@ -1,0 +1,20 @@
+---
+# Node-level bridge configuration for pve01. NOT part of site.yml and never
+# will be.
+#
+#   ansible-playbook playbooks/proxmox-network.yml                  # stage only
+#   ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
+#
+# Without the flag this only writes /etc/network/interfaces.new and changes
+# nothing that is running. With it, the node reloads its network while you are
+# connected to it over that same network.
+#
+# Before using the flag, know where the machine physically is. The dead-man
+# switch restores the previous configuration after 120 seconds if anything
+# goes wrong, but it is a safety net, not a guarantee.
+- name: Proxmox node networking
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - proxmox_network
+  tags: [proxmox, network]

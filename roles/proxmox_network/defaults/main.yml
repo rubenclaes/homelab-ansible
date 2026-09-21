@@ -1,0 +1,14 @@
+---
+# The interface list is inventory data and lives in
+# inventory/group_vars/proxmox/network.yml as `pve_node_interfaces`.
+#
+# Applying a staged network change is off by default and must be turned on
+# explicitly, per run, from the command line. There is no host or group where
+# this may default to true: a converge run that can rewrite the hypervisor's
+# bridges is a converge run that can end the estate.
+proxmox_network_apply: false
+
+# Seconds before the dead-man switch restores the previous configuration. Long
+# enough for ifreload plus a reachability probe, short enough that a lockout
+# is over before you have finished reading the traceback.
+proxmox_network_revert_after: 120

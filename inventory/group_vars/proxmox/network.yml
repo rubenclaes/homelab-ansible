@@ -1,0 +1,29 @@
+---
+# Node-level bridges on pve01, transcribed from /etc/network/interfaces.
+#
+# READ THIS BEFORE CHANGING A VALUE HERE. Ansible reaches this node on
+# 192.168.0.14, which is vmbr1. The default route is on vmbr0. A wrong value
+# in this file does not produce a failed task - it produces an unreachable
+# hypervisor and a trip to wherever the machine physically is.
+#
+# Writing these values only stages them in /etc/network/interfaces.new.
+# Applying them is a separate, flagged step: see playbooks/proxmox-network.yml.
+#
+# The physical ports enp3s0 and nic0 are not declared. They are `iface ... inet
+# manual` entries with no configuration, and the bridges reference them by
+# name; a rebuilt node with different NIC names needs this file edited anyway.
+pve_node_interfaces:
+  - iface: vmbr0
+    iface_type: bridge
+    cidr: 192.168.0.10/24
+    gateway: 192.168.0.1
+    bridge_ports: enp3s0
+    autostart: true
+    comments: "2,5 gbe"
+
+  - iface: vmbr1
+    iface_type: bridge
+    cidr: 192.168.0.14/24
+    bridge_ports: nic0
+    autostart: true
+    comments: "1 gbe"

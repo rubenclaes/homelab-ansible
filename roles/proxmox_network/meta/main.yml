@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: proxmox_network
+  author: rubenclaes
+  description: >-
+    Node-level Proxmox bridge configuration, staged by default and applied
+    only behind an explicit flag and a dead-man switch.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - system
+    - networking
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

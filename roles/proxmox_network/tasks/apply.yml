@@ -1,0 +1,60 @@
+---
+# Everything here runs on the node itself, because the sequence has to survive
+# the controller losing its connection halfway through.
+- name: Keep a copy of the running configuration
+  ansible.builtin.copy:
+    src: /etc/network/interfaces
+    dest: /etc/network/interfaces.before-ansible
+    remote_src: true
+    mode: "0644"
+
+# systemd-run, not `at`: it is already installed, it survives the SSH session
+# dying, and `systemctl stop` on a named unit is an unambiguous cancel. If the
+# playbook dies at any point after this, the node returns to a configuration
+# that demonstrably worked.
+- name: Arm the dead-man switch
+  ansible.builtin.command:
+    argv:
+      - systemd-run
+      - --unit=ansible-network-revert
+      - "--on-active={{ proxmox_network_revert_after }}"
+      - /bin/bash
+      - -c
+      - cp /etc/network/interfaces.before-ansible /etc/network/interfaces && ifreload -a
+  changed_when: true
+
+# NOT `ifreload -a`. Proxmox stages into /etc/network/interfaces.new, and
+# ifreload reads /etc/network/interfaces - so running it here would reload the
+# unchanged running config, leave the staged file untouched, and report
+# success. The module's `apply` state calls PUT /nodes/{node}/network, which is
+# what actually moves the staged file into place and reloads.
+- name: Apply the staged interface configuration
+  community.proxmox.proxmox_node_network:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    validate_certs: false
+    node: "{{ ansible_facts['hostname'] }}"
+    state: apply
+  delegate_to: localhost
+  become: false
+
+- name: Check that both addresses still answer
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: 22
+    timeout: 30
+  loop:
+    - 192.168.0.10
+    - 192.168.0.14
+  delegate_to: localhost
+  become: false
+
+# ansible.builtin.command here would be command-instead-of-module under the
+# production lint profile; systemd_service stops the same transient timer
+# unit that Arm the dead-man switch created.
+- name: Disarm the dead-man switch
+  ansible.builtin.systemd_service:
+    name: ansible-network-revert.timer
+    state: stopped

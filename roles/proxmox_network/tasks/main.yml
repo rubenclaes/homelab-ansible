@@ -1,0 +1,32 @@
+---
+# Writing an interface through the API stages it in
+# /etc/network/interfaces.new and leaves the running configuration alone.
+# That staging behaviour is Proxmox's, not ours, and it is the reason this
+# role can be run safely without a flag: by itself it changes nothing that is
+# live.
+- name: Stage the declared interfaces
+  community.proxmox.proxmox_node_network:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    validate_certs: false
+    node: "{{ ansible_facts['hostname'] }}"
+    iface: "{{ item.iface }}"
+    iface_type: "{{ item.iface_type }}"
+    cidr: "{{ item.cidr }}"
+    gateway: "{{ item.gateway | default(omit) }}"
+    bridge_ports: "{{ item.bridge_ports | default(omit) }}"
+    autostart: "{{ item.autostart | default(omit) }}"
+    comments: "{{ item.comments | default(omit) }}"
+    state: present
+  loop: "{{ pve_node_interfaces | default([]) }}"
+  loop_control:
+    label: "{{ item.iface }}"
+  delegate_to: localhost
+  become: false
+  register: proxmox_network_staged
+
+- name: Apply the staged configuration
+  ansible.builtin.import_tasks: apply.yml
+  when: proxmox_network_apply | bool
