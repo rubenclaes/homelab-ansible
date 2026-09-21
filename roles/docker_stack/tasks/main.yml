@@ -1,0 +1,56 @@
+- name: Generate deploy key for the stacks repo
+  community.crypto.openssh_keypair:
+    path: "{{ docker_stacks_deploy_key }}"
+    type: ed25519
+    comment: "docker01 deploy key (read-only)"
+  become_user: "{{ docker_stacks_owner }}"
+  register: deploy_key
+  tags: deploy_key
+
+- name: Show public key (add once to GitHub)
+  ansible.builtin.debug:
+    msg: "{{ deploy_key.public_key }}"
+  tags: deploy_key
+
+- name: Trust GitHub's SSH host key
+  ansible.builtin.known_hosts:
+    path: "/home/{{ docker_stacks_owner }}/.ssh/known_hosts"
+    name: github.com
+    key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+  become_user: "{{ docker_stacks_owner }}"
+  tags: deploy_key
+
+- name: Pull the stacks repository
+  ansible.builtin.git:
+    repo: "{{ docker_stacks_repo }}"
+    dest: "{{ docker_stacks_repo_dir }}"
+    version: "{{ docker_stacks_repo_version }}"
+    key_file: "{{ docker_stacks_deploy_key }}"
+    accept_hostkey: false
+  become_user: "{{ docker_stacks_owner }}"
+
+- name: Ensure PyYAML is present (needed by the compose module)
+  ansible.builtin.apt:
+    name: python3-yaml
+    state: present
+
+- name: Deploy .env from Vault
+  ansible.builtin.copy:
+    src: "{{ docker_stacks_env_dir }}/{{ item.name }}.env"
+    dest: "{{ docker_stacks_root }}/{{ item.path }}/.env"
+    owner: "{{ docker_stacks_owner }}"
+    group: "{{ docker_stacks_owner }}"
+    mode: "0600"
+  loop: "{{ docker_stacks }}"
+  loop_control:
+    label: "{{ item.name }}"
+  diff: false
+
+- name: Bring stacks up
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_stacks_root }}/{{ item.path }}"
+    project_name: "{{ item.project | default(omit) }}"
+    state: present
+  loop: "{{ docker_stacks }}"
+  loop_control:
+    label: "{{ item.name }}"
