@@ -12,9 +12,13 @@
   # comparison below fails instead of reporting no drift.
   check_mode: false
 
-- name: Start with an empty backup-job drift list
+# Reporting and asserting on these lists happens in verify.yml, imported last
+# from main.yml, not here: assert is fatal, and asserting here would halt the
+# play before every job in the loop below had been evaluated.
+- name: Start with empty backup-job drift and missing lists
   ansible.builtin.set_fact:
     proxmox_datacenter_job_drift: []
+    proxmox_datacenter_job_missing: []
 
 - name: Reconcile each declared backup job
   ansible.builtin.include_tasks: backup_job.yml
@@ -22,22 +26,3 @@
   loop_control:
     loop_var: job
     label: "{{ job.id }}"
-
-- name: Report which backup jobs differ from what is declared
-  ansible.builtin.debug:
-    msg: >-
-      {{ 'Every declared backup job matches the node'
-         if proxmox_datacenter_job_drift | length == 0
-         else 'Differs from inventory: ' ~ proxmox_datacenter_job_drift | join(', ') }}
-
-# The real test for this half of the role, for the same reason as storage:
-# ansible.builtin.command is skipped under --check, so the recap is clean
-# whether the jobs match or not. set_fact and assert do run in check mode.
-- name: Require the declared backup jobs to match the node
-  ansible.builtin.assert:
-    that: proxmox_datacenter_job_drift | length == 0
-    fail_msg: >-
-      These backup jobs differ from what inventory declares:
-      {{ proxmox_datacenter_job_drift | join(', ') }}.
-    success_msg: "All {{ pve_backup_jobs | default([]) | length }} declared backup jobs match"
-  when: proxmox_datacenter_require_clean | default(false) | bool

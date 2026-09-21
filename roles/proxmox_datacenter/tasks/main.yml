@@ -4,3 +4,9 @@
 
 - name: Backup jobs
   ansible.builtin.import_tasks: backup_jobs.yml
+
+# Imported last, deliberately. assert is fatal: asserting at the end of
+# either reconciliation above would halt the play before the other ran,
+# and a verification run is meant to report the whole role in one pass.
+- name: Report and verify
+  ansible.builtin.import_tasks: verify.yml

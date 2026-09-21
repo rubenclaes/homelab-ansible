@@ -5,66 +5,82 @@
       {{ proxmox_datacenter_storage_raw.stdout | from_json
          | selectattr('storage', 'eq', storage.id) | list | first | default({}) }}
 
-# pvesh spawns a fresh Perl process for every call, and Perl randomises its
-# hash-key iteration order per process (the default since 5.18). Proxmox
-# holds `content` internally as a set of content types, so the same storage
-# reports it in a different comma order on almost every single call -
-# confirmed on pve01, where five consecutive `pvesh get /storage` calls
-# returned five different orderings of `local`'s three-item content field
-# with no configuration change between them. A literal string comparison on
-# this field is not a transcription problem storage.yml can fix: it would
-# fail intermittently no matter what order is declared. Sorting both sides
-# before comparing tests set membership, which is what actually matters, and
-# leaves every other field's comparison untouched.
-- name: Normalise content ordering before comparing {{ storage.id }}
+# Recorded here, not asserted: creating a storage points Proxmox at a disk, a
+# pool or a remote server, which is a decision with data behind it and not
+# one a converge run should take on its own. verify.yml turns this list into
+# a fatal, unconditional error once every declared storage and backup job has
+# had a chance to be checked - refusing here would stop the loop and hide
+# whatever came after this entry.
+- name: Record a missing storage - {{ storage.id }}
   ansible.builtin.set_fact:
-    proxmox_datacenter_storage_live_cmp: >-
-      {{ proxmox_datacenter_storage_live
-         | combine({'content': proxmox_datacenter_storage_live.content.split(',') | sort | join(',')})
-         if 'content' in proxmox_datacenter_storage_live
-         else proxmox_datacenter_storage_live }}
-    proxmox_datacenter_storage_params_cmp: >-
-      {{ storage.params
-         | combine({'content': storage.params.content.split(',') | sort | join(',')})
-         if 'content' in storage.params
-         else storage.params }}
+    proxmox_datacenter_missing: "{{ proxmox_datacenter_missing + [storage.id] }}"
+  when: proxmox_datacenter_storage_live | length == 0
 
-# Merging the declared params into the live entry and comparing against the
-# live entry answers "is every declared field already correct?" in one
-# expression, and treats a missing key exactly like a wrong value.
-- name: Decide whether to update {{ storage.id }}
-  ansible.builtin.set_fact:
-    proxmox_datacenter_storage_matches: >-
-      {{ (proxmox_datacenter_storage_live_cmp | combine(proxmox_datacenter_storage_params_cmp))
-         == proxmox_datacenter_storage_live_cmp }}
+- name: Reconcile against the live node - {{ storage.id }}
+  when: proxmox_datacenter_storage_live | length > 0
+  block:
+    # pvesh spawns a fresh Perl process for every call, and Perl randomises its
+    # hash-key iteration order per process (the default since 5.18). Proxmox
+    # holds `content` internally as a set of content types, so the same storage
+    # reports it in a different comma order on almost every single call -
+    # confirmed on pve01, where five consecutive `pvesh get /storage` calls
+    # returned five different orderings of `local`'s three-item content field
+    # with no configuration change between them. A literal string comparison on
+    # this field is not a transcription problem storage.yml can fix: it would
+    # fail intermittently no matter what order is declared. Sorting both sides
+    # before comparing tests set membership, which is what actually matters, and
+    # leaves every other field's comparison untouched.
+    - name: Normalise content ordering before comparing {{ storage.id }}
+      ansible.builtin.set_fact:
+        proxmox_datacenter_storage_live_cmp: >-
+          {{ proxmox_datacenter_storage_live
+             | combine({'content': proxmox_datacenter_storage_live.content.split(',') | sort | join(',')})
+             if 'content' in proxmox_datacenter_storage_live
+             else proxmox_datacenter_storage_live }}
+        proxmox_datacenter_storage_params_cmp: >-
+          {{ storage.params
+             | combine({'content': storage.params.content.split(',') | sort | join(',')})
+             if 'content' in storage.params
+             else storage.params }}
 
-- name: Refuse to touch a storage that does not exist
-  ansible.builtin.assert:
-    that: proxmox_datacenter_storage_live | length > 0
-    fail_msg: >-
-      No storage named {{ storage.id }} exists on this node. This role updates
-      storage definitions, it does not create them: creating one points
-      Proxmox at a disk, a pool or a remote server, which is a decision with
-      data behind it and not one a converge run should take on its own. Create
-      it once, then transcribe it into pve_storages.
-    success_msg: "{{ storage.id }} exists"
+    # An explicit field-by-field diff, rather than combine-then-compare-to-
+    # the-original. combine()-equality only ever proved *that* something
+    # differed, never *what*: a declared value present under an existing key
+    # but with the wrong value produced no visible field name, only "the
+    # merge changed something".
+    - name: Work out which fields differ for {{ storage.id }}
+      ansible.builtin.set_fact:
+        proxmox_datacenter_storage_diff: >-
+          {%- set diff = [] -%}
+          {%- for k, v in proxmox_datacenter_storage_params_cmp.items() -%}
+          {%-   if proxmox_datacenter_storage_live_cmp.get(k) != v -%}
+          {%-     set _ = diff.append(k) -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{ diff }}
 
-- name: Record drift for {{ storage.id }}
-  ansible.builtin.set_fact:
-    proxmox_datacenter_drift: "{{ proxmox_datacenter_drift + [storage.id] }}"
-  when: not proxmox_datacenter_storage_matches
+    - name: Decide whether to update {{ storage.id }}
+      ansible.builtin.set_fact:
+        proxmox_datacenter_storage_matches: "{{ proxmox_datacenter_storage_diff | length == 0 }}"
 
-# `type` is compared but never sent. It is the one field pvesh set rejects -
-# a storage's type is fixed at creation - and leaving it in the comparison is
-# what catches a transcription that named the wrong storage.
-- name: Apply the declared fields to {{ storage.id }}
-  ansible.builtin.command:
-    argv: >-
-      {{ ['pvesh', 'set', '/storage/' ~ storage.id]
-         + (storage.params | dict2items | rejectattr('key', 'eq', 'type')
-            | map(attribute='key') | map('regex_replace', '^', '--') | list
-            | zip(storage.params | dict2items | rejectattr('key', 'eq', 'type')
-                  | map(attribute='value') | map('string') | list)
-            | flatten | list) }}
-  when: not proxmox_datacenter_storage_matches
-  changed_when: true
+    - name: Record drift for {{ storage.id }}
+      ansible.builtin.set_fact:
+        proxmox_datacenter_drift: >-
+          {{ proxmox_datacenter_drift
+             + [storage.id ~ ' (' ~ (proxmox_datacenter_storage_diff | join(', ')) ~ ')'] }}
+      when: not proxmox_datacenter_storage_matches
+
+    # `type` is compared but never sent. It is the one field pvesh set rejects -
+    # a storage's type is fixed at creation - and leaving it in the comparison is
+    # what catches a transcription that named the wrong storage.
+    - name: Apply the declared fields to {{ storage.id }}
+      ansible.builtin.command:
+        argv: >-
+          {{ ['pvesh', 'set', '/storage/' ~ storage.id]
+             + (storage.params | dict2items | rejectattr('key', 'eq', 'type')
+                | map(attribute='key') | map('regex_replace', '^', '--') | list
+                | zip(storage.params | dict2items | rejectattr('key', 'eq', 'type')
+                      | map(attribute='value') | map('string') | list)
+                | flatten | list) }}
+      when: not proxmox_datacenter_storage_matches
+      changed_when: true
