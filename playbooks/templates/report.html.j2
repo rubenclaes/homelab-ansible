@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homelab report</title>
+<style>
+  :root { --bg: #f7f7f5; --fg: #1d1d1f; --muted: #6e6e73; --card: #fff; --line: #e5e5e5;
+          --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161618; --fg: #f2f2f2; --muted: #9a9aa0; --card: #1f1f22; --line: #333;
+            --ok: #3fb950; --warn: #d29922; --bad: #f85149; }
+  }
+  body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--fg);
+         margin: 0; padding: 24px 16px; }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+          margin-bottom: 16px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); font-weight: 600; } .bad { color: var(--bad); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+{% set cert_end = report_cert.not_after | to_datetime('%Y%m%d%H%M%SZ') %}
+{% set now_utc = now(utc=true).strftime('%Y%m%d%H%M%SZ') | to_datetime('%Y%m%d%H%M%SZ') %}
+{% set cert_days = (cert_end - now_utc).days %}
+  <h1>Homelab report</h1>
+  <div class="sub">Generated {{ now().strftime('%A %d %B %Y, %H:%M') }}</div>
+
+  <div class="card">
+    <strong>*.neodata.be certificate</strong>:
+    <span class="{{ 'bad' if cert_days < 14 else 'warn' if cert_days < 30 else 'ok' }}">
+      {{ cert_days }} days left
+    </span>
+    ({{ cert_end.strftime('%d %b %Y') }})
+  </div>
+
+  <div class="card">
+    <table>
+      <tr><th>Host</th><th>OS</th><th>Kernel</th><th>Uptime</th><th>Disk</th><th>Updates</th><th>Reboot</th></tr>
+{% for h in groups['linux'] | sort %}
+{% if hostvars[h].report_row is defined %}
+{% set r = hostvars[h].report_row %}
+      <tr>
+        <td><strong>{{ r.host }}</strong></td>
+        <td>{{ r.os }}</td>
+        <td>{{ r.kernel }}</td>
+        <td>{{ r.uptime_days }} d</td>
+        <td class="{{ 'bad' if r.disk_used_pct | int >= 85 else 'warn' if r.disk_used_pct | int >= 70 else 'ok' }}">{{ r.disk_used_pct }}%</td>
+        <td class="{{ 'warn' if r.pending | int > 0 else 'ok' }}">{{ r.pending }}</td>
+        <td class="{{ 'bad' if r.reboot | bool else 'ok' }}">{{ 'yes' if r.reboot | bool else 'no' }}</td>
+      </tr>
+{% else %}
+      <tr><td><strong>{{ h }}</strong></td><td colspan="6" class="bad">unreachable during this run</td></tr>
+{% endif %}
+{% endfor %}
+    </table>
+  </div>
+</main>
+</body>
+</html>

@@ -36,3 +36,20 @@
     - name: Show it
       ansible.builtin.debug:
         var: report_row
+
+
+- name: Render the report
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read the wildcard certificate
+      community.crypto.get_certificate:
+        host: semaphore.neodata.be
+        port: 443
+      register: report_cert
+
+    - name: Render HTML
+      ansible.builtin.template:
+        src: report.html.j2
+        dest: /tmp/homelab-report.html
+        mode: "0644"
