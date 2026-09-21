@@ -1,0 +1,33 @@
+---
+# Everything in the house that Ansible cannot log into: phones, tablets, the
+# TV, the printer, the parents' PC. Machines with SSH live in the inventory
+# and stay there - one fact, one place.
+#
+# The MAC is the identifier, not the IP. Same reason pve_vms records them: a
+# new MAC means a new DHCP lease. The router at 192.168.0.1 hands out the
+# addresses; `ip` here is the reservation set there, written down so a rebuilt
+# router can be put back the way it was. Nothing in this repo enforces it.
+#
+# A device with no reservation simply has no `ip`. That is normal for a guest's
+# phone and is not a gap.
+#
+# MACs are lowercase with colons. docs.yml asserts the form, so two spellings
+# cannot become two devices.
+devices:
+  iphone-ruben:
+    owner: Ruben
+    type: phone
+    mac: "aa:bb:cc:dd:ee:ff"
+    ip: 192.168.0.60
+
+  tv-woonkamer:
+    owner: gedeeld
+    type: tv
+    mac: "11:22:33:44:55:66"
+    ip: 192.168.0.70
+    note: "Chromecast ingebouwd; praat met Plex"
+
+  printer:
+    owner: gedeeld
+    type: printer
+    mac: "77:88:99:aa:bb:cc"

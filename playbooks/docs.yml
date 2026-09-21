@@ -38,6 +38,29 @@
             | difference(directory_categories.keys() | list) | join(', ') | default('none', true) }}.
         success_msg: "{{ directory_services | length }} tiles, all routed."
 
+    # A reserved address that collides with a managed host is the failure worth
+    # catching: put the printer on caddy's address and you find out when DNS
+    # stops working, not before. The other three checks keep the list itself
+    # honest - one spelling per MAC, no duplicates, no two devices on one IP.
+    - name: Check the device list against the inventory
+      ansible.builtin.assert:
+        that:
+          - devices.values() | list | selectattr('mac', 'match', mac_re) | list | length == devices | length
+          - devices.values() | list | map(attribute='mac') | list | length
+            == devices.values() | list | map(attribute='mac') | unique | list | length
+          - device_ips | length == device_ips | unique | list | length
+          - device_ips | intersect(inventory_ips) | length == 0
+        fail_msg: >-
+          devices.yml is wrong.
+          Bad or uppercase MAC: {{ devices | dict2items
+            | rejectattr('value.mac', 'match', mac_re) | map(attribute='key') | join(', ') | default('none', true) }}.
+          Address also used by a managed host: {{ device_ips | intersect(inventory_ips) | join(', ') | default('none', true) }}.
+        success_msg: "{{ devices | length }} devices, no address collisions."
+      vars:
+        mac_re: '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
+        device_ips: "{{ devices.values() | list | selectattr('ip', 'defined') | map(attribute='ip') | list }}"
+        inventory_ips: "{{ groups['all'] | map('extract', hostvars, 'ansible_host') | select('defined') | list }}"
+
     - name: Render the generated reference pages
       ansible.builtin.template:
         src: "docs/{{ item }}.md.j2"
