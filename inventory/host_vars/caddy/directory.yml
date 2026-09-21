@@ -1,0 +1,68 @@
+---
+# Presentatie voor /diensten. Los van caddy_sites, dat over routering gaat en
+# niet dikker mag worden van proza.
+#
+# De volgorde van directory_categories is de volgorde op de pagina: YAML
+# bewaart de volgorde van een mapping en to_json geeft die ongewijzigd door.
+directory_categories:
+  media: { label: "Films, foto's en muziek" }
+  thuis: { label: "Thuis" }
+  bestanden: { label: "Bestanden" }
+
+# Alleen wat hier staat, verschijnt op /diensten. De sleutel is de `name` uit
+# caddy_sites; docs.yml faalt als die niet meer bestaat.
+#
+# `blurb` is een korte regel, geen zin: de tegel is vier per rij breed.
+# `icon` verwijst naar een sleutel in docs-site/components/icons.jsx.
+#
+# Bewust afwezig:
+#   jellyfin - naast plex twee tegels met hetzelfde icoon en dezelfde belofte.
+#              Houdt zijn route en zijn technische pagina.
+#   home     - Homepage doet hetzelfde werk als deze pagina. Twee voordeuren
+#              lopen uiteen en de handonderhouden loopt weg.
+directory_services:
+  photos:
+    category: media
+    icon: camera
+    label: "Foto's"
+    blurb: "Onze foto's en video's"
+  plex:
+    category: media
+    icon: film
+    label: "Films & series"
+    blurb: "Kijken op TV of telefoon"
+  audiobooks:
+    category: media
+    icon: headphones
+    label: "Luisterboeken"
+    blurb: "Boeken en podcasts"
+  overseerr:
+    category: media
+    icon: plus
+    label: "Aanvragen"
+    blurb: "Vraag een film aan"
+  wizarr:
+    category: media
+    icon: user-plus
+    label: "Uitnodigen"
+    blurb: "Geef iemand toegang"
+  spullen:
+    category: thuis
+    icon: box
+    label: "Wat ligt waar"
+    blurb: "Met QR-labels"
+  memos:
+    category: thuis
+    icon: note
+    label: "Notities"
+    blurb: "Snelle notities"
+  pairdrop:
+    category: bestanden
+    icon: send
+    label: "Delen"
+    blurb: "Naar een ander toestel"
+  pdf:
+    category: bestanden
+    icon: file
+    label: "PDF's"
+    blurb: "Samenvoegen, splitsen"
