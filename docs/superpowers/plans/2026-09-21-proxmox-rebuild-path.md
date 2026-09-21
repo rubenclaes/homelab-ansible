@@ -1727,6 +1727,30 @@ which is the whole point.
       delegate_to: localhost
       become: false
 
+    # A container this new presents an SSH host key nobody has seen, and
+    # Ansible cannot accept an unknown key non-interactively. README.md tells
+    # you to run ssh-keyscan by hand before bootstrap.yml for exactly this
+    # reason - which is precisely the kind of remembered step a drill exists
+    # to find.
+    #
+    # `pct exec` reads the key through the hypervisor rather than over the
+    # network, so this trusts a key we fetched from the machine's own disk
+    # instead of whatever answers on that address. That is the same standard
+    # roles/semaphore holds itself to when it builds its known_hosts from
+    # gathered facts, rather than from a keyscan.
+    - name: Read the drill container's SSH host key
+      ansible.builtin.command: pct exec {{ drill_vmid }} -- cat /etc/ssh/ssh_host_ed25519_key.pub
+      register: drill_host_key
+      changed_when: false
+
+    - name: Trust that key on the controller
+      ansible.builtin.known_hosts:
+        name: "{{ drill_ip | split('/') | first }}"
+        key: "{{ drill_ip | split('/') | first }} {{ drill_host_key.stdout.split()[0] }} {{ drill_host_key.stdout.split()[1] }}"
+        state: present
+      delegate_to: localhost
+      become: false
+
     - name: Add the drill container to the in-memory inventory
       ansible.builtin.add_host:
         name: drill
@@ -1792,7 +1816,18 @@ which is the whole point.
 - name: Destroy the drill container
   hosts: pve01
   gather_facts: true
+  vars:
+    drill_ip: 192.168.0.199/24
   tasks:
+    # Before the container goes, so a later drill is not refused by a stale
+    # entry: the next container on this address will have a different key.
+    - name: Stop trusting the drill container's key
+      ansible.builtin.known_hosts:
+        name: "{{ drill_ip | split('/') | first }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+
     - name: Destroy the drill container
       community.proxmox.proxmox:
         api_host: "{{ pve_api_host }}"
@@ -1822,6 +1857,10 @@ If it fails, the container is still running at `192.168.0.199`. Log in and
 find out why before destroying it — that failure is the most valuable output
 this plan produces, because it means the real rebuild path was broken and you
 now know it without having needed it.
+
+Re-running after a failure needs the wreckage cleared first: the drill refuses
+to touch a vmid that already exists, deliberately. `pct destroy 199` on pve01,
+then run it again.
 
 - [ ] **Step 6: Verify it is really gone**
 
