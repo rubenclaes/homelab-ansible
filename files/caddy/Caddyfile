@@ -41,6 +41,7 @@
 	}
 	abort
 }
+
 # -----------------------
 # Default HTTP site (port 80)
 # -----------------------
@@ -113,15 +114,12 @@ portainer.neodata.be {
 	}
 }
 
-unifi.neodata.be {
+# -----------------------
+# Infra
+# -----------------------
+semaphore.neodata.be {
 	import proxy_defaults
-	reverse_proxy https://192.168.0.55:11443 {
-		import https_upstream_insecure
-		header_up Host {host}
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
-	}
+	reverse_proxy 192.168.0.30:3000
 }
 
 # -----------------------
@@ -229,6 +227,7 @@ torrent.neodata.be {
 	reverse_proxy 192.168.0.15:8089
 }
 
+# TODO: twee Pocket ID-instanties (auth = Mac mini, id = docker01) - uitzoeken welke gebruikt wordt
 auth.neodata.be {
 	import proxy_defaults
 	reverse_proxy 192.168.0.26:1411
@@ -243,11 +242,6 @@ wizarr.neodata.be {
 books.neodata.be {
 	import proxy_defaults
 	reverse_proxy 192.168.0.26:6061
-}
-
-downloads.neodata.be {
-	import proxy_defaults
-	reverse_proxy
 }
 
 audiobooks.neodata.be {
@@ -291,11 +285,6 @@ photos.neodata.be {
 	reverse_proxy 192.168.0.15:2283
 }
 
-automate.neodata.be {
-	import proxy_defaults
-	reverse_proxy 192.168.0.5:5678
-}
-
 evcc.neodata.be {
 	import proxy_defaults
 	reverse_proxy 192.168.0.15:7070 {
@@ -312,19 +301,13 @@ id.neodata.be {
 	reverse_proxy 192.168.0.15:1411
 }
 
-# ── Trek    ────────────────────────────────────────────────────────
+# ── Trek ─────────────────────────────────────────────────────────────
 trek.neodata.be {
 	import proxy_defaults
-		reverse_proxy 192.168.0.15:8083 {
+	reverse_proxy 192.168.0.15:8083 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 	}
 }
-# BEGIN ANSIBLE ROUTE semaphore
-semaphore.neodata.be {
-    import proxy_defaults
-    reverse_proxy 192.168.0.30:3000
-}
-# END ANSIBLE ROUTE semaphore
