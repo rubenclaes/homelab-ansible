@@ -4,6 +4,7 @@ export default {
   hosts: 'Hosts',
   containers: 'LXC-containers',
   stacks: 'Docker-stacks',
+  toestellen: 'Toestellen',
   services: 'Services',
   runbooks: 'Runbooks'
 }

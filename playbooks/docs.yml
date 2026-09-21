@@ -74,6 +74,12 @@
         dest: "{{ docs_site }}/content/diensten.mdx"
         mode: "0644"
 
+    - name: Render the device list
+      ansible.builtin.template:
+        src: docs/toestellen.md.j2
+        dest: "{{ docs_site }}/content/technisch/toestellen.mdx"
+        mode: "0644"
+
     # Wiped and rebuilt rather than overwritten: a service deleted from
     # caddy_sites must not leave its page behind, and a stale page looks live.
     # Same absent -> directory swap this playbook already uses when publishing.

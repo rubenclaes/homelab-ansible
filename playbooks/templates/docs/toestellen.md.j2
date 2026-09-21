@@ -1,0 +1,51 @@
+---
+title: Toestellen
+---
+
+import { Callout } from 'nextra/components'
+
+{# Flattened to a list of rows first, so groupby has a plain attribute to work
+   on and the table loop does not need to know that `devices` is a mapping.
+   dictsort makes the order within a type deterministic; groupby sorts the
+   types themselves, so a second run produces no diff. -#}
+{% set rows = [] -%}
+{% for name, d in devices | dictsort -%}
+{% set _ = rows.append({
+     'name': name,
+     'owner': d.owner,
+     'type': d.type,
+     'mac': d.mac,
+     'ip': d.ip | default(''),
+     'note': d.note | default('')
+   }) -%}
+{% endfor %}
+
+# Toestellen
+
+<Callout type="warning">
+Gegenereerd uit `devices` in `inventory/group_vars/all/devices.yml`.
+Machines mét SSH staan onder [Hosts](/technisch/hosts/) — die komen uit de
+inventory, niet uit deze lijst.
+</Callout>
+
+Adressen zijn reserveringen in de router, geen metingen. De lijst legt vast wat
+er hoort te staan; niets hier dwingt het af.
+
+{# The blank lines inside the loops are deliberate. Ansible renders with
+   trim_blocks on, so the newline after a block tag is eaten; without these a
+   table runs straight into the next heading and Markdown stops seeing it as
+   one. -#}
+{% for type, group in rows | groupby('type') %}
+
+## {{ type }}
+
+| Toestel | Van wie | MAC | Adres |
+| --- | --- | --- | --- |
+{% for r in group %}
+| **{{ r.name }}** | {{ r.owner }} | `{{ r.mac }}` | {{ ('`' ~ r.ip ~ '`') if r.ip else '—' }} |
+{% endfor %}
+{% for r in group if r.note %}
+
+{{ r.name }} — {{ r.note }}
+{% endfor %}
+{% endfor %}
