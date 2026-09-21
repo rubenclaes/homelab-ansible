@@ -1,0 +1,36 @@
+- name: Ensure guests autostart with pve01
+  hosts: pve01
+  vars:
+    pve_api_auth: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token_id }}={{ pve_api_token_secret }}"
+  tasks:
+    - name: Read guests with their config
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        node: "{{ ansible_facts['hostname'] }}"
+        config: current
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: guests
+
+    - name: Enable autostart where it's missing
+      ansible.builtin.uri:
+        url: "https://{{ pve_api_host }}:8006/api2/json/nodes/{{ ansible_facts['hostname'] }}/{{ item.type }}/{{ item.vmid }}/config"
+        method: PUT
+        headers:
+          Authorization: "{{ pve_api_auth }}"
+        body_format: form-urlencoded
+        body:
+          onboot: 1
+        validate_certs: false
+      loop: "{{ guests.proxmox_vms }}"
+      loop_control:
+        label: "{{ item.vmid }} {{ item.name }}"
+      when: (item.config.onboot | default(0) | int) != 1
+      changed_when: true
+      delegate_to: localhost
+      become: false
+      no_log: true
