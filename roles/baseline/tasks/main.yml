@@ -8,6 +8,12 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
+    
+- name: Hold pinned packages
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ baseline_held_packages }}"
 
 - name: Count pending upgrades
   ansible.builtin.shell: apt-get -s dist-upgrade | grep -c '^Inst' || true
