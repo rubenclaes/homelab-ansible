@@ -1,5 +1,5 @@
 ---
-docker_stacks:
+docker_stacks_list:
   - { name: utils, path: utils }
   - { name: glance, path: glance }
   - { name: homepage, path: homepage }

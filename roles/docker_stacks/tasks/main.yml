@@ -38,7 +38,7 @@
     name: python3-yaml
     state: present
 
-- name: Verify mount units exist
+- name: Verify mount units exist  # noqa: command-instead-of-module
   ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
   loop: "{{ docker_stacks_wait_for_mounts }}"
   register: docker_stacks_mount_state
@@ -72,7 +72,7 @@
     owner: "{{ docker_stacks_owner }}"
     group: "{{ docker_stacks_owner }}"
     mode: "0600"
-  loop: "{{ docker_stacks }}"
+  loop: "{{ docker_stacks_list }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.env | default(true)
@@ -83,6 +83,6 @@
     project_src: "{{ docker_stacks_root }}/{{ item.path }}"
     project_name: "{{ item.project | default(omit) }}"
     state: present
-  loop: "{{ docker_stacks }}"
+  loop: "{{ docker_stacks_list }}"
   loop_control:
     label: "{{ item.name }}"
