@@ -8,7 +8,7 @@
   gather_facts: false
   vars:
     docs_site: "{{ playbook_dir }}/../docs-site"
-    docs_pages: [services, hosts, containers, stacks]
+    docs_pages: [hosts, containers, stacks]
     # Read straight off the caddy host. Safe here because none of these values
     # contain a template themselves. A var whose VALUE is a hostvars template -
     # caddy_tinyauth_upstream is the one - cannot be read from a localhost play;
@@ -49,6 +49,37 @@
       ansible.builtin.template:
         src: docs/diensten.md.j2
         dest: "{{ docs_site }}/content/diensten.mdx"
+        mode: "0644"
+
+    # Wiped and rebuilt rather than overwritten: a service deleted from
+    # caddy_sites must not leave its page behind, and a stale page looks live.
+    # Same absent -> directory swap this playbook already uses when publishing.
+    - name: Clear the per-service pages
+      ansible.builtin.file:
+        path: "{{ docs_site }}/content/technisch/services"
+        state: "{{ item }}"
+        mode: "0755"
+      loop: [absent, directory]
+
+    - name: Render the services index
+      ansible.builtin.template:
+        src: docs/services.md.j2
+        dest: "{{ docs_site }}/content/technisch/services/index.mdx"
+        mode: "0644"
+
+    - name: Render one page per service
+      ansible.builtin.template:
+        src: docs/service.md.j2
+        dest: "{{ docs_site }}/content/technisch/services/{{ item.name }}.mdx"
+        mode: "0644"
+      loop: "{{ caddy_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Render the per-service navigation
+      ansible.builtin.template:
+        src: docs/services-meta.js.j2
+        dest: "{{ docs_site }}/content/technisch/services/_meta.js"
         mode: "0644"
 
     # `npm ci` installs exactly what package-lock.json pins, and fails rather

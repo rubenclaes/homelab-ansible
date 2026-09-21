@@ -1,0 +1,29 @@
+{% set s = item -%}
+{% set h = hostvars[s.host] if (s.host is defined and s.host in hostvars) else {} -%}
+{# Het echte upstream-adres, niet wat er in de config staat. hostvars direct
+   uitlezen mag vanuit de localhost-play; hosts.md.j2 doet het al. Een site met
+   `upstream:` heeft geen inventory-host, vandaar de default. -#}
+{% set up = s.upstream | default((h.ansible_host | default('?')) ~ ':' ~ (s.port | default('?'))) -%}
+{% set flags = [] -%}
+{% if s.https | default(false) %}{% set _ = flags.append('TLS-upstream') %}{% endif -%}
+{% if s.auth | default(false) %}{% set _ = flags.append('achter tinyauth') %}{% endif -%}
+{% if s.forwarded | default(false) %}{% set _ = flags.append('forwarded headers') %}{% endif -%}
+{% if s.host_header | default(false) %}{% set _ = flags.append('host-header doorgegeven') %}{% endif -%}
+---
+title: {{ s.name }}
+---
+
+# {{ s.name }}
+
+{{ s.desc | default('Niet gedocumenteerd.') }}
+
+| Eigenschap | Waarde |
+| --- | --- |
+| URL | [{{ s.name }}.{{ caddy_domain }}](https://{{ s.name }}.{{ caddy_domain }}) |
+| Upstream | `{{ up }}` |
+| Host | {{ ('[' ~ s.host ~ '](/technisch/hosts/)') if s.host is defined else '— (vaste upstream)' }} |
+| Poort | {{ ('`' ~ s.port ~ '`') if s.port is defined else '—' }} |
+| Groepen | {{ (h.group_names | sort | join(', ')) if h.group_names is defined else '—' }} |
+| Eigenschappen | {{ flags | join(' · ') if flags else '—' }} |
+
+Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`.

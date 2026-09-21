@@ -1,0 +1,70 @@
+---
+title: Services
+---
+
+import { Callout } from 'nextra/components'
+
+# Services
+
+<Callout type="warning">
+Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`.
+Bewerk de inventory, niet deze pagina.
+</Callout>
+
+Elke service draait op `https://<naam>.neodata.be`, via Caddy.
+Upstream-adressen komen uit `ansible_host` van de host zelf, dus een host
+verhuizen past elke route aan die ernaar wijst.
+
+## docker <span style={{ opacity: 0.5, fontWeight: 400 }}>— 19 services</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [audiobooks.neodata.be](https://audiobooks.neodata.be) | `13378` | Audiobookshelf — luisterboeken en podcasts |  |
+| [code.neodata.be](https://code.neodata.be) | `8443` | code-server — VS Code in de browser |  |
+| [home.neodata.be](https://home.neodata.be) | `8085` | Homepage — startpagina met alle diensten |  |
+| [id.neodata.be](https://id.neodata.be) | `1411` | Pocket ID — OIDC-provider (huidige instantie) |  |
+| [memos.neodata.be](https://memos.neodata.be) | `5230` | Memos - snelle notities |  |
+| [metube.neodata.be](https://metube.neodata.be) | `8081` | MeTube — webinterface voor yt-dlp |  |
+| [neogate.neodata.be](https://neogate.neodata.be) | `4000` | NeoGate — toegangsbeheer voor het homelab (eigen app) |  |
+| [overseerr.neodata.be](https://overseerr.neodata.be) | `5055` | Aanvragen voor films en series |  |
+| [pairdrop.neodata.be](https://pairdrop.neodata.be) | `3000` | Bestanden tussen toestellen in huis, zoals AirDrop |  |
+| [pdf.neodata.be](https://pdf.neodata.be) | `8084` | BentoPDF — PDF's samenvoegen, splitsen en omzetten |  |
+| [photos.neodata.be](https://photos.neodata.be) | `2283` | Immich — foto- en videobibliotheek |  |
+| [portainer.neodata.be](https://portainer.neodata.be) | `9443` | Docker-beheer voor de docker-host | TLS-upstream.  |
+| [prowlarr.neodata.be](https://prowlarr.neodata.be) | `9696` | Indexerbeheer voor Sonarr en Radarr |  |
+| [radarr.neodata.be](https://radarr.neodata.be) | `7878` | Beheer van films |  |
+| [sonarr.neodata.be](https://sonarr.neodata.be) | `8989` | Beheer van series |  |
+| [spullen.neodata.be](https://spullen.neodata.be) | `7745` | Homebox — wat ligt waar, met QR-labels |  |
+| [termix.neodata.be](https://termix.neodata.be) | `8086` | SSH in de browser |  |
+| [tools.neodata.be](https://tools.neodata.be) | `8082` | IT-Tools — ontwikkelaarsgereedschap, offline |  |
+| [torrent.neodata.be](https://torrent.neodata.be) | `8089` | qBittorrent — schrijft naar de NFS-share van de Mac mini |  |
+
+## docker-grafana-stack <span style={{ opacity: 0.5, fontWeight: 400 }}>— 2 services</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [monitoring.neodata.be](https://monitoring.neodata.be) | `3001` | Uptime Kuma — bereikbaarheidscontroles en meldingen | Host-header doorgegeven.  |
+| [prometheus.neodata.be](https://prometheus.neodata.be) | `9090` | Metrics-store die Grafana scrapet |  |
+
+## macmini <span style={{ opacity: 0.5, fontWeight: 400 }}>— 11 services</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [auth.neodata.be](https://auth.neodata.be) | `1411` | Pocket ID — oude instantie, wordt uitgefaseerd |  |
+| [bazarr.neodata.be](https://bazarr.neodata.be) | `6767` | Ondertitels ophalen voor Sonarr en Radarr |  |
+| [books.neodata.be](https://books.neodata.be) | `6061` | Grimmory — bibliotheek voor e-books, strips en luisterboeken |  |
+| [dozzle.neodata.be](https://dozzle.neodata.be) | `8080` | Live Docker-logs bekijken |  |
+| [duplicati.neodata.be](https://duplicati.neodata.be) | `8200` | Back-ups vanaf de Mac mini |  |
+| [jackett.neodata.be](https://jackett.neodata.be) | `9117` | Proxy voor torrent-indexers |  |
+| [jellyfin.neodata.be](https://jellyfin.neodata.be) | `8096` | Jellyfin — mediaserver naast Plex |  |
+| [plex.neodata.be](https://plex.neodata.be) | `32400` | Plex — de hoofdtaak van de Mac mini |  |
+| [tautulli.neodata.be](https://tautulli.neodata.be) | `8181` | Kijkstatistieken van Plex |  |
+| [tinyauth.neodata.be](https://tinyauth.neodata.be) | `3000` | Auth-middleware achter Caddy's forward_auth |  |
+| [wizarr.neodata.be](https://wizarr.neodata.be) | `5690` | Uitnodigingen voor Plex en Jellyfin | Achter tinyauth.  |
+
+## semaphore <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [semaphore.neodata.be](https://semaphore.neodata.be) | `3000` | Ansible control plane — draait de playbooks volgens schema |  |
+

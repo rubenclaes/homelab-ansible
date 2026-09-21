@@ -1,0 +1,7 @@
+// Geschreven door playbooks/docs.yml. Niet bewerken.
+export default {
+  index: 'Alle services',
+{% for s in caddy_sites | sort(attribute='name') %}
+  '{{ s.name }}': '{{ s.name }}',
+{%- endfor %}
+}
