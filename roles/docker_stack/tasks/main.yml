@@ -71,6 +71,7 @@
   loop: "{{ docker_stacks }}"
   loop_control:
     label: "{{ item.name }}"
+  when: item.env | default(true)
   diff: false
 
 - name: Bring stacks up
