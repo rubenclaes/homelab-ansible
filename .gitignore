@@ -27,3 +27,6 @@ vault_pass
 .idea/
 .vscode/
 *.swp
+
+# Subagent-driven-development scratch: ledgers, briefs, review packages.
+.superpowers/
