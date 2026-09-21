@@ -10,8 +10,13 @@
 # connected to it over that same network.
 #
 # Before using the flag, know where the machine physically is. The dead-man
-# switch restores the previous configuration after 120 seconds if anything
-# goes wrong, but it is a safety net, not a guarantee.
+# switch restores the previous configuration if anything goes wrong, but it is
+# a safety net, not a guarantee.
+#
+# Read the live configuration and diff it against inventory/group_vars/proxmox/
+# network.yml before the first real apply. The transcription in that file was
+# made once and has not been re-checked since; applying it blind assumes the
+# node has not been touched by hand in the meantime.
 - name: Proxmox node networking
   hosts: proxmox
   gather_facts: true

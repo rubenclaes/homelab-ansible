@@ -1,6 +1,47 @@
 ---
 # Everything here runs on the node itself, because the sequence has to survive
 # the controller losing its connection halfway through.
+# Everything below assumes the running configuration is one that worked. If a
+# previous apply is still counting down, that assumption is false: this run
+# would copy a config that may already be broken, and the earlier timer would
+# then faithfully restore the breakage. Refuse, and say what to do instead.
+#
+# ansible.builtin.command, not systemd_service: the module's own argument spec
+# (required_one_of: state, enabled, masked, daemon_reload, daemon_reexec)
+# makes a bare query impossible to express with it - passing state would turn
+# a read into an enforcement, which is not what this task is. failed_when
+# below covers the module gap: `systemctl is-active` exits non-zero for every
+# state other than "active", and that is not a failure here, it is the
+# expected answer most of the time.
+- name: Check whether a previous revert is still armed # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl is-active ansible-network-revert.timer
+  register: proxmox_network_revert_armed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Refuse to apply while a previous revert is pending
+  ansible.builtin.assert:
+    that: proxmox_network_revert_armed.stdout | trim != 'active'
+    fail_msg: >-
+      ansible-network-revert.timer is still armed from an earlier apply, which
+      means the running configuration may be the one that earlier run broke.
+      Copying it as this run's rollback target would leave you with no way
+      back. Wait for the timer to fire and restore the previous config, or - if
+      you are certain the running config is good - stop it deliberately with
+      `systemctl stop ansible-network-revert.timer` and run this again.
+    success_msg: "No previous revert pending"
+
+# A transient unit that failed rather than completing lingers under the same
+# name and blocks the next systemd-run. Clearing it is safe: the assert above
+# has already established that nothing is counting down. `reset-failed` is one
+# of the systemctl subcommands ansible-lint's command-instead-of-module rule
+# already treats as having no module equivalent, so no noqa is needed here.
+- name: Clear any lingering revert unit
+  ansible.builtin.command: systemctl reset-failed ansible-network-revert.timer
+  changed_when: false
+  failed_when: false
+
 - name: Keep a copy of the running configuration
   ansible.builtin.copy:
     src: /etc/network/interfaces
@@ -44,7 +85,7 @@
   ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 22
-    timeout: 30
+    timeout: 20
   loop:
     - 192.168.0.10
     - 192.168.0.14

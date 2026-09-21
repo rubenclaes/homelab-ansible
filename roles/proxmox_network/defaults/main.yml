@@ -8,7 +8,15 @@
 # bridges is a converge run that can end the estate.
 proxmox_network_apply: false
 
-# Seconds before the dead-man switch restores the previous configuration. Long
-# enough for ifreload plus a reachability probe, short enough that a lockout
-# is over before you have finished reading the traceback.
-proxmox_network_revert_after: 120
+# Seconds before the dead-man switch restores the previous configuration.
+#
+# The arithmetic, so this is not a guess: copy, reset-failed and arm are about
+# a second each, the API apply plus ifreload runs to roughly fifteen, and the
+# reachability probe is two addresses at twenty seconds each in the worst
+# case. That is around eighty, leaving margin without stretching the window in
+# which you are locked out.
+#
+# Erring long is the safer direction. A timer that fires while a good config
+# is still being verified merely undoes a change you can re-apply; one that
+# fires too late leaves you waiting with an unreachable hypervisor.
+proxmox_network_revert_after: 180
