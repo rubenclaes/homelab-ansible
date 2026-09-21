@@ -1,11 +1,16 @@
 ---
-# Installs Proxmox Backup Server.
+# Installs Proxmox Backup Server and declares its datastore and jobs.
 #
-# The datastore, its pruning and verification jobs, and the API tokens are
-# NOT managed here. They are state that lives in PBS's own configuration and
-# is edited through its UI; recreating them from a playbook would mean this
-# role fights the appliance for ownership. What the role guarantees is that a
-# rebuilt host reaches the point where that configuration can be restored.
+# The datastore and its prune and verify jobs WERE deliberately unmanaged
+# here, on the grounds that recreating them from a playbook means fighting the
+# appliance for ownership of its own state. That reasoning was reversed on
+# 2026-09-21: it holds for large hand-tuned runtime state like
+# AdGuardHome.yaml, but not for one datastore and two jobs that are small,
+# stable, and worthless to reconstruct by hand during a rebuild. See
+# docs/superpowers/specs/2026-09-21-proxmox-rebuild-path-design.md, decision 1.
+#
+# API tokens remain unmanaged. They are secrets, and nothing in this repo
+# reads /etc/pve/priv or its PBS equivalent.
 - name: Install the Proxmox archive keyring
   ansible.builtin.copy:
     src: proxmox-archive-keyring.gpg
@@ -59,3 +64,9 @@
   loop:
     - proxmox-backup
     - proxmox-backup-proxy
+
+- name: Datastore and job configuration
+  ansible.builtin.import_tasks: config.yml
+
+- name: Report and verify
+  ansible.builtin.import_tasks: verify.yml

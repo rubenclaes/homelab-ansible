@@ -1,0 +1,116 @@
+---
+# No Ansible module covers PBS, so this is proxmox-backup-manager wrapped for
+# idempotency: list current state as JSON, compare against what is declared,
+# and act only on a difference. changed_when comes from that comparison, never
+# from the command's exit code - `datastore create` on an existing store fails
+# rather than no-ops, so a bare command would report changed on every run and
+# fail on the second.
+#
+# pbs_drift collects what would be created. As in proxmox_access, an absent
+# datastore or job is not an error here: creating it is exactly what this
+# role is for. Reporting and asserting on this list happens in verify.yml,
+# imported last from main.yml, not here.
+- name: Start with an empty drift list
+  ansible.builtin.set_fact:
+    pbs_drift: []
+
+- name: Read the current PBS datastores
+  ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
+  register: pbs_datastores_current
+  changed_when: false
+  check_mode: false
+
+# Recorded before creating, same as proxmox_access's users.yml: the record
+# has to reflect what's about to happen even under --check, where the
+# command task right below never runs.
+- name: Record the datastores that would be created
+  ansible.builtin.set_fact:
+    pbs_drift: "{{ pbs_drift + ['datastore ' ~ item.name] }}"
+  loop: "{{ pbs_datastores | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in (pbs_datastores_current.stdout | from_json | map(attribute='name') | list)
+
+- name: Create datastores that do not exist yet
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - datastore
+      - create
+      - "{{ item.name }}"
+      - "{{ item.path }}"
+      - --gc-schedule
+      - "{{ item.gc_schedule }}"
+  loop: "{{ pbs_datastores | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in (pbs_datastores_current.stdout | from_json | map(attribute='name') | list)
+  changed_when: true
+
+- name: Read the current prune jobs
+  ansible.builtin.command: proxmox-backup-manager prune-job list --output-format json
+  register: pbs_prune_current
+  changed_when: false
+  check_mode: false
+
+- name: Record the prune jobs that would be created
+  ansible.builtin.set_fact:
+    pbs_drift: "{{ pbs_drift + ['prune job ' ~ item.id] }}"
+  loop: "{{ pbs_prune_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.id }}"
+  when: item.id not in (pbs_prune_current.stdout | from_json | map(attribute='id') | list)
+
+- name: Create prune jobs that do not exist yet
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - prune-job
+      - create
+      - "{{ item.id }}"
+      - --store
+      - "{{ item.store }}"
+      - --schedule
+      - "{{ item.schedule }}"
+      - --keep-last
+      - "{{ item.keep_last }}"
+  loop: "{{ pbs_prune_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.id }}"
+  when: item.id not in (pbs_prune_current.stdout | from_json | map(attribute='id') | list)
+  changed_when: true
+
+- name: Read the current verify jobs
+  ansible.builtin.command: proxmox-backup-manager verify-job list --output-format json
+  register: pbs_verify_current
+  changed_when: false
+  check_mode: false
+
+- name: Record the verify jobs that would be created
+  ansible.builtin.set_fact:
+    pbs_drift: "{{ pbs_drift + ['verify job ' ~ item.id] }}"
+  loop: "{{ pbs_verify_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.id }}"
+  when: item.id not in (pbs_verify_current.stdout | from_json | map(attribute='id') | list)
+
+- name: Create verify jobs that do not exist yet
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - verify-job
+      - create
+      - "{{ item.id }}"
+      - --store
+      - "{{ item.store }}"
+      - --schedule
+      - "{{ item.schedule }}"
+      - --outdated-after
+      - "{{ item.outdated_after }}"
+      - --ignore-verified
+      - "{{ item.ignore_verified | string | lower }}"
+  loop: "{{ pbs_verify_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.id }}"
+  when: item.id not in (pbs_verify_current.stdout | from_json | map(attribute='id') | list)
+  changed_when: true

@@ -1,2 +1,30 @@
 ---
 baseline_unattended_upgrades: false
+
+# Datastore and job configuration, transcribed from
+# `proxmox-backup-manager <thing> list --output-format json`.
+#
+# ADDITIVE ONLY, like everything else in this repo's Proxmox layer. A
+# datastore is a directory full of backups; nothing here removes one.
+#
+# keep-last: 7 against a daily schedule is one week of history, and the
+# PVE-side storage entry says `prune-backups keep-all=1`, which leaves all
+# pruning to this side. Both are transcribed as they are. Whether one week is
+# enough is a decision to take deliberately, not to change here by accident.
+pbs_datastores:
+  - name: store1
+    path: /mnt/datastore/store1
+    gc_schedule: daily
+
+pbs_prune_jobs:
+  - id: s-b173aef0-8cbf
+    store: store1
+    schedule: daily
+    keep_last: 7
+
+pbs_verify_jobs:
+  - id: v-5885e27b-efbc
+    store: store1
+    schedule: sat 05:00
+    outdated_after: 30
+    ignore_verified: true

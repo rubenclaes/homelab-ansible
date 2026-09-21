@@ -1,0 +1,22 @@
+---
+# Its own file, imported after config.yml, because assert is fatal: asserting
+# inside config.yml would halt the play before the verify jobs were evaluated,
+# and this run exists to report the whole picture in one pass.
+- name: Report which PBS objects are missing
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Every declared datastore and job is in place'
+         if pbs_drift | length == 0
+         else 'Would be created: ' ~ pbs_drift | join(', ') }}
+
+# `changed` cannot serve as the test: ansible.builtin.command is skipped
+# outright under --check, so the recap is clean whether or not anything is
+# missing. set_fact and assert do run in check mode.
+- name: Require every declared datastore and job to be in place
+  ansible.builtin.assert:
+    that: pbs_drift | length == 0
+    fail_msg: >-
+      Not yet in place: {{ pbs_drift | join(', ') }}.
+      Run this playbook without --check to create them.
+    success_msg: "All declared datastores and jobs are in place"
+  when: pbs_require_clean | default(false) | bool
