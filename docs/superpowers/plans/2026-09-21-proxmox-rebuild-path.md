@@ -1794,6 +1794,14 @@ which is the whole point.
       changed_when: false
       failed_when: drill_id.stdout != 'root'
 
+    # baseline_packages lives in roles/baseline/defaults/main.yml, and role
+    # defaults are only in scope while that role is running - by this play they
+    # are gone. Reading the role's own defaults file keeps the assertion
+    # checking the same list the role installed, with no second copy to drift.
+    - name: Read the baseline role's package list
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/baseline/defaults/main.yml"
+
     - name: Read the installed packages
       ansible.builtin.package_facts:
 
