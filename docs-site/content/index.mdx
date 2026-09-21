@@ -24,6 +24,9 @@ Secrets zijn gesplitst op blast radius over twee vault-identiteiten. `infra`
 bevat de credentials die de estate besturen — Proxmox, Cloudflare, PBS.
 `stacks` bevat applicatielogins. Elke helft roteert los van de andere.
 
+`semaphore` draait de playbooks volgens schema, zodat niets hiervan afhangt
+van een laptop die openstaat.
+
 Pagina's onder Technisch worden gegenereerd uit de inventory en kunnen dus niet
 uit de pas lopen. Runbooks zijn met de hand geschreven: daar staat de redenering
 die code niet uitdrukt.
