@@ -91,6 +91,16 @@ metrics.{{ caddy_domain }} {
 	respond "Forbidden" 403
 }
 
+report.{{ caddy_domain }} {
+	import common_headers
+	@internal client_ip private_ranges 100.64.0.0/10
+	handle @internal {
+		root * /var/www/homelab-report
+		file_server
+	}
+	respond "Forbidden" 403
+}
+
 # -----------------------
 # Sites (generated from caddy_sites)
 # -----------------------

@@ -53,3 +53,20 @@
         src: report.html.j2
         dest: /tmp/homelab-report.html
         mode: "0644"
+
+  
+- name: Publish the report
+  hosts: caddy
+  gather_facts: false
+  tasks:
+    - name: Ensure the report directory exists
+      ansible.builtin.file:
+        path: /var/www/homelab-report
+        state: directory
+        mode: "0755"
+
+    - name: Upload the report
+      ansible.builtin.copy:
+        src: /tmp/homelab-report.html
+        dest: /var/www/homelab-report/index.html
+        mode: "0644"
