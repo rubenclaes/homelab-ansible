@@ -15,3 +15,20 @@
 # This file is comments only, deliberately. Defaulting either list here would
 # let a typo'd inventory filename resolve to an empty list and report success
 # while managing nothing.
+
+# Whether a declared storage or backup job that does not exist may be CREATED,
+# rather than only reported as missing. Off by default, and there is no host or
+# group where it may default to true.
+#
+# The distinction this protects: on a healthy node, a missing storage means the
+# transcription is wrong, and creating one would point Proxmox at a disk or a
+# remote server on the strength of a typo. On a node being rebuilt, the same
+# inventory IS the source of truth and creating from it is the entire point.
+# Only the person running it knows which situation they are in, so they say so
+# on the command line:
+#
+#   ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
+#
+# Creation is additive like everything else here: it makes what is missing and
+# never removes what is not declared.
+proxmox_datacenter_create: false

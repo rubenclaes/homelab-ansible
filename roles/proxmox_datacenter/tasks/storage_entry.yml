@@ -5,16 +5,35 @@
       {{ proxmox_datacenter_storage_raw.stdout | from_json
          | selectattr('storage', 'eq', storage.id) | list | first | default({}) }}
 
-# Recorded here, not asserted: creating a storage points Proxmox at a disk, a
-# pool or a remote server, which is a decision with data behind it and not
-# one a converge run should take on its own. verify.yml turns this list into
-# a fatal, unconditional error once every declared storage and backup job has
-# had a chance to be checked - refusing here would stop the loop and hide
-# whatever came after this entry.
+# Recorded whether or not it is about to be created, so that a --check run
+# with proxmox_datacenter_create set still reports what WOULD be made. The
+# creating task below is an ansible.builtin.command, which check mode skips
+# silently; this set_fact is what makes the intention visible there.
 - name: Record a missing storage - {{ storage.id }}
   ansible.builtin.set_fact:
     proxmox_datacenter_missing: "{{ proxmox_datacenter_missing + [storage.id] }}"
   when: proxmox_datacenter_storage_live | length == 0
+
+# Off by default, and deliberately so. Creating a storage points Proxmox at a
+# disk, a pool or a remote server - a decision with data behind it, and not
+# one a nightly converge should take on its own. Behind the flag it is the
+# thing that makes a rebuilt node reach the declared state without someone
+# retyping storage.cfg from memory.
+#
+# `type` IS sent here, unlike in the update below: a storage's type is fixed
+# at creation, which is exactly why creation is the only place it can be set.
+- name: Create the missing storage - {{ storage.id }}
+  ansible.builtin.command:
+    argv: >-
+      {{ ['pvesh', 'create', '/storage', '--storage', storage.id]
+         + (storage.params | dict2items
+            | map(attribute='key') | map('regex_replace', '^', '--') | list
+            | zip(storage.params | dict2items | map(attribute='value') | map('string') | list)
+            | flatten | list) }}
+  when:
+    - proxmox_datacenter_storage_live | length == 0
+    - proxmox_datacenter_create | default(false) | bool
+  changed_when: true
 
 - name: Reconcile against the live node - {{ storage.id }}
   when: proxmox_datacenter_storage_live | length > 0

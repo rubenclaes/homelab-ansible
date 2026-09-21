@@ -1,0 +1,123 @@
+---
+# The QEMU virtual machines on pve01, transcribed from `qm config`.
+#
+# NOTHING READS THIS FILE. It is deliberately data without a role, and that
+# is the honest shape for what it can actually do.
+#
+# Recreating a VM from these values gives you a correctly specified machine
+# with an EMPTY disk. The value of every one of these guests is its disk
+# contents, not its configuration, so a rebuild is always "create the shell
+# from here, then restore the data from PBS". Writing a role that creates
+# them would suggest otherwise.
+#
+# What this file is for: after losing pve01 you can rebuild these four
+# machines to the right shape without guessing at core counts, disk sizes or
+# MAC addresses. Before this existed, that information lived only in the
+# hypervisor you had just lost.
+#
+# Keep it in step by hand. `qm config <vmid>` is the source, and the keys are
+# Proxmox's own field names.
+#
+# The disk values are the ONE thing not copied literally. `qm config` shows an
+# allocated volume - `vm-hdd:vm-103-disk-1,size=100G` - because the disk
+# exists. What is written here is the creation form, `vm-hdd:100`, meaning
+# "allocate 100G on vm-hdd". That is what you would type to make the disk, and
+# making it is the only reason this file exists. Compare sizes when you diff,
+# not strings.
+#
+# Two things worth knowing before you recreate any of these:
+#
+#   - The MAC addresses are recorded on purpose. A new one means a new DHCP
+#     lease, and haos in particular identifies itself by it.
+#   - 100's scsi1 carries `backup=0` because that disk IS the backup
+#     datastore. Recreating it gives you an empty 320G volume, and the
+#     backups it held are not somewhere else. See the design spec's Risk 1.
+#
+# The `description` fields are dropped. All four were created by community
+# helper scripts, which leave a block of HTML in there; it is noise, and
+# none of it affects how the machine runs.
+pve_vms:
+  - vmid: 100
+    params:
+      name: pbs
+      cores: 2
+      sockets: 1
+      memory: 4096
+      balloon: 1024
+      cpu: host
+      numa: 0
+      ostype: l26
+      agent: "1"
+      onboot: 1
+      boot: order=scsi0;ide2;net0
+      scsihw: virtio-scsi-single
+      scsi0: local-lvm:32,iothread=1
+      # The PBS datastore. backup=0 keeps vzdump from trying to back up the
+      # thing it backs up into.
+      scsi1: vm-hdd:320,backup=0,discard=on,iothread=1
+      ide2: local:iso/proxmox-backup-server_4.2-1.iso,media=cdrom
+      net0: virtio=BC:24:11:3D:B4:6A,bridge=vmbr0,firewall=1
+
+  - vmid: 101
+    params:
+      name: haos
+      cores: 2
+      sockets: 1
+      memory: 2048
+      cpu: host
+      numa: 0
+      ostype: l26
+      agent: enabled=1
+      onboot: 1
+      bios: ovmf
+      machine: q35
+      boot: order=scsi0
+      localtime: 1
+      tablet: 0
+      serial0: socket
+      scsihw: virtio-scsi-pci
+      efidisk0: vm-hdd:1,efitype=4m
+      scsi0: vm-hdd:50,discard=on,ssd=1
+      net0: virtio=02:8C:F5:A4:E6:15,bridge=vmbr0
+
+  - vmid: 102
+    params:
+      name: docker-grafana-stack
+      cores: 2
+      sockets: 1
+      memory: 4048
+      cpu: host
+      numa: 0
+      ostype: l26
+      agent: enabled=1
+      onboot: 1
+      bios: ovmf
+      machine: q35
+      boot: order=scsi0
+      localtime: 1
+      tablet: 0
+      serial0: socket
+      scsihw: virtio-scsi-pci
+      efidisk0: vm-hdd:1
+      scsi0: vm-hdd:100,discard=on,ssd=1
+      net0: virtio=BC:24:11:4B:CD:E4,bridge=vmbr0
+
+  - vmid: 103
+    params:
+      name: docker
+      cores: 6
+      memory: 28672
+      cpu: host
+      ostype: l26
+      agent: enabled=1
+      onboot: 1
+      bios: ovmf
+      machine: q35
+      boot: order=scsi0
+      localtime: 1
+      tablet: 0
+      serial0: socket
+      scsihw: virtio-scsi-pci
+      efidisk0: vm-hdd:4
+      scsi0: vm-hdd:100,discard=on,ssd=1
+      net0: virtio=02:12:F8:7B:9D:7D,bridge=vmbr0
