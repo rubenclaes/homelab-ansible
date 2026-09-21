@@ -1,0 +1,4 @@
+- name: Caddy reverse proxy
+  hosts: caddy
+  roles:
+    - caddy

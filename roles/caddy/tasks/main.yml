@@ -1,0 +1,35 @@
+- name: Caddyfile from Git
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/caddy/Caddyfile"
+    dest: /etc/caddy/Caddyfile
+    mode: "0644"
+    validate: caddy adapt --config %s --adapter caddyfile
+  notify: Reload caddy
+
+- name: Cloudflare token from Vault
+  ansible.builtin.copy:
+    dest: /etc/caddy/cloudflare.env
+    content: "CF_API_TOKEN={{ vault_cloudflare_api_token }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  diff: false
+  no_log: true
+  notify: Restart caddy
+
+- name: Systemd override without --environ
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/caddy.service.d/override.conf
+    content: |
+      [Service]
+      EnvironmentFile=/etc/caddy/cloudflare.env
+      ExecStart=
+      ExecStart=/usr/bin/caddy run --config /etc/caddy/Caddyfile
+    mode: "0644"
+  notify: Restart caddy
+
+- name: Caddy enabled and running
+  ansible.builtin.systemd_service:
+    name: caddy
+    enabled: true
+    state: started
