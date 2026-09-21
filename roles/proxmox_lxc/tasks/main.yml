@@ -13,7 +13,7 @@
 
 - name: Work out which containers are missing
   ansible.builtin.set_fact:
-    proxmox_lxc_missing: "{{ pve_lxcs | rejectattr('vmid', 'in', proxmox_lxc_existing.proxmox_vms | map(attribute='vmid') | list) | list }}"
+    proxmox_lxc_missing: "{{ pve_lxcs | default([]) | rejectattr('vmid', 'in', proxmox_lxc_existing.proxmox_vms | map(attribute='vmid') | list) | list }}"
 
 - name: Report
   ansible.builtin.debug:
@@ -65,6 +65,6 @@
   delegate_to: localhost
   become: false
   register: proxmox_lxc_start
-  retries: "{{ pve_lxc_start_retries }}"
-  delay: "{{ pve_lxc_start_delay }}"
+  retries: "{{ proxmox_lxc_start_retries }}"
+  delay: "{{ proxmox_lxc_start_delay }}"
   until: proxmox_lxc_start is succeeded
