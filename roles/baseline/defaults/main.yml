@@ -14,3 +14,8 @@ baseline_packages:
 baseline_unattended_upgrades: true
 baseline_ssh_hardening: true
 baseline_held_packages: []
+
+# Cap on journald's on-disk size. Vacuuming is a treadmill - it frees space
+# once and the log grows straight back. The cap is what stops it. Set to an
+# empty string to leave journald's own default alone.
+baseline_journal_max_use: 500M

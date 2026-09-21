@@ -1,0 +1,117 @@
+---
+# Controlled Caddy upgrade.
+#
+#   ansible-playbook playbooks/caddy-upgrade.yml
+#
+# Not part of site.yml and not scheduled: this replaces the binary that fronts
+# every service, so it is something you choose to do.
+#
+# Why a playbook rather than `apt upgrade`: the running binary is the packaged
+# one with caddy-dns/cloudflare added by `caddy add-package`, so apt would put
+# the stock binary back - and the stock binary refuses to start against a
+# Caddyfile using the DNS module, taking every *.neodata.be name down. That is
+# why the package is held. `caddy upgrade` rebuilds with the current module
+# set, which keeps the plugin.
+#
+# The playbook records the modules before upgrading and fails if any are
+# missing afterwards, rather than trusting that.
+- name: Upgrade Caddy, keeping its modules
+  hosts: caddy
+  gather_facts: false
+  vars:
+    # This playbook does not apply the caddy role, so the role's defaults are
+    # not in scope. Named here so the failure message can tell you the exact
+    # command to recover with.
+    caddy_dns_module: github.com/caddy-dns/cloudflare
+
+  tasks:
+    - name: Record the version and modules in use
+      ansible.builtin.command: "caddy {{ item }}"
+      register: caddy_upgrade_before
+      changed_when: false
+      check_mode: false
+      loop:
+        - version
+        - list-modules
+
+    - name: Remember the non-standard modules
+      ansible.builtin.set_fact:
+        caddy_upgrade_modules_before: >-
+          {{ caddy_upgrade_before.results[1].stdout_lines
+             | select('match', '^\s*dns\.providers\.')
+             | map('trim') | list }}
+        caddy_upgrade_version_before: "{{ caddy_upgrade_before.results[0].stdout.split()[0] }}"
+
+    - name: Show what is about to be upgraded
+      ansible.builtin.debug:
+        msg: >-
+          {{ caddy_upgrade_version_before }} with
+          {{ caddy_upgrade_modules_before | join(', ') | default('no dns modules', true) }}
+
+    - name: Refuse to upgrade a Caddy with no DNS module
+      ansible.builtin.assert:
+        that: caddy_upgrade_modules_before | length > 0
+        fail_msg: >-
+          No dns.providers.* module found. This host is supposed to run a
+          build carrying caddy-dns/cloudflare; upgrading from here would not
+          restore it. Check `caddy list-modules` before continuing.
+        success_msg: "Module set recorded, safe to upgrade"
+
+    - name: Upgrade Caddy
+      ansible.builtin.command: caddy upgrade
+      register: caddy_upgrade_run
+      changed_when: "'already running the latest' not in caddy_upgrade_run.stdout"
+      failed_when:
+        - caddy_upgrade_run.rc != 0
+        - "'already running the latest' not in caddy_upgrade_run.stdout"
+      notify:
+        - Restart Caddy on the new binary
+        - Wait for Caddy to answer again
+
+    - name: Read the version and modules afterwards
+      ansible.builtin.command: "caddy {{ item }}"
+      register: caddy_upgrade_after
+      changed_when: false
+      check_mode: false
+      loop:
+        - version
+        - list-modules
+
+    - name: Require every DNS module to have survived
+      ansible.builtin.assert:
+        that: >-
+          caddy_upgrade_modules_before | difference(
+            caddy_upgrade_after.results[1].stdout_lines
+            | select('match', '^\s*dns\.providers\.') | map('trim') | list
+          ) | length == 0
+        fail_msg: >-
+          Modules were lost in the upgrade. Before:
+          {{ caddy_upgrade_modules_before | join(', ') }}. TLS issuance for
+          *.{{ caddy_domain }} will fail. Re-add with
+          `caddy add-package {{ caddy_dns_module }}` and restart.
+        success_msg: >-
+          {{ caddy_upgrade_version_before }} ->
+          {{ caddy_upgrade_after.results[0].stdout.split()[0] }},
+          modules intact
+
+
+  # Handlers, not inline tasks: they still run at the end of this play, which
+  # is before the imported smoke test below, so the order upgrade -> restart
+  # -> verify is preserved.
+  handlers:
+    - name: Restart Caddy on the new binary
+      ansible.builtin.systemd_service:
+        name: caddy
+        state: restarted
+
+    - name: Wait for Caddy to answer again
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 443
+        timeout: 60
+      delegate_to: localhost
+      become: false
+
+# Proves the upgrade against every site rather than just the process being up.
+- name: Smoke test every site
+  ansible.builtin.import_playbook: caddy-smoketest.yml

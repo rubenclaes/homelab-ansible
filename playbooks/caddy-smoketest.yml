@@ -13,6 +13,11 @@
         label: "{{ item.name }}"
       register: smoke
       failed_when: false
+      # Requesting a URL changes nothing, and the assert below needs the
+      # result. Without this the whole playbook is unusable under --check:
+      # the task skips, leaving results with no `status` to read.
+      check_mode: false
+      changed_when: false
       delegate_to: localhost
       become: false
 

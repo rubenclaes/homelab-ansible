@@ -64,15 +64,6 @@ backlog na drie maanden niet meer te lezen.
       weet welke stuk is. Zoek uit welke de apps gebruiken, migreer, zet de
       andere uit.
 
-- [ ] **Beszel-data staat er nog**
-      `/opt/containers/data/beszel_data`, `beszel_agent_data`, `beszel_socket`.
-      *Waarom:* de containers zijn weg, dit is alleen nog schijfruimte.
-      Weggooien zodra je zeker weet dat je er niets meer uit wil.
-
-- [ ] **Losse netwerken op docker, o.a. `portainer_default`**
-      *Waarom:* `cleanup.yml` ruimt ongebruikte netwerken op. Draai hem één
-      keer met `-e cleanup_apply=true` en vink dit af.
-
 ---
 
 ## Repo zelf
@@ -113,19 +104,8 @@ backlog na drie maanden niet meer te lezen.
 
 - [ ] **Dubbele docker / docker-desktop casks (MBP + Mini)** — met de hand
 - [ ] **Mini: `brew leaves` → `host_vars/macmini.yml`** (het `_extra`-patroon)
-- [ ] **Finder-restart handler bij de macOS-defaults**
-      *Waarom:* sommige `defaults write` worden pas zichtbaar na een herstart
-      van Finder; nu lijkt de rol klaar terwijl je niets ziet veranderen.
 - [ ] **`~/.ssh/config` opruimen** (pv01-typo, `pve01-unifi-os` weg, nieuwe hosts samenvoegen)
 - [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1
-- [ ] **Caddy-upgrade playbook**
-      `caddy` staat op hold omdat het binary de Cloudflare-module bevat.
-      *Waarom:* `caddy upgrade` behoudt de plugins, `apt upgrade` niet. Nu is
-      het een handmatige stap die je moet onthouden.
-- [ ] **Optioneel: `SystemMaxUse` in de baseline-rol**
-      *Waarom:* journald opschonen is dweilen; een cap voorkomt dat het
-      logbestand tussen twee cleanups weer volloopt. Nog niet besloten.
-
 ---
 
 ## Volgende projecten
@@ -135,6 +115,11 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] caddy-upgrade.yml: upgradet en weigert als de Cloudflare-module verdwijnt
+- [x] SystemMaxUse=500M op alle acht hosts (docker-grafana-stack stond op 276M)
+- [x] Finder-restart handler bij de macOS-defaults
+- [x] Beszel-data verwijderd; cleanup gedraaid met apply (2.3 GB vrij)
+- [x] caddy-smoketest.yml werkt nu ook onder --check
 - [x] Tags per play: `site.yml --tags dns` draait alleen dat stuk
 - [x] bootstrap.yml weigert meer dan één host tegelijk
 - [x] requirements.txt pint de toolchain gelijk aan CI

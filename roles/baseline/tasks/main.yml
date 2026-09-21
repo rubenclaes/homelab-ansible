@@ -72,6 +72,27 @@
     - ansible_facts['virtualization_type'] == 'kvm'
     - ansible_facts['virtualization_role'] == 'guest'
 
+- name: Ensure the journald drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: baseline_journal_max_use | length > 0
+
+- name: Cap the systemd journal size
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/10-size.conf
+    content: |
+      [Journal]
+      SystemMaxUse={{ baseline_journal_max_use }}
+    owner: root
+    group: root
+    mode: "0644"
+  when: baseline_journal_max_use | length > 0
+  notify: Restart journald
+
 - name: Use classic ssh.service, not socket activation
   ansible.builtin.systemd_service:
     name: ssh.socket

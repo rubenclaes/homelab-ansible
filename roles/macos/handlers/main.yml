@@ -1,0 +1,10 @@
+---
+# Several `defaults write` values are only read by Finder at launch, so
+# without this the role reports changed while nothing visibly changes and you
+# go looking for a bug that is not there.
+- name: Restart Finder
+  ansible.builtin.command: killall Finder
+  changed_when: true
+  # Finder is not running on a Mac with nobody logged in; that is not a
+  # failure, there is simply nothing to restart.
+  failed_when: false
