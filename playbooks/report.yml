@@ -1,0 +1,32 @@
+- name: Collect report data
+  hosts: linux
+  tasks:
+    - name: Count pending upgrades  # noqa: command-instead-of-module
+      ansible.builtin.shell: set -o pipefail; apt-get -s dist-upgrade | grep -c '^Inst' || true
+      args:
+        executable: /bin/bash
+      register: report_pending
+      changed_when: false
+      check_mode: false
+
+    - name: Check whether a reboot is needed
+      ansible.builtin.include_role:
+        name: baseline
+        tasks_from: reboot_check
+
+    - name: Build this host's report line
+      ansible.builtin.set_fact:
+        report_row:
+          host: "{{ inventory_hostname }}"
+          os: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+          kernel: "{{ ansible_facts['kernel'] }}"
+          uptime_days: "{{ (ansible_facts['uptime_seconds'] / 86400) | round(1) }}"
+          disk_used_pct: "{{ (100 - (root.size_available / root.size_total * 100)) | round(0) | int }}"
+          pending: "{{ report_pending.stdout | int }}"
+          reboot: "{{ baseline_reboot_needed | bool }}"
+      vars:
+        root: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | first }}"
+
+    - name: Show it
+      ansible.builtin.debug:
+        var: report_row

@@ -26,11 +26,9 @@
   loop_control:
     label: "{{ item.key }}"
 
-- name: Managed block in ~/.zshrc
-  ansible.builtin.blockinfile:
-    path: ~/.zshrc
-    marker: "# {mark} ANSIBLE MANAGED (dotfiles role)"
-    block: "{{ dotfiles_zsh_block }}"
-    create: true
+- name: Deploy ~/.zshrc
+  ansible.builtin.template:
+    src: zshrc.j2
+    dest: ~/.zshrc
+    mode: "0644"
     backup: true
-  when: dotfiles_zsh_block | length > 0
