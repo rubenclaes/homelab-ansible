@@ -10,12 +10,9 @@ import { Callout } from 'nextra/components'
 Gegenereerd uit `pve_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.
 </Callout>
 
-Deze definities dienen om een verdwenen container **opnieuw te maken**.
-`playbooks/proxmox-lxcs.yml` raakt een bestaande container nooit aan.
-
-De adressen hieronder staan letterlijk in de inventory, niet afgeleid: een
-container die nog niet bestaat staat ook niet in de Proxmox-inventory, dus
-valt er niets af te leiden.
+Om een verdwenen container **opnieuw te maken**; een bestaande wordt nooit
+aangeraakt. De adressen staan letterlijk in de inventory omdat een container
+die nog niet bestaat niets heeft om uit af te leiden.
 
 | VMID | Naam | CPU | Geheugen | Schijf | Adres |
 | --- | --- | --- | --- | --- | --- |

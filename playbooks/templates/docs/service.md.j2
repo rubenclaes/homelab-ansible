@@ -9,6 +9,9 @@
 {% if s.auth | default(false) %}{% set _ = flags.append('achter tinyauth') %}{% endif -%}
 {% if s.forwarded | default(false) %}{% set _ = flags.append('forwarded headers') %}{% endif -%}
 {% if s.host_header | default(false) %}{% set _ = flags.append('host-header doorgegeven') %}{% endif -%}
+{# proxmox_all_* en proxmox_pve01_* zijn artefacten van de dynamische Proxmox-
+   inventory en zeggen een lezer niets; de echte groep heet gewoon `proxmox`. -#}
+{% set grps = h.group_names | default([]) | reject('match', 'proxmox_') | sort | list -%}
 ---
 title: {{ s.name }}
 ---
@@ -23,7 +26,7 @@ title: {{ s.name }}
 | Upstream | `{{ up }}` |
 | Host | {{ ('[' ~ s.host ~ '](/technisch/hosts/)') if s.host is defined else '— (vaste upstream)' }} |
 | Poort | {{ ('`' ~ s.port ~ '`') if s.port is defined else '—' }} |
-| Groepen | {{ (h.group_names | sort | join(', ')) if h.group_names is defined else '—' }} |
+| Groepen | {{ grps | join(', ') if grps else '—' }} |
 | Eigenschappen | {{ flags | join(' · ') if flags else '—' }} |
 
 Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`.

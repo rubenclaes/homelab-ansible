@@ -2,48 +2,28 @@
 title: Overzicht
 ---
 
-import { Cards, Callout } from 'nextra/components'
+import { Cards } from 'nextra/components'
 
 # neodata.homelab
 
-Eén Proxmox-host, een handvol LXC-guests, een Docker-host en twee Macs, allemaal
+Eén Proxmox-host, een handvol LXC-guests, een Docker-host en twee Macs,
 geconvergeerd door [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
 
-<Callout type="info">
-Pagina's onder **Referentie** worden gegenereerd uit de Ansible-inventory en
-kunnen dus niet uit de pas lopen. Pagina's onder **Runbooks** zijn met de hand
-geschreven en bevatten de redenering die code niet kan uitdrukken.
-</Callout>
-
-## Hoe het in elkaar zit
-
-`pve01` draait alles. Guests zijn LXC-containers en VM's, elk geconvergeerd door
-de `baseline`-rol: timezone, pakketten, automatische security-updates, SSH alleen
-met key. Daarbovenop bezitten rollen met één doel elk een host met één doel —
-`caddy` termineert elke `*.neodata.be`-naam, `docker` draait de applicatiestacks,
-`semaphore` draait de playbooks volgens schema zodat niets hiervan afhangt van
-een laptop die openstaat.
-
-De inventory is niet met de hand bijgehouden. Proxmox is de bron: maak een guest
-aan en hij staat er de volgende run in, met het adres dat hij op dat moment
-echt heeft.
-
-Secrets zijn gesplitst op blast radius over twee vault-identiteiten. `infra`
-bevat de credentials die de estate besturen — Proxmox, Cloudflare, PBS. `stacks`
-bevat applicatielogins. Elke helft roteert los van de andere.
-
 <Cards>
-  <Cards.Card title="Services" href="/reference/services" arrow />
-  <Cards.Card title="Hosts" href="/reference/hosts" arrow />
-  <Cards.Card title="LXC-containers" href="/reference/containers" arrow />
-  <Cards.Card title="Docker-stacks" href="/reference/stacks" arrow />
+  <Cards.Card title="Diensten — wat er draait, en waar je het vindt" href="/diensten/" arrow />
+  <Cards.Card title="Technisch — hosts, containers, stacks, runbooks" href="/technisch/hosts/" arrow />
 </Cards>
 
-## Conventies
+## Waarom het zo staat
 
-- Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met
-  key, met sudo zonder wachtwoord. Geen enkele host accepteert een SSH-wachtwoord.
-- `playbooks/site.yml` convergeert alles en mag op elk moment draaien. Wat
-  provisioneert of herstart valt er bewust buiten.
-- Niets wordt met de hand geconfigureerd. Was het de moeite om twee keer te
-  doen, dan zit het in een rol.
+De inventory wordt niet met de hand bijgehouden. Proxmox is de bron: maak een
+guest aan en hij staat er de volgende run in, met het adres dat hij op dat
+moment echt heeft.
+
+Secrets zijn gesplitst op blast radius over twee vault-identiteiten. `infra`
+bevat de credentials die de estate besturen — Proxmox, Cloudflare, PBS.
+`stacks` bevat applicatielogins. Elke helft roteert los van de andere.
+
+Pagina's onder Technisch worden gegenereerd uit de inventory en kunnen dus niet
+uit de pas lopen. Runbooks zijn met de hand geschreven: daar staat de redenering
+die code niet uitdrukt.

@@ -30,9 +30,5 @@ niet deze pagina.
 | **{{ h }}** | {{ '`' ~ hostvars[h].ansible_host ~ '`' if hostvars[h].ansible_host is defined else 'lokaal' }} | {{ hostvars[h].group_names | sort | join(', ') }} | {{ os }} |
 {% endfor %}
 
-Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met
-key, en escaleert met sudo zonder wachtwoord. `mbp` is de control node en
-beheert zichzelf.
-
 Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
 in zijn config staat. Twee containers draaien DHCP en kloppen daardoor toch.

@@ -335,6 +335,8 @@ bin/check-vaulted && ansible-lint && \
 - **`validate:` op alles wat je kan buitensluiten** — sudoers, sshd, Caddyfile.
   Dan faalt de taak in plaats van de host.
 - **`no_log: true` en `diff: false`** op taken met secrets.
+- **Niets met de hand geconfigureerd** — was het de moeite om twee keer te
+  doen, dan zit het in een rol.
 - **Upstreams hebben namen, geen nummers** — een `caddy_sites`-entry wijst naar
   host en poort (`{ name: photos, host: docker, port: 2283 }`), de Caddyfile
   haalt het IP uit `ansible_host`. Dat adres komt live uit Proxmox, dus
