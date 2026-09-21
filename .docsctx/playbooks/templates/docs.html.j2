@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homelab docs</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --fg: #16181d; --muted: #667085; --card: #ffffff; --line: #e6e8ec;
+    --accent: #0f766e; --accent-soft: #e6f4f2; --chip: #f1f3f5;
+    --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --fg: #eceef2; --muted: #98a2b3; --card: #171a20; --line: #262a33;
+      --accent: #2dd4bf; --accent-soft: #10302c; --chip: #20242c;
+      --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--card);
+    border-bottom: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .bar { max-width: 1100px; margin: 0 auto; padding: 14px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; }
+  .brand span { color: var(--accent); }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  nav a {
+    color: var(--muted); text-decoration: none; font-size: .88rem; padding: 6px 10px; border-radius: 8px;
+  }
+  nav a:hover { background: var(--chip); color: var(--fg); }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h2 { font-size: 1.05rem; margin: 32px 0 12px; letter-spacing: -.01em; scroll-margin-top: 80px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+  .tile .num { font-size: 1.8rem; font-weight: 700; letter-spacing: -.02em; }
+  .tile .lbl { color: var(--muted); font-size: .85rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; background: var(--card); }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--chip); }
+  a.svc { color: var(--accent); text-decoration: none; font-weight: 600; }
+  a.svc:hover { text-decoration: underline; }
+  code { font: .85rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+  .badge {
+    display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+    background: var(--chip); color: var(--muted); margin-right: 4px;
+  }
+  .badge.accent { background: var(--accent-soft); color: var(--accent); }
+  .search {
+    width: 100%; max-width: 320px; margin: 0 0 12px; padding: 9px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--fg); font: inherit;
+  }
+  .muted { color: var(--muted); }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+{# ---------- data preparation ---------- #}
+{% set managed_hosts = groups['linux'] + ['macmini'] %}
+{% set ip_map = dict(managed_hosts | map('extract', hostvars, 'ansible_host') | zip(managed_hosts)) %}
+{% set sites = hostvars['caddy'].caddy_sites | default([]) %}
+{% set domain = hostvars['caddy'].caddy_domain | default('') %}
+{% set lxcs = hostvars['pve01'].pve_lxcs | default([]) %}
+{% set stacks = hostvars['docker01'].docker_stacks_list | default([]) %}
+
+<header>
+  <div class="bar">
+    <div class="brand">neodata<span>.</span>homelab</div>
+    <nav>
+      <a href="#services">Services</a>
+      <a href="#hosts">Hosts</a>
+      <a href="#lxcs">Containers</a>
+      <a href="#stacks">Stacks</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="tiles">
+    <div class="tile"><div class="num">{{ managed_hosts | length }}</div><div class="lbl">Managed hosts</div></div>
+    <div class="tile"><div class="num">{{ sites | length }}</div><div class="lbl">Services via Caddy</div></div>
+    <div class="tile"><div class="num">{{ lxcs | length }}</div><div class="lbl">LXC containers</div></div>
+    <div class="tile"><div class="num">{{ stacks | length }}</div><div class="lbl">Docker stacks</div></div>
+  </div>
+
+  <h2 id="services">Services</h2>
+  <input class="search" id="q" type="search" placeholder="Filter services…" autocomplete="off">
+  <div class="card">
+    <table id="svc-table">
+      <thead><tr><th>Service</th><th>Runs on</th><th>Upstream</th><th>Options</th></tr></thead>
+      <tbody>
+{% for s in sites | sort(attribute='name') %}
+{% set ip = s.upstream.split(':')[0] %}
+        <tr>
+          <td><a class="svc" href="https://{{ s.name }}.{{ domain }}" target="_blank" rel="noopener">{{ s.name }}.{{ domain }}</a></td>
+          <td>{{ ip_map.get(ip, ip) }}</td>
+          <td><code>{{ s.upstream }}</code></td>
+          <td>
+            {% if s.https | default(false) %}<span class="badge">https upstream</span>{% endif %}
+            {% if s.auth | default(false) %}<span class="badge accent">tinyauth</span>{% endif %}
+            {% if s.forwarded | default(false) %}<span class="badge">forwarded</span>{% endif %}
+            {% if s.host_header | default(false) %}<span class="badge">host header</span>{% endif %}
+          </td>
+        </tr>
+{% endfor %}
+        <tr>
+          <td><a class="svc" href="https://report.{{ domain }}" target="_blank" rel="noopener">report.{{ domain }}</a></td>
+          <td>caddy</td><td><code>static</code></td><td><span class="badge accent">LAN + tailnet only</span></td>
+        </tr>
+        <tr>
+          <td><a class="svc" href="https://docs.{{ domain }}" target="_blank" rel="noopener">docs.{{ domain }}</a></td>
+          <td>caddy</td><td><code>static</code></td><td><span class="badge accent">LAN + tailnet only</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="hosts">Hosts</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Host</th><th>IP</th><th>Groups</th><th>OS</th></tr></thead>
+      <tbody>
+{% for h in managed_hosts | sort %}
+{% set hv = hostvars[h] %}
+{% set facts = hv.ansible_facts | default({}) %}
+        <tr>
+          <td><strong>{{ h }}</strong></td>
+          <td><code>{{ hv.ansible_host }}</code></td>
+          <td>{% for g in hv.group_names | sort %}<span class="badge">{{ g }}</span>{% endfor %}</td>
+          <td>{% if facts.distribution is defined %}{{ facts.distribution }} {{ facts.distribution_version }}{% else %}<span class="muted">unknown</span>{% endif %}</td>
+        </tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="lxcs">LXC containers <span class="muted">(pve01)</span></h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>VMID</th><th>Name</th><th>CPU</th><th>Memory</th><th>Disk</th><th>IP</th></tr></thead>
+      <tbody>
+{% for l in lxcs | sort(attribute='vmid') %}
+        <tr>
+          <td>{{ l.vmid }}</td>
+          <td><strong>{{ l.hostname }}</strong></td>
+          <td>{{ l.cores }} core{{ 's' if l.cores > 1 else '' }}</td>
+          <td>{{ (l.memory / 1024) | round(1) ~ ' GB' if l.memory >= 1024 else l.memory ~ ' MB' }}</td>
+          <td>{{ l.disk.size }} GB <span class="badge">{{ l.disk.storage }}</span></td>
+          <td><code>{{ l.ip }}</code></td>
+        </tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="stacks">Docker stacks <span class="muted">(docker01)</span></h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Stack</th><th>Path</th><th>Compose project</th><th>Secrets</th></tr></thead>
+      <tbody>
+{% for st in stacks | sort(attribute='name') %}
+        <tr>
+          <td><strong>{{ st.name }}</strong></td>
+          <td><code>stacks/{{ st.path }}</code></td>
+          <td>{{ st.project | default(st.name) }}</td>
+          <td>{% if st.env | default(true) %}<span class="badge accent">.env in Vault</span>{% else %}<span class="muted">none</span>{% endif %}</td>
+        </tr>
+{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  Generated {{ now().strftime('%d %b %Y, %H:%M') }} from commit <code>{{ docs_commit | default('unknown') }}</code>.
+  Don't edit this page: change the inventory in homelab-ansible and re-run <code>playbooks/docs.yml</code>.
+</footer>
+
+<script>
+  const q = document.getElementById('q');
+  const rows = document.querySelectorAll('#svc-table tbody tr');
+  q.addEventListener('input', () => {
+    const term = q.value.toLowerCase();
+    rows.forEach(r => { r.style.display = r.textContent.toLowerCase().includes(term) ? '' : 'none'; });
+  });
+</script>
+</body>
+</html>
