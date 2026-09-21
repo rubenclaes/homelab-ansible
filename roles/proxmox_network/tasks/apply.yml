@@ -32,13 +32,20 @@
       `systemctl stop ansible-network-revert.timer` and run this again.
     success_msg: "No previous revert pending"
 
-# A transient unit that failed rather than completing lingers under the same
-# name and blocks the next systemd-run. Clearing it is safe: the assert above
-# has already established that nothing is counting down. `reset-failed` is one
-# of the systemctl subcommands ansible-lint's command-instead-of-module rule
-# already treats as having no module equivalent, so no noqa is needed here.
-- name: Clear any lingering revert unit
-  ansible.builtin.command: systemctl reset-failed ansible-network-revert.timer
+# BOTH units, not just the timer. `systemd-run --unit=X --on-active=N` creates
+# X.timer AND X.service: the timer counts down, the service runs the restore.
+# The timer goes inactive once it has fired, whatever the outcome - so it is
+# the SERVICE that lingers in `failed` when the restore itself errors, and the
+# service that then blocks the next systemd-run under the same name. Resetting
+# only the timer leaves exactly the collision this task is meant to prevent.
+#
+# Safe here because the assert above has already established that nothing is
+# counting down. `reset-failed` is one of the systemctl subcommands
+# ansible-lint's command-instead-of-module rule already treats as having no
+# module equivalent, so no noqa is needed here.
+- name: Clear any lingering revert units
+  ansible.builtin.command: >-
+    systemctl reset-failed ansible-network-revert.timer ansible-network-revert.service
   changed_when: false
   failed_when: false
 
@@ -53,11 +60,19 @@
 # dying, and `systemctl stop` on a named unit is an unambiguous cancel. If the
 # playbook dies at any point after this, the node returns to a configuration
 # that demonstrably worked.
+#
+# --collect sets CollectMode=inactive-or-failed, so the transient units are
+# garbage-collected even when the restore fails, instead of lingering under a
+# name the next run needs. The reset-failed above is the belt to this braces:
+# it cleans up after a run from before this flag existed, or one that lingered
+# anyway. Losing the unit costs nothing - `journalctl -u
+# ansible-network-revert.service` still shows what happened.
 - name: Arm the dead-man switch
   ansible.builtin.command:
     argv:
       - systemd-run
       - --unit=ansible-network-revert
+      - --collect
       - "--on-active={{ proxmox_network_revert_after }}"
       - /bin/bash
       - -c
