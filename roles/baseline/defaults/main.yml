@@ -8,3 +8,6 @@ baseline_packages:
   - jq
   - ncdu
   - ca-certificates
+
+baseline_unattended_upgrades: true
+baseline_ssh_hardening: true
