@@ -49,3 +49,9 @@
       - "{{ proxmox_access_privileges | sort | join(',') }}"
   when: proxmox_access_current != (proxmox_access_privileges | sort | list)
   changed_when: true
+
+- name: Users and ACLs
+  ansible.builtin.import_tasks: users.yml
+
+- name: Report and verify
+  ansible.builtin.import_tasks: verify.yml

@@ -1,0 +1,32 @@
+---
+# Proxmox users and ACLs, transcribed from `pveum user list` and
+# `pveum acl list`.
+#
+# ADDITIVE ONLY. Nothing here removes a user or an ACL. root@pam and
+# rubenclaes@pam are PAM accounts that predate this repo, and an exclusive
+# reconcile would delete them and lock the estate out of its own hypervisor.
+#
+# The PAM users are listed anyway, without passwords, so a rebuilt node gets
+# them back. Their credentials live in /etc/pve/priv/shadow.cfg, which is out
+# of scope: set them by hand after a rebuild.
+#
+# The AnsibleAutomation role itself is NOT here. It is managed by
+# proxmox_access_privileges in this role's defaults, which carries a guard
+# that refuses to revoke a privilege - see tasks/main.yml.
+pve_users:
+  - userid: ansible@pve
+    comment: Ansible automation
+
+  - userid: root@pam
+    email: rubenclaes@outlook.com
+
+  - userid: rubenclaes@pam
+    firstname: Ruben
+    lastname: Claes
+    email: rubenclaes@outlook.com
+
+pve_acls:
+  - path: /
+    roleid: AnsibleAutomation
+    type: user
+    ugid: ansible@pve

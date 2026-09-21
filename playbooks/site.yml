@@ -7,6 +7,7 @@
 #
 # Deliberately NOT included (run these by hand, they provision or reboot):
 #   proxmox-lxcs.yml       creates missing LXC containers
+#   proxmox-network.yml    can make the hypervisor unreachable
 #   proxmox-autostart.yml  flips onboot on every guest
 #   bootstrap.yml          first-contact root login, see README
 #   update.yml             package upgrades and reboots
@@ -36,6 +37,9 @@
 
 - name: Proxmox datacenter configuration
   ansible.builtin.import_playbook: proxmox-datacenter.yml
+
+- name: Proxmox API access
+  ansible.builtin.import_playbook: proxmox-access.yml
 
 - name: Docker stacks
   ansible.builtin.import_playbook: stacks.yml
