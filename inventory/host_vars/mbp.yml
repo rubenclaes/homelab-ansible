@@ -20,7 +20,7 @@ dotfiles_git_config:
   core.editor: code --wait
   push.autoSetupRemote: "true"
 
-dotfiles_zsh_block: |
+dotfiles_zsh_block: |-
   export EDITOR="code --wait"
   export ANSIBLE_VAULT_PASSWORD_FILE=~/.ansible/vault_pass
   alias hl='cd ~/Development/homelab-ansible'

@@ -1,3 +1,4 @@
+---
 - name: Ensure ~/.ssh/config.d exists
   ansible.builtin.file:
     path: ~/.ssh/config.d

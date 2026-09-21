@@ -1,3 +1,4 @@
+---
 - name: Smoke test all Caddy sites
   hosts: caddy
   gather_facts: false

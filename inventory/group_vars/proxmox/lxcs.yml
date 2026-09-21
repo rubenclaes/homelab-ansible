@@ -1,3 +1,4 @@
+---
 # LXC definitions: used to (re)create containers that are missing.
 # Existing containers are never modified by the role.
 pve_lxc_defaults:
@@ -24,7 +25,7 @@ pve_lxcs:
     memory: 512
     swap: 512
     disk: { storage: vm-hdd, size: 6 }
-    ip: 192.168.0.25/24  # live container still uses DHCP (see TODO)
+    ip: 192.168.0.25/24 # live container still uses DHCP (see TODO)
     features: [nesting=1, keyctl=1]
 
   - vmid: 107
@@ -33,7 +34,7 @@ pve_lxcs:
     memory: 512
     swap: 512
     disk: { storage: vm-hdd, size: 2 }
-    ip: 192.168.0.29/24  # live container still uses DHCP (see TODO)
+    ip: 192.168.0.29/24 # live container still uses DHCP (see TODO)
     features: [nesting=1, keyctl=1]
 
   - vmid: 108

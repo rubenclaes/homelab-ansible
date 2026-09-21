@@ -16,7 +16,7 @@
     selection: hold
   loop: "{{ baseline_held_packages }}"
 
-- name: Count pending upgrades  # noqa: command-instead-of-module
+- name: Count pending upgrades # noqa: command-instead-of-module
   ansible.builtin.shell: set -o pipefail; apt-get -s dist-upgrade | grep -c '^Inst' || true
   args:
     executable: /bin/bash

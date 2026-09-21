@@ -1,3 +1,4 @@
+---
 baseline_held_packages:
   - caddy
 
@@ -39,7 +40,7 @@ caddy_sites:
   - { name: jackett, upstream: "192.168.0.26:9117" }
   - { name: dozzle, upstream: "192.168.0.26:8080" }
   - { name: duplicati, upstream: "192.168.0.26:8200" }
-  - { name: auth, upstream: "192.168.0.26:1411" }  # TODO: old Pocket ID instance
+  - { name: auth, upstream: "192.168.0.26:1411" } # TODO: old Pocket ID instance
   - { name: wizarr, upstream: "192.168.0.26:5690", auth: true }
   - { name: books, upstream: "192.168.0.26:6061" }
   - { name: audiobooks, upstream: "192.168.0.26:13378" }

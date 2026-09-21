@@ -1,3 +1,4 @@
+---
 - name: Read existing guests (VMs and containers)
   community.proxmox.proxmox_vm_info:
     api_host: "{{ pve_api_host }}"

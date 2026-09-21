@@ -1,7 +1,8 @@
+---
 - name: Collect report data
   hosts: linux
   tasks:
-    - name: Count pending upgrades  # noqa: command-instead-of-module
+    - name: Count pending upgrades # noqa: command-instead-of-module
       ansible.builtin.shell: set -o pipefail; apt-get -s dist-upgrade | grep -c '^Inst' || true
       args:
         executable: /bin/bash
@@ -37,7 +38,6 @@
       ansible.builtin.debug:
         var: report_row
 
-
 - name: Collect Docker status
   hosts: docker01
   gather_facts: false
@@ -61,7 +61,6 @@
       loop: "{{ report_docker.containers }}"
       loop_control:
         label: "{{ item.Names[0] }}"
-
 
 - name: Collect storage health
   hosts: pve01
@@ -152,7 +151,7 @@
         src: report.html.j2
         dest: /tmp/homelab-report.html
         mode: "0644"
-  
+
 - name: Publish the report
   hosts: caddy
   gather_facts: false

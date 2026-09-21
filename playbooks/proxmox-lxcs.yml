@@ -1,3 +1,4 @@
+---
 - name: LXC containers from the list
   hosts: pve01
   roles:
