@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Compares two Ansible inventory sources host-by-host on ansible_host.
+#
+#   bin/check-inventory-parity inventory/hosts.yml inventory/homelab.proxmox.yml
+#
+# Exits non-zero if any host in OLD is missing from NEW, or resolves to a
+# different address. Hosts present only in NEW are reported but not fatal:
+# the dynamic source legitimately discovers guests the static file never had.
+#
+# This is the safety story for the inventory migration. A silently changed
+# address would point playbooks at the wrong machine.
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+	echo "usage: $0 OLD_INVENTORY NEW_INVENTORY" >&2
+	exit 2
+fi
+
+old="$1"
+new="$2"
+
+for src in "$old" "$new"; do
+	if [[ ! -e "$src" ]]; then
+		echo "check-inventory-parity: no such inventory source: $src" >&2
+		exit 2
+	fi
+done
+
+dump() {
+	ansible-inventory -i "$1" --list 2>/dev/null |
+		python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except json.JSONDecodeError:
+    sys.exit("could not parse inventory as JSON")
+hv = d.get("_meta", {}).get("hostvars", {})
+
+def plain(v):
+    # Values that an inventory plugin builds with compose: come back wrapped as
+    # {"__ansible_unsafe": "1.2.3.4"} in --list output, though --host unwraps
+    # them. Compare the address, not the wrapper.
+    if isinstance(v, dict) and "__ansible_unsafe" in v:
+        return v["__ansible_unsafe"]
+    return v
+
+for host in sorted(hv):
+    print(host, plain(hv[host].get("ansible_host", "-")))
+'
+}
+
+old_dump=$(mktemp)
+new_dump=$(mktemp)
+trap 'rm -f "$old_dump" "$new_dump"' EXIT
+
+dump "$old" > "$old_dump"
+dump "$new" > "$new_dump"
+
+if [[ ! -s "$old_dump" ]]; then
+	echo "check-inventory-parity: $old produced no hosts." >&2
+	exit 2
+fi
+if [[ ! -s "$new_dump" ]]; then
+	echo "check-inventory-parity: $new produced no hosts." >&2
+	exit 2
+fi
+
+fail=0
+while read -r host addr; do
+	newaddr=$(awk -v h="$host" '$1 == h { print $2 }' "$new_dump")
+	if [[ -z "$newaddr" ]]; then
+		printf '  MISSING   %-24s was %s\n' "$host" "$addr" >&2
+		fail=1
+	elif [[ "$newaddr" != "$addr" ]]; then
+		printf '  CHANGED   %-24s %s -> %s\n' "$host" "$addr" "$newaddr" >&2
+		fail=1
+	else
+		printf '  ok        %-24s %s\n' "$host" "$addr"
+	fi
+done < "$old_dump"
+
+while read -r host addr; do
+	grep -q "^${host} " "$old_dump" || printf '  new       %-24s %s\n' "$host" "$addr"
+done < "$new_dump"
+
+if [[ $fail -ne 0 ]]; then
+	echo >&2
+	echo "check-inventory-parity: inventories do NOT match." >&2
+	exit 1
+fi
+
+echo "check-inventory-parity: every host in $old matches $new."

@@ -1,0 +1,17 @@
+---
+# Keep the bar where it already is; this file exists only for the exclusion
+# below, and pinning the profile stops it from silently relaxing.
+profile: production
+
+exclude_paths:
+  # Vault-encrypted dynamic inventory config. ansible-lint applies its
+  # inventory JSON schema to anything matching an inventory filename, and an
+  # encrypted file presents as one long string rather than a mapping, so the
+  # rule fails on ciphertext. schema[inventory] cannot be skipped inline, so
+  # the exclusion has to live here.
+  #
+  # Nothing is lost: there is no readable content to lint. The file is
+  # validated instead by `ansible-inventory --graph` and by
+  # bin/check-inventory-parity, and bin/check-vaulted proves it stays
+  # encrypted.
+  - inventory/homelab.proxmox.yml

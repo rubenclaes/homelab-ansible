@@ -22,6 +22,10 @@ patterns=(
 	'inventory/group_vars/*/vault.yml'
 	'inventory/host_vars/*/vault.yml'
 	'roles/semaphore/files/config.json'
+	# Dynamic inventory plugin configs: they carry the Proxmox API token
+	# inline, because inventory sources are parsed before group_vars and so
+	# cannot reference a vaulted variable.
+	'inventory/*.proxmox.yml'
 )
 
 failed=0
