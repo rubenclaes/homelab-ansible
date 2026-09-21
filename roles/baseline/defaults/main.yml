@@ -1,0 +1,10 @@
+baseline_timezone: Europe/Brussels
+baseline_packages:
+  - curl
+  - vim
+  - htop
+  - git
+  - tmux
+  - jq
+  - ncdu
+  - ca-certificates
