@@ -1,5 +1,5 @@
 export default {
-  index: 'Overview',
-  reference: 'Reference',
+  index: 'Overzicht',
+  reference: 'Referentie',
   runbooks: 'Runbooks'
 }

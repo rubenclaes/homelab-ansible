@@ -6,35 +6,58 @@ import { Callout } from 'nextra/components'
 
 # Updates
 
-`playbooks/update.yml` runs `apt full-upgrade` with `serial: 1`, so one host
-finishes completely before the next begins. A broken upgrade breaks one machine,
-not the fleet.
+`playbooks/update.yml` draait `apt full-upgrade` met `serial: 1`: één host is
+helemaal klaar voordat de volgende begint. Een mislukte upgrade sloopt één
+machine, niet de vloot.
 
-Reboots are opt-in. By default the playbook only reports that one is needed.
+Het playbook bestaat uit **twee plays**, en die volgorde is het punt. Eerst alle
+guests, daarna pas de hypervisor. In één play zou `pve01` kunnen herstarten
+terwijl de guests die erop draaien nog bezig zijn — en die gaan dan mee.
+
+## Reboots zijn opt-in
+
+Standaard meldt het playbook alleen dát een reboot nodig is. Twee losse
+schakelaars, allebei uit:
+
+| Variabele | Doet |
+|---|---|
+| `allow_reboot` | herstart guests die het nodig hebben |
+| `allow_hypervisor_reboot` | staat daarbovenop toe dat ook `pve01` herstart |
 
 ```bash
-# The weekly round. Semaphore runs this on Sundays at 04:00.
+# De wekelijkse ronde. Semaphore draait dit zondag om 04:00.
 ansible-playbook playbooks/update.yml --limit guests
 
-# The hypervisor, by hand, when the downtime suits you.
-ansible-playbook playbooks/update.yml --limit pve01 -e allow_reboot=true
+# Met reboots waar nodig, guests alleen.
+ansible-playbook playbooks/update.yml -e allow_reboot=true
+
+# Inclusief de hypervisor. Beide vlaggen nodig; dit legt elke guest plat.
+ansible-playbook playbooks/update.yml \
+  -e allow_reboot=true -e allow_hypervisor_reboot=true
 ```
 
+`allow_hypervisor_reboot` op zichzelf doet niets — `allow_reboot` moet er ook
+staan. Zo kan een gewone run nooit per ongeluk de hypervisor meenemen.
+
 <Callout type="error">
-Never run the `pve01` upgrade from Semaphore. Semaphore is a container **on**
-`pve01`, so a reboot would kill the job that ordered it. A controller does not
-reboot the machine it runs on.
+Draai de `pve01`-upgrade nooit vanuit Semaphore. Semaphore is een container
+**op** `pve01`, dus een reboot doodt de job die hem gaf. Een controller
+herstart de machine waar hij zelf op draait niet.
 </Callout>
 
-## Caddy is held
+## Caddy staat vast
 
-`caddy` is pinned via `baseline_held_packages` because it is a custom build
-carrying the `caddy-dns/cloudflare` plugin. A plain `apt full-upgrade` once
-replaced it with the stock binary, which refuses to start against a Caddyfile
-that uses the Cloudflare DNS module — taking every `*.neodata.be` name down.
+`caddy` is gepind via `baseline_held_packages`, want het is een custom build met
+de plugin `caddy-dns/cloudflare`. Een gewone `apt full-upgrade` verving hem ooit
+door het standaardbinary, dat weigert te starten tegen een Caddyfile met de
+Cloudflare DNS-module — waarmee elke `*.neodata.be`-naam onderuit ging.
 
-Upgrade it deliberately instead, which keeps the plugins:
+`dist-upgrade` respecteert dpkg-holds, dus een update-run raakt hem niet aan.
+Upgraden doe je bewust, en dat behoudt de plugins:
 
 ```bash
 ansible caddy -a "caddy upgrade"
 ```
+
+Daarna `playbooks/caddy.yml` en `playbooks/caddy-smoketest.yml` om te
+controleren dat er niets stuk is.

@@ -1,44 +1,49 @@
 ---
-title: Overview
+title: Overzicht
 ---
 
 import { Cards, Callout } from 'nextra/components'
 
 # neodata.homelab
 
-One Proxmox host, a handful of LXC guests, a Docker host and two Macs, all
-converged by [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
+Eén Proxmox-host, een handvol LXC-guests, een Docker-host en twee Macs, allemaal
+geconvergeerd door [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
 
 <Callout type="info">
-Pages under **Reference** are generated from the Ansible inventory and cannot
-drift. Pages under **Runbooks** are written by hand and hold the reasoning that
-code cannot express.
+Pagina's onder **Referentie** worden gegenereerd uit de Ansible-inventory en
+kunnen dus niet uit de pas lopen. Pagina's onder **Runbooks** zijn met de hand
+geschreven en bevatten de redenering die code niet kan uitdrukken.
 </Callout>
 
-## How it fits together
+## Hoe het in elkaar zit
 
-`pve01` runs everything. Guests are LXC containers and VMs, each converged by
-the `baseline` role: timezone, packages, unattended security upgrades, key-only
-SSH. On top of that, single-purpose roles own single-purpose hosts — `caddy`
-terminates every `*.neodata.be` name, `docker` runs the application stacks,
-`semaphore` runs the playbooks on a schedule so none of this depends on a laptop
-being open.
+`pve01` draait alles. Guests zijn LXC-containers en VM's, elk geconvergeerd door
+de `baseline`-rol: timezone, pakketten, automatische security-updates, SSH alleen
+met key. Daarbovenop bezitten rollen met één doel elk een host met één doel —
+`caddy` termineert elke `*.neodata.be`-naam, `docker` draait de applicatiestacks,
+`semaphore` draait de playbooks volgens schema zodat niets hiervan afhangt van
+een laptop die openstaat.
 
-Secrets are split by blast radius across two vault identities. `infra` holds the
-credentials that control the estate — Proxmox, Cloudflare, PBS. `stacks` holds
-application logins. Either can be rotated without touching the other.
+De inventory is niet met de hand bijgehouden. Proxmox is de bron: maak een guest
+aan en hij staat er de volgende run in, met het adres dat hij op dat moment
+echt heeft.
+
+Secrets zijn gesplitst op blast radius over twee vault-identiteiten. `infra`
+bevat de credentials die de estate besturen — Proxmox, Cloudflare, PBS. `stacks`
+bevat applicatielogins. Elke helft roteert los van de andere.
 
 <Cards>
   <Cards.Card title="Services" href="/reference/services" arrow />
   <Cards.Card title="Hosts" href="/reference/hosts" arrow />
-  <Cards.Card title="LXC containers" href="/reference/containers" arrow />
-  <Cards.Card title="Docker stacks" href="/reference/stacks" arrow />
+  <Cards.Card title="LXC-containers" href="/reference/containers" arrow />
+  <Cards.Card title="Docker-stacks" href="/reference/stacks" arrow />
 </Cards>
 
-## Conventions
+## Conventies
 
-- Every Linux host is reached as the `ansible` service account, key-only, with
-  passwordless sudo. No host accepts an SSH password.
-- `playbooks/site.yml` converges everything and is safe to run at any time.
-  Anything that provisions or reboots lives outside it, on purpose.
-- Nothing is configured by hand. If it was worth doing twice, it is in a role.
+- Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met
+  key, met sudo zonder wachtwoord. Geen enkele host accepteert een SSH-wachtwoord.
+- `playbooks/site.yml` convergeert alles en mag op elk moment draaien. Wat
+  provisioneert of herstart valt er bewust buiten.
+- Niets wordt met de hand geconfigureerd. Was het de moeite om twee keer te
+  doen, dan zit het in een rol.

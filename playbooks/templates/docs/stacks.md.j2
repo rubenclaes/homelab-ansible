@@ -1,23 +1,24 @@
 ---
-title: Docker stacks
+title: Docker-stacks
 ---
 
 import { Callout } from 'nextra/components'
 
-# Docker stacks
+# Docker-stacks
 
 <Callout type="warning">
-Generated from `docker_stacks_list` in `inventory/host_vars/docker.yml`.
+Gegenereerd uit `docker_stacks_list` in `inventory/host_vars/docker.yml`.
 </Callout>
 
-Compose files live in [rubenclaes/containers](https://github.com/rubenclaes/containers),
-pulled onto `docker` with a read-only deploy key. Each stack's `.env` is stored
-encrypted under the `stacks` vault identity and written at deploy time.
+Compose-bestanden staan in [rubenclaes/containers](https://github.com/rubenclaes/containers)
+en worden met een read-only deploy key op `docker` gezet. De `.env` van elke
+stack staat versleuteld onder de vault-identiteit `stacks` en wordt pas bij
+het deployen weggeschreven.
 
-| Stack | Path in repo | Compose project | Secrets |
+| Stack | Pad in repo | Compose-project | Secrets |
 | --- | --- | --- | --- |
 {% for st in docker_stacks_list | sort(attribute='name') -%}
-| **{{ st.name }}** | `stacks/{{ st.path }}` | {{ ('`' ~ st.project ~ '`') if st.project is defined else '—' }} | {{ '`.env` in vault' if st.env | default(true) else 'none' }} |
+| **{{ st.name }}** | `stacks/{{ st.path }}` | {{ ('`' ~ st.project ~ '`') if st.project is defined else '—' }} | {{ '`.env` in vault' if st.env | default(true) else 'geen' }} |
 {% endfor %}
 
-Docker waits for these mounts at boot: {% for m in docker_stacks_wait_for_mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.
+Docker wacht bij het opstarten op deze mounts: {% for m in docker_stacks_wait_for_mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.

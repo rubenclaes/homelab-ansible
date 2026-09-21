@@ -1,7 +1,7 @@
-// Pages in this folder are written by playbooks/docs.yml. Do not edit them.
+// Pagina's in deze map worden geschreven door playbooks/docs.yml. Niet bewerken.
 export default {
   services: 'Services',
   hosts: 'Hosts',
-  containers: 'LXC containers',
-  stacks: 'Docker stacks'
+  containers: 'LXC-containers',
+  stacks: 'Docker-stacks'
 }

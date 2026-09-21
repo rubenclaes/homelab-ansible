@@ -7,22 +7,26 @@ import { Callout } from 'nextra/components'
 # Hosts
 
 <Callout type="warning">
-Generated from the merged `inventory/` directory: `00-static.yml` plus the
-Proxmox guests discovered by `homelab.proxmox.yml`. Edit the inventory, not
-this file.
+Gegenereerd uit de samengevoegde map `inventory/`: `00-static.yml` plus de
+Proxmox-guests die `homelab.proxmox.yml` live ophaalt. Bewerk de inventory,
+niet deze pagina.
 </Callout>
 
-| Host | Address | Groups | OS |
+| Host | Adres | Groepen | OS |
 | --- | --- | --- | --- |
-| **adguard** | `192.168.0.29` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
-| **caddy** | `192.168.0.25` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
-| **docker** | `192.168.0.15` | linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 12.15 |
-| **docker-grafana-stack** | `192.168.0.17` | linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 12.15 |
+| **adguard** | `192.168.0.29` | guests, linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
+| **caddy** | `192.168.0.25` | guests, linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
+| **docker** | `192.168.0.15` | guests, linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 12.15 |
+| **docker-grafana-stack** | `192.168.0.17` | guests, linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 12.15 |
 | **macmini** | `192.168.0.26` | macs | MacOSX 14.6.1 |
-| **pbs** | `192.168.0.181` | linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 13.7 |
+| **pbs** | `192.168.0.181` | guests, linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 13.7 |
 | **pve01** | `192.168.0.14` | linux, proxmox | Debian 13.7 |
-| **semaphore** | `192.168.0.30` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
-| **tailscale** | `192.168.0.50` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
+| **semaphore** | `192.168.0.30` | guests, linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
+| **tailscale** | `192.168.0.50` | guests, linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
 
-All Linux hosts are reached as the `ansible` service account over key-only SSH
-and escalate with passwordless sudo. `mbp` is the control node and manages itself.
+Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met
+key, en escaleert met sudo zonder wachtwoord. `mbp` is de control node en
+beheert zichzelf.
+
+Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
+in zijn config staat. Twee containers draaien DHCP en kloppen daardoor toch.

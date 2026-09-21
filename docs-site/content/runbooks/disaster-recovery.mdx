@@ -6,51 +6,81 @@ import { Steps, Callout } from 'nextra/components'
 
 # Disaster recovery
 
-Rebuilding a lost guest is four playbooks. The data comes from Proxmox Backup
-Server; everything else is in Git.
+Een verloren guest terugbouwen is vier playbooks. De data komt van Proxmox
+Backup Server, de rest staat in Git.
 
 <Steps>
 
-### Recreate the container
+### Container opnieuw aanmaken
 
 ```bash
 ansible-playbook playbooks/proxmox-lxcs.yml
 ```
 
-The role compares `pve_lxcs` against what Proxmox actually has and creates only
-what is missing. Existing containers are never modified, so this is safe to run
-at any time.
+De rol vergelijkt `pve_lxcs` met wat Proxmox werkelijk heeft en maakt alleen aan
+wat ontbreekt. Bestaande containers worden nooit aangepast, dus dit mag altijd
+draaien.
 
-### Create the service account
+Het adres van een container staat letterlijk in `pve_lxcs` en wordt daar niet
+afgeleid uit de inventory: een container die nog niet bestaat, staat ook niet in
+de Proxmox-inventory. Dit bestand is de bron van het adres tot Proxmox de
+container kent — daarna neemt de inventory het over.
+
+### Serviceaccount aanmaken
 
 ```bash
-ansible-playbook playbooks/bootstrap.yml --limit <host> -e ansible_user=root -e ansible_become=false
+ansible-playbook playbooks/bootstrap.yml --limit <host> \
+  -e ansible_user=root -e ansible_become=false
 ```
 
-A freshly created container already carries the Ansible public key, so this is
-the only step that talks to it as root.
+Een net aangemaakte container draagt de Ansible-publieke sleutel al, dus dit is
+de enige stap die als root praat. Een host die de sleutel níét heeft (geen
+Proxmox-guest, bijvoorbeeld) gaat met `-u root -k` en een wachtwoord.
 
-### Apply the baseline
+### Baseline toepassen
 
 ```bash
 ansible-playbook playbooks/baseline.yml --limit <host>
 ```
 
-### Apply the service role
+Dit zet ook `qemu-guest-agent` op VM's. Zonder die agent meldt een VM geen adres
+en valt hij uit de dynamische inventory.
 
-`playbooks/caddy.yml`, `playbooks/semaphore.yml`, `playbooks/stacks.yml` —
-whichever the host is for.
+### Servicerol toepassen
+
+`playbooks/caddy.yml`, `playbooks/semaphore.yml`, `playbooks/stacks.yml` — welke
+de host ook is.
 
 </Steps>
 
 <Callout type="warning">
-A rebuilt host has a **new SSH host key**. Your workstation will refuse to
-connect until you run `ssh-keygen -R <address>`. Semaphore fixes itself on the
-next run of `playbooks/semaphore.yml`, which collects host keys from facts.
+Een herbouwde host heeft een **nieuwe SSH-hostkey**. Je werkstation weigert te
+verbinden tot je `ssh-keygen -R <adres>` draait. Semaphore repareert zichzelf bij
+de volgende run van `playbooks/semaphore.yml`, die hostkeys uit facts verzamelt.
 </Callout>
 
-## Testing it
+## De hele node kwijt
 
-The recovery path is only real if it has been run. Add a throwaway entry to
-`pve_lxcs`, let the role build it, destroy it with `pct destroy`, and run the
-role again.
+Na het herinstalleren van Proxmox zelf heeft het API-token nog geen rechten. De
+dynamische inventory is dan leeg, want die haalt guests via dat token op:
+
+```bash
+ansible-playbook playbooks/proxmox-access.yml
+```
+
+Die zet de rechten van de rol `AnsibleAutomation` terug, inclusief
+`VM.GuestAgent.Audit` — zonder dat geeft het guest-agent-endpoint 403 en krijgen
+de QEMU-guests geen adres.
+
+## Testen
+
+Het herstelpad is pas echt als het gedraaid heeft. Zet een wegwerp-entry in
+`pve_lxcs`, laat de rol hem bouwen, gooi hem weg met `pct destroy` en draai de
+rol opnieuw.
+
+Controleer daarna dat de inventory klopt:
+
+```bash
+ansible-inventory --graph
+ansible all -m ping
+```

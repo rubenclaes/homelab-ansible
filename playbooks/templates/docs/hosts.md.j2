@@ -7,17 +7,21 @@ import { Callout } from 'nextra/components'
 # Hosts
 
 <Callout type="warning">
-Generated from the merged `inventory/` directory: `00-static.yml` plus the
-Proxmox guests discovered by `homelab.proxmox.yml`. Edit the inventory, not
-this file.
+Gegenereerd uit de samengevoegde map `inventory/`: `00-static.yml` plus de
+Proxmox-guests die `homelab.proxmox.yml` live ophaalt. Bewerk de inventory,
+niet deze pagina.
 </Callout>
 
-| Host | Address | Groups | OS |
+| Host | Adres | Groepen | OS |
 | --- | --- | --- | --- |
 {% for h in (groups['linux'] + ['macmini']) | sort -%}
 {% set f = hostvars[h].ansible_facts | default({}) -%}
 | **{{ h }}** | `{{ hostvars[h].ansible_host }}` | {{ hostvars[h].group_names | sort | join(', ') }} | {{ (f.distribution ~ ' ' ~ f.distribution_version) if f.distribution is defined else '—' }} |
 {% endfor %}
 
-All Linux hosts are reached as the `ansible` service account over key-only SSH
-and escalate with passwordless sudo. `mbp` is the control node and manages itself.
+Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met
+key, en escaleert met sudo zonder wachtwoord. `mbp` is de control node en
+beheert zichzelf.
+
+Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
+in zijn config staat. Twee containers draaien DHCP en kloppen daardoor toch.
