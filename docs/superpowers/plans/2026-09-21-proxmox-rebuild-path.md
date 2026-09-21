@@ -15,11 +15,19 @@
 - **There is no unit test framework here.** `ansible-lint` at the production profile must pass for every task.
 - **`changed=0` is NOT a valid test for anything driven by `ansible.builtin.command`.** Ansible skips command tasks entirely under `--check` — they report `skipped` whether their `when` was true or false — so `changed=0` is guaranteed and proves nothing. This was measured, not assumed: Task 1's first implementation transcribed two storages' `content` in the wrong order and still reported `changed=0 skipped=3`.
 - **The drift-list pattern is therefore mandatory** for every role here that reconciles through `pvesh`, `pveum` or `proxmox-backup-manager` — Tasks 1, 2, 3 and 4. Each such role must:
-  1. accumulate the id of every entry whose declared fields differ from live into a list named `<role>_drift`, using `set_fact`, which runs in check mode;
-  2. print that list with `debug` on every run;
-  3. end with an `assert` that the list is empty, guarded by `when: <role>_require_clean | default(false) | bool`.
+  1. accumulate, with `set_fact` (which does run in check mode), the id of every entry whose declared fields differ from live into `<role>_drift`, and the id of every declared entry that does not exist on the host at all into `<role>_missing`;
+  2. name the fields that differ, not merely the entry. A report that says only "this entry is wrong" sends the reader back to the API to diff it by hand;
+  3. **do all asserting in one task file, imported last, after every entry has been evaluated.**
 
-  The acceptance test for those tasks is that assertion passing under
+  Point 3 is not stylistic. `assert` is fatal: an assert inside the loop, or at
+  the end of the first of two task files, halts the play before the rest of the
+  role runs. A verification run is supposed to tell you the state of the whole
+  estate in one pass — fix-one-and-rerun is exactly what it exists to avoid.
+  So: no `assert` inside a per-entry file, and none at the end of a
+  reconciliation file. They belong in a final `verify.yml` that reports both
+  lists and then asserts on them.
+
+  The acceptance test for those tasks is that final assertion passing under
   `ansible-playbook <playbook> --check -e <role>_require_clean=true`, not the
   play recap. A failing assert means the transcription differs from live — fix
   the inventory file, not the role.
