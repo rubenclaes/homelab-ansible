@@ -1,0 +1,43 @@
+---
+# Backup jobs go through pvesh, not through community.proxmox. The collection
+# has proxmox_backup_schedule, but its options are only vm_name, vm_id,
+# backup_id and state: it moves a guest in or out of an EXISTING job and
+# cannot define one. Using it for the vmid list while using pvesh for the
+# schedule would leave two mechanisms owning one object.
+- name: Read the current backup jobs
+  ansible.builtin.command: pvesh get /cluster/backup --output-format json
+  register: proxmox_datacenter_jobs_raw
+  changed_when: false
+  # Must run under --check too: without it stdout is undefined and the
+  # comparison below fails instead of reporting no drift.
+  check_mode: false
+
+- name: Start with an empty backup-job drift list
+  ansible.builtin.set_fact:
+    proxmox_datacenter_job_drift: []
+
+- name: Reconcile each declared backup job
+  ansible.builtin.include_tasks: backup_job.yml
+  loop: "{{ pve_backup_jobs | default([]) }}"
+  loop_control:
+    loop_var: job
+    label: "{{ job.id }}"
+
+- name: Report which backup jobs differ from what is declared
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Every declared backup job matches the node'
+         if proxmox_datacenter_job_drift | length == 0
+         else 'Differs from inventory: ' ~ proxmox_datacenter_job_drift | join(', ') }}
+
+# The real test for this half of the role, for the same reason as storage:
+# ansible.builtin.command is skipped under --check, so the recap is clean
+# whether the jobs match or not. set_fact and assert do run in check mode.
+- name: Require the declared backup jobs to match the node
+  ansible.builtin.assert:
+    that: proxmox_datacenter_job_drift | length == 0
+    fail_msg: >-
+      These backup jobs differ from what inventory declares:
+      {{ proxmox_datacenter_job_drift | join(', ') }}.
+    success_msg: "All {{ pve_backup_jobs | default([]) | length }} declared backup jobs match"
+  when: proxmox_datacenter_require_clean | default(false) | bool

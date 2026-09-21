@@ -1,0 +1,40 @@
+---
+# Backup jobs on pve01, transcribed from `pvesh get /cluster/backup`.
+#
+# `params` keys are the Proxmox API's own names, passed through unchanged.
+# That is deliberate: a translation layer here would mean maintaining a
+# mapping that drifts from the API every time Proxmox adds a field.
+#
+# Value TYPES matter. The reconcile in backup_job.yml compares a merged dict
+# against the live one, so a string "1" where the API returns an integer 1
+# reports a difference on every run, forever.
+#
+# Two corrections to the live state are made here deliberately:
+#   - vmid 109 is dropped from the weekly job. That guest no longer exists,
+#     so the job has been failing on it.
+#   - The orphaned PBS groups ct/109 and vm/110 are NOT touched. No role here
+#     deletes anything; remove them by hand in the PBS UI.
+pve_backup_jobs:
+  - id: backup-e6cc3e8b-ac39
+    params:
+      schedule: "sun 01:00"
+      storage: local
+      vmid: "101,102,103,104,106,107,108"
+      mode: snapshot
+      compress: zstd
+      enabled: 1
+      # {{guestname}} is a Proxmox template, not a Jinja one. Without the raw
+      # block Ansible tries to resolve it and fails with an undefined variable.
+      notes-template: "{% raw %}{{guestname}}{% endraw %}"
+      notification-mode: notification-system
+
+  - id: backup-a6c792f3-ad6c
+    params:
+      schedule: "02:30"
+      storage: pbs
+      all: 1
+      exclude: "100"
+      mode: snapshot
+      enabled: 1
+      notes-template: "{% raw %}{{guestname}}{% endraw %}"
+      notification-mode: notification-system

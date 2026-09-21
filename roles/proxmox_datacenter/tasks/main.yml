@@ -1,3 +1,6 @@
 ---
 - name: Storage definitions
   ansible.builtin.import_tasks: storage.yml
+
+- name: Backup jobs
+  ansible.builtin.import_tasks: backup_jobs.yml
