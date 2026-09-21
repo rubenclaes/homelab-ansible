@@ -49,14 +49,14 @@
       it once, then transcribe it into pve_storages.
     success_msg: "{{ storage.id }} exists"
 
-# `type` is compared but never sent. It is the one field pvesh set rejects -
-# a storage's type is fixed at creation - and leaving it in the comparison is
-# what catches a transcription that named the wrong storage.
 - name: Record drift for {{ storage.id }}
   ansible.builtin.set_fact:
     proxmox_datacenter_drift: "{{ proxmox_datacenter_drift + [storage.id] }}"
   when: not proxmox_datacenter_storage_matches
 
+# `type` is compared but never sent. It is the one field pvesh set rejects -
+# a storage's type is fixed at creation - and leaving it in the comparison is
+# what catches a transcription that named the wrong storage.
 - name: Apply the declared fields to {{ storage.id }}
   ansible.builtin.command:
     argv: >-
