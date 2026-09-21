@@ -8,9 +8,11 @@ docker_stacks_list:
   - { name: neogate, path: neogate }
   - { name: infra, path: infra }
   - { name: homebox, path: homebox }
+  - { name: media, path: media, project: media-stack }
 
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas
+  - /mnt/media01
 
 # Published ports that deliberately have no Caddy route, so the drift table in
 # report.yml stays signal rather than noise. Anything not listed here and not

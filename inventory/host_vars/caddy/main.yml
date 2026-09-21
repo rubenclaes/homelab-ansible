@@ -44,12 +44,14 @@ caddy_sites:
   - { name: id, host: docker, port: 1411, desc: "Pocket ID — OIDC provider (current instance)" }
   - { name: spullen, host: docker, port: 7745, desc: "Homebox — wat ligt waar, met QR-labels" }
 
+  - { name: prowlarr, host: docker, port: 9696, desc: "Indexer manager feeding Sonarr and Radarr" }
+
   # --- Mac mini ---
   - { name: tinyauth, host: macmini, port: 3000, desc: "Auth middleware used by Caddy forward_auth" }
   - { name: plex, host: macmini, port: 32400, desc: "Plex media server — the Mac mini's main job" }
   - { name: sonarr, host: macmini, port: 8989, desc: "TV series management" }
   - { name: radarr, host: macmini, port: 7878, desc: "Film management" }
-  - { name: prowlarr, host: macmini, port: 9696, desc: "Indexer manager feeding Sonarr and Radarr" }
+
   - { name: bazarr, host: macmini, port: 6767, desc: "Subtitle fetching for Sonarr and Radarr" }
   - { name: overseerr, host: macmini, port: 5055, desc: "Media requests from friends and family" }
   - { name: tautulli, host: macmini, port: 8181, desc: "Plex usage statistics" }

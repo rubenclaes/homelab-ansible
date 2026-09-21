@@ -17,14 +17,14 @@ het deployen weggeschreven.
 
 | Stack | Pad in repo | Compose-project | Secrets |
 | --- | --- | --- | --- |
-| **azuracast** | `stacks/apps/azuracast` | — | `.env` in vault |
-| **glance** | `stacks/glance` | — | `.env` in vault |
+| **homebox** | `stacks/homebox` | — | `.env` in vault |
 | **homepage** | `stacks/homepage` | — | `.env` in vault |
 | **infra** | `stacks/infra` | — | `.env` in vault |
+| **media** | `stacks/media` | `media-stack` | `.env` in vault |
 | **metrics** | `stacks/metrics` | — | `.env` in vault |
 | **neogate** | `stacks/neogate` | — | `.env` in vault |
 | **portainer** | `stacks/portainer` | — | geen |
 | **rustdesk** | `stacks/apps/rustdesk` | — | `.env` in vault |
 | **utils** | `stacks/utils` | — | `.env` in vault |
 
-Docker wacht bij het opstarten op deze mounts: `/mnt/ssdnas`.
+Docker wacht bij het opstarten op deze mounts: `/mnt/ssdnas`, `/mnt/media01`.
