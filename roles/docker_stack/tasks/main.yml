@@ -34,6 +34,13 @@
     name: python3-yaml
     state: present
 
+- name: Verify mount units exist
+  ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
+  loop: "{{ docker_stacks_wait_for_mounts }}"
+  register: mount_state
+  changed_when: false
+  failed_when: mount_state.stdout != 'loaded'
+
 - name: Ensure Docker drop-in directory exists
   ansible.builtin.file:
     path: /etc/systemd/system/docker.service.d

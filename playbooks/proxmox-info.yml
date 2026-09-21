@@ -1,0 +1,26 @@
+- name: Proxmox guests via the API
+  hosts: pve01
+  tasks:
+    - name: Remove the distro proxmoxer again (keep the hypervisor clean)
+      ansible.builtin.apt:
+        name: python3-proxmoxer
+        state: absent
+
+    - name: List all guests
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        node: "{{ ansible_facts['hostname'] }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: guests
+
+    - name: Show guests
+      ansible.builtin.debug:
+        msg: "{{ item.vmid }} {{ item.type }} {{ item.name }} {{ item.status }}"
+      loop: "{{ guests.proxmox_vms }}"
+      loop_control:
+        label: "{{ item.name }}"

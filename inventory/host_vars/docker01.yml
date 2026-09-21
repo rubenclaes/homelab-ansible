@@ -2,4 +2,4 @@ docker_stacks:
   - { name: utils, path: utils }
 
 docker_stacks_wait_for_mounts:
-  - /mnt/ssdna
+  - /mnt/ssdnas
