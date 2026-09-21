@@ -45,6 +45,12 @@
         mode: "0644"
       loop: "{{ docs_pages }}"
 
+    - name: Render the family-facing directory
+      ansible.builtin.template:
+        src: docs/diensten.md.j2
+        dest: "{{ docs_site }}/content/diensten.mdx"
+        mode: "0644"
+
     # `npm ci` installs exactly what package-lock.json pins, and fails rather
     # than silently resolving something newer. Nextra is pinned to 4.5.0 on
     # purpose: see docs-site/package.json.
