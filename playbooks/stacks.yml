@@ -6,8 +6,10 @@
   hosts: docker_hosts
   roles:
     - docker_engine
+  tags: [docker]
 
 - name: Docker stacks
   hosts: docker
   roles:
     - docker_stacks
+  tags: [docker]

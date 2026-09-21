@@ -15,10 +15,12 @@
 - name: Linux baseline
   hosts: linux
   roles: [baseline]
+  tags: [baseline, linux]
 
 - name: MacOS baseline
   hosts: macs
   roles: [macos]
+  tags: [macos, workstation]
 
 - name: Reverse proxy
   ansible.builtin.import_playbook: caddy.yml

@@ -1,0 +1,15 @@
+# Control-node toolchain. Pinned so a workstation cannot drift away from CI
+# without noticing: .github/workflows/lint.yml installs these same versions.
+#
+#   pipx install --include-deps -r requirements.txt
+#   # or, in a venv:
+#   pip install -r requirements.txt
+#
+# Bump deliberately, together with collections/requirements.yml and the
+# ANSIBLE_*_VERSION values in the lint workflow.
+ansible-core==2.21.4
+ansible-lint==26.8.0
+
+# Needed by community.proxmox for the API modules and the dynamic inventory.
+proxmoxer>=2.3
+requests>=2.31

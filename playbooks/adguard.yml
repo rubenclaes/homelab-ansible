@@ -3,3 +3,4 @@
   hosts: adguard
   roles:
     - adguard
+  tags: [adguard, dns]

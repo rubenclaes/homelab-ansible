@@ -3,3 +3,4 @@
   hosts: pbs
   roles:
     - pbs
+  tags: [pbs, backup]

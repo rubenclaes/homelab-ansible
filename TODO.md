@@ -23,8 +23,11 @@ backlog na drie maanden niet meer te lezen.
       Waarschijnlijk lost het meteen de dode `torrent`-route op, want
       qbittorrent zit in deze stack.
 
-- [ ] **PBS: controleer of semaphore (LXC 104) in een backupjob zit**
-      En of die job niet botst met de updates van zondag 04:00.
+- [ ] **PBS: semaphore (LXC 104) heeft GEEN backup** — gecontroleerd op 21-09
+      Alle andere guests zitten erin (101,102,103,106,107,108), 104 niet.
+      De jobs draaien 02:30, updates 04:00 — dat botst dus niet.
+      Er staan ook twee verweesde groepen in PBS: ct/109 en vm/110 horen
+      bij guests die niet meer bestaan.
       *Waarom:* Semaphore draait alle andere playbooks. Als die container weg
       is en geen backup heeft, herbouw je hem met de hand terwijl je juist
       dán automatisering wil.
@@ -73,25 +76,6 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Repo zelf
-
-- [ ] **Geen tags in de playbooks**
-      `site.yml` is elf plays en je kunt er geen stuk uit draaien — alleen
-      alles, of `--limit`.
-      *Waarom:* bij een kleine wijziging wil je niet de hele estate raken.
-      Tags per rol (`apt`, `config`, `service`) zijn genoeg.
-
-- [ ] **`bootstrap.yml` staat op `hosts: linux`**
-      Zonder `--limit` raakt hij alle acht hosts.
-      *Waarom:* het is idempotent, dus er gaat niets stuk — maar een playbook
-      dat één nieuwe host hoort te doen, hoort niet op de hele estate te
-      mikken. Eén verkeerd commando is genoeg.
-
-- [ ] **Geen `requirements.txt`**
-      De versies van `ansible-core` en `ansible-lint` staan alleen in het
-      CI-workflowbestand.
-      *Waarom:* een verse clone heeft niets om uit te installeren. De README
-      noemt de versies, maar niets dwingt ze af — dus loopt je werkstation
-      ongemerkt uit de pas met CI.
 
 - [ ] **Geen tests**
       Lint en `--syntax-check` zijn spellingscontrole. Niets bewijst dat een
@@ -151,6 +135,9 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] Tags per play: `site.yml --tags dns` draait alleen dat stuk
+- [x] bootstrap.yml weigert meer dan één host tegelijk
+- [x] requirements.txt pint de toolchain gelijk aan CI
 
 - [x] Provisioning compleet: caddy, docker-engine, adguard, tailscale en pbs worden nu geïnstalleerd, niet alleen geconfigureerd
 - [x] `site.yml --check` meldt `changed=0` op alle tien hosts — idempotentie eindelijk aangetoond

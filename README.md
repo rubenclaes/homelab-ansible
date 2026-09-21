@@ -54,8 +54,13 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 ```bash
 ansible-playbook playbooks/site.yml
 ansible-playbook playbooks/site.yml --check --diff      # droogloop
-ansible-playbook playbooks/site.yml --limit docker    # één host
+ansible-playbook playbooks/site.yml --limit docker      # één host
+ansible-playbook playbooks/site.yml --tags dns          # één stuk
 ```
+
+Tags per play, zodat je een deel kunt draaien zonder de rest te raken:
+`baseline`, `macos`, `caddy`/`web`, `adguard`/`dns`, `tailscale`/`vpn`,
+`pbs`/`backup`, `docker`, `semaphore`, `dotfiles`/`workstation`.
 
 ## Vault
 

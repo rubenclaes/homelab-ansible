@@ -1,4 +1,12 @@
 ---
+# First contact with ONE new host:
+#
+#   ansible-playbook playbooks/bootstrap.yml --limit newhost -u root -k
+#
+# The play targets `linux` so --limit works the usual way, but refuses to run
+# against more than one host. Without that guard a forgotten --limit rewrites
+# /etc/sudoers.d/ansible on all eight: idempotent, so nothing breaks, but a
+# playbook meant for one new machine should not be able to touch the estate.
 - name: Bootstrap ansible service account
   hosts: linux
   vars:
@@ -6,6 +14,18 @@
     svc_pubkey: "{{ lookup('file', '~/.ssh/ansible_ed25519.pub') }}"
 
   tasks:
+    - name: Refuse to bootstrap more than one host at a time
+      ansible.builtin.assert:
+        that: ansible_play_hosts | length == 1
+        fail_msg: >-
+          This would bootstrap {{ ansible_play_hosts | length }} hosts
+          ({{ ansible_play_hosts | join(', ') }}). Point it at one:
+          --limit <host>. Pass -e bootstrap_allow_many=true only if you really
+          mean all of them.
+        success_msg: "Bootstrapping {{ ansible_play_hosts | first }}"
+      when: not (bootstrap_allow_many | default(false) | bool)
+      run_once: true
+
     - name: Ensure sudo is installed
       ansible.builtin.apt:
         name: sudo

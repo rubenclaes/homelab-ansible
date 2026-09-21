@@ -3,3 +3,4 @@
   hosts: caddy
   roles:
     - caddy
+  tags: [caddy, web]

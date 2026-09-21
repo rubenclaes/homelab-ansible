@@ -3,3 +3,4 @@
   hosts: mbp
   roles:
     - dotfiles
+  tags: [dotfiles, workstation]

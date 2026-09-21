@@ -8,3 +8,4 @@
   hosts: semaphore
   roles:
     - semaphore
+  tags: [semaphore]
