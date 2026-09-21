@@ -20,7 +20,7 @@ code cannot express.
 `pve01` runs everything. Guests are LXC containers and VMs, each converged by
 the `baseline` role: timezone, packages, unattended security upgrades, key-only
 SSH. On top of that, single-purpose roles own single-purpose hosts — `caddy`
-terminates every `*.neodata.be` name, `docker01` runs the application stacks,
+terminates every `*.neodata.be` name, `docker` runs the application stacks,
 `semaphore` runs the playbooks on a schedule so none of this depends on a laptop
 being open.
 

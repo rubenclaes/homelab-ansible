@@ -1,5 +1,5 @@
 ---
 - name: Docker stacks
-  hosts: docker01
+  hosts: docker
   roles:
     - docker_stacks

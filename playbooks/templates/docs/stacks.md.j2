@@ -7,11 +7,11 @@ import { Callout } from 'nextra/components'
 # Docker stacks
 
 <Callout type="warning">
-Generated from `docker_stacks_list` in `inventory/host_vars/docker01.yml`.
+Generated from `docker_stacks_list` in `inventory/host_vars/docker.yml`.
 </Callout>
 
 Compose files live in [rubenclaes/containers](https://github.com/rubenclaes/containers),
-pulled onto `docker01` with a read-only deploy key. Each stack's `.env` is stored
+pulled onto `docker` with a read-only deploy key. Each stack's `.env` is stored
 encrypted under the `stacks` vault identity and written at deploy time.
 
 | Stack | Path in repo | Compose project | Secrets |

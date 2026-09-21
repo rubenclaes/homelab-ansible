@@ -21,8 +21,8 @@
         caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
         pve_lxcs: "{{ hostvars['pve01'].pve_lxcs }}"
         pve_lxc_defaults: "{{ hostvars['pve01'].pve_lxc_defaults }}"
-        docker_stacks_list: "{{ hostvars['docker01'].docker_stacks_list }}"
-        docker_stacks_wait_for_mounts: "{{ hostvars['docker01'].docker_stacks_wait_for_mounts }}"
+        docker_stacks_list: "{{ hostvars['docker'].docker_stacks_list }}"
+        docker_stacks_wait_for_mounts: "{{ hostvars['docker'].docker_stacks_wait_for_mounts }}"
 
     # `npm ci` installs exactly what package-lock.json pins, and fails rather
     # than silently resolving something newer. Nextra is pinned to 4.5.0 on

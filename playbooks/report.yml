@@ -39,7 +39,7 @@
         var: report_row
 
 - name: Collect Docker status
-  hosts: docker01
+  hosts: docker
   gather_facts: false
   tasks:
     - name: Read all containers

@@ -20,25 +20,25 @@ caddy_tinyauth_upstream: "{{ hostvars['macmini']['ansible_host'] }}:3000"
 
 caddy_sites:
   # --- Infra ---
-  - { name: portainer, host: docker01, port: 9443, https: true, desc: "Docker management UI for docker01" }
+  - { name: portainer, host: docker, port: 9443, https: true, desc: "Docker management UI for docker" }
   - { name: semaphore, host: semaphore, port: 3000, desc: "Ansible control plane — runs the playbooks on a schedule" }
-  - { name: monitoring, host: monitoring01, port: 3001, host_header: true, desc: "Uptime Kuma — uptime checks and alerting" }
-  - { name: prometheus, host: monitoring01, port: 9090, desc: "Metrics store scraped by Grafana" }
+  - { name: monitoring, host: docker-grafana-stack, port: 3001, host_header: true, desc: "Uptime Kuma — uptime checks and alerting" }
+  - { name: prometheus, host: docker-grafana-stack, port: 9090, desc: "Metrics store scraped by Grafana" }
 
-  # --- docker01 ---
-  - { name: home, host: docker01, port: 8085, desc: "Homepage — the start page and service dashboard" }
-  - { name: pairdrop, host: docker01, port: 3000, desc: "Local file transfer between devices, AirDrop-style" }
-  - { name: code, host: docker01, port: 8443, desc: "code-server — VS Code in the browser" }
-  - { name: tools, host: docker01, port: 8082, desc: "IT-Tools — offline developer utilities" }
-  - { name: metube, host: docker01, port: 8081, desc: "MeTube — yt-dlp web front end" }
-  - { name: pdf, host: docker01, port: 8084, desc: "BentoPDF — merge, split and convert PDFs" }
-  - { name: termix, host: docker01, port: 8086, desc: "Web SSH client for the homelab" }
-  - { name: torrent, host: docker01, port: 8089, desc: "qBittorrent — writes to the NFS share from the Mac mini" }
-  - { name: neogate, host: docker01, port: 4000, desc: "NeoGate — homelab access management (own app)" }
-  - { name: photos, host: docker01, port: 2283, desc: "Immich — photo and video library" }
-  - { name: id, host: docker01, port: 1411, desc: "Pocket ID — OIDC provider (current instance)" }
-  - { name: evcc, host: docker01, port: 7070, forwarded: true, desc: "EV charge control against the Fluvius capacity tariff" }
-  - { name: trek, host: docker01, port: 8083, forwarded: true, desc: "TODO: describe this service" }
+  # --- docker ---
+  - { name: home, host: docker, port: 8085, desc: "Homepage — the start page and service dashboard" }
+  - { name: pairdrop, host: docker, port: 3000, desc: "Local file transfer between devices, AirDrop-style" }
+  - { name: code, host: docker, port: 8443, desc: "code-server — VS Code in the browser" }
+  - { name: tools, host: docker, port: 8082, desc: "IT-Tools — offline developer utilities" }
+  - { name: metube, host: docker, port: 8081, desc: "MeTube — yt-dlp web front end" }
+  - { name: pdf, host: docker, port: 8084, desc: "BentoPDF — merge, split and convert PDFs" }
+  - { name: termix, host: docker, port: 8086, desc: "Web SSH client for the homelab" }
+  - { name: torrent, host: docker, port: 8089, desc: "qBittorrent — writes to the NFS share from the Mac mini" }
+  - { name: neogate, host: docker, port: 4000, desc: "NeoGate — homelab access management (own app)" }
+  - { name: photos, host: docker, port: 2283, desc: "Immich — photo and video library" }
+  - { name: id, host: docker, port: 1411, desc: "Pocket ID — OIDC provider (current instance)" }
+  - { name: evcc, host: docker, port: 7070, forwarded: true, desc: "EV charge control against the Fluvius capacity tariff" }
+  - { name: trek, host: docker, port: 8083, forwarded: true, desc: "TODO: describe this service" }
 
   # --- Mac mini ---
   - { name: tinyauth, host: macmini, port: 3000, desc: "Auth middleware used by Caddy forward_auth" }

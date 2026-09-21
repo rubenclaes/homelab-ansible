@@ -37,7 +37,7 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `site.yml` | alles | **Master.** Baseline → Caddy → stacks → Semaphore → dotfiles. |
 | `baseline.yml` | `linux` | Timezone, basispakketten, unattended upgrades, SSH-hardening. |
 | `caddy.yml` | `caddy` | Rendert de Caddyfile uit `caddy_sites`. |
-| `stacks.yml` | `docker01` | Stacks-repo ophalen, vaulted `.env`s plaatsen, compose up. |
+| `stacks.yml` | `docker` | Stacks-repo ophalen, vaulted `.env`s plaatsen, compose up. |
 | `semaphore.yml` | `semaphore` | Semaphore UI, virtualenv, `known_hosts`. |
 | `dotfiles.yml` | `mbp` | SSH-config, Git-config, `.zshrc`. |
 | `report.yml` | alles → `caddy` | Health-rapport op `https://report.<domain>`. |
@@ -52,7 +52,7 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 ```bash
 ansible-playbook playbooks/site.yml
 ansible-playbook playbooks/site.yml --check --diff      # droogloop
-ansible-playbook playbooks/site.yml --limit docker01    # één host
+ansible-playbook playbooks/site.yml --limit docker    # één host
 ```
 
 ## Vault
@@ -220,7 +220,7 @@ bin/check-vaulted && ansible-lint && \
   Dan faalt de taak in plaats van de host.
 - **`no_log: true` en `diff: false`** op taken met secrets.
 - **Upstreams hebben namen, geen nummers** — een `caddy_sites`-entry wijst naar
-  host en poort (`{ name: photos, host: docker01, port: 2283 }`), de Caddyfile
+  host en poort (`{ name: photos, host: docker, port: 2283 }`), de Caddyfile
   haalt het IP uit `ansible_host`. Verhuizen is één regel in `hosts.yml`.
   `upstream:` alleen voor targets buiten de inventory.
 - Openstaand werk: [TODO.md](TODO.md).

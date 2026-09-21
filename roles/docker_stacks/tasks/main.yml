@@ -1,13 +1,13 @@
 ---
 # This role deploys compose stacks; it does NOT install the Docker engine.
-# docker01 was provisioned with Docker beforehand. Adding an engine install
+# docker was provisioned with Docker beforehand. Adding an engine install
 # here would risk an unattended daemon upgrade restarting every stack, so the
 # engine is managed out of band. See "Host prerequisites" in the README.
 - name: Generate deploy key for the stacks repo
   community.crypto.openssh_keypair:
     path: "{{ docker_stacks_deploy_key }}"
     type: ed25519
-    comment: "docker01 deploy key (read-only)"
+    comment: "docker deploy key (read-only)"
   become: true
   become_user: "{{ docker_stacks_owner }}"
   register: docker_stacks_keypair

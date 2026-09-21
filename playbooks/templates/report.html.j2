@@ -64,12 +64,12 @@
   </div>
 
 
-  {% if hostvars['docker01'].report_containers is defined %}
+  {% if hostvars['docker'].report_containers is defined %}
   <div class="card">
-    <strong>Docker on docker01</strong>
+    <strong>Docker on docker</strong>
     <table>
       <tr><th>Stack</th><th>Running</th><th>Problems</th></tr>
-{% for project, items in hostvars['docker01'].report_containers | groupby('project') %}
+{% for project, items in hostvars['docker'].report_containers | groupby('project') %}
 {% set running = items | selectattr('state', 'equalto', 'running') | list %}
 {% set problems = (items | rejectattr('state', 'equalto', 'running') | list)
                 + (items | selectattr('status', 'search', 'unhealthy') | list) %}
