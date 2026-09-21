@@ -24,7 +24,9 @@
   play recap. A failing assert means the transcription differs from live — fix
   the inventory file, not the role.
 - **Where a module implements check mode** — Task 5's `proxmox_node_network` — the `--check` recap is meaningful and `changed=0` is the bar as usual.
-- **Transcribe from the API, never from the config file.** `/etc/pve/storage.cfg` and `pvesh get /storage` disagree on list ordering, and the comparison is a string equality. Measured on this node: `local-lvm` is `images,rootdir` while `vm-hdd` is `rootdir,images`. Copy each value from the API output individually; do not assume two entries share an ordering, and do not trust a worked example in this plan over the live output.
+- **`pvesh` returns no stable ordering for set-valued fields, so never compare one as a string.** `pvesh` spawns a fresh Perl process per call, Perl randomises hash iteration order per process, and Proxmox holds a storage's `content` as a set. Measured: eight consecutive `pvesh get /storage` calls returned `local`'s three content types in five different orders, with no configuration change between them. No declared ordering can be correct, so such a field is split, sorted and rejoined on **both** sides before comparing. Scope the sort to the field that needs it; do not normalise fields that are genuinely ordered.
+- **Which fields this affects was measured, not guessed.** `content` on `/storage` is unstable. `vmid` on `/cluster/backup` is **stable** across six consecutive calls — an ordered list, not a set — and `proxmox-backup-manager`'s JSON is stable across five, being Rust rather than Perl. Task 1 needs the sort; Tasks 2 and 4 do not. If you add a multi-value field to any of them, measure it the same way before trusting a single passing run.
+- **Task names must not put a Jinja template anywhere but the end.** `ansible-lint`'s production profile enforces `name[template]`. `Decide whether to update {{ x }}` passes; `Decide whether {{ x }} needs updating` does not.
 - **Reconciliation is additive, never exclusive.** No task may delete a Proxmox object that exists on the host but is absent from inventory. `root@pam` and `rubenclaes@pam` predate this repo and must survive every run.
 - **Nothing under `/etc/pve/priv/` is read or copied.** Credentials needed to recreate config come from the `infra` vault.
 - **Collections are pinned.** Do not install or upgrade a collection. If a module is missing an option, use `pvesh` or `pveum` and say why in a comment.
@@ -66,12 +68,13 @@ ansible pve01 -m ansible.builtin.command -a "pvesh get /storage --output-format 
 
 Expected: four entries — `local` (dir), `local-lvm` (lvmthin), `vm-hdd` (zfspool), `pbs` (pbs).
 
-Read the output carefully, because three things in it will cost you a
-`changed=0` run if you transcribe from `/etc/pve/storage.cfg` instead:
+Three things in that output will bite you:
 
-1. `content` comes back in the API's own order, not the config file's.
-   `local` returns `"iso,import,vztmpl"` where the file says
-   `import,vztmpl,iso`. Use the API's order.
+1. **`content` has no stable ordering at all.** Run the command eight times
+   and `local`'s three content types come back in five different orders.
+   `pvesh` is Perl, Perl randomises hash iteration per process, and Proxmox
+   holds `content` as a set. Declare it in any order you like; the role sorts
+   both sides before comparing, and Step 3 shows how.
 2. `shared` is an integer, not a string or a bool.
 3. `digest` appears on every entry. It is a checksum of the whole
    `storage.cfg`, not a property of one storage. Never declare it.
@@ -87,8 +90,11 @@ Create `inventory/group_vars/proxmox/storage.yml`:
 # `params` keys are the Proxmox API's own names, passed through unchanged, and
 # their VALUE TYPES matter: the reconcile compares a merged dict against the
 # live one, so a string "0" where the API returns an integer 0 reports a
-# difference on every run, forever. `content` must carry the API's ordering,
-# which is not the ordering /etc/pve/storage.cfg shows.
+# difference on every run, forever.
+#
+# `content` is the exception: pvesh returns it in a different order on almost
+# every call, so the role sorts both sides before comparing and the order
+# written here is free.
 #
 # `digest` is never declared. It is a checksum of the whole storage.cfg and
 # changes whenever any storage does, so declaring it would mean permanent
@@ -254,11 +260,33 @@ dependencies: []
 # Merging the declared params into the live entry and comparing against the
 # live entry answers "is every declared field already correct?" in one
 # expression, and treats a missing key exactly like a wrong value.
-- name: Decide whether {{ storage.id }} needs updating
+# pvesh spawns a fresh Perl process per call, Perl randomises hash-key
+# iteration order per process, and Proxmox holds `content` as a set - so the
+# same storage reports it in a different comma order on almost every call.
+# Measured: eight consecutive calls, five different orderings of `local`'s
+# three content types, no configuration change between them. A string
+# comparison here is not something storage.yml can fix by declaring the right
+# order, because there is no right order. Sorting both sides tests set
+# membership, which is what the field actually means. Scoped to `content`;
+# every other field is compared as it comes.
+- name: Normalise content ordering before comparing {{ storage.id }}
+  ansible.builtin.set_fact:
+    proxmox_datacenter_storage_live_cmp: >-
+      {{ proxmox_datacenter_storage_live
+         | combine({'content': proxmox_datacenter_storage_live.content.split(',') | sort | join(',')})
+         if 'content' in proxmox_datacenter_storage_live
+         else proxmox_datacenter_storage_live }}
+    proxmox_datacenter_storage_params_cmp: >-
+      {{ storage.params
+         | combine({'content': storage.params.content.split(',') | sort | join(',')})
+         if 'content' in storage.params
+         else storage.params }}
+
+- name: Decide whether to update {{ storage.id }}
   ansible.builtin.set_fact:
     proxmox_datacenter_storage_matches: >-
-      {{ (proxmox_datacenter_storage_live | combine(storage.params))
-         == proxmox_datacenter_storage_live }}
+      {{ (proxmox_datacenter_storage_live_cmp | combine(proxmox_datacenter_storage_params_cmp))
+         == proxmox_datacenter_storage_live_cmp }}
 
 - name: Refuse to touch a storage that does not exist
   ansible.builtin.assert:
@@ -274,7 +302,7 @@ dependencies: []
 # `type` is compared but never sent. It is the one field pvesh set rejects -
 # a storage's type is fixed at creation - and leaving it in the comparison is
 # what catches a transcription that named the wrong storage.
-- name: Record {{ storage.id }} as drifted
+- name: Record drift for {{ storage.id }}
   ansible.builtin.set_fact:
     proxmox_datacenter_drift: "{{ proxmox_datacenter_drift + [storage.id] }}"
   when: not proxmox_datacenter_storage_matches
@@ -478,7 +506,7 @@ pve_backup_jobs:
 # Merging the declared params into the live job and comparing against the live
 # job answers "is every declared field already correct?" in one expression,
 # and handles a missing key the same way it handles a wrong value.
-- name: Decide whether {{ job.id }} needs updating
+- name: Decide whether to update {{ job.id }}
   ansible.builtin.set_fact:
     proxmox_datacenter_job_matches: >-
       {{ (proxmox_datacenter_job_live | combine(job.params)) == proxmox_datacenter_job_live }}
