@@ -776,7 +776,64 @@ Create `roles/proxmox_access/tasks/users.yml`:
   changed_when: true
 ```
 
-- [ ] **Step 4: Include it, after the role privileges**
+- [ ] **Step 3b: Record drift, and verify in a file of its own**
+
+This role falls under the drift-list mandate in Global Constraints, with one
+difference worth stating: here a declared object that does not exist is **not**
+an error. Creating users and ACLs is exactly what this role is for. So there is
+only a drift list — the things that would be created — and no `_missing` list.
+
+Each of the two `when`-guarded creation tasks gets a `set_fact` beside it,
+sharing the same condition, recording what would be created:
+
+```yaml
+- name: Record a user that would be created - {{ item.userid }}
+  ansible.builtin.set_fact:
+    proxmox_access_drift: "{{ proxmox_access_drift + ['user ' ~ item.userid] }}"
+  loop: "{{ pve_users | default([]) }}"
+  loop_control:
+    label: "{{ item.userid }}"
+  when: item.userid not in (proxmox_access_users.stdout | from_json | map(attribute='userid') | list)
+```
+
+and the same shape for ACLs, recording `'acl ' ~ item.path ~ ' -> ' ~ item.ugid`.
+Initialise `proxmox_access_drift: []` at the top of `users.yml`, before the
+first read.
+
+Create `roles/proxmox_access/tasks/verify.yml`:
+
+```yaml
+---
+# A file of its own, imported last, because assert is fatal: asserting inside
+# users.yml would halt the play before the ACLs were evaluated, and this run
+# exists to report the whole picture in one pass.
+- name: Report which access objects are missing
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Every declared user and ACL is in place'
+         if proxmox_access_drift | length == 0
+         else 'Would be created: ' ~ proxmox_access_drift | join(', ') }}
+
+# `changed` cannot serve as the test here: ansible.builtin.command is skipped
+# outright under --check, so the recap is clean whether or not anything is
+# missing. set_fact and assert do run in check mode.
+- name: Require every declared user and ACL to be in place
+  ansible.builtin.assert:
+    that: proxmox_access_drift | length == 0
+    fail_msg: >-
+      Not yet in place: {{ proxmox_access_drift | join(', ') }}.
+      Run this playbook without --check to create them.
+    success_msg: "All declared users and ACLs are in place"
+  when: proxmox_access_require_clean | default(false) | bool
+```
+
+Note this role keeps the fatal assert it already has — the one in
+`tasks/main.yml` that refuses to apply a privilege list which would revoke
+something. That one *should* halt the play: it means the run is about to break
+API access for every playbook in this repo. It is a safety interlock, not a
+drift report, and it stays where it is.
+
+- [ ] **Step 4: Include both, after the role privileges**
 
 Append to `roles/proxmox_access/tasks/main.yml`:
 
@@ -784,6 +841,9 @@ Append to `roles/proxmox_access/tasks/main.yml`:
 
 - name: Users and ACLs
   ansible.builtin.import_tasks: users.yml
+
+- name: Report and verify
+  ansible.builtin.import_tasks: verify.yml
 ```
 
 - [ ] **Step 5: Wire the playbook into site.yml**
@@ -811,19 +871,37 @@ Then update the comment block at the top of `site.yml`. It lists what is deliber
 
 ```bash
 ansible-lint playbooks/proxmox-access.yml roles/proxmox_access
-ansible-playbook playbooks/proxmox-access.yml --check
+ansible-playbook playbooks/proxmox-access.yml --check \
+  -e proxmox_access_require_clean=true
 ```
 
-Expected: lint passes, recap reports `changed=0`. Every user and ACL already exists, so every conditional is false.
+Expected: lint passes, and the assert passes with "All declared users and ACLs
+are in place". Every user and ACL you transcribed already exists, so the drift
+list stays empty.
 
-- [ ] **Step 7: Verify against the node, since --check proves less here**
+Do not read the play recap. `ansible.builtin.command` is skipped under
+`--check`, so `changed=0` is guaranteed and means nothing here.
+
+If the assert fails, it names what it thinks is missing. That is a bug in your
+`when` comparison, not a real absence — check it against the Step 1 output
+before doing anything else, because the same wrong comparison would make the
+real run create a duplicate.
+
+- [ ] **Step 7: Verify against the node, because a wrong comparison is silent**
 
 ```bash
 ansible-playbook playbooks/proxmox-access.yml
+ansible pve01 -m ansible.builtin.command -a "pveum user list --output-format json"
 ansible pve01 -m ansible.builtin.command -a "pveum acl list --output-format json"
 ```
 
-Expected: unchanged output, still exactly one ACL. If a second ACL appeared, the `when` comparison in Step 3 is wrong — fix the comparison, then remove the duplicate by hand with `pveum acl delete`.
+Expected: both outputs unchanged — still three users, still exactly one ACL.
+
+This second check exists because the failure mode here is not a crash. A
+`when` comparison that never matches an existing object makes every run
+re-create it, and `pveum acl modify` on an existing ACL succeeds quietly. If a
+second ACL appeared, fix the comparison first, then remove the duplicate by
+hand with `pveum acl delete`.
 
 - [ ] **Step 8: Commit**
 
