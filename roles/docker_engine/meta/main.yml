@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: docker_engine
+  author: rubenclaes
+  description: >-
+    Installs the Docker engine from the official repository. Owns the platform;
+    docker_stacks owns the workloads running on it.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - cloud
+    - docker
+    - containers
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

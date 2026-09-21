@@ -2,4 +2,7 @@
 - name: Docker stacks
   hosts: docker
   roles:
+    # The engine first, then the workloads that need it. docker_engine
+    # installs with state: present, so on an existing host it is a no-op.
+    - docker_engine
     - docker_stacks

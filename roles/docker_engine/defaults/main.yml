@@ -1,0 +1,24 @@
+---
+# Docker Engine from the official repository.
+#
+# state: present, never latest. An unattended engine upgrade restarts the
+# daemon and every stack with it, so upgrading is a deliberate act - see the
+# updates runbook - not something a converge run does behind your back.
+docker_engine_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+docker_engine_repo_uri: https://download.docker.com/linux/debian
+docker_engine_repo_component: stable
+# .gpg, not .asc: apt decides the key format from the extension, and this is
+# a binary keyring. Naming a binary key .asc makes apt reject it with
+# NO_PUBKEY, which is quietly fatal - the repo silently stops updating.
+docker_engine_keyring: /etc/apt/keyrings/docker.gpg
+
+# The suite follows the host's own release rather than being hardcoded. The
+# LXC template moved to Debian 13 while docker01 is still on 12, so a literal
+# "bookworm" would quietly hand a trixie host the wrong suite.
+docker_engine_repo_suite: "{{ ansible_facts['distribution_release'] }}"

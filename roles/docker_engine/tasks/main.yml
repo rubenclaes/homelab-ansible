@@ -1,0 +1,58 @@
+---
+# Installs the Docker engine. Separate from docker_stacks, which deploys the
+# compose stacks onto it: one owns the platform, the other owns the workloads.
+- name: Ensure the apt keyring directory exists
+  ansible.builtin.file:
+    path: "{{ docker_engine_keyring | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Shipped in the role rather than downloaded at run time. The key is then
+# reviewable in git, identical on every rebuild, and provisioning does not
+# depend on a vendor endpoint being reachable.
+- name: Install the Docker archive keyring
+  ansible.builtin.copy:
+    src: docker-archive-keyring.gpg
+    dest: "{{ docker_engine_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Define the Docker apt repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "{{ docker_engine_repo_uri }}"
+    suites: ["{{ docker_engine_repo_suite }}"]
+    components: ["{{ docker_engine_repo_component }}"]
+    architectures: [amd64]
+    signed_by: "{{ docker_engine_keyring }}"
+    state: present
+    enabled: true
+  register: docker_engine_repo
+
+# Removed only after the replacement exists, so there is never a window with
+# no Docker repository configured at all.
+- name: Remove the superseded one-line repository file
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
+  register: docker_engine_old_repo
+
+- name: Refresh the package list when the repository changed
+  ansible.builtin.apt:
+    update_cache: true
+  when: docker_engine_repo is changed or docker_engine_old_repo is changed
+
+- name: Install the Docker engine
+  ansible.builtin.apt:
+    name: "{{ docker_engine_packages }}"
+    state: present
+
+- name: Ensure Docker is enabled and running
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
