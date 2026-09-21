@@ -1,5 +1,6 @@
 baseline_timezone: Europe/Brussels
 baseline_packages:
+  - acl
   - curl
   - vim
   - htop
