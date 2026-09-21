@@ -219,9 +219,22 @@ unchanged estate must report `changed=0`. Any change reported is a
 transcription error, not a pending fix. This is the same bar `site.yml` is
 already held to.
 
-One exception, measured rather than overlooked: `proxmox_access_acl` declares
-no check-mode support, so ACL tasks prove nothing under `--check`. Those are
-verified instead by a real run followed by `pveum acl list`, compared against
+That bar holds only where a module implements check mode. It does **not** hold
+for anything driven by `ansible.builtin.command`, which Ansible skips outright
+under `--check`: the task reports `skipped` whether its condition was true or
+false, so `changed=0` is guaranteed and proves nothing. Decision 5 routes
+storage, backup jobs and the whole PBS side through `pvesh` and
+`proxmox-backup-manager`, which puts most of this work in that category.
+
+Those roles therefore make their decision assertable rather than inferring it
+from `changed`. Each accumulates the entries whose declared fields differ from
+live into a drift list, and carries a final task that asserts the list is empty
+when `<role>_require_clean` is passed. The acceptance test is that assertion
+under `--check`, not the recap. `set_fact` and `assert` both run in check mode,
+so the drift list is accurate there.
+
+`proxmox_access_acl` declares no check-mode support for the same reason; ACLs
+are verified by a real run followed by `pveum acl list`, compared against
 `pve_acls`.
 
 Beyond that: the drill completes and destroys its container, and

@@ -12,8 +12,19 @@
 
 ## Global Constraints
 
-- **There is no unit test framework here.** The test cycle for every task is: `ansible-lint` at the production profile must pass, and a `--check` run against the unchanged estate must report `changed=0`. A reported change means the transcription is wrong, not that a fix is pending. Treat a non-zero `changed` exactly as you would a failing assertion.
-- **One exception to that bar:** `proxmox_access_acl` declares `check_mode: support: none`. ACLs are verified by a real run followed by `pveum acl list`, compared against `pve_acls`.
+- **There is no unit test framework here.** `ansible-lint` at the production profile must pass for every task.
+- **`changed=0` is NOT a valid test for anything driven by `ansible.builtin.command`.** Ansible skips command tasks entirely under `--check` — they report `skipped` whether their `when` was true or false — so `changed=0` is guaranteed and proves nothing. This was measured, not assumed: Task 1's first implementation transcribed two storages' `content` in the wrong order and still reported `changed=0 skipped=3`.
+- **The drift-list pattern is therefore mandatory** for every role here that reconciles through `pvesh`, `pveum` or `proxmox-backup-manager` — Tasks 1, 2, 3 and 4. Each such role must:
+  1. accumulate the id of every entry whose declared fields differ from live into a list named `<role>_drift`, using `set_fact`, which runs in check mode;
+  2. print that list with `debug` on every run;
+  3. end with an `assert` that the list is empty, guarded by `when: <role>_require_clean | default(false) | bool`.
+
+  The acceptance test for those tasks is that assertion passing under
+  `ansible-playbook <playbook> --check -e <role>_require_clean=true`, not the
+  play recap. A failing assert means the transcription differs from live — fix
+  the inventory file, not the role.
+- **Where a module implements check mode** — Task 5's `proxmox_node_network` — the `--check` recap is meaningful and `changed=0` is the bar as usual.
+- **Transcribe from the API, never from the config file.** `/etc/pve/storage.cfg` and `pvesh get /storage` disagree on list ordering, and the comparison is a string equality. Measured on this node: `local-lvm` is `images,rootdir` while `vm-hdd` is `rootdir,images`. Copy each value from the API output individually; do not assume two entries share an ordering, and do not trust a worked example in this plan over the live output.
 - **Reconciliation is additive, never exclusive.** No task may delete a Proxmox object that exists on the host but is absent from inventory. `root@pam` and `rubenclaes@pam` predate this repo and must survive every run.
 - **Nothing under `/etc/pve/priv/` is read or copied.** Credentials needed to recreate config come from the `infra` vault.
 - **Collections are pinned.** Do not install or upgrade a collection. If a module is missing an option, use `pvesh` or `pveum` and say why in a comment.
