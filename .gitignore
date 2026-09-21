@@ -10,6 +10,11 @@ facts_cache/
 # Rendered artefacts
 playbooks/*.html
 homelab-report.html
+# Built by playbooks/docs.yml and shipped to the Caddy host; never source.
+docs-site/out.tar.gz
+docs-site/out/
+docs-site/node_modules/
+docs-site/.next/
 
 # Secrets that must never be committed (vaulted files are tracked by name below)
 vault_pass
