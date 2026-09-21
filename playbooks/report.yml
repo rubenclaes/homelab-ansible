@@ -140,12 +140,16 @@
         return_content: true
       register: report_backups
       no_log: true
+      # Read-only, and the template needs the result: without this the task
+      # skips under --check and rendering dies on an undefined variable.
+      check_mode: false
 
     - name: Read the wildcard certificate
       community.crypto.get_certificate:
         host: "{{ report_cert_host }}"
         port: 443
       register: report_cert
+      check_mode: false
 
     # The report lists internal hostnames, IPs and backup ages. Render it to a
     # private temp file rather than a predictable world-readable /tmp path,
@@ -156,12 +160,17 @@
         suffix: .html
       register: report_tmp
       changed_when: false
+      check_mode: false
 
     - name: Render HTML
       ansible.builtin.template:
         src: report.html.j2
         dest: "{{ report_tmp.path }}"
         mode: "0600"
+      # Renders to the control node's temp file even under --check, so the
+      # upload task below can show a real diff of what would be published.
+      # Removed again by the last play either way.
+      check_mode: false
 
 - name: Publish the report
   hosts: caddy
@@ -188,3 +197,4 @@
         path: "{{ report_tmp.path }}"
         state: absent
       changed_when: false
+      check_mode: false
