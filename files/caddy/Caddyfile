@@ -1,0 +1,330 @@
+{
+	# Global options (moet als allereerste)
+	email ruben.claes@neodata.be
+
+	# Runtime logs van Caddy zelf
+	log {
+		output file /var/log/caddy/runtime.log {
+			roll_at 00:00
+			roll_size 100MiB
+			roll_keep 14
+			roll_keep_for 336h
+			roll_local_time
+		}
+		format json
+		level INFO
+	}
+
+	# Als je ooit Cloudflare "proxied" (orange cloud) gebruikt voor sommige hosts:
+	# dan wil je client IP's correct én veilig verwerken.
+	# servers {
+	# 	trusted_proxies static private_ranges
+	# }
+	# (Of specifieker: Cloudflare IP ranges i.p.v. private_ranges)
+
+	# Handig voor Prometheus
+	metrics {
+		per_host
+	}
+}
+
+# -----------------------
+# Wildcard trigger + DNS-01
+# -----------------------
+# Eén wildcard-cert *.neodata.be dekt al je subdomeinen (Caddy 2.10+ gebruikt
+# 'm automatisch voor de blokken hieronder). De DNS-01 config staat hier omdat
+# 'resolvers' enkel in een tls-blok mag. Vangt ongedefinieerde subdomeinen af.
+# Raakt apex/www (DANE) NIET aan.
+*.neodata.be {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+	abort
+}
+# -----------------------
+# Default HTTP site (port 80)
+# -----------------------
+:80 {
+	root * /usr/share/caddy
+	file_server
+}
+
+# -----------------------
+# Common snippets
+# -----------------------
+(common_headers) {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
+(proxy_defaults) {
+	import common_headers
+	encode
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_at 00:00
+			roll_size 250MiB
+			roll_keep 14
+			roll_keep_for 336h
+			roll_local_time
+		}
+		format json
+		level INFO
+	}
+}
+
+(tinyauth_forwarder) {
+	forward_auth 192.168.0.26:3000 {
+		uri /api/auth/caddy
+	}
+}
+
+# Gebruik dit alleen tijdelijk als een upstream-cert echt niet proper is.
+(https_upstream_insecure) {
+	transport http {
+		tls_insecure_skip_verify
+	}
+}
+
+# -----------------------
+# Special cases
+# -----------------------
+ca.neodata.be {
+	import common_headers
+
+	# puur file download hosten
+	root * /var/www/caddy-ca
+	file_server
+
+	# force download in de browser
+	header Content-Disposition "attachment; filename=caddy-local-root.crt"
+	header Content-Type "application/x-x509-ca-cert"
+}
+
+portainer.neodata.be {
+	import proxy_defaults
+	reverse_proxy https://192.168.0.15:9443 {
+		import https_upstream_insecure
+		header_up Host {host}
+	}
+}
+
+unifi.neodata.be {
+	import proxy_defaults
+	reverse_proxy https://192.168.0.55:11443 {
+		import https_upstream_insecure
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# -----------------------
+# Homepage
+# -----------------------
+home.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8085
+}
+
+# -----------------------
+# Utils stack (192.168.0.15)
+# -----------------------
+pairdrop.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:3000
+}
+
+code.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8443
+}
+
+tools.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8082
+}
+
+metube.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8081
+}
+
+pdf.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8084
+}
+
+termix.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8086
+}
+
+# TinyAuth endpoint zelf
+tinyauth.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:3000
+}
+
+# -----------------------
+# Apps (Mac mini @ 192.168.0.26)
+# -----------------------
+plex.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:32400
+}
+
+sonarr.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:8989
+}
+
+radarr.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:7878
+}
+
+prowlarr.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:9696
+}
+
+bazarr.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:6767
+}
+
+overseerr.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:5055
+}
+
+tautulli.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:8181
+}
+
+jackett.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:9117
+}
+
+dozzle.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:8080
+}
+
+duplicati.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:8200
+}
+
+torrent.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:8089
+}
+
+auth.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:1411
+}
+
+wizarr.neodata.be {
+	import proxy_defaults
+	import tinyauth_forwarder
+	reverse_proxy 192.168.0.26:5690
+}
+
+books.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:6061
+}
+
+downloads.neodata.be {
+	import proxy_defaults
+	reverse_proxy
+}
+
+audiobooks.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:13378
+}
+
+# Optioneel: metrics enkel intern/LAN
+metrics.neodata.be {
+	@lan client_ip private_ranges
+	handle @lan {
+		metrics
+	}
+	respond "Forbidden" 403
+}
+
+monitoring.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.17:3001 {
+		header_up Host {host}
+	}
+}
+
+prometheus.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.17:9090
+}
+
+neogate.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:4000
+}
+
+jellyfin.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.26:8096
+}
+
+photos.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:2283
+}
+
+automate.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.5:5678
+}
+
+evcc.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:7070 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# ── Pocket ID ────────────────────────────────────────────────────────
+id.neodata.be {
+	import proxy_defaults
+	reverse_proxy 192.168.0.15:1411
+}
+
+# ── Trek    ────────────────────────────────────────────────────────
+trek.neodata.be {
+	import proxy_defaults
+		reverse_proxy 192.168.0.15:8083 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+# BEGIN ANSIBLE ROUTE semaphore
+semaphore.neodata.be {
+    import proxy_defaults
+    reverse_proxy 192.168.0.30:3000
+}
+# END ANSIBLE ROUTE semaphore
