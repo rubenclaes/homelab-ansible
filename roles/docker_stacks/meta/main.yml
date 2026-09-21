@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: docker_stacks
+  author: rubenclaes
+  description: >-
+    Deploys Docker Compose stacks from a Git repo, with vaulted .env files and mount-unit ordering.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - cloud
+    - docker
+    - containers
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

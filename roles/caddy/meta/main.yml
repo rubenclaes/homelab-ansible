@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: caddy
+  author: rubenclaes
+  description: >-
+    Configures a Caddy reverse proxy from caddy_sites. Does not install the binary; see the role header.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - networking
+    - web
+    - proxy
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

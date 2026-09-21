@@ -8,3 +8,13 @@ semaphore_pip_packages:
   - ansible
   - "proxmoxer>=2.3"
   - requests
+
+# Hosts whose SSH host key Semaphore must trust before it can reach them.
+# Each one needs gathered facts (ssh_host_key_ed25519_public); the first play
+# in playbooks/semaphore.yml collects them. See the assert in tasks/main.yml.
+semaphore_known_hosts_targets: "{{ groups['linux'] | default([]) + ['macmini'] }}"
+
+# GitHub's ed25519 host key, for cloning playbook repos over SSH.
+semaphore_github_host_key: >-
+  github.com ssh-ed25519
+  AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl

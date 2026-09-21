@@ -1,0 +1,16 @@
+---
+# Settings for playbooks/report.yml. Kept here rather than hardcoded in the
+# playbook so the domain, datastore and publish location are changeable in one
+# place, and overridable per host or with -e.
+
+# Any host serving the wildcard cert; used only to read its expiry date.
+# Read from the caddy host's own vars so it tracks a domain change there.
+report_cert_host: "semaphore.{{ hostvars['caddy']['caddy_domain'] }}"
+
+# Proxmox Backup Server datastore and API token identity.
+report_pbs_datastore: store1
+report_pbs_token_id: "ansible@pbs!report"
+
+# Where the rendered HTML is served from on the caddy host.
+# Must match the `root` in the report.{{ domain }} block of Caddyfile.j2.
+report_publish_dir: /var/www/homelab-report

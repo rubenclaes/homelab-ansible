@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: baseline
+  author: rubenclaes
+  description: >-
+    Common Debian baseline: timezone, packages, unattended upgrades, SSH hardening and a reboot check.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - system
+    - security
+    - baseline
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

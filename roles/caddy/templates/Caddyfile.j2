@@ -95,7 +95,7 @@ report.{{ caddy_domain }} {
 	import common_headers
 	@internal client_ip private_ranges 100.64.0.0/10
 	handle @internal {
-		root * /var/www/homelab-report
+		root * {{ report_publish_dir }}
 		file_server
 	}
 	respond "Forbidden" 403

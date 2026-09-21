@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Fails if any file that must be encrypted is sitting in the repo as plaintext.
+#
+# Run locally with `bin/check-vaulted`, and in CI on every push. This catches
+# the one mistake that is expensive to undo: committing a secret, which stays
+# in git history even after you delete it.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# Every path here must begin with the $ANSIBLE_VAULT header.
+patterns=(
+	'files/env/*.env'
+	'inventory/group_vars/*/vault.yml'
+	'inventory/host_vars/*/vault.yml'
+	'roles/semaphore/files/config.json'
+)
+
+failed=0
+checked=0
+
+for pattern in "${patterns[@]}"; do
+	for file in $pattern; do
+		[[ -f "$file" ]] || continue
+		checked=$((checked + 1))
+		if head -c 15 "$file" | grep -q '^\$ANSIBLE_VAULT'; then
+			echo "  encrypted  $file"
+		else
+			echo "  PLAINTEXT  $file" >&2
+			failed=$((failed + 1))
+		fi
+	done
+done
+
+if [[ $checked -eq 0 ]]; then
+	echo "check-vaulted: matched no files at all - did the layout change?" >&2
+	exit 1
+fi
+
+if [[ $failed -gt 0 ]]; then
+	echo >&2
+	echo "check-vaulted: $failed file(s) are NOT encrypted." >&2
+	echo "Encrypt with: ansible-vault encrypt <file>" >&2
+	exit 1
+fi
+
+echo "check-vaulted: all $checked sensitive file(s) encrypted."

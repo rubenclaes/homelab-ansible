@@ -1,23 +1,51 @@
 ---
-- name: Controlled system update
-  hosts: linux
-  serial: 1
-  vars:
-    allow_reboot: false
-  tasks:
-    - name: Refresh cache and full-upgrade
-      ansible.builtin.apt:
-        update_cache: true
-        upgrade: dist
+# Controlled system update.
+#
+#   allow_reboot             reboot guests that need it        (default false)
+#   allow_hypervisor_reboot  also reboot pve01                 (default false)
+#
+# Both are read with `| default(false)` rather than declared as play vars,
+# so they can be set in group_vars, host_vars, or on the command line:
+#   ansible-playbook playbooks/update.yml -e allow_reboot=true
+#
+# Guests are patched to completion first, then the hypervisor. Running them in
+# one play would let pve01 reboot out from under the guests it hosts.
 
-    - name: Check whether a reboot is needed
-      ansible.builtin.include_role:
-        name: baseline
-        tasks_from: reboot_check
+- name: Update guests
+  hosts: linux:!proxmox
+  serial: 1
+  tasks:
+    - name: Patch this host
+      ansible.builtin.import_tasks: tasks/update_host.yml
 
     - name: Reboot if needed and allowed
       ansible.builtin.reboot:
         reboot_timeout: 900
       when:
         - baseline_reboot_needed | bool
-        - allow_reboot | bool
+        - allow_reboot | default(false) | bool
+
+- name: Update hypervisors
+  hosts: proxmox
+  serial: 1
+  tasks:
+    - name: Patch this host
+      ansible.builtin.import_tasks: tasks/update_host.yml
+
+    - name: Reboot if needed and doubly allowed
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+      when:
+        - baseline_reboot_needed | bool
+        - allow_reboot | default(false) | bool
+        - allow_hypervisor_reboot | default(false) | bool
+
+    - name: Warn when the hypervisor needs a reboot but is not allowed one
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} needs a reboot. Re-run with
+          -e allow_reboot=true -e allow_hypervisor_reboot=true
+          once the guests can take the downtime.
+      when:
+        - baseline_reboot_needed | bool
+        - not (allow_reboot | default(false) | bool and allow_hypervisor_reboot | default(false) | bool)

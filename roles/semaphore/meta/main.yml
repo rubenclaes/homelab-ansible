@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: semaphore
+  author: rubenclaes
+  description: >-
+    Semaphore UI with its own Ansible virtualenv and a known_hosts file for every managed host.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - system
+    - automation
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

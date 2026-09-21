@@ -7,10 +7,10 @@
 
 - name: Install Homebrew casks
   community.general.homebrew_cask:
-    name: "{{ item }}"
+    name: "{{ macos_casks }}"
     state: present
     path: "{{ macos_brew_path }}"
-  loop: "{{ macos_casks }}"
+  when: macos_casks | length > 0
 
 - name: Apply macOS defaults
   community.general.osx_defaults:

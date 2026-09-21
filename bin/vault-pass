@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Vault password resolver, referenced by vault_password_file in ansible.cfg.
+#
+# Ansible runs this file (it is executable) and reads the password from stdout.
+# Resolution order:
+#
+#   1. $ANSIBLE_VAULT_PASSWORD      - for CI and Semaphore, injected as a secret
+#   2. $ANSIBLE_VAULT_PASSWORD_FILE - an explicit override, if you set one
+#   3. ~/.ansible/vault_pass        - the normal workstation location
+#   4. nothing                      - emit an empty password and carry on
+#
+# Step 4 matters: `ansible-lint` and `--syntax-check` must work in a clone with
+# no secrets at all. Pointing vault_password_file straight at a missing file
+# makes Ansible abort before it parses anything, which breaks CI outright.
+# So we emit a placeholder instead. Ansible starts, lint and syntax-check pass,
+# and any attempt to actually decrypt fails loudly with "Decryption failed".
+# An empty string will not do: Ansible rejects it as an invalid password.
+set -euo pipefail
+
+if [[ -n "${ANSIBLE_VAULT_PASSWORD:-}" ]]; then
+	printf '%s\n' "$ANSIBLE_VAULT_PASSWORD"
+	exit 0
+fi
+
+if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" && -r "${ANSIBLE_VAULT_PASSWORD_FILE}" ]]; then
+	cat -- "${ANSIBLE_VAULT_PASSWORD_FILE}"
+	exit 0
+fi
+
+if [[ -r "${HOME}/.ansible/vault_pass" ]]; then
+	cat -- "${HOME}/.ansible/vault_pass"
+	exit 0
+fi
+
+echo "vault-pass: no vault password found; continuing without one." >&2
+echo "vault-pass: set ANSIBLE_VAULT_PASSWORD or create ~/.ansible/vault_pass" >&2
+echo "vault-pass: to run anything that touches encrypted files." >&2
+# Placeholder, not a real password: enough for Ansible to start up.
+printf '%s\n' 'no-vault-password-available'

@@ -1,7 +1,9 @@
 ---
 docker_stacks_root: /opt/containers/stacks
 docker_stacks_owner: ruben
-docker_stacks_env_dir: "{{ playbook_dir }}/../files/env"
+# Resolved from the role, not the playbook, so the role keeps working if a
+# playbook is ever added outside playbooks/.
+docker_stacks_env_dir: "{{ role_path }}/../../files/env"
 docker_stacks_list: []
 docker_stacks_repo: git@github.com:rubenclaes/containers.git
 docker_stacks_repo_dir: /opt/containers

@@ -80,12 +80,36 @@
     group: "{{ semaphore_user }}"
     mode: "0700"
 
+# The known_hosts tasks below read ssh_host_key_ed25519_public out of every
+# managed host's gathered facts. Those facts only exist because the first play
+# in playbooks/semaphore.yml gathers them. Running this role on its own, or
+# with `--limit semaphore`, limits that play out and leaves the facts undefined.
+# Fail with an explanation rather than a bare "undefined variable".
+- name: Find managed hosts whose SSH host key was not gathered
+  ansible.builtin.set_fact:
+    semaphore_known_hosts_missing: "{{ semaphore_known_hosts_missing | default([]) + [item] }}"
+  loop: "{{ semaphore_known_hosts_targets }}"
+  loop_control:
+    label: "{{ item }}"
+  when: hostvars[item].ansible_facts['ssh_host_key_ed25519_public'] is not defined
+
+- name: Require gathered facts for every host Semaphore must trust
+  ansible.builtin.assert:
+    that: semaphore_known_hosts_missing | default([]) | length == 0
+    fail_msg: >-
+      No gathered SSH host key for: {{ semaphore_known_hosts_missing | default([]) | join(', ') }}.
+      Run the full playbook so facts are collected first:
+      `ansible-playbook playbooks/semaphore.yml`.
+      Do not use `--limit semaphore`; to restrict the run use
+      `--limit 'linux:macmini'` instead, which keeps the fact-gathering play in scope.
+    success_msg: "Facts present for all {{ semaphore_known_hosts_targets | length }} managed hosts"
+
 - name: Trust managed hosts' SSH keys
   ansible.builtin.known_hosts:
     path: "{{ semaphore_home }}/.ssh/known_hosts"
     name: "{{ hostvars[item].ansible_host }}"
     key: "{{ hostvars[item].ansible_host }} ssh-ed25519 {{ hostvars[item].ansible_facts['ssh_host_key_ed25519_public'] }}"
-  loop: "{{ groups['linux'] + ['macmini'] }}"
+  loop: "{{ semaphore_known_hosts_targets }}"
   loop_control:
     label: "{{ item }}"
   become: true
@@ -95,6 +119,6 @@
   ansible.builtin.known_hosts:
     path: "{{ semaphore_home }}/.ssh/known_hosts"
     name: github.com
-    key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+    key: "{{ semaphore_github_host_key }}"
   become: true
   become_user: "{{ semaphore_user }}"

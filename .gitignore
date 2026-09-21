@@ -1,0 +1,24 @@
+# Collections are installed from collections/requirements.yml, never committed.
+.ansible/
+collections/ansible_collections/
+
+# Ansible runtime noise
+*.retry
+facts_cache/
+/tmp/
+
+# Rendered artefacts
+playbooks/*.html
+homelab-report.html
+
+# Secrets that must never be committed (vaulted files are tracked by name below)
+vault_pass
+.vault_pass
+*.pem
+*.key
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

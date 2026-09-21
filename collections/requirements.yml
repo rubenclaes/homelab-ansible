@@ -1,7 +1,16 @@
 ---
+# Pinned to the major version in use, so a breaking upstream release cannot
+# silently change behaviour between a green CI run and a production run.
+# To move a pin: bump it here, run `ansible-galaxy collection install -r
+# collections/requirements.yml --force`, then re-run the affected playbook.
 collections:
   - name: community.general
+    version: ">=13.4.0,<14.0.0"
   - name: community.docker
+    version: ">=5.3.0,<6.0.0"
   - name: community.proxmox
+    version: ">=2.0.0,<3.0.0"
   - name: community.crypto
+    version: ">=3.4.0,<4.0.0"
   - name: ansible.posix
+    version: ">=2.2.2,<3.0.0"

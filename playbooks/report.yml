@@ -132,9 +132,10 @@
 
     - name: Backup groups from PBS
       ansible.builtin.uri:
-        url: "https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/store1/groups"
+        url: >-
+          https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/{{ report_pbs_datastore }}/groups
         headers:
-          Authorization: "PBSAPIToken=ansible@pbs!report:{{ hostvars['pbs'].vault_pbs_report_token }}"
+          Authorization: "PBSAPIToken={{ report_pbs_token_id }}:{{ hostvars['pbs'].vault_pbs_report_token }}"
         validate_certs: false
         return_content: true
       register: report_backups
@@ -142,15 +143,25 @@
 
     - name: Read the wildcard certificate
       community.crypto.get_certificate:
-        host: semaphore.neodata.be
+        host: "{{ report_cert_host }}"
         port: 443
       register: report_cert
+
+    # The report lists internal hostnames, IPs and backup ages. Render it to a
+    # private temp file rather than a predictable world-readable /tmp path,
+    # because the control node may be shared (Semaphore runs as its own user).
+    - name: Create a private temp file for the rendered report
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .html
+      register: report_tmp
+      changed_when: false
 
     - name: Render HTML
       ansible.builtin.template:
         src: report.html.j2
-        dest: /tmp/homelab-report.html
-        mode: "0644"
+        dest: "{{ report_tmp.path }}"
+        mode: "0600"
 
 - name: Publish the report
   hosts: caddy
@@ -158,12 +169,22 @@
   tasks:
     - name: Ensure the report directory exists
       ansible.builtin.file:
-        path: /var/www/homelab-report
+        path: "{{ report_publish_dir }}"
         state: directory
         mode: "0755"
 
     - name: Upload the report
       ansible.builtin.copy:
-        src: /tmp/homelab-report.html
-        dest: /var/www/homelab-report/index.html
+        src: "{{ hostvars['localhost'].report_tmp.path }}"
+        dest: "{{ report_publish_dir }}/index.html"
         mode: "0644"
+
+- name: Clean up the control node
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Remove the rendered temp file
+      ansible.builtin.file:
+        path: "{{ report_tmp.path }}"
+        state: absent
+      changed_when: false

@@ -1,4 +1,11 @@
 ---
+# This role configures Caddy; it deliberately does NOT install the binary.
+# The running Caddy is a custom build that includes the Cloudflare DNS module
+# (needed for the DNS-01 wildcard cert in Caddyfile.j2). The stock Debian
+# package has no plugins, so installing it here would break TLS issuance.
+# That is why `caddy` is listed in baseline_held_packages for this host.
+#
+# To build/upgrade the binary, see "Upgrading Caddy" in the README.
 - name: Caddyfile from template
   ansible.builtin.template:
     src: Caddyfile.j2
@@ -17,6 +24,14 @@
   diff: false
   no_log: true
   notify: Restart caddy
+
+- name: Ensure the Caddy systemd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/caddy.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Systemd override without --environ
   ansible.builtin.copy:

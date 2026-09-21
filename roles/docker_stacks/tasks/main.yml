@@ -1,4 +1,8 @@
 ---
+# This role deploys compose stacks; it does NOT install the Docker engine.
+# docker01 was provisioned with Docker beforehand. Adding an engine install
+# here would risk an unattended daemon upgrade restarting every stack, so the
+# engine is managed out of band. See "Host prerequisites" in the README.
 - name: Generate deploy key for the stacks repo
   community.crypto.openssh_keypair:
     path: "{{ docker_stacks_deploy_key }}"
@@ -43,6 +47,9 @@
   loop: "{{ docker_stacks_wait_for_mounts }}"
   register: docker_stacks_mount_state
   changed_when: false
+  # Must run under --check too, otherwise stdout is undefined and failed_when
+  # blows up instead of reporting the real mount state.
+  check_mode: false
   failed_when: docker_stacks_mount_state.stdout != 'loaded'
 
 - name: Ensure Docker drop-in directory exists

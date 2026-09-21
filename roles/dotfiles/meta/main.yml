@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: dotfiles
+  author: rubenclaes
+  description: >-
+    Personal workstation dotfiles: SSH config, Git config and zshrc.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: MacOSX
+      versions:
+        - all
+  galaxy_tags:
+    - development
+    - system
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

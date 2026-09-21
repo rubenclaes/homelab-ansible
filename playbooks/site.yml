@@ -1,4 +1,17 @@
 ---
+# Master playbook: converges every managed host to its desired state.
+#
+#   ansible-playbook playbooks/site.yml
+#
+# Safe to run repeatedly. Everything here is idempotent and non-destructive.
+#
+# Deliberately NOT included (run these by hand, they provision or reboot):
+#   proxmox-lxcs.yml       creates missing LXC containers
+#   proxmox-autostart.yml  flips onboot on every guest
+#   bootstrap.yml          first-contact root login, see README
+#   update.yml             package upgrades and reboots
+#   report.yml             read-only, but slow; scheduled separately
+
 - name: Linux baseline
   hosts: linux
   roles: [baseline]
@@ -6,3 +19,15 @@
 - name: MacOS baseline
   hosts: macs
   roles: [macos]
+
+- name: Reverse proxy
+  ansible.builtin.import_playbook: caddy.yml
+
+- name: Docker stacks
+  ansible.builtin.import_playbook: stacks.yml
+
+- name: Semaphore UI
+  ansible.builtin.import_playbook: semaphore.yml
+
+- name: Workstation dotfiles
+  ansible.builtin.import_playbook: dotfiles.yml
