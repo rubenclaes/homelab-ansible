@@ -6,6 +6,9 @@
 # That is why `caddy` is listed in baseline_held_packages for this host.
 #
 # To build/upgrade the binary, see "Upgrading Caddy" in the README.
+- name: Install Caddy and its DNS module
+  ansible.builtin.import_tasks: install.yml
+
 - name: Caddyfile from template
   ansible.builtin.template:
     src: Caddyfile.j2

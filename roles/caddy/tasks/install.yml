@@ -1,0 +1,60 @@
+---
+# Installs Caddy and the Cloudflare DNS module.
+#
+# The binary is the packaged one with a module added: `caddy add-package`
+# downloads a build from caddyserver.com and replaces /usr/bin/caddy in place,
+# which is why `dpkg --verify caddy` reports a checksum mismatch and why the
+# package is held. A plain apt upgrade would put the stock binary back, and
+# the stock binary refuses to start against a Caddyfile using the Cloudflare
+# DNS module - taking every *.neodata.be name down with it.
+#
+# The hold itself lives in baseline_held_packages, not here.
+- name: Install the Caddy archive keyring
+  ansible.builtin.copy:
+    src: caddy-stable-archive-keyring.gpg
+    dest: "{{ caddy_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Define the Caddy apt repository
+  ansible.builtin.deb822_repository:
+    name: caddy-stable
+    types: [deb, deb-src]
+    uris: "{{ caddy_repo_uri }}"
+    suites: [any-version]
+    components: [main]
+    signed_by: "{{ caddy_keyring }}"
+    state: present
+    enabled: true
+  register: caddy_repo
+
+- name: Remove the superseded one-line repository file
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/caddy-stable.list
+    state: absent
+  register: caddy_old_repo
+
+- name: Refresh the package list when the repository changed
+  ansible.builtin.apt:
+    update_cache: true
+  when: caddy_repo is changed or caddy_old_repo is changed
+
+- name: Install Caddy
+  ansible.builtin.apt:
+    name: caddy
+    state: present
+
+- name: Read the modules built into the current binary
+  ansible.builtin.command: caddy list-modules
+  register: caddy_modules
+  changed_when: false
+  check_mode: false
+
+# Only when the module is genuinely absent. On a host that already has it this
+# never runs, which matters: add-package downloads a fresh binary and restarts
+# the proxy that fronts every service.
+- name: Add the Cloudflare DNS module
+  ansible.builtin.command: caddy add-package {{ caddy_dns_module }}
+  when: "'dns.providers.cloudflare' not in caddy_modules.stdout"
+  changed_when: true

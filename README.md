@@ -151,14 +151,23 @@ volstaat de key.
 Volgorde bij een echt nieuwe host: `proxmox-lxcs.yml` → `bootstrap.yml` →
 dienst handmatig installeren → rol neemt over.
 
-Twee rollen configureren software die ze bewust **niet** installeren:
+Alles wat een host nodig heeft wordt geïnstalleerd door een rol. Twee gevallen
+verdienen uitleg:
 
-- **`caddy`** — custom build met de Cloudflare DNS-module voor het DNS-01
-  wildcard-cert. Het Debian-pakket heeft geen plugins en breekt TLS-uitgifte;
-  vandaar de hold. Upgraden gaat met `sudo caddy upgrade` op de host, daarna
-  `caddy.yml` + `caddy-smoketest.yml`.
-- **`docker_stacks`** — de Docker-engine wordt out of band beheerd; een
-  onbewaakte upgrade herstart elke stack.
+- **`caddy`** installeert het pakket uit de cloudsmith-repo en voegt daarna de
+  Cloudflare DNS-module toe met `caddy add-package`. Dat vervangt `/usr/bin/caddy`
+  door een build mét plugin — vandaar dat `dpkg --verify caddy` een checksum
+  meldt en dat het pakket op hold staat. Een gewone `apt upgrade` zet het
+  standaardbinary terug, en dat weigert te starten tegen een Caddyfile met de
+  DNS-module. De stap draait alleen als de module ontbreekt, dus op een
+  bestaande host raakt hij het binary nooit aan.
+- **`docker_engine`** installeert de engine met `state: present`, nooit
+  `latest`. Een onbewaakte upgrade herstart de daemon en elke stack; upgraden
+  is een bewuste actie, zie de updates-runbook.
+
+Beide repo's worden als `deb822` gedefinieerd en hun signing key zit in de rol
+zelf, niet opgehaald tijdens de run: zo is hij leesbaar in Git en hangt
+provisioning niet af van een bereikbare vendor.
 
 ## Inventory
 
@@ -216,8 +225,9 @@ files/env/                  vaulted .env's voor de Docker-stacks
 playbooks/                  zie tabel hierboven
 playbooks/tasks/            taakbestanden gedeeld tussen plays
 bin/check-inventory-parity  vergelijkt twee inventories op ansible_host
-roles/                      baseline, caddy, docker_stacks, dotfiles, macos,
-                            proxmox_access, proxmox_lxc, semaphore
+roles/                      baseline, caddy, docker_engine, docker_stacks,
+                            dotfiles, macos, proxmox_access, proxmox_lxc,
+                            semaphore
 ```
 
 ## Het rapport

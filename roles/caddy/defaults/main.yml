@@ -1,0 +1,6 @@
+---
+caddy_keyring: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+caddy_repo_uri: https://dl.cloudsmith.io/public/caddy/stable/deb/debian
+
+# Provides the DNS-01 challenge used for the *.neodata.be wildcard certificate.
+caddy_dns_module: github.com/caddy-dns/cloudflare
