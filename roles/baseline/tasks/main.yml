@@ -48,19 +48,29 @@
 # The dynamic inventory resolves ansible_host for QEMU guests through the
 # guest agent. A VM without it running reports no address and drops out of
 # inventory, so the agent is part of the baseline rather than something
-# remembered per host. LXC guests have no agent and are skipped.
+# remembered per host.
+#
+# Both conditions are required. A Proxmox hypervisor also reports
+# virtualization_type 'kvm' - it is the thing running KVM - so testing the
+# type alone tries to install a guest agent on the host itself, where the
+# service does not exist. LXC guests have no agent either and are skipped by
+# the type check.
 - name: Install the QEMU guest agent on virtual machines
   ansible.builtin.apt:
     name: qemu-guest-agent
     state: present
-  when: ansible_facts['virtualization_type'] == 'kvm'
+  when:
+    - ansible_facts['virtualization_type'] == 'kvm'
+    - ansible_facts['virtualization_role'] == 'guest'
 
 - name: Ensure the QEMU guest agent is running
   ansible.builtin.systemd_service:
     name: qemu-guest-agent
     enabled: true
     state: started
-  when: ansible_facts['virtualization_type'] == 'kvm'
+  when:
+    - ansible_facts['virtualization_type'] == 'kvm'
+    - ansible_facts['virtualization_role'] == 'guest'
 
 - name: Use classic ssh.service, not socket activation
   ansible.builtin.systemd_service:

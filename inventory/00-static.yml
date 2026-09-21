@@ -1,0 +1,32 @@
+---
+# The hosts Proxmox does not know about, and the group definitions the
+# dynamic inventory attaches guests to.
+#
+# Proxmox guests are NOT listed here: they come from homelab.proxmox.yml.
+# Adding one here would shadow the discovered host and reintroduce the
+# hand-maintained address this migration removed.
+#
+# Sorted before homelab.proxmox.yml so these definitions load first.
+all:
+  children:
+    linux:
+      vars:
+        ansible_user: ansible
+        ansible_become: true
+      children:
+        proxmox:
+          hosts:
+            # The hypervisor itself. Excluded from the dynamic source
+            # (exclude_nodes), since a node is not one of its own guests.
+            pve01: { ansible_host: 192.168.0.14 }
+
+    # Hosts that are not Debian and cannot take the baseline role.
+    # Declared here so site.yml can reason about the group even when the
+    # dynamic inventory contributes every member.
+    appliances:
+      hosts: {}
+
+    macs:
+      hosts:
+        macmini: { ansible_host: 192.168.0.26, ansible_user: rubenclaes }
+        mbp: { ansible_connection: local }
