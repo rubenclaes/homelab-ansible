@@ -1,0 +1,4 @@
+- name: Semaphore UI
+  hosts: semaphore
+  roles:
+    - semaphore

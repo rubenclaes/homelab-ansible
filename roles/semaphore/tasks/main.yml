@@ -1,0 +1,33 @@
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name: [git, python3-venv, python3-packaging]
+    state: present
+
+- name: Create the semaphore system user
+  ansible.builtin.user:
+    name: "{{ semaphore_user }}"
+    system: true
+    home: "{{ semaphore_home }}"
+    create_home: true
+    shell: /usr/sbin/nologin
+
+- name: Create an Ansible virtualenv for Semaphore
+  ansible.builtin.pip:
+    name: "{{ semaphore_pip_packages }}"
+    virtualenv: "{{ semaphore_venv }}"
+    virtualenv_command: python3 -m venv
+
+- name: Install Semaphore
+  ansible.builtin.apt:
+    deb: "https://github.com/semaphoreui/semaphore/releases/download/v{{ semaphore_version }}/semaphore_{{ semaphore_version }}_linux_amd64.deb"
+
+- name: Create config and data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ semaphore_user }}"
+    group: "{{ semaphore_user }}"
+    mode: "0750"
+  loop:
+    - "{{ semaphore_config_dir }}"
+    - "{{ semaphore_home }}/tmp"

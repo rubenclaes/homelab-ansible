@@ -1,0 +1,9 @@
+semaphore_version: "2.19.12"
+semaphore_user: semaphore
+semaphore_home: /var/lib/semaphore
+semaphore_config_dir: /etc/semaphore
+semaphore_venv: /opt/ansible-venv
+semaphore_pip_packages:
+  - ansible
+  - "proxmoxer>=2.3"
+  - requests
