@@ -14,9 +14,20 @@ niet deze pagina.
 
 | Host | Adres | Groepen | OS |
 | --- | --- | --- | --- |
-{% for h in (groups['linux'] + ['macmini']) | sort -%}
+{% for h in (groups['linux'] + groups['macs'] | default([])) | sort -%}
 {% set f = hostvars[h].ansible_facts | default({}) -%}
-| **{{ h }}** | `{{ hostvars[h].ansible_host }}` | {{ hostvars[h].group_names | sort | join(', ') }} | {{ (f.distribution ~ ' ' ~ f.distribution_version) if f.distribution is defined else '—' }} |
+{% set is_mac = h in groups['macs'] | default([]) -%}
+{# `mbp` is ansible_connection: local, so its facts describe whatever machine
+   ran the build. Only claim a macOS version when the facts actually say
+   Darwin; built from a Linux control node the column stays empty rather than
+   reporting that host's Debian as the laptop's OS. -#}
+{% set os = '—' -%}
+{% if is_mac and f.system | default('') == 'Darwin' -%}
+{% set os = 'macOS ' ~ f.distribution_version -%}
+{% elif not is_mac and f.distribution is defined -%}
+{% set os = f.distribution ~ ' ' ~ f.distribution_version -%}
+{% endif -%}
+| **{{ h }}** | {{ '`' ~ hostvars[h].ansible_host ~ '`' if hostvars[h].ansible_host is defined else 'lokaal' }} | {{ hostvars[h].group_names | sort | join(', ') }} | {{ os }} |
 {% endfor %}
 
 Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met

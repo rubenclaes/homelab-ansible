@@ -1,0 +1,16 @@
+---
+# Settings for playbooks/cleanup.yml. Kept here rather than hardcoded in the
+# playbook so the retention windows are changeable in one place, and
+# overridable per host or with -e.
+#
+# cleanup_apply is deliberately NOT defined here. It is the switch that turns
+# a report into a deletion, so it has no inventory-wide value: the playbook
+# reads it with `| default(false)` and it is set per run, or per Semaphore
+# template. Giving it a default here would make every run destructive.
+
+# How much journal history to keep. Passed to `journalctl --vacuum-time`.
+cleanup_journal_keep: 14d
+
+# Age below which an unused Docker image or build cache entry is left alone.
+# Measured against the image's creation time, not its pull time.
+cleanup_docker_until: 720h

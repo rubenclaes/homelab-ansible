@@ -1,0 +1,155 @@
+---
+# Reclaim disk space. Safe by default: with no switch it only reports what it
+# would free and changes nothing.
+#
+#   cleanup_apply   actually reclaim                            (default false)
+#
+# Read with `| default(false)` rather than declared as a play var, so it can be
+# set in group_vars, host_vars, or on the command line. A play-level `vars:`
+# silently overrides inventory -- see the same reasoning in update.yml.
+#
+#   ansible-playbook playbooks/cleanup.yml                        # report only
+#   ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true  # reclaim
+#
+# Never touched, at any setting:
+#   - Docker volumes. They hold the stacks' data (immich-postgres and friends).
+#     Deleting one is a restore, not a cleanup.
+#   - Containers, running or stopped. A stopped container also keeps its image
+#     out of the prune below, which is why a `down` stack survives this.
+#   - Held packages. dpkg holds are honoured by autoremove, so the custom Caddy
+#     build in baseline_held_packages stays put.
+#
+# Deliberately not in site.yml: this one deletes. Tunables live in
+# inventory/group_vars/all/cleanup.yml.
+
+- name: Reclaim disk space on Debian hosts
+  hosts: linux
+  tasks:
+    - name: Measure root disk usage
+      ansible.builtin.shell: set -o pipefail; df --output=pcent / | tail -n1 | tr -dc '0-9'
+      args:
+        executable: /bin/bash
+      register: cleanup_disk_before
+      changed_when: false
+      check_mode: false
+
+    # The names, not just a count: on pve01 this is where old proxmox-kernel-*
+    # packages show up, and seeing the list before applying is the whole point
+    # of the report run.
+    - name: List the packages autoremove would take # noqa: command-instead-of-module
+      ansible.builtin.shell: set -o pipefail; apt-get -s autoremove | awk '/^Remv /{print $2}'
+      args:
+        executable: /bin/bash
+      register: cleanup_apt_removable
+      changed_when: false
+      check_mode: false
+
+    # systemd logs --disk-usage at LOG_INFO, which lands on stderr, so both
+    # streams are folded into stdout rather than guessing which one it is.
+    - name: Measure the journal on disk
+      ansible.builtin.shell: journalctl --disk-usage 2>&1
+      register: cleanup_journal_before
+      changed_when: false
+      check_mode: false
+
+    - name: Report what could be reclaimed here
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: root {{ cleanup_disk_before.stdout | int }}% used,
+          journal {{ cleanup_journal_before.stdout | regex_search('take up ([^ ]+)', '\1') | first | default('unknown') }},
+          {{ cleanup_apt_removable.stdout_lines | length }} autoremovable package(s)
+          {{ cleanup_apt_removable.stdout_lines | join(', ') if cleanup_apt_removable.stdout_lines else '' }}
+
+    - name: Reclaim it
+      when: cleanup_apply | default(false) | bool
+      block:
+        # autoclean cannot stand alone -- the module's required_one_of does not
+        # list it -- so the two run as one task. autoclean drops archives apt
+        # can no longer download; autoremove drops orphaned dependencies.
+        - name: Autoremove orphaned packages and stale apt archives
+          ansible.builtin.apt:
+            autoremove: true
+            autoclean: true
+
+        - name: Vacuum the journal
+          ansible.builtin.shell: journalctl --vacuum-time={{ cleanup_journal_keep }} 2>&1
+          register: cleanup_vacuum
+          # journalctl always exits 0 and prints one "freed <size>" line per
+          # journal directory. Changed only when at least one of them freed
+          # something -- a plain `'freed 0B' not in stdout` would call a run
+          # unchanged whenever /run/log/journal happened to be empty.
+          changed_when: >-
+            cleanup_vacuum.stdout_lines
+            | select('search', 'freed')
+            | reject('search', 'freed 0B')
+            | list | length > 0
+
+        - name: Measure root disk usage again
+          ansible.builtin.shell: set -o pipefail; df --output=pcent / | tail -n1 | tr -dc '0-9'
+          args:
+            executable: /bin/bash
+          register: cleanup_disk_after
+          changed_when: false
+
+        - name: Report what was reclaimed here
+          ansible.builtin.debug:
+            msg: >-
+              {{ inventory_hostname }}: root {{ cleanup_disk_before.stdout | int }}%
+              -> {{ cleanup_disk_after.stdout | int }}% used.
+              {{ cleanup_vacuum.stdout_lines | select('search', 'freed') | join(' ') }}
+
+- name: Reclaim disk space on Docker hosts
+  hosts: docker_hosts
+  tasks:
+    # docker_prune speaks to the Docker API directly, which needs requests --
+    # not the Docker SDK for Python. docker_stacks installs its own libraries
+    # on `docker`, but docker-grafana-stack is not in that role, so ensure it
+    # here and this play stands on its own for both engines.
+    - name: Ensure Python libraries for the Docker modules
+      ansible.builtin.apt:
+        name: python3-requests
+        state: present
+
+    - name: Read reclaimable Docker space # noqa: command-instead-of-module
+      ansible.builtin.command: docker system df
+      register: cleanup_docker_df
+      changed_when: false
+      check_mode: false
+
+    - name: Report what could be reclaimed here
+      ansible.builtin.debug:
+        msg: "{{ [inventory_hostname ~ ':'] + cleanup_docker_df.stdout_lines }}"
+
+    - name: Reclaim it
+      when: cleanup_apply | default(false) | bool
+      block:
+        # `until` filters on the image's own creation timestamp, not on when it
+        # was pulled: a long-stable upstream image counts as old even if it
+        # arrived yesterday. It is still only ever an *unused* image -- one no
+        # container references -- so the cost of being wrong is a re-pull.
+        #
+        # containers and volumes are false by default; they are spelled out
+        # because in a playbook that deletes, intent beats defaults.
+        - name: Prune unused images, build cache and networks
+          community.docker.docker_prune:
+            images: true
+            images_filters:
+              dangling: false
+              until: "{{ cleanup_docker_until }}"
+            builder_cache: true
+            builder_cache_filters:
+              until: "{{ cleanup_docker_until }}"
+            networks: true
+            containers: false
+            volumes: false
+          register: cleanup_pruned
+
+        - name: Report what was reclaimed here
+          ansible.builtin.debug:
+            msg: >-
+              {{ inventory_hostname }}:
+              {{ cleanup_pruned.images | length }} image(s) and
+              {{ cleanup_pruned.networks | length }} network(s) gone,
+              {{ ((cleanup_pruned.images_space_reclaimed
+                 + cleanup_pruned.builder_cache_space_reclaimed) / 1024 / 1024)
+                 | round(1) }} MiB reclaimed.

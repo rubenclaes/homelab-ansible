@@ -1,5 +1,5 @@
 - name: Gather facts for the reference pages
-  hosts: linux:macmini
+  hosts: linux:macs
   gather_facts: true
   tasks: []
 

@@ -260,18 +260,34 @@
 - name: Publish the report
   hosts: caddy
   gather_facts: false
+  # The HTML is rendered by the localhost play above. A --limit that leaves
+  # localhost out skips that play, so there is nothing to publish - and
+  # reading report_tmp regardless fails during argument finalisation with an
+  # opaque "object of type 'HostVarsVars' has no attribute 'report_tmp'".
+  # Skipping deliberately turns that into a readable message.
+  vars:
+    report_rendered: "{{ 'localhost' in hostvars and hostvars['localhost'].report_tmp is defined }}"
   tasks:
+    - name: Explain why nothing is published
+      ansible.builtin.debug:
+        msg: >-
+          Nothing to publish: the render play did not run, so no report was
+          produced. Include localhost in --limit, or drop --limit entirely.
+      when: not report_rendered | bool
+
     - name: Ensure the report directory exists
       ansible.builtin.file:
         path: "{{ report_publish_dir }}"
         state: directory
         mode: "0755"
+      when: report_rendered | bool
 
     - name: Upload the report
       ansible.builtin.copy:
         src: "{{ hostvars['localhost'].report_tmp.path }}"
         dest: "{{ report_publish_dir }}/index.html"
         mode: "0644"
+      when: report_rendered | bool
 
 - name: Clean up the control node
   hosts: localhost
