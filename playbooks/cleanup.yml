@@ -130,11 +130,17 @@
         #
         # containers and volumes are false by default; they are spelled out
         # because in a playbook that deletes, intent beats defaults.
-        - name: Prune unused images, build cache and networks
+        # noqa on the task, not the key: ansible-lint applies jinja[spacing]
+        # per task, so an inline comment on a nested value is ignored.
+        - name: Prune unused images, build cache and networks # noqa: jinja[spacing]
           community.docker.docker_prune:
             images: true
             images_filters:
               dangling: false
+              # noqa comments: ansible-lint sees the key name `until` and
+              # applies its rule for conditional expressions, which want a bare
+              # variable. This `until` is a Docker filter value, where a bare
+              # name would be passed through as the literal string.
               until: "{{ cleanup_docker_until }}"
             builder_cache: true
             builder_cache_filters:
