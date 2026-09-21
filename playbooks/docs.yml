@@ -13,7 +13,7 @@
     - name: Render the generated reference pages
       ansible.builtin.template:
         src: "docs/{{ item }}.md.j2"
-        dest: "{{ docs_site }}/content/reference/{{ item }}.mdx"
+        dest: "{{ docs_site }}/content/technisch/{{ item }}.mdx"
         mode: "0644"
       loop: "{{ docs_pages }}"
       vars:
