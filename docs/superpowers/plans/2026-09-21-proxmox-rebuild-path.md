@@ -787,7 +787,7 @@ Each of the two `when`-guarded creation tasks gets a `set_fact` beside it,
 sharing the same condition, recording what would be created:
 
 ```yaml
-- name: Record a user that would be created - {{ item.userid }}
+- name: Record the users that would be created
   ansible.builtin.set_fact:
     proxmox_access_drift: "{{ proxmox_access_drift + ['user ' ~ item.userid] }}"
   loop: "{{ pve_users | default([]) }}"
@@ -795,6 +795,11 @@ sharing the same condition, recording what would be created:
     label: "{{ item.userid }}"
   when: item.userid not in (proxmox_access_users.stdout | from_json | map(attribute='userid') | list)
 ```
+
+Note the plain task name with the per-item detail in `loop_control.label`, which
+is what every other loop in this repo does. A templated name on a looped task
+makes the `profile_tasks` callback resolve it before `item` is bound, which
+prints a harmless but permanent `'item' is undefined` warning on every run.
 
 and the same shape for ACLs, recording `'acl ' ~ item.path ~ ' -> ' ~ item.ugid`.
 Initialise `proxmox_access_drift: []` at the top of `users.yml`, before the
@@ -845,6 +850,36 @@ Append to `roles/proxmox_access/tasks/main.yml`:
 - name: Report and verify
   ansible.builtin.import_tasks: verify.yml
 ```
+
+- [ ] **Step 4b: Make the playbook survive `--check` before putting it in the converge**
+
+`proxmox-access.yml` has a second play, older than this work, that proves the
+API token can reach the guest agent. It fails under `--check`:
+`ansible.builtin.uri` declares no check-mode support, so it is skipped, and the
+`debug` and `assert` that consume its results then dereference `item.status` on
+a skipped result and error.
+
+That was harmless while the playbook was run by hand. Step 5 puts it in
+`site.yml`, and this repo holds `site.yml --check` to reporting `changed=0`
+across every host — so the moment it joins the converge, that bar breaks. The
+step that makes it matter is the step that fixes it.
+
+Guard the two consuming tasks, and say why:
+
+```yaml
+    # ansible.builtin.uri has no check-mode support, so the query above is
+    # skipped under --check and these results are empty. Reading them anyway
+    # errors on item.status. There is nothing to report in check mode because
+    # nothing was asked, so say so and move on - site.yml --check has to stay
+    # green now that this playbook is part of the converge.
+    - name: Explain that reachability is not checked under --check
+      ansible.builtin.debug:
+        msg: "Guest agent reachability is not verified under --check: uri cannot run in check mode"
+      when: ansible_check_mode
+```
+
+and add `when: not ansible_check_mode` to both `Report reachability per guest`
+and `Fail if any guest is blocked by permissions`.
 
 - [ ] **Step 5: Wire the playbook into site.yml**
 
