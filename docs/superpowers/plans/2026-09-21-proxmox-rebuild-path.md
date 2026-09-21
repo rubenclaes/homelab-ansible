@@ -31,80 +31,96 @@
 - Create: `roles/proxmox_datacenter/meta/main.yml`
 - Create: `roles/proxmox_datacenter/tasks/main.yml`
 - Create: `roles/proxmox_datacenter/tasks/storage.yml`
+- Create: `roles/proxmox_datacenter/tasks/storage_entry.yml`
 - Create: `playbooks/proxmox-datacenter.yml`
 - Modify: `playbooks/site.yml`
 
 **Interfaces:**
-- Consumes: `pve_api_host`, `pve_api_user`, `pve_api_token_id`, `pve_api_token_secret` from `inventory/group_vars/proxmox/main.yml`.
-- Produces: `pve_storages` (list of dicts with keys `name`, `type`, `content`, and optionally `nodes`, `dir_options`, `zfspool_options`, `pbs_options`). Task 2 adds `pve_backup_jobs` to the same role.
+- Consumes: SSH to `pve01` as the `ansible` service account with `become`, which `inventory/00-static.yml` already gives the `linux` group. This role needs no API credentials — `pvesh` runs locally on the node, the way `roles/proxmox_access` already drives `pveum`.
+- Produces: `pve_storages`, a list of dicts with `id` (the storage ID) and `params` (a flat dict whose keys are the Proxmox API's own field names). Task 2 adds `pve_backup_jobs` in the same shape.
+
+**Why `pvesh` and not `community.proxmox.proxmox_storage`:** the module calls
+`GET /storage/{name}` even in check mode, which requires the `Datastore.Allocate`
+privilege — the one that lets a token create, modify and **delete** storage
+definitions. The `ansible@pve` token does not have it, and granting it widens a
+credential that lives in the vault on a laptop and on the Semaphore container.
+`pvesh` as root over SSH costs nothing extra and is what the rest of this repo
+already does. See the design spec, decision 5.
 
 - [ ] **Step 1: Record the live state you are transcribing against**
 
-Run this and keep the output next to you. It is the assertion Task 1 is tested against.
-
 ```bash
-ansible pve01 -m ansible.builtin.command -a "cat /etc/pve/storage.cfg"
+ansible pve01 -m ansible.builtin.command -a "pvesh get /storage --output-format json"
 ```
 
-Expected: four storages — `local` (dir), `local-lvm` (lvmthin), `vm-hdd` (zfspool), `pbs` (pbs).
+Expected: four entries — `local` (dir), `local-lvm` (lvmthin), `vm-hdd` (zfspool), `pbs` (pbs).
 
-- [ ] **Step 2: Add the two storage credentials to the proxmox vault**
+Read the output carefully, because three things in it will cost you a
+`changed=0` run if you transcribe from `/etc/pve/storage.cfg` instead:
 
-`pbs_options.password` and `pbs_options.encryption_key` cannot be read back from `/etc/pve/priv/`, which is out of scope by decision 2. Get them from the PBS UI (Access Control → API token for `pve@pbs`) and from `proxmox-backup-client key show`.
+1. `content` comes back in the API's own order, not the config file's.
+   `local` returns `"iso,import,vztmpl"` where the file says
+   `import,vztmpl,iso`. Use the API's order.
+2. `shared` is an integer, not a string or a bool.
+3. `digest` appears on every entry. It is a checksum of the whole
+   `storage.cfg`, not a property of one storage. Never declare it.
 
-```bash
-ansible-vault edit --vault-id infra@bin/vault-pass-client inventory/group_vars/proxmox/vault.yml
-```
-
-Add:
-
-```yaml
-vault_pve_pbs_storage_password: "<the pve@pbs token secret>"
-vault_pve_pbs_storage_encryption_key: "<the encryption key>"
-```
-
-- [ ] **Step 3: Write the inventory transcription**
+- [ ] **Step 2: Write the inventory transcription**
 
 Create `inventory/group_vars/proxmox/storage.yml`:
 
 ```yaml
 ---
-# Storage definitions for pve01, transcribed from /etc/pve/storage.cfg.
+# Storage definitions for pve01, transcribed from `pvesh get /storage`.
 #
-# local-lvm is deliberately absent. community.proxmox.proxmox_storage has no
-# `lvmthin` in its type choices, so it cannot express it - and it does not
-# need to: the PVE installer creates local-lvm and nothing here ever edits it.
+# `params` keys are the Proxmox API's own names, passed through unchanged, and
+# their VALUE TYPES matter: the reconcile compares a merged dict against the
+# live one, so a string "0" where the API returns an integer 0 reports a
+# difference on every run, forever. `content` must carry the API's ordering,
+# which is not the ordering /etc/pve/storage.cfg shows.
 #
-# vm-hdd's `mountpoint /vm-hdd` is also absent. zfspool_options takes only
-# `pool` and `sparse`; the mountpoint is a property of the ZFS dataset, not of
-# the storage entry, and survives a rebuild with the pool.
+# `digest` is never declared. It is a checksum of the whole storage.cfg and
+# changes whenever any storage does, so declaring it would mean permanent
+# drift on every entry.
 pve_storages:
-  - name: local
-    type: dir
-    content: [import, vztmpl, iso]
-    dir_options:
+  - id: local
+    params:
+      type: dir
       path: /var/lib/vz
+      content: iso,import,vztmpl
+      shared: 0
 
-  - name: vm-hdd
-    type: zfspool
-    content: [rootdir, images]
-    nodes: [pve01]
-    zfspool_options:
+  - id: local-lvm
+    params:
+      type: lvmthin
+      vgname: pve
+      thinpool: data
+      content: rootdir,images
+
+  - id: vm-hdd
+    params:
+      type: zfspool
       pool: vm-hdd
+      mountpoint: /vm-hdd
+      nodes: pve01
+      content: rootdir,images
 
-  - name: pbs
-    type: pbs
-    content: [backup]
-    pbs_options:
-      server: 192.168.0.181
-      datastore: store1
-      username: pve@pbs
-      password: "{{ vault_pve_pbs_storage_password }}"
-      encryption_key: "{{ vault_pve_pbs_storage_encryption_key }}"
-      fingerprint: c1:b5:f1:1d:d7:51:22:d4:46:49:f1:a1:b8:40:f1:33:9d:69:cf:fb:c5:29:12:e9:6a:4d:27:43:da:94:36:d2
+# The `pbs` storage is deliberately absent, and this is a real gap rather than
+# a tidy exclusion.
+#
+# Its API representation carries an `encryption-key` field. Telling a key
+# apart from a key's fingerprint requires reading /etc/pve/priv/storage/,
+# which the spec puts out of bounds, so the value is not safe to commit on the
+# assumption that it is harmless. Recreating the entry on a rebuilt node also
+# needs the pve@pbs password, which lives only in the PBS UI.
+#
+# Consequence: after a rebuild of pve01 this storage is restored by hand, and
+# the backups in it are unreadable without the encryption key. That key must
+# be exported once with `proxmox-backup-client key show` and kept outside this
+# repo and outside the building. See the design spec, Risk 1.
 ```
 
-- [ ] **Step 4: Write the role**
+- [ ] **Step 3: Write the role**
 
 `roles/proxmox_datacenter/defaults/main.yml`:
 
@@ -112,26 +128,21 @@ pve_storages:
 ---
 # The storage and backup-job lists are inventory data, not role settings: they
 # describe this estate. They live in inventory/group_vars/proxmox/ as
-# `pve_storages` and `pve_backup_jobs`, and are read here with `| default([])`
-# so a host without them skips rather than failing.
+# `pve_storages` and `pve_backup_jobs`, and the tasks read them with
+# `| default([])` so a host without them skips rather than failing.
 #
 # Shape of a pve_storages entry:
-#   name:    local                    required, the storage ID
-#   type:    dir                      required; dir, zfspool, pbs, nfs, cifs,
-#                                     iscsi, rbd or cephfs. NOT lvmthin.
-#   content: [iso, vztmpl]            required, list
-#   nodes:   [pve01]                  optional, restricts the storage to nodes
-#   <type>_options: {}                optional, per-type settings
+#   id:      local                     required, the storage ID
+#   params:  {}                        required, Proxmox API field names
 #
 # Shape of a pve_backup_jobs entry:
-#   id:      backup-e6cc3e8b-ac39     required, the Proxmox-generated job ID
-#   params:  {}                       required, API field names passed through
+#   id:      backup-e6cc3e8b-ac39      required, the Proxmox-generated job ID
+#   params:  {}                        required, Proxmox API field names
+#
+# This file is comments only, deliberately. Defaulting either list here would
+# let a typo'd inventory filename resolve to an empty list and report success
+# while managing nothing.
 ```
-
-This file is comments only. Both lists are inventory data and are read with
-`| default([])` in the tasks, so there is nothing to default here — and a
-default would be worse than nothing, because an empty `pve_storages` that
-silently shadows a typo'd inventory file is a bug that looks like a no-op.
 
 `roles/proxmox_datacenter/meta/main.yml`:
 
@@ -170,36 +181,75 @@ dependencies: []
 
 ```yaml
 ---
-# Additive by design: this ensures the declared storages exist and match. It
-# never removes a storage that is present on the node but absent from
-# inventory. Removing storage is a deliberate act with data attached to it,
-# not something a converge run should do on its own.
-- name: Ensure the declared storages exist
-  community.proxmox.proxmox_storage:
-    api_host: "{{ pve_api_host }}"
-    api_user: "{{ pve_api_user }}"
-    api_token_id: "{{ pve_api_token_id }}"
-    api_token_secret: "{{ pve_api_token_secret }}"
-    validate_certs: false
-    name: "{{ item.name }}"
-    type: "{{ item.type }}"
-    content: "{{ item.content }}"
-    nodes: "{{ item.nodes | default(omit) }}"
-    dir_options: "{{ item.dir_options | default(omit) }}"
-    zfspool_options: "{{ item.zfspool_options | default(omit) }}"
-    pbs_options: "{{ item.pbs_options | default(omit) }}"
-    state: present
+# pvesh on the node, not community.proxmox.proxmox_storage. The module calls
+# GET /storage/{name} even in check mode, which needs Datastore.Allocate - the
+# privilege that lets a token create, modify and DELETE storage definitions.
+# That token's secret sits in the infra vault on a laptop and on the Semaphore
+# container, and widening it to save a module call is the wrong trade when
+# pvesh as root already works. See the design spec, decision 5.
+- name: Read the current storage definitions
+  ansible.builtin.command: pvesh get /storage --output-format json
+  register: proxmox_datacenter_storage_raw
+  changed_when: false
+  # Must run under --check too: without it stdout is undefined and the
+  # comparison below fails instead of reporting no drift.
+  check_mode: false
+
+- name: Reconcile each declared storage
+  ansible.builtin.include_tasks: storage_entry.yml
   loop: "{{ pve_storages | default([]) }}"
   loop_control:
-    label: "{{ item.name }}"
-  delegate_to: localhost
-  become: false
-  # Only the pbs entry carries a password and an encryption key. Blanketing
-  # the whole loop in no_log would hide which storage failed and why.
-  no_log: "{{ item.type == 'pbs' }}"
+    loop_var: storage
+    label: "{{ storage.id }}"
 ```
 
-- [ ] **Step 5: Write the playbook and wire it into site.yml**
+`roles/proxmox_datacenter/tasks/storage_entry.yml`:
+
+```yaml
+---
+- name: Find the live definition of {{ storage.id }}
+  ansible.builtin.set_fact:
+    proxmox_datacenter_storage_live: >-
+      {{ proxmox_datacenter_storage_raw.stdout | from_json
+         | selectattr('storage', 'eq', storage.id) | list | first | default({}) }}
+
+# Merging the declared params into the live entry and comparing against the
+# live entry answers "is every declared field already correct?" in one
+# expression, and treats a missing key exactly like a wrong value.
+- name: Decide whether {{ storage.id }} needs updating
+  ansible.builtin.set_fact:
+    proxmox_datacenter_storage_matches: >-
+      {{ (proxmox_datacenter_storage_live | combine(storage.params))
+         == proxmox_datacenter_storage_live }}
+
+- name: Refuse to touch a storage that does not exist
+  ansible.builtin.assert:
+    that: proxmox_datacenter_storage_live | length > 0
+    fail_msg: >-
+      No storage named {{ storage.id }} exists on this node. This role updates
+      storage definitions, it does not create them: creating one points
+      Proxmox at a disk, a pool or a remote server, which is a decision with
+      data behind it and not one a converge run should take on its own. Create
+      it once, then transcribe it into pve_storages.
+    success_msg: "{{ storage.id }} exists"
+
+# `type` is compared but never sent. It is the one field pvesh set rejects -
+# a storage's type is fixed at creation - and leaving it in the comparison is
+# what catches a transcription that named the wrong storage.
+- name: Apply the declared fields to {{ storage.id }}
+  ansible.builtin.command:
+    argv: >-
+      {{ ['pvesh', 'set', '/storage/' ~ storage.id]
+         + (storage.params | dict2items | rejectattr('key', 'eq', 'type')
+            | map(attribute='key') | map('regex_replace', '^', '--') | list
+            | zip(storage.params | dict2items | rejectattr('key', 'eq', 'type')
+                  | map(attribute='value') | map('string') | list)
+            | flatten | list) }}
+  when: not proxmox_datacenter_storage_matches
+  changed_when: true
+```
+
+- [ ] **Step 4: Write the playbook and wire it into site.yml**
 
 `playbooks/proxmox-datacenter.yml`:
 
@@ -207,7 +257,7 @@ dependencies: []
 ---
 # Datacenter-level configuration for pve01: storage definitions and backup
 # jobs. Safe to run repeatedly - every task is additive and nothing here
-# removes a storage, a job or the data behind them.
+# removes a storage, a job, or the data behind them.
 #
 #   ansible-playbook playbooks/proxmox-datacenter.yml
 #
@@ -228,28 +278,43 @@ In `playbooks/site.yml`, add after the `Backup server` import:
   ansible.builtin.import_playbook: proxmox-datacenter.yml
 ```
 
-- [ ] **Step 6: Run the test**
+- [ ] **Step 5: Run the test**
 
 ```bash
 ansible-lint playbooks/proxmox-datacenter.yml roles/proxmox_datacenter
 ansible-playbook playbooks/proxmox-datacenter.yml --check --diff
 ```
 
-Expected: lint passes at the production profile, and the play recap reports `changed=0`.
+Expected: lint passes at the production profile, and the play recap reports
+`changed=0`.
 
-If `changed` is non-zero, read the diff. It is telling you your transcription differs from the live node — fix `storage.yml`, not the role. The likely culprits are `content` list ordering and the `fingerprint` value.
+If `changed` is non-zero, the debug output names the storage. Your
+transcription differs from the live node — fix `storage.yml`, not the role.
+The likely culprits are the three traps in Step 1: `content` ordering,
+`shared` as an integer, and a stray `digest`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add inventory/group_vars/proxmox/storage.yml inventory/group_vars/proxmox/vault.yml \
-        roles/proxmox_datacenter playbooks/proxmox-datacenter.yml playbooks/site.yml
+git add inventory/group_vars/proxmox/storage.yml roles/proxmox_datacenter \
+        playbooks/proxmox-datacenter.yml playbooks/site.yml
 git commit -m "$(cat <<'MSG'
 Bring pve01 storage definitions under Ansible
 
-Transcribed from the live /etc/pve/storage.cfg, so a --check run reports
-changed=0 against the unchanged node. local-lvm is left out on purpose:
-proxmox_storage has no lvmthin type, and the PVE installer creates it.
+Through pvesh on the node rather than community.proxmox.proxmox_storage.
+The module calls GET /storage/{name} even in check mode, which needs
+Datastore.Allocate - the privilege to create, modify and DELETE storage
+definitions. The ansible@pve token does not have it, and granting it
+would widen a credential that sits in the vault on a laptop and on the
+Semaphore container, to save one module call.
+
+Going through pvesh also recovers what the module could not express:
+local-lvm has no lvmthin type in proxmox_storage, and zfspool_options
+has no mountpoint.
+
+The pbs storage stays unmanaged. Its API form carries an encryption-key
+field, and telling a key from a fingerprint means reading /etc/pve/priv,
+which is out of bounds here.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG

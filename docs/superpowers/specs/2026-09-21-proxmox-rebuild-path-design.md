@@ -37,6 +37,7 @@ Measured against the live estate on 2026-09-21, not assumed:
 | How does Ansible reach `pve01`? | Over `192.168.0.14`, which is **`vmbr1`**. The default gateway is on `vmbr0` (`192.168.0.10`). Two bridges, one subnet, and the control path is not the default-route interface. |
 | Are the backup jobs healthy? | **No.** `backup-e6cc3e8b-ac39` lists vmid `109`, a guest that no longer exists. `backup-a6c792f3-ad6c` is `all` excluding only `100`, so `104` is in scope, yet PBS holds no group for `104`. The definitions are right and the execution is not. Nothing reports this. |
 | Is the PBS storage encrypted? | Yes. `storage.cfg` carries the key's fingerprint; the key itself lives in `/etc/pve/priv/storage/`. |
+| What does the API token actually reach? | Less than assumed. `proxmox_storage` calls `GET /storage/{name}` even in check mode, and that needs `Datastore.Allocate` — a privilege distinct from the `Datastore.AllocateSpace`, `.AllocateTemplate` and `.Audit` the `AnsibleAutomation` role holds. Measured after Task 1 failed with 403 on it. |
 | Does PBS replicate anywhere? | No. `sync-job list` is empty. Every copy of every backup is in one building. |
 
 ## Decisions
@@ -68,20 +69,37 @@ Measured against the live estate on 2026-09-21, not assumed:
    lock the estate out. Drift in the other direction is a reporting problem,
    handled by `report.yml`, not a deletion problem.
 
-5. **One mechanism per object, chosen by what actually exists.** Storage uses
-   `proxmox_storage`, which gives check mode and diff for free. Backup jobs
-   use `pvesh` against `/cluster/backup`, because no module can define a job;
-   using `proxmox_backup_schedule` for the vmid list while using `pvesh` for
-   the schedule would mean two mechanisms owning one object, which is worse
-   than one mechanism that is merely less convenient. `proxmox_access` stays
-   on `pveum` throughout, matching the read-modify-write guard it already has
-   — a guard `proxmox_role` does not offer, and which exists because setting
-   an empty privilege list revokes API access for every playbook here.
+5. **Datacenter config goes through `pvesh`, not through the API modules.**
+   This revises an earlier decision that had storage using `proxmox_storage`
+   for its check mode and diff. That decision did not know the price:
+   `proxmox_storage` calls `GET /storage/{name}` even in check mode, which
+   needs `Datastore.Allocate` — the privilege that lets a token create,
+   modify and **delete** storage definitions. The `ansible@pve` token secret
+   lives in the `infra` vault, which sits on a laptop and on the Semaphore
+   container, so widening it widens what a compromise of either reaches.
+   Paying that for a module's convenience is the wrong trade when `pvesh`
+   over SSH as root — which every other playbook here already does — costs
+   nothing extra.
 
-6. **`local-lvm` is out of scope, at no cost.** `proxmox_storage` cannot
-   express `lvmthin`. It is also created by the PVE installer and never
-   edited afterwards, so a rebuild recreates it without help. Recorded as
-   deliberately unmanaged rather than left silently missing.
+   The result is also more coherent than the original plan: storage and
+   backup jobs now share one mechanism and one read-compare-act shape,
+   rather than a module for one and `pvesh` for the other. `proxmox_access`
+   stays on `pveum` for the same reason, matching the read-modify-write
+   guard it already has — a guard `proxmox_role` does not offer, and which
+   exists because setting an empty privilege list revokes API access for
+   every playbook here.
+
+6. **`local-lvm` and `vm-hdd`'s mountpoint come back into scope.** They were
+   excluded because `proxmox_storage` has no `lvmthin` type and its
+   `zfspool_options` takes only `pool` and `sparse`. `pvesh` has neither
+   limit, so decision 5 closes two gaps this spec had accepted as costs.
+
+   The `pbs` storage stays out, for a different and unresolved reason. Its
+   API representation carries an `encryption-key` field, and telling a key
+   apart from a key's fingerprint requires reading `/etc/pve/priv/storage/`,
+   which decision 2 puts out of bounds. Rather than commit a value that
+   might be a live secret, the entry is left unmanaged and documented. See
+   Risk 1, which is the same key.
 
 7. **Roles are split by blast radius, using Proxmox's own boundary.** Storage,
    backup jobs and access are Datacenter-level objects reached over the API,
