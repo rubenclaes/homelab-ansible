@@ -83,6 +83,70 @@
   </div>
 {% endif %}
 
+{# ---------------------------------------------------------------------------
+   Route drift: Caddy routes against what docker actually publishes.
+
+   The smoke test cannot see half of this. It requests every route in
+   caddy_sites, so it catches a route whose backend is down - but a container
+   publishing a port nobody proxies is invisible to it, because there is no
+   route to request.
+   --------------------------------------------------------------------------- #}
+{% if hostvars['docker'].report_published is defined %}
+{% set published = hostvars['docker'].report_published %}
+{% set ignored = hostvars['docker'].docker_ports_without_route | default([]) | map(attribute='port') | list %}
+{% set docker_routes = hostvars['caddy'].caddy_sites | selectattr('host', 'defined')
+                       | selectattr('host', 'eq', 'docker') | list %}
+{% set live_ports = published | map(attribute='port') | unique | list %}
+{% set dead_routes = docker_routes | rejectattr('port', 'in', live_ports) | list %}
+{% set unrouted = published | rejectattr('port', 'in', docker_routes | map(attribute='port') | list)
+                  | rejectattr('port', 'in', ignored) | list %}
+  <div class="card">
+    <strong>Route-drift op docker</strong>
+    <div class="sub">Caddy-routes tegenover wat er draait</div>
+    <table>
+      <tr><th>Soort</th><th>Naam</th><th>Poort</th><th>Betekenis</th></tr>
+{% for r in dead_routes | sort(attribute='name') %}
+      <tr>
+        <td class="bad">route zonder container</td>
+        <td><strong>{{ r.name }}</strong></td>
+        <td>{{ r.port }}</td>
+        <td>{{ r.name }}.{{ hostvars['caddy'].caddy_domain }} wijst nergens heen</td>
+      </tr>
+{% endfor %}
+{% for u in unrouted | sort(attribute='port') %}
+      <tr>
+        <td class="warn">container zonder route</td>
+        <td><strong>{{ u.name }}</strong></td>
+        <td>{{ u.port }}</td>
+        <td>alleen bereikbaar als {{ hostvars['docker'].ansible_host }}:{{ u.port }}</td>
+      </tr>
+{% endfor %}
+{% if not dead_routes and not unrouted %}
+      <tr><td class="ok" colspan="4">routes en containers lopen gelijk</td></tr>
+{% endif %}
+    </table>
+  </div>
+
+{% set managed = hostvars['docker'].docker_stacks_list | map(attribute='name') | list %}
+{% set unmanaged = published | map(attribute='project') | unique
+                   | reject('in', managed) | reject('eq', '(none)') | list %}
+{% if unmanaged %}
+  <div class="card">
+    <strong>Stacks buiten Ansible</strong>
+    <div class="sub">draaien op docker maar staan niet in docker_stacks_list</div>
+    <table>
+      <tr><th>Project</th><th>Containers</th></tr>
+{% for proj in unmanaged | sort %}
+      <tr>
+        <td class="warn"><strong>{{ proj }}</strong></td>
+        <td>{{ published | selectattr('project', 'eq', proj) | map(attribute='name') | unique | join(', ') }}</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% endif %}
+{% endif %}
+
 {% set pve = hostvars['pve01'] %}
 {% if pve.report_pools is defined %}
   <div class="card">

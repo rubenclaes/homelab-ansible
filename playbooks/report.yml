@@ -62,6 +62,28 @@
       loop_control:
         label: "{{ item.Names[0] }}"
 
+    # Published ports, for the route-drift table in the report. A container
+    # that publishes a port nobody proxies is reachable only as host:port,
+    # and a route pointing at a port nothing publishes is a dead name - the
+    # smoke test cannot see the first case at all, because it only tests
+    # routes that already exist.
+    - name: Collect published ports per container
+      ansible.builtin.set_fact:
+        report_published: >-
+          {{ report_published | default([]) + (
+               item.Ports | default([]) | selectattr('PublicPort', 'defined')
+               | map(attribute='PublicPort') | unique | sort
+               | map('community.general.dict_kv', 'port') | list
+               | map('combine', {
+                   'project': item.Labels['com.docker.compose.project'] | default('(none)'),
+                   'name': item.Names[0] | regex_replace('^/', '')
+                 }) | list
+             ) }}
+      loop: "{{ report_docker.containers }}"
+      loop_control:
+        label: "{{ item.Names[0] }}"
+      when: item.Ports | default([]) | selectattr('PublicPort', 'defined') | list | length > 0
+
 - name: Collect storage health
   hosts: pve01
   gather_facts: false

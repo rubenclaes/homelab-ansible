@@ -3,5 +3,8 @@ baseline_unattended_upgrades: false
 pve_api_user: ansible@pve
 pve_api_token_id: automation
 pve_api_token_secret: "{{ vault_pve_api_token_secret }}"
-# The node's own address, from the inventory - not restated here.
-pve_api_host: "{{ hostvars['pve01']['ansible_host'] }}"
+# Literal, not derived from hostvars. These vars are consumed by tasks that
+# run on localhost (report.yml, proxmox_lxc), and a nested hostvars lookup
+# inside a var is not resolvable in every context - it fails with
+# "'hostvars' is undefined" at task-arg finalisation.
+pve_api_host: 192.168.0.14

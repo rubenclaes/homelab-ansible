@@ -12,3 +12,12 @@ docker_stacks_list:
 
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas
+
+# Published ports that deliberately have no Caddy route, so the drift table in
+# report.yml stays signal rather than noise. Anything not listed here and not
+# proxied shows up as "geen route".
+docker_ports_without_route:
+  - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
+  - { port: 21116, why: "rustdesk hbbs - raw TCP, not HTTP" }
+  - { port: 21117, why: "rustdesk hbbr - raw TCP, not HTTP" }
+  - { port: 8000, why: "portainer edge agent tunnel, not the UI" }
