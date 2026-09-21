@@ -337,6 +337,9 @@ bin/check-vaulted && ansible-lint && \
 - **`no_log: true` en `diff: false`** op taken met secrets.
 - **Niets met de hand geconfigureerd** — was het de moeite om twee keer te
   doen, dan zit het in een rol.
+- **Elke Linux-host alleen met key** — het `ansible`-serviceaccount escaleert
+  met sudo zonder wachtwoord, en geen enkele host accepteert een
+  SSH-wachtwoord.
 - **Upstreams hebben namen, geen nummers** — een `caddy_sites`-entry wijst naar
   host en poort (`{ name: photos, host: docker, port: 2283 }`), de Caddyfile
   haalt het IP uit `ansible_host`. Dat adres komt live uit Proxmox, dus
