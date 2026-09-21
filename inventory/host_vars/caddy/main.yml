@@ -47,12 +47,14 @@ caddy_sites:
   - { name: prowlarr, host: docker, port: 9696, desc: "Indexer manager feeding Sonarr and Radarr" }
   - { name: overseerr, host: docker, port: 5055, desc: "Media requests from friends and family" }
   - { name: audiobooks, host: docker, port: 13378, desc: "Audiobookshelf — audiobook and podcast server" }
+  - { name: sonarr, host: docker, port: 8989, desc: "TV series management" }
+  - { name: radarr, host: docker, port: 7878, desc: "Film management" }
+
 
   # --- Mac mini ---
   - { name: tinyauth, host: macmini, port: 3000, desc: "Auth middleware used by Caddy forward_auth" }
   - { name: plex, host: macmini, port: 32400, desc: "Plex media server — the Mac mini's main job" }
-  - { name: sonarr, host: macmini, port: 8989, desc: "TV series management" }
-  - { name: radarr, host: macmini, port: 7878, desc: "Film management" }
+
 
   - { name: bazarr, host: macmini, port: 6767, desc: "Subtitle fetching for Sonarr and Radarr" }
 
