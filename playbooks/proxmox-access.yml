@@ -50,6 +50,16 @@
       become: false
       no_log: true
 
+    # ansible.builtin.uri has no check-mode support, so the query above is
+    # skipped under --check and these results are empty. Reading them anyway
+    # errors on item.status. There is nothing to report in check mode because
+    # nothing was asked, so say so and move on - site.yml --check has to stay
+    # green now that this playbook is part of the converge.
+    - name: Explain that reachability is not checked under --check
+      ansible.builtin.debug:
+        msg: "Guest agent reachability is not verified under --check: uri cannot run in check mode"
+      when: ansible_check_mode
+
     - name: Report reachability per guest
       ansible.builtin.debug:
         msg: >-
@@ -60,6 +70,7 @@
       loop: "{{ proxmox_access_agent.results }}"
       loop_control:
         label: "{{ item.item.name }}"
+      when: not ansible_check_mode
 
     - name: Fail if any guest is blocked by permissions
       ansible.builtin.assert:
@@ -69,3 +80,4 @@
              | map(attribute='item.name') | join(', ') }}
           returned 403 - the token still lacks VM.Monitor.
         success_msg: "No guest is blocked by token permissions"
+      when: not ansible_check_mode

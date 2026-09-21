@@ -21,7 +21,7 @@
 # Recorded before creating, same as proxmox_datacenter's storage_entry.yml:
 # the record has to reflect what's about to happen even under --check, where
 # the command task right below never runs.
-- name: Record a user that would be created - {{ item.userid }}
+- name: Record the users that would be created
   ansible.builtin.set_fact:
     proxmox_access_drift: "{{ proxmox_access_drift + ['user ' ~ item.userid] }}"
   loop: "{{ pve_users | default([]) }}"
@@ -49,7 +49,7 @@
   changed_when: false
   check_mode: false
 
-- name: Record an ACL that would be created - {{ item.path }}
+- name: Record the ACLs that would be created
   ansible.builtin.set_fact:
     proxmox_access_drift: "{{ proxmox_access_drift + ['acl ' ~ item.path ~ ' -> ' ~ item.ugid] }}"
   loop: "{{ pve_acls | default([]) }}"
