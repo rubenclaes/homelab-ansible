@@ -5,5 +5,9 @@ docker_stacks:
   - { name: metrics,   path: metrics }
   - { name: rustdesk,  path: apps/rustdesk }
   - { name: portainer, path: portainer, env: false }
+  - { name: neogate,   path: neogate }
+  - { name: infra,     path: infra }
+  - { name: azuracast, path: apps/azuracast }
+  
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas
