@@ -1,7 +1,7 @@
 ---
-- name: Caddyfile from Git
-  ansible.builtin.copy:
-    src: Caddyfile
+- name: Caddyfile from template
+  ansible.builtin.template:
+    src: Caddyfile.j2
     dest: /etc/caddy/Caddyfile
     mode: "0644"
     validate: caddy adapt --config %s --adapter caddyfile

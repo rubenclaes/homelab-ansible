@@ -1,0 +1,120 @@
+# Managed by Ansible - edit caddy_sites in inventory/host_vars/caddy/main.yml, not this file
+{
+	email {{ caddy_email }}
+
+	log {
+		output file /var/log/caddy/runtime.log {
+			roll_at 00:00
+			roll_size 100MiB
+			roll_keep 14
+			roll_keep_for 336h
+			roll_local_time
+		}
+		format json
+		level INFO
+	}
+
+	metrics {
+		per_host
+	}
+}
+
+# Wildcard certificate via Cloudflare DNS-01; catches undefined subdomains
+*.{{ caddy_domain }} {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+	abort
+}
+
+:80 {
+	root * /usr/share/caddy
+	file_server
+}
+
+# -----------------------
+# Snippets
+# -----------------------
+(common_headers) {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
+
+(proxy_defaults) {
+	import common_headers
+	encode
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_at 00:00
+			roll_size 250MiB
+			roll_keep 14
+			roll_keep_for 336h
+			roll_local_time
+		}
+		format json
+		level INFO
+	}
+}
+
+(tinyauth_forwarder) {
+	forward_auth {{ caddy_tinyauth_upstream }} {
+		uri /api/auth/caddy
+	}
+}
+
+(https_upstream_insecure) {
+	transport http {
+		tls_insecure_skip_verify
+	}
+}
+
+# -----------------------
+# Special sites
+# -----------------------
+ca.{{ caddy_domain }} {
+	import common_headers
+	root * /var/www/caddy-ca
+	file_server
+	header Content-Disposition "attachment; filename=caddy-local-root.crt"
+	header Content-Type "application/x-x509-ca-cert"
+}
+
+metrics.{{ caddy_domain }} {
+	@lan client_ip private_ranges
+	handle @lan {
+		metrics
+	}
+	respond "Forbidden" 403
+}
+
+# -----------------------
+# Sites (generated from caddy_sites)
+# -----------------------
+{% for site in caddy_sites %}
+{{ site.name }}.{{ caddy_domain }} {
+	import proxy_defaults
+{% if site.auth | default(false) %}
+	import tinyauth_forwarder
+{% endif %}
+{% if site.https | default(false) or site.host_header | default(false) or site.forwarded | default(false) %}
+	reverse_proxy {{ 'https://' if site.https | default(false) else '' }}{{ site.upstream }} {
+{% if site.https | default(false) %}
+		import https_upstream_insecure
+{% endif %}
+		header_up Host {host}
+{% if site.forwarded | default(false) %}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+{% endif %}
+	}
+{% else %}
+	reverse_proxy {{ site.upstream }}
+{% endif %}
+}
+
+{% endfor %}

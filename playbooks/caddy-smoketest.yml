@@ -1,0 +1,26 @@
+- name: Smoke test all Caddy sites
+  hosts: caddy
+  gather_facts: false
+  tasks:
+    - name: Request every site
+      ansible.builtin.uri:
+        url: "https://{{ item.name }}.{{ caddy_domain }}"
+        follow_redirects: none
+        timeout: 10
+      loop: "{{ caddy_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: smoke
+      failed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Summarise
+      ansible.builtin.assert:
+        that: broken_sites | length == 0
+        fail_msg: "Broken sites: {{ broken_sites | join(', ') }}"
+        success_msg: "All {{ caddy_sites | length }} sites respond"
+      vars:
+        broken_sites: >-
+          {{ (smoke.results | selectattr('status', 'ge', 500) | map(attribute='item.name') | list)
+             + (smoke.results | selectattr('status', 'lt', 0) | map(attribute='item.name') | list) }}

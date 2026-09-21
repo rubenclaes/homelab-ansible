@@ -1,6 +1,46 @@
----
 baseline_held_packages:
   - caddy
 
-caddy_routes:
+caddy_email: ruben.claes@neodata.be
+caddy_domain: neodata.be
+caddy_tinyauth_upstream: 192.168.0.26:3000
+
+caddy_sites:
+  # --- Infra ---
+  - { name: portainer, upstream: "192.168.0.15:9443", https: true }
   - { name: semaphore, upstream: "192.168.0.30:3000" }
+  - { name: monitoring, upstream: "192.168.0.17:3001", host_header: true }
+  - { name: prometheus, upstream: "192.168.0.17:9090" }
+
+  # --- docker01 (192.168.0.15) ---
+  - { name: home, upstream: "192.168.0.15:8085" }
+  - { name: pairdrop, upstream: "192.168.0.15:3000" }
+  - { name: code, upstream: "192.168.0.15:8443" }
+  - { name: tools, upstream: "192.168.0.15:8082" }
+  - { name: metube, upstream: "192.168.0.15:8081" }
+  - { name: pdf, upstream: "192.168.0.15:8084" }
+  - { name: termix, upstream: "192.168.0.15:8086" }
+  - { name: torrent, upstream: "192.168.0.15:8089" }
+  - { name: neogate, upstream: "192.168.0.15:4000" }
+  - { name: photos, upstream: "192.168.0.15:2283" }
+  - { name: id, upstream: "192.168.0.15:1411" }
+  - { name: evcc, upstream: "192.168.0.15:7070", forwarded: true }
+  - { name: trek, upstream: "192.168.0.15:8083", forwarded: true }
+
+  # --- Mac mini (192.168.0.26) ---
+  - { name: tinyauth, upstream: "192.168.0.26:3000" }
+  - { name: plex, upstream: "192.168.0.26:32400" }
+  - { name: sonarr, upstream: "192.168.0.26:8989" }
+  - { name: radarr, upstream: "192.168.0.26:7878" }
+  - { name: prowlarr, upstream: "192.168.0.26:9696" }
+  - { name: bazarr, upstream: "192.168.0.26:6767" }
+  - { name: overseerr, upstream: "192.168.0.26:5055" }
+  - { name: tautulli, upstream: "192.168.0.26:8181" }
+  - { name: jackett, upstream: "192.168.0.26:9117" }
+  - { name: dozzle, upstream: "192.168.0.26:8080" }
+  - { name: duplicati, upstream: "192.168.0.26:8200" }
+  - { name: auth, upstream: "192.168.0.26:1411" }  # TODO: old Pocket ID instance
+  - { name: wizarr, upstream: "192.168.0.26:5690", auth: true }
+  - { name: books, upstream: "192.168.0.26:6061" }
+  - { name: audiobooks, upstream: "192.168.0.26:13378" }
+  - { name: jellyfin, upstream: "192.168.0.26:8096" }
