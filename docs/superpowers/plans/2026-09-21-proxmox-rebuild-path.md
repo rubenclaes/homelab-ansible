@@ -206,12 +206,39 @@ dependencies: []
   # comparison below fails instead of reporting no drift.
   check_mode: false
 
+- name: Start with an empty drift list
+  ansible.builtin.set_fact:
+    proxmox_datacenter_drift: []
+
 - name: Reconcile each declared storage
   ansible.builtin.include_tasks: storage_entry.yml
   loop: "{{ pve_storages | default([]) }}"
   loop_control:
     loop_var: storage
     label: "{{ storage.id }}"
+
+- name: Report which storages differ from what is declared
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Every declared storage matches the node'
+         if proxmox_datacenter_drift | length == 0
+         else 'Differs from inventory: ' ~ proxmox_datacenter_drift | join(', ') }}
+
+# The real test for this role. `changed` cannot serve: ansible.builtin.command
+# is skipped outright under --check, so the recap reports changed=0 whether
+# the declared values match or not. set_fact and assert DO run in check mode,
+# so the drift list is accurate there and this assertion is meaningful.
+- name: Require the declared storages to match the node
+  ansible.builtin.assert:
+    that: proxmox_datacenter_drift | length == 0
+    fail_msg: >-
+      These storages differ from what inventory declares:
+      {{ proxmox_datacenter_drift | join(', ') }}. If you have just
+      transcribed them, the transcription is wrong - check it against
+      `pvesh get /storage --output-format json`, field by field, and mind
+      that `content` orderings differ per entry.
+    success_msg: "All {{ pve_storages | default([]) | length }} declared storages match"
+  when: proxmox_datacenter_require_clean | default(false) | bool
 ```
 
 `roles/proxmox_datacenter/tasks/storage_entry.yml`:
@@ -247,6 +274,11 @@ dependencies: []
 # `type` is compared but never sent. It is the one field pvesh set rejects -
 # a storage's type is fixed at creation - and leaving it in the comparison is
 # what catches a transcription that named the wrong storage.
+- name: Record {{ storage.id }} as drifted
+  ansible.builtin.set_fact:
+    proxmox_datacenter_drift: "{{ proxmox_datacenter_drift + [storage.id] }}"
+  when: not proxmox_datacenter_storage_matches
+
 - name: Apply the declared fields to {{ storage.id }}
   ansible.builtin.command:
     argv: >-
@@ -293,16 +325,21 @@ In `playbooks/site.yml`, add after the `Backup server` import:
 
 ```bash
 ansible-lint playbooks/proxmox-datacenter.yml roles/proxmox_datacenter
-ansible-playbook playbooks/proxmox-datacenter.yml --check --diff
+ansible-playbook playbooks/proxmox-datacenter.yml --check \
+  -e proxmox_datacenter_require_clean=true
 ```
 
-Expected: lint passes at the production profile, and the play recap reports
-`changed=0`.
+Expected: lint passes at the production profile, and **the assert task
+passes** with "All 3 declared storages match".
 
-If `changed` is non-zero, the debug output names the storage. Your
-transcription differs from the live node — fix `storage.yml`, not the role.
-The likely culprits are the three traps in Step 1: `content` ordering,
-`shared` as an integer, and a stray `digest`.
+Do not read the play recap for this. `ansible.builtin.command` is skipped
+under `--check`, so `changed=0` is guaranteed and means nothing here. The
+assertion is the test.
+
+If the assert fails it names the storages. Your transcription differs from
+the live node — fix `storage.yml`, not the role. The likely culprits are the
+three traps in Step 1, and `content` ordering most of all: it differs per
+entry, so copy each one from the API output separately.
 
 - [ ] **Step 6: Commit**
 
