@@ -26,6 +26,9 @@
 - [ ] Caddyfile routes as variables instead of hand-edited blocks
 
 ## Done
+- [x] Inventory komt live uit Proxmox; hosts.yml is weg
+- [x] API-token heeft VM.GuestAgent.Audit (beheerd via proxmox-access.yml)
+- [x] qemu-guest-agent hoort bij de baseline voor KVM-guests
 - [x] docker_stacks role: `check_mode: false` on "Verify mount units exist"
 - [x] Repo hygiene: .gitignore added, vendored collections untracked (5164 files)
 - [x] Collections pinned to major versions in collections/requirements.yml

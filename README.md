@@ -48,6 +48,7 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `proxmox-info.yml` | `pve01` | Lijst alle guests via de API. |
 | `proxmox-lxcs.yml` | `pve01` | Maakt ontbrekende LXCs uit `pve_lxcs`. |
 | `proxmox-autostart.yml` | `pve01` | Zet `onboot=1` waar dat mist. |
+| `proxmox-access.yml` | `pve01` | Zet de rechten van het API-token; verifieert zichzelf. |
 
 ```bash
 ansible-playbook playbooks/site.yml
@@ -159,6 +160,44 @@ Twee rollen configureren software die ze bewust **niet** installeren:
 - **`docker_stacks`** — de Docker-engine wordt out of band beheerd; een
   onbewaakte upgrade herstart elke stack.
 
+## Inventory
+
+`inventory/` is een map die Ansible samenvoegt, geen los bestand.
+
+| Bron | Bevat |
+|---|---|
+| `00-static.yml` | `pve01`, `macmini`, `mbp` + de groepen (`linux`, `macs`, `appliances`) |
+| `homelab.proxmox.yml` | de acht Proxmox-guests, live opgehaald; vaulted onder `infra` |
+
+Guests staan nooit met de hand in een lijst. Maak er een in Proxmox en hij
+staat er de volgende run in. `ansible_host` komt uit het *runtime*-adres, dus
+de twee DHCP-containers kloppen ook — hun `net0` zegt alleen `ip=dhcp`.
+
+Het plugin-bestand is versleuteld omdat het API-token erin staat: inventory
+sources worden geparsed vóór `group_vars`, dus verwijzen naar een vaulted
+variabele kan daar niet.
+
+```bash
+ansible-inventory --graph          # wat Ansible nu ziet
+ansible-inventory --host docker    # variabelen van één host
+```
+
+`haos` valt in `appliances`, niet in `linux`: Home Assistant OS heeft geen apt
+en geen standaard Python. `site.yml` slaat hem over, het rapport ziet hem wel.
+
+Het token heeft `VM.GuestAgent.Audit` nodig, anders geeft het guest-agent
+endpoint 403 en krijgen de QEMU-guests geen adres. PVE 8.2 verving daarmee het
+oude `VM.Monitor`, dat PVE 9 botweg weigert. Beheerd door
+`playbooks/proxmox-access.yml`, niet met de hand.
+
+```bash
+# Na een inventory-wijziging: faalt als een host verdwijnt of van adres wisselt
+bin/check-inventory-parity <oude-inventory> inventory/
+```
+
+> **Semaphore wijst naar de map**, niet naar een bestand. Inventory `homelab`
+> staat op `inventory/`; `inventory/hosts.yml` bestaat niet meer.
+
 ## Structuur
 
 ```
@@ -168,15 +207,17 @@ bin/check-vaulted           faalt als een secret in plaintext staat
 .githooks/pre-commit        blokkeert een commit die zou lekken
 collections/                gepinde Galaxy-dependencies (niet gecommit)
 inventory/
-  hosts.yml                 alle hosts en groepen
+  00-static.yml             pve01, macmini, mbp + groepsdefinities
+  homelab.proxmox.yml       vaulted; guests, live uit Proxmox
   group_vars/all/           gedeelde settings (report.*)
   group_vars/proxmox/       Proxmox API-creds (main.yml + vault.yml)
   host_vars/<host>/         per host; vault.yml waar secrets spelen
 files/env/                  vaulted .env's voor de Docker-stacks
 playbooks/                  zie tabel hierboven
 playbooks/tasks/            taakbestanden gedeeld tussen plays
-roles/                      baseline, caddy, docker_stacks, dotfiles,
-                            macos, proxmox_lxc, semaphore
+bin/check-inventory-parity  vergelijkt twee inventories op ansible_host
+roles/                      baseline, caddy, docker_stacks, dotfiles, macos,
+                            proxmox_access, proxmox_lxc, semaphore
 ```
 
 ## Het rapport
@@ -221,6 +262,7 @@ bin/check-vaulted && ansible-lint && \
 - **`no_log: true` en `diff: false`** op taken met secrets.
 - **Upstreams hebben namen, geen nummers** — een `caddy_sites`-entry wijst naar
   host en poort (`{ name: photos, host: docker, port: 2283 }`), de Caddyfile
-  haalt het IP uit `ansible_host`. Verhuizen is één regel in `hosts.yml`.
+  haalt het IP uit `ansible_host`. Dat adres komt live uit Proxmox, dus
+  verhuizen kost geen repo-wijziging meer.
   `upstream:` alleen voor targets buiten de inventory.
 - Openstaand werk: [TODO.md](TODO.md).
