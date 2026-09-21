@@ -1378,9 +1378,22 @@ dependencies: []
       - cp /etc/network/interfaces.before-ansible /etc/network/interfaces && ifreload -a
   changed_when: true
 
+# NOT `ifreload -a`. Proxmox stages into /etc/network/interfaces.new, and
+# ifreload reads /etc/network/interfaces - so running it here would reload the
+# unchanged running config, leave the staged file untouched, and report
+# success. The module's `apply` state calls PUT /nodes/{node}/network, which is
+# what actually moves the staged file into place and reloads.
 - name: Apply the staged interface configuration
-  ansible.builtin.command: ifreload -a
-  changed_when: true
+  community.proxmox.proxmox_node_network:
+    api_host: "{{ pve_api_host }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    validate_certs: false
+    node: "{{ ansible_facts['hostname'] }}"
+    state: apply
+  delegate_to: localhost
+  become: false
 
 - name: Check that both addresses still answer
   ansible.builtin.wait_for:

@@ -170,8 +170,10 @@ short of physical access.
 
 The role therefore never applies directly:
 
-1. Write the desired configuration through the API. Proxmox stages it in
-   `/etc/network/interfaces.new` and leaves the running config untouched.
+1. Write the desired configuration through the API with `state: present`.
+   The module documents this explicitly: `present` and `absent` stage changes
+   and do not apply them. Proxmox holds them in `/etc/network/interfaces.new`
+   and the running config is untouched.
 2. Stop there unless `-e network_apply=true` was passed. `site.yml` never
    passes it; `proxmox-network.yml` requires it.
 3. Before applying, copy the running `/etc/network/interfaces` aside and arm
@@ -181,6 +183,18 @@ The role therefore never applies directly:
    `192.168.0.14` still answer.
 5. Cancel the timer only after that verification passes. If the playbook dies
    at any point, the timer fires and the node returns to the working config.
+
+Applying is the module's `state: apply`, not `ifreload -a`. Proxmox stages into
+`/etc/network/interfaces.new` while `ifreload` reads `/etc/network/interfaces`,
+so `ifreload` alone would reload the unchanged running config, leave the staged
+file in place, and report success — after which the playbook would verify
+connectivity against a config it had never applied and disarm the dead-man
+switch.
+
+The module also offers `state: revert`, which discards staged changes without
+applying them. That is the escape hatch for a staging run you decide against.
+It is not a rollback: once a config is applied, only the dead-man switch's copy
+brings it back.
 
 ### PBS configuration
 
