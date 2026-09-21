@@ -1,7 +1,7 @@
 ---
 - name: Caddyfile from Git
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../files/caddy/Caddyfile"
+    src: Caddyfile
     dest: /etc/caddy/Caddyfile
     mode: "0644"
     validate: caddy adapt --config %s --adapter caddyfile

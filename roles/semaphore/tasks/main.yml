@@ -35,7 +35,7 @@
 
 - name: Deploy Semaphore config from Vault
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../files/semaphore/config.json"
+    src: config.json
     dest: "{{ semaphore_config_dir }}/config.json"
     owner: "{{ semaphore_user }}"
     group: "{{ semaphore_user }}"
