@@ -10,10 +10,9 @@ import { Callout } from 'nextra/components'
 Gegenereerd uit `docker_stacks_list` in `inventory/host_vars/docker.yml`.
 </Callout>
 
-Compose-bestanden staan in [rubenclaes/containers](https://github.com/rubenclaes/containers)
-en worden met een read-only deploy key op `docker` gezet. De `.env` van elke
-stack staat versleuteld onder de vault-identiteit `stacks` en wordt pas bij
-het deployen weggeschreven.
+Compose-bestanden komen uit [rubenclaes/containers](https://github.com/rubenclaes/containers)
+via een read-only deploy key. Elke `.env` staat versleuteld onder de
+vault-identiteit `stacks` en wordt pas bij het deployen weggeschreven.
 
 | Stack | Pad in repo | Compose-project | Secrets |
 | --- | --- | --- | --- |
@@ -21,6 +20,7 @@ het deployen weggeschreven.
 | **homepage** | `stacks/homepage` | — | `.env` in vault |
 | **infra** | `stacks/infra` | — | `.env` in vault |
 | **media** | `stacks/media` | `media-stack` | `.env` in vault |
+| **memos** | `stacks/memos` | — | `.env` in vault |
 | **metrics** | `stacks/metrics` | — | `.env` in vault |
 | **neogate** | `stacks/neogate` | — | `.env` in vault |
 | **portainer** | `stacks/portainer` | — | geen |

@@ -340,6 +340,10 @@ bin/check-vaulted && ansible-lint && \
 - **Elke Linux-host alleen met key** — het `ansible`-serviceaccount escaleert
   met sudo zonder wachtwoord, en geen enkele host accepteert een
   SSH-wachtwoord.
+- **`site.yml` convergeert alles en mag op elk moment draaien** — wat
+  provisioneert of herstart, zoals `proxmox-lxcs.yml`, `update.yml` en
+  `recovery-drill.yml`, valt er bewust buiten. `mbp` is de control node en
+  beheert zichzelf.
 - **Upstreams hebben namen, geen nummers** — een `caddy_sites`-entry wijst naar
   host en poort (`{ name: photos, host: docker, port: 2283 }`), de Caddyfile
   haalt het IP uit `ansible_host`. Dat adres komt live uit Proxmox, dus

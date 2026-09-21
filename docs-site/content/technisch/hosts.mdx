@@ -25,9 +25,5 @@ niet deze pagina.
 | **semaphore** | `192.168.0.30` | guests, linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
 | **tailscale** | `192.168.0.50` | guests, linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
 
-Elke Linux-host wordt benaderd als het `ansible`-serviceaccount, alleen met
-key, en escaleert met sudo zonder wachtwoord. `mbp` is de control node en
-beheert zichzelf.
-
 Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
 in zijn config staat. Twee containers draaien DHCP en kloppen daardoor toch.
