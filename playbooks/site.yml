@@ -1,0 +1,7 @@
+- name: Linux baseline
+  hosts: linux
+  roles: [baseline]
+
+- name: macOS baseline
+  hosts: macs
+  roles: [macos]

@@ -1,0 +1,20 @@
+- name: Install Homebrew formulae
+  community.general.homebrew:
+    name: "{{ macos_brew_packages + macos_brew_packages_extra }}"
+    state: present
+    path: "{{ macos_brew_path }}"
+
+- name: Install Homebrew casks
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    path: "{{ macos_brew_path }}"
+  loop: "{{ macos_casks }}"
+
+- name: Apply macOS defaults
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  loop: "{{ macos_defaults }}"

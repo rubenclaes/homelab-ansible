@@ -1,0 +1,11 @@
+macos_casks:
+  - claude-code
+  - docker-desktop
+  - firefox
+  - font-meslo-lg-nerd-font
+  - google-chrome
+  - rectangle
+  - spotify
+  - transmission
+  - visual-studio-code
+  - vlc

@@ -1,0 +1,11 @@
+macos_brew_path: /opt/homebrew/bin
+macos_brew_packages:
+  - jq
+  - htop
+  - tmux
+  - wget
+macos_brew_packages_extra: []
+macos_casks: []
+macos_defaults:
+  - { domain: NSGlobalDomain, key: AppleShowAllExtensions, type: bool, value: true }
+  - { domain: com.apple.desktopservices, key: DSDontWriteNetworkStores, type: bool, value: true }

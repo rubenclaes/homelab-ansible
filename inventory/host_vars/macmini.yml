@@ -1,0 +1,7 @@
+macos_brew_packages_extra:
+  - ffmpeg
+  - gh
+  - ripgrep
+  - tailscale
+  - ollama
+  # ...the rest of your brew leaves
