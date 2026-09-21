@@ -1,0 +1,36 @@
+- name: Ensure ~/.ssh/config.d exists
+  ansible.builtin.file:
+    path: ~/.ssh/config.d
+    state: directory
+    mode: "0700"
+
+- name: Generate homelab SSH config from the inventory
+  ansible.builtin.template:
+    src: ssh_homelab.j2
+    dest: ~/.ssh/config.d/homelab
+    mode: "0600"
+    validate: ssh -G -F %s localhost
+
+- name: Include config.d at the top of ~/.ssh/config
+  ansible.builtin.lineinfile:
+    path: ~/.ssh/config
+    line: Include ~/.ssh/config.d/*
+    insertbefore: BOF
+
+- name: Global Git settings
+  community.general.git_config:
+    scope: global
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+  loop: "{{ dotfiles_git_config | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Managed block in ~/.zshrc
+  ansible.builtin.blockinfile:
+    path: ~/.zshrc
+    marker: "# {mark} ANSIBLE MANAGED (dotfiles role)"
+    block: "{{ dotfiles_zsh_block }}"
+    create: true
+    backup: true
+  when: dotfiles_zsh_block | length > 0

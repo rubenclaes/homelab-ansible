@@ -10,3 +10,18 @@ macos_casks:
   - transmission
   - visual-studio-code
   - vlc
+
+dotfiles_git_config:
+  user.name: rubenclaes
+  user.email: rubes.claes@gmail.com
+  user.signingkey: "{{ ansible_facts['env']['HOME'] }}/.ssh/id_ed25519.pub"
+  gpg.format: ssh
+  commit.gpgsign: "true"
+  core.editor: code --wait
+  push.autoSetupRemote: "true"
+
+dotfiles_zsh_block: |
+  export EDITOR="code --wait"
+  export ANSIBLE_VAULT_PASSWORD_FILE=~/.ansible/vault_pass
+  alias hl='cd ~/Development/homelab-ansible'
+  alias ap='ansible-playbook'

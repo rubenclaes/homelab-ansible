@@ -1,0 +1,9 @@
+# Managed by Ansible (dotfiles role), generated from inventory/hosts.yml
+# Don't edit by hand; add hosts to the inventory instead.
+{% for host in groups['linux'] | sort %}
+
+Host {{ host }}
+    HostName {{ hostvars[host].ansible_host }}
+    User ansible
+    IdentityFile ~/.ssh/ansible_ed25519
+{% endfor %}

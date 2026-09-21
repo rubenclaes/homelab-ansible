@@ -1,0 +1,4 @@
+- name: Dotfiles on my MacBook
+  hosts: mbp
+  roles:
+    - dotfiles
