@@ -1,0 +1,56 @@
+---
+title: Disaster recovery
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Disaster recovery
+
+Rebuilding a lost guest is four playbooks. The data comes from Proxmox Backup
+Server; everything else is in Git.
+
+<Steps>
+
+### Recreate the container
+
+```bash
+ansible-playbook playbooks/proxmox-lxcs.yml
+```
+
+The role compares `pve_lxcs` against what Proxmox actually has and creates only
+what is missing. Existing containers are never modified, so this is safe to run
+at any time.
+
+### Create the service account
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit <host> -e ansible_user=root -e ansible_become=false
+```
+
+A freshly created container already carries the Ansible public key, so this is
+the only step that talks to it as root.
+
+### Apply the baseline
+
+```bash
+ansible-playbook playbooks/baseline.yml --limit <host>
+```
+
+### Apply the service role
+
+`playbooks/caddy.yml`, `playbooks/semaphore.yml`, `playbooks/stacks.yml` —
+whichever the host is for.
+
+</Steps>
+
+<Callout type="warning">
+A rebuilt host has a **new SSH host key**. Your workstation will refuse to
+connect until you run `ssh-keygen -R <address>`. Semaphore fixes itself on the
+next run of `playbooks/semaphore.yml`, which collects host keys from facts.
+</Callout>
+
+## Testing it
+
+The recovery path is only real if it has been run. Add a throwaway entry to
+`pve_lxcs`, let the role build it, destroy it with `pct destroy`, and run the
+role again.

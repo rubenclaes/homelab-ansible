@@ -1,0 +1,44 @@
+---
+title: Overview
+---
+
+import { Cards, Callout } from 'nextra/components'
+
+# neodata.homelab
+
+One Proxmox host, a handful of LXC guests, a Docker host and two Macs, all
+converged by [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
+
+<Callout type="info">
+Pages under **Reference** are generated from the Ansible inventory and cannot
+drift. Pages under **Runbooks** are written by hand and hold the reasoning that
+code cannot express.
+</Callout>
+
+## How it fits together
+
+`pve01` runs everything. Guests are LXC containers and VMs, each converged by
+the `baseline` role: timezone, packages, unattended security upgrades, key-only
+SSH. On top of that, single-purpose roles own single-purpose hosts — `caddy`
+terminates every `*.neodata.be` name, `docker01` runs the application stacks,
+`semaphore` runs the playbooks on a schedule so none of this depends on a laptop
+being open.
+
+Secrets are split by blast radius across two vault identities. `infra` holds the
+credentials that control the estate — Proxmox, Cloudflare, PBS. `stacks` holds
+application logins. Either can be rotated without touching the other.
+
+<Cards>
+  <Cards.Card title="Services" href="/reference/services" arrow />
+  <Cards.Card title="Hosts" href="/reference/hosts" arrow />
+  <Cards.Card title="LXC containers" href="/reference/containers" arrow />
+  <Cards.Card title="Docker stacks" href="/reference/stacks" arrow />
+</Cards>
+
+## Conventions
+
+- Every Linux host is reached as the `ansible` service account, key-only, with
+  passwordless sudo. No host accepts an SSH password.
+- `playbooks/site.yml` converges everything and is safe to run at any time.
+  Anything that provisions or reboots lives outside it, on purpose.
+- Nothing is configured by hand. If it was worth doing twice, it is in a role.

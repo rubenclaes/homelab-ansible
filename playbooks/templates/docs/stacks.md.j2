@@ -1,0 +1,23 @@
+---
+title: Docker stacks
+---
+
+import { Callout } from 'nextra/components'
+
+# Docker stacks
+
+<Callout type="warning">
+Generated from `docker_stacks_list` in `inventory/host_vars/docker01.yml`.
+</Callout>
+
+Compose files live in [rubenclaes/containers](https://github.com/rubenclaes/containers),
+pulled onto `docker01` with a read-only deploy key. Each stack's `.env` is stored
+encrypted under the `stacks` vault identity and written at deploy time.
+
+| Stack | Path in repo | Compose project | Secrets |
+| --- | --- | --- | --- |
+{% for st in docker_stacks_list | sort(attribute='name') -%}
+| **{{ st.name }}** | `stacks/{{ st.path }}` | {{ ('`' ~ st.project ~ '`') if st.project is defined else '—' }} | {{ '`.env` in vault' if st.env | default(true) else 'none' }} |
+{% endfor %}
+
+Docker waits for these mounts at boot: {% for m in docker_stacks_wait_for_mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.

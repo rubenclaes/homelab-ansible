@@ -1,0 +1,70 @@
+---
+title: Services
+---
+
+import { Callout } from 'nextra/components'
+
+# Services
+
+<Callout type="warning">
+This page is generated from `caddy_sites` in `inventory/host_vars/caddy/main.yml`.
+Edit the inventory, not this file.
+</Callout>
+
+Every service is reached at `https://<name>.neodata.be`, proxied by Caddy.
+Upstream addresses come from each host's `ansible_host`, so re-addressing a host
+changes every route that points at it.
+
+## docker01 <span style={{ opacity: 0.5, fontWeight: 400 }}>— 14 services</span>
+
+| Service | Port | What it is | Notes |
+| --- | --- | --- | --- |
+| [code.neodata.be](https://code.neodata.be) | `8443` | code-server — VS Code in the browser |  |
+| [evcc.neodata.be](https://evcc.neodata.be) | `7070` | EV charge control against the Fluvius capacity tariff | Forwarded headers.  |
+| [home.neodata.be](https://home.neodata.be) | `8085` | Homepage — the start page and service dashboard |  |
+| [id.neodata.be](https://id.neodata.be) | `1411` | Pocket ID — OIDC provider (current instance) |  |
+| [metube.neodata.be](https://metube.neodata.be) | `8081` | MeTube — yt-dlp web front end |  |
+| [neogate.neodata.be](https://neogate.neodata.be) | `4000` | NeoGate — homelab access management (own app) |  |
+| [pairdrop.neodata.be](https://pairdrop.neodata.be) | `3000` | Local file transfer between devices, AirDrop-style |  |
+| [pdf.neodata.be](https://pdf.neodata.be) | `8084` | BentoPDF — merge, split and convert PDFs |  |
+| [photos.neodata.be](https://photos.neodata.be) | `2283` | Immich — photo and video library |  |
+| [portainer.neodata.be](https://portainer.neodata.be) | `9443` | Docker management UI for docker01 | TLS upstream.  |
+| [termix.neodata.be](https://termix.neodata.be) | `8086` | Web SSH client for the homelab |  |
+| [tools.neodata.be](https://tools.neodata.be) | `8082` | IT-Tools — offline developer utilities |  |
+| [torrent.neodata.be](https://torrent.neodata.be) | `8089` | qBittorrent — writes to the NFS share from the Mac mini |  |
+| [trek.neodata.be](https://trek.neodata.be) | `8083` | TODO: describe this service | Forwarded headers.  |
+
+## macmini <span style={{ opacity: 0.5, fontWeight: 400 }}>— 16 services</span>
+
+| Service | Port | What it is | Notes |
+| --- | --- | --- | --- |
+| [audiobooks.neodata.be](https://audiobooks.neodata.be) | `13378` | Audiobookshelf — audiobook and podcast server |  |
+| [auth.neodata.be](https://auth.neodata.be) | `1411` | Pocket ID — old instance, to be retired |  |
+| [bazarr.neodata.be](https://bazarr.neodata.be) | `6767` | Subtitle fetching for Sonarr and Radarr |  |
+| [books.neodata.be](https://books.neodata.be) | `6061` | TODO: describe this service |  |
+| [dozzle.neodata.be](https://dozzle.neodata.be) | `8080` | Live Docker log viewer |  |
+| [duplicati.neodata.be](https://duplicati.neodata.be) | `8200` | Backups from the Mac mini |  |
+| [jackett.neodata.be](https://jackett.neodata.be) | `9117` | Torrent indexer proxy |  |
+| [jellyfin.neodata.be](https://jellyfin.neodata.be) | `8096` | Jellyfin media server |  |
+| [overseerr.neodata.be](https://overseerr.neodata.be) | `5055` | Media requests from friends and family |  |
+| [plex.neodata.be](https://plex.neodata.be) | `32400` | Plex media server — the Mac mini's main job |  |
+| [prowlarr.neodata.be](https://prowlarr.neodata.be) | `9696` | Indexer manager feeding Sonarr and Radarr |  |
+| [radarr.neodata.be](https://radarr.neodata.be) | `7878` | Film management |  |
+| [sonarr.neodata.be](https://sonarr.neodata.be) | `8989` | TV series management |  |
+| [tautulli.neodata.be](https://tautulli.neodata.be) | `8181` | Plex usage statistics |  |
+| [tinyauth.neodata.be](https://tinyauth.neodata.be) | `3000` | Auth middleware used by Caddy forward_auth |  |
+| [wizarr.neodata.be](https://wizarr.neodata.be) | `5690` | Plex/Jellyfin invitations for new users | Behind tinyauth.  |
+
+## monitoring01 <span style={{ opacity: 0.5, fontWeight: 400 }}>— 2 services</span>
+
+| Service | Port | What it is | Notes |
+| --- | --- | --- | --- |
+| [monitoring.neodata.be](https://monitoring.neodata.be) | `3001` | Uptime Kuma — uptime checks and alerting | Host header passed.  |
+| [prometheus.neodata.be](https://prometheus.neodata.be) | `9090` | Metrics store scraped by Grafana |  |
+
+## semaphore <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+
+| Service | Port | What it is | Notes |
+| --- | --- | --- | --- |
+| [semaphore.neodata.be](https://semaphore.neodata.be) | `3000` | Ansible control plane — runs the playbooks on a schedule |  |
+

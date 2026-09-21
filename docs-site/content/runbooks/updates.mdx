@@ -1,0 +1,40 @@
+---
+title: Updates
+---
+
+import { Callout } from 'nextra/components'
+
+# Updates
+
+`playbooks/update.yml` runs `apt full-upgrade` with `serial: 1`, so one host
+finishes completely before the next begins. A broken upgrade breaks one machine,
+not the fleet.
+
+Reboots are opt-in. By default the playbook only reports that one is needed.
+
+```bash
+# The weekly round. Semaphore runs this on Sundays at 04:00.
+ansible-playbook playbooks/update.yml --limit guests
+
+# The hypervisor, by hand, when the downtime suits you.
+ansible-playbook playbooks/update.yml --limit pve01 -e allow_reboot=true
+```
+
+<Callout type="error">
+Never run the `pve01` upgrade from Semaphore. Semaphore is a container **on**
+`pve01`, so a reboot would kill the job that ordered it. A controller does not
+reboot the machine it runs on.
+</Callout>
+
+## Caddy is held
+
+`caddy` is pinned via `baseline_held_packages` because it is a custom build
+carrying the `caddy-dns/cloudflare` plugin. A plain `apt full-upgrade` once
+replaced it with the stock binary, which refuses to start against a Caddyfile
+that uses the Cloudflare DNS module — taking every `*.neodata.be` name down.
+
+Upgrade it deliberately instead, which keeps the plugins:
+
+```bash
+ansible caddy -a "caddy upgrade"
+```

@@ -1,39 +1,81 @@
-- name: Generate homelab documentation
+- name: Gather facts for the reference pages
   hosts: linux:macmini
   gather_facts: true
   tasks: []
 
-- name: Render the docs page
+- name: Build the documentation site
   hosts: localhost
   gather_facts: false
+  vars:
+    docs_site: "{{ playbook_dir }}/../docs-site"
+    docs_pages: [services, hosts, containers, stacks]
   tasks:
-    - name: Get the current commit hash
-      ansible.builtin.command: git rev-parse --short HEAD
-      register: docs_git
-      changed_when: false
-      check_mode: false
-      failed_when: false
-
-    - name: Render HTML
+    - name: Render the generated reference pages
       ansible.builtin.template:
-        src: docs.html.j2
-        dest: /tmp/homelab-docs.html
+        src: "docs/{{ item }}.md.j2"
+        dest: "{{ docs_site }}/content/reference/{{ item }}.mdx"
         mode: "0644"
+      loop: "{{ docs_pages }}"
       vars:
-        docs_commit: "{{ docs_git.stdout | default('unknown') }}"
+        caddy_domain: "{{ hostvars['caddy'].caddy_domain }}"
+        caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
+        pve_lxcs: "{{ hostvars['pve01'].pve_lxcs }}"
+        pve_lxc_defaults: "{{ hostvars['pve01'].pve_lxc_defaults }}"
+        docker_stacks_list: "{{ hostvars['docker01'].docker_stacks_list }}"
+        docker_stacks_wait_for_mounts: "{{ hostvars['docker01'].docker_stacks_wait_for_mounts }}"
 
-- name: Publish the docs page
+    # `npm ci` installs exactly what package-lock.json pins, and fails rather
+    # than silently resolving something newer. Nextra is pinned to 4.5.0 on
+    # purpose: see docs-site/package.json.
+    - name: Install site dependencies
+      ansible.builtin.command:
+        cmd: npm ci --no-audit --no-fund
+        chdir: "{{ docs_site }}"
+        creates: "{{ docs_site }}/node_modules/.package-lock.json"
+
+    - name: Build the static site
+      ansible.builtin.command:
+        cmd: npm run build
+        chdir: "{{ docs_site }}"
+      changed_when: true
+
+    # Plain tar rather than community.general.archive: one less collection to
+    # resolve, and `-C out .` keeps the paths relative to the site root.
+    - name: Pack the build for transfer
+      ansible.builtin.command:
+        cmd: tar -czf out.tar.gz -C out .
+        chdir: "{{ docs_site }}"
+      changed_when: true
+
+- name: Publish the documentation site
   hosts: caddy
   gather_facts: false
+  vars:
+    docs_root: /var/www/homelab-docs
   tasks:
-    - name: Ensure the docs directory exists
+    # Unpack into a fresh directory and swap it in, so a page deleted from the
+    # site does not linger on disk, and a failed build cannot leave the live
+    # site half-written.
+    - name: Create a staging directory
       ansible.builtin.file:
-        path: /var/www/homelab-docs
-        state: directory
+        path: "{{ docs_root }}.new"
+        state: "{{ item }}"
+        mode: "0755"
+      loop: [absent, directory]
+
+    - name: Unpack the site
+      ansible.builtin.unarchive:
+        src: "{{ playbook_dir }}/../docs-site/out.tar.gz"
+        dest: "{{ docs_root }}.new"
         mode: "0755"
 
-    - name: Upload the docs page
-      ansible.builtin.copy:
-        src: /tmp/homelab-docs.html
-        dest: /var/www/homelab-docs/index.html
-        mode: "0644"
+    - name: Swap the new site in
+      ansible.builtin.shell: |
+        set -euo pipefail
+        rm -rf {{ docs_root }}.old
+        if [ -d {{ docs_root }} ]; then mv {{ docs_root }} {{ docs_root }}.old; fi
+        mv {{ docs_root }}.new {{ docs_root }}
+        rm -rf {{ docs_root }}.old
+      args:
+        executable: /bin/bash
+      changed_when: true

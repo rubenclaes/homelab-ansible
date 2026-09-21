@@ -1,0 +1,22 @@
+---
+title: LXC containers
+---
+
+import { Callout } from 'nextra/components'
+
+# LXC containers
+
+<Callout type="warning">
+Generated from `pve_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.
+</Callout>
+
+These definitions are used to **recreate** a container that has gone missing.
+`playbooks/proxmox-lxcs.yml` never modifies a container that already exists.
+
+| VMID | Name | CPU | Memory | Disk | Address |
+| --- | --- | --- | --- | --- | --- |
+{% for l in pve_lxcs | sort(attribute='vmid') -%}
+| {{ l.vmid }} | **{{ l.hostname }}** | {{ l.cores }} core{{ 's' if l.cores != 1 }} | {{ (l.memory / 1024) | round(1) ~ ' GB' if l.memory >= 1024 else l.memory ~ ' MB' }} | {{ l.disk.size }} GB on `{{ l.disk.storage }}` | `{{ l.ip }}` |
+{% endfor %}
+
+Template: `{{ pve_lxc_defaults.template }}` · bridge `{{ pve_lxc_defaults.bridge }}` · gateway `{{ pve_lxc_defaults.gateway }}`

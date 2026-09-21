@@ -1,0 +1,23 @@
+---
+title: LXC containers
+---
+
+import { Callout } from 'nextra/components'
+
+# LXC containers
+
+<Callout type="warning">
+Generated from `pve_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.
+</Callout>
+
+These definitions are used to **recreate** a container that has gone missing.
+`playbooks/proxmox-lxcs.yml` never modifies a container that already exists.
+
+| VMID | Name | CPU | Memory | Disk | Address |
+| --- | --- | --- | --- | --- | --- |
+| 104 | **semaphore** | 2 cores | 2.0 GB | 8 GB on `local-lvm` | `192.168.0.30/24` |
+| 106 | **caddy** | 1 core | 512 MB | 6 GB on `vm-hdd` | `192.168.0.25/24` |
+| 107 | **adguard** | 1 core | 512 MB | 2 GB on `vm-hdd` | `192.168.0.29/24` |
+| 108 | **tailscale** | 4 cores | 1.0 GB | 8 GB on `vm-hdd` | `192.168.0.50/24` |
+
+Template: `local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst` · bridge `vmbr0` · gateway `192.168.0.1`

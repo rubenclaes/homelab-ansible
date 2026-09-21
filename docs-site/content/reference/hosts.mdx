@@ -1,0 +1,26 @@
+---
+title: Hosts
+---
+
+import { Callout } from 'nextra/components'
+
+# Hosts
+
+<Callout type="warning">
+Generated from `inventory/hosts.yml`. Edit the inventory, not this file.
+</Callout>
+
+| Host | Address | Groups | OS |
+| --- | --- | --- | --- |
+| **adguard** | `192.168.0.29` | guests, linux | — |
+| **caddy** | `192.168.0.25` | guests, linux | — |
+| **docker01** | `192.168.0.15` | guests, linux | — |
+| **macmini** | `192.168.0.26` | macs | — |
+| **monitoring01** | `192.168.0.17` | guests, linux | — |
+| **pbs** | `192.168.0.181` | guests, linux | — |
+| **pve01** | `192.168.0.14` | linux, proxmox | — |
+| **semaphore** | `192.168.0.30` | guests, linux | — |
+| **tailscale** | `192.168.0.50` | guests, linux | — |
+
+All Linux hosts are reached as the `ansible` service account over key-only SSH
+and escalate with passwordless sudo. `mbp` is the control node and manages itself.

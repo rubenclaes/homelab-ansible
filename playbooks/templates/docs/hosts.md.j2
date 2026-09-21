@@ -1,0 +1,21 @@
+---
+title: Hosts
+---
+
+import { Callout } from 'nextra/components'
+
+# Hosts
+
+<Callout type="warning">
+Generated from `inventory/hosts.yml`. Edit the inventory, not this file.
+</Callout>
+
+| Host | Address | Groups | OS |
+| --- | --- | --- | --- |
+{% for h in (groups['linux'] + ['macmini']) | sort -%}
+{% set f = hostvars[h].ansible_facts | default({}) -%}
+| **{{ h }}** | `{{ hostvars[h].ansible_host }}` | {{ hostvars[h].group_names | sort | join(', ') }} | {{ (f.distribution ~ ' ' ~ f.distribution_version) if f.distribution is defined else '—' }} |
+{% endfor %}
+
+All Linux hosts are reached as the `ansible` service account over key-only SSH
+and escalate with passwordless sudo. `mbp` is the control node and manages itself.

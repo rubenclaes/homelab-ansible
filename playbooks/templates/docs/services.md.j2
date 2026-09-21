@@ -1,0 +1,27 @@
+---
+title: Services
+---
+
+import { Callout } from 'nextra/components'
+
+# Services
+
+<Callout type="warning">
+This page is generated from `caddy_sites` in `inventory/host_vars/caddy/main.yml`.
+Edit the inventory, not this file.
+</Callout>
+
+Every service is reached at `https://<name>.{{ caddy_domain }}`, proxied by Caddy.
+Upstream addresses come from each host's `ansible_host`, so re-addressing a host
+changes every route that points at it.
+
+{% for host, sites in caddy_sites | groupby('host', default='external') %}
+## {{ host }} <span style={{"{{"}} opacity: 0.5, fontWeight: 400 {{"}}"}}>— {{ sites | length }} service{{ 's' if sites | length != 1 }}</span>
+
+| Service | Port | What it is | Notes |
+| --- | --- | --- | --- |
+{% for s in sites | sort(attribute='name') -%}
+| [{{ s.name }}.{{ caddy_domain }}](https://{{ s.name }}.{{ caddy_domain }}) | `{{ s.port | default(s.upstream) }}` | {{ s.desc | default('_undocumented_') }} | {% if s.https | default(false) %}TLS upstream. {% endif %}{% if s.auth | default(false) %}Behind tinyauth. {% endif %}{% if s.forwarded | default(false) %}Forwarded headers. {% endif %}{% if s.host_header | default(false) %}Host header passed. {% endif %} |
+{% endfor %}
+
+{% endfor %}

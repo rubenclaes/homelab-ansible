@@ -1,0 +1,29 @@
+---
+title: Docker stacks
+---
+
+import { Callout } from 'nextra/components'
+
+# Docker stacks
+
+<Callout type="warning">
+Generated from `docker_stacks_list` in `inventory/host_vars/docker01.yml`.
+</Callout>
+
+Compose files live in [rubenclaes/containers](https://github.com/rubenclaes/containers),
+pulled onto `docker01` with a read-only deploy key. Each stack's `.env` is stored
+encrypted under the `stacks` vault identity and written at deploy time.
+
+| Stack | Path in repo | Compose project | Secrets |
+| --- | --- | --- | --- |
+| **azuracast** | `stacks/apps/azuracast` | — | `.env` in vault |
+| **glance** | `stacks/glance` | — | `.env` in vault |
+| **homepage** | `stacks/homepage` | — | `.env` in vault |
+| **infra** | `stacks/infra` | — | `.env` in vault |
+| **metrics** | `stacks/metrics` | — | `.env` in vault |
+| **neogate** | `stacks/neogate` | — | `.env` in vault |
+| **portainer** | `stacks/portainer` | — | none |
+| **rustdesk** | `stacks/apps/rustdesk` | — | `.env` in vault |
+| **utils** | `stacks/utils` | — | `.env` in vault |
+
+Docker waits for these mounts at boot: `/mnt/ssdnas`.
