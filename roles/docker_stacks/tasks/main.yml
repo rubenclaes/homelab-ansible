@@ -33,9 +33,9 @@
   become: true
   become_user: "{{ docker_stacks_owner }}"
 
-- name: Ensure PyYAML is present (needed by the compose module)
+- name: Ensure Python libraries for the Docker modules
   ansible.builtin.apt:
-    name: python3-yaml
+    name: [python3-yaml, python3-docker]
     state: present
 
 - name: Verify mount units exist  # noqa: command-instead-of-module

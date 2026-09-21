@@ -62,6 +62,86 @@
 {% endfor %}
     </table>
   </div>
+
+
+  {% if hostvars['docker01'].report_containers is defined %}
+  <div class="card">
+    <strong>Docker on docker01</strong>
+    <table>
+      <tr><th>Stack</th><th>Running</th><th>Problems</th></tr>
+{% for project, items in hostvars['docker01'].report_containers | groupby('project') %}
+{% set running = items | selectattr('state', 'equalto', 'running') | list %}
+{% set problems = (items | rejectattr('state', 'equalto', 'running') | list)
+                + (items | selectattr('status', 'search', 'unhealthy') | list) %}
+      <tr>
+        <td><strong>{{ project }}</strong></td>
+        <td class="{{ 'ok' if running | length == items | length else 'warn' }}">{{ running | length }} / {{ items | length }}</td>
+        <td class="{{ 'bad' if problems else 'ok' }}">{{ problems | map(attribute='name') | join(', ') if problems else 'none' }}</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% endif %}
+
+{% set pve = hostvars['pve01'] %}
+{% if pve.report_pools is defined %}
+  <div class="card">
+    <strong>ZFS pools on pve01</strong>
+    <table>
+      <tr><th>Pool</th><th>Size</th><th>Used</th><th>Free</th><th>Usage</th><th>Health</th></tr>
+{% for p in pve.report_pools %}
+{% set cap = p.cap | replace('%', '') | int %}
+      <tr>
+        <td><strong>{{ p.name }}</strong></td>
+        <td>{{ p.size }}</td><td>{{ p.alloc }}</td><td>{{ p.free }}</td>
+        <td class="{{ 'bad' if cap >= 85 else 'warn' if cap >= 70 else 'ok' }}">{{ p.cap }}</td>
+        <td class="{{ 'ok' if p.health == 'ONLINE' else 'bad' }}">{{ p.health }}</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% endif %}
+
+{% if pve.report_disks is defined %}
+  <div class="card">
+    <strong>Disks on pve01 (SMART)</strong>
+    <table>
+      <tr><th>Device</th><th>Model</th><th>Health</th><th>Temp</th></tr>
+{% for d in pve.report_disks %}
+      <tr>
+        <td><strong>{{ d.device }}</strong></td>
+        <td>{{ d.model }}</td>
+        <td class="{{ 'ok' if d.passed else 'bad' }}">{{ 'PASSED' if d.passed else 'FAILED / unknown' }}</td>
+        <td class="{{ 'warn' if (d.temp is number and d.temp >= 55) else '' }}">{{ d.temp }}{{ ' °C' if d.temp is number else '' }}</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% endif %}
+
+{% set backup_map = report_backups.json.data | items2dict(key_name='backup-id', value_name='last-backup') %}
+  <div class="card">
+    <strong>Backups (PBS, datastore store1)</strong>
+    <table>
+      <tr><th>ID</th><th>Guest</th><th>Type</th><th>Last backup</th><th>Age</th></tr>
+{% for g in report_guests.proxmox_vms | sort(attribute='vmid') %}
+{% set last = backup_map[g.vmid | string] | default(none) %}
+      <tr>
+        <td>{{ g.vmid }}</td>
+        <td><strong>{{ g.name }}</strong></td>
+        <td>{{ g.type }}</td>
+{% if last is none %}
+        <td class="bad" colspan="2">never backed up</td>
+{% else %}
+{% set age_h = ((now().timestamp() - last) / 3600) | round(0) | int %}
+        <td>{{ '%Y-%m-%d %H:%M' | strftime(last) }}</td>
+        <td class="{{ 'bad' if age_h > 48 else 'warn' if age_h > 26 else 'ok' }}">{{ age_h }} h</td>
+{% endif %}
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+
 </main>
 </body>
 </html>

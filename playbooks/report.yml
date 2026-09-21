@@ -38,10 +38,109 @@
         var: report_row
 
 
+- name: Collect Docker status
+  hosts: docker01
+  gather_facts: false
+  tasks:
+    - name: Read all containers
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        verbose_output: true
+      register: report_docker
+
+    - name: Simplify to project / name / state / status
+      ansible.builtin.set_fact:
+        report_containers: >-
+          {{ report_containers | default([]) + [{
+               'project': item.Labels['com.docker.compose.project'] | default('(none)'),
+               'name': item.Names[0] | regex_replace('^/', ''),
+               'state': item.State,
+               'status': item.Status
+             }] }}
+      loop: "{{ report_docker.containers }}"
+      loop_control:
+        label: "{{ item.Names[0] }}"
+
+
+- name: Collect storage health
+  hosts: pve01
+  gather_facts: false
+  tasks:
+    - name: ZFS pools
+      ansible.builtin.command: zpool list -H -o name,size,alloc,free,cap,health
+      register: report_zpool
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Turn each pool line into a dictionary
+      ansible.builtin.set_fact:
+        report_pools: "{{ report_pools | default([]) + [dict(['name', 'size', 'alloc', 'free', 'cap', 'health'] | zip(item.split('\t')))] }}"
+      loop: "{{ report_zpool.stdout_lines }}"
+
+    - name: Is smartctl installed?
+      ansible.builtin.stat:
+        path: /usr/sbin/smartctl
+      register: report_smartctl
+
+    - name: Find disks
+      ansible.builtin.command: smartctl --scan -j
+      register: report_scan
+      changed_when: false
+      check_mode: false
+      when: report_smartctl.stat.exists
+
+    - name: Read health per disk
+      ansible.builtin.command: smartctl -H -i -A -j {{ item.name }}
+      loop: "{{ (report_scan.stdout | from_json).devices }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: report_smart
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      when: report_smartctl.stat.exists
+
+    - name: Simplify per disk
+      ansible.builtin.set_fact:
+        report_disks: >-
+          {{ report_disks | default([]) + [{
+               'device': item.item.name,
+               'model': j.model_name | default('?'),
+               'passed': j.smart_status.passed | default(false),
+               'temp': j.temperature.current | default('?')
+             }] }}
+      vars:
+        j: "{{ item.stdout | from_json }}"
+      loop: "{{ report_smart.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
 - name: Render the report
   hosts: localhost
   gather_facts: false
   tasks:
+    - name: All guests from Proxmox VE
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ hostvars['pve01'].pve_api_host }}"
+        api_user: "{{ hostvars['pve01'].pve_api_user }}"
+        api_token_id: "{{ hostvars['pve01'].pve_api_token_id }}"
+        api_token_secret: "{{ hostvars['pve01'].pve_api_token_secret }}"
+        node: pve01
+        validate_certs: false
+      register: report_guests
+
+    - name: Backup groups from PBS
+      ansible.builtin.uri:
+        url: "https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/store1/groups"
+        headers:
+          Authorization: "PBSAPIToken=ansible@pbs!report:{{ hostvars['pbs'].vault_pbs_report_token }}"
+        validate_certs: false
+        return_content: true
+      register: report_backups
+      no_log: true
+
     - name: Read the wildcard certificate
       community.crypto.get_certificate:
         host: semaphore.neodata.be
@@ -53,7 +152,6 @@
         src: report.html.j2
         dest: /tmp/homelab-report.html
         mode: "0644"
-
   
 - name: Publish the report
   hosts: caddy
