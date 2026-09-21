@@ -485,13 +485,40 @@ pve_backup_jobs:
   # comparison below fails instead of reporting no drift.
   check_mode: false
 
+- name: Start with an empty backup-job drift list
+  ansible.builtin.set_fact:
+    proxmox_datacenter_job_drift: []
+
 - name: Reconcile each declared backup job
   ansible.builtin.include_tasks: backup_job.yml
   loop: "{{ pve_backup_jobs | default([]) }}"
   loop_control:
     loop_var: job
     label: "{{ job.id }}"
+
+- name: Report which backup jobs differ from what is declared
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Every declared backup job matches the node'
+         if proxmox_datacenter_job_drift | length == 0
+         else 'Differs from inventory: ' ~ proxmox_datacenter_job_drift | join(', ') }}
+
+# The real test for this half of the role, for the same reason as storage:
+# ansible.builtin.command is skipped under --check, so the recap is clean
+# whether the jobs match or not. set_fact and assert do run in check mode.
+- name: Require the declared backup jobs to match the node
+  ansible.builtin.assert:
+    that: proxmox_datacenter_job_drift | length == 0
+    fail_msg: >-
+      These backup jobs differ from what inventory declares:
+      {{ proxmox_datacenter_job_drift | join(', ') }}.
+    success_msg: "All {{ pve_backup_jobs | default([]) | length }} declared backup jobs match"
+  when: proxmox_datacenter_require_clean | default(false) | bool
 ```
+
+Note that `proxmox_datacenter_require_clean` is the same flag Task 1's storage
+half uses. One flag turns both assertions on, which is what you want: a
+verification run should check the whole role, not half of it.
 
 `roles/proxmox_datacenter/tasks/backup_job.yml`:
 
@@ -530,6 +557,11 @@ pve_backup_jobs:
       once in the UI, then transcribe its ID into pve_backup_jobs.
     success_msg: "{{ job.id }} exists"
 
+- name: Record drift for {{ job.id }}
+  ansible.builtin.set_fact:
+    proxmox_datacenter_job_drift: "{{ proxmox_datacenter_job_drift + [job.id] }}"
+  when: not proxmox_datacenter_job_matches
+
 - name: Apply the declared fields to {{ job.id }}
   ansible.builtin.command:
     argv: >-
@@ -555,25 +587,44 @@ Replace `roles/proxmox_datacenter/tasks/main.yml` with:
   ansible.builtin.import_tasks: backup_jobs.yml
 ```
 
-- [ ] **Step 5: Run the test**
+- [ ] **Step 5: Prove the test detects the drift you intend**
 
 ```bash
 ansible-lint roles/proxmox_datacenter
-ansible-playbook playbooks/proxmox-datacenter.yml --check --diff
+ansible-playbook playbooks/proxmox-datacenter.yml --check \
+  -e proxmox_datacenter_require_clean=true
 ```
 
-Expected: lint passes. The recap reports exactly one change — the weekly job, because you removed vmid 109 from it. Every other task reports `ok`.
+Expected: lint passes, and **the assert FAILS**, naming exactly
+`backup-e6cc3e8b-ac39` — the weekly job, because you removed vmid 109 from it.
+The storage assert from Task 1 must still pass.
 
-That one change is the point of this task. Read the debug line to confirm it names the job you expect before you apply it.
+A failing assert is the correct result here, and it is the only evidence that
+the comparison works at all. If it passes, your reconcile is not detecting a
+difference you know exists: fix the comparison, not the inventory.
 
-- [ ] **Step 6: Apply, then verify against the node**
+Do not read the play recap. `ansible.builtin.command` is skipped under
+`--check`, so `changed` stays 0 whether the job matches or not.
+
+- [ ] **Step 6: Apply, then prove the test now passes**
+
+This is the first real run in this plan — the `pvesh set` path has never
+executed before, in Task 1 or here. Read the debug line from Step 5 once more
+and confirm it names the job you expect before you run this.
 
 ```bash
 ansible-playbook playbooks/proxmox-datacenter.yml
 ansible pve01 -m ansible.builtin.command -a "pvesh get /cluster/backup --output-format json"
+ansible-playbook playbooks/proxmox-datacenter.yml --check \
+  -e proxmox_datacenter_require_clean=true
 ```
 
-Expected: the weekly job's `vmid` no longer contains `109`. Re-running `--check` now reports `changed=0`.
+Expected, in order: the run reports one change; the weekly job's `vmid` no
+longer contains `109`; and the assert now passes with "All 2 declared backup
+jobs match".
+
+That last command is the one that matters. It closes the loop: the test failed
+when the node was wrong, and passes now that it is right.
 
 - [ ] **Step 7: Commit**
 
