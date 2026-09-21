@@ -33,7 +33,7 @@ Measured against the live estate on 2026-09-21, not assumed:
 | How large is `/etc/pve`? | 15K. Size is irrelevant; content is the only question. |
 | Does it hold secrets? | Yes, all of them under `priv/`: `token.cfg`, `pve-root-ca.key`, `authkey.key`, `storage/`, `acme/`. Everything outside `priv/` is declarative and safe. |
 | Is the network config in `/etc/pve`? | **No.** `/etc/network/interfaces` sits outside it and would have been missed by a naive `/etc/pve` backup. |
-| Does `community.proxmox` cover this? | Mostly. `proxmox_storage`, `proxmox_backup_schedule`, `proxmox_user`, `proxmox_group`, `proxmox_role`, `proxmox_access_acl` and `proxmox_node_network` all exist in the pinned 2.0.0. No module exists for `notifications.cfg`, `datacenter.cfg`, or anything on the PBS side. |
+| Does `community.proxmox` cover this? | Partly, and less than the module names suggest. Measured against the pinned 2.0.0 rather than inferred: `proxmox_node_network` is complete (`cidr`, `gateway`, `bridge_ports`, `autostart`, `comments`). `proxmox_storage` covers `dir`, `zfspool` and `pbs` but **not `lvmthin`**, so `local-lvm` is out of its reach. `proxmox_backup_schedule` takes only `vm_name`, `vm_id`, `backup_id`, `state` — it moves a guest in or out of an **existing** job and cannot define one. `proxmox_access_acl` declares `check_mode: support: none`. No module exists for `notifications.cfg`, `datacenter.cfg`, or anything on the PBS side. |
 | How does Ansible reach `pve01`? | Over `192.168.0.14`, which is **`vmbr1`**. The default gateway is on `vmbr0` (`192.168.0.10`). Two bridges, one subnet, and the control path is not the default-route interface. |
 | Are the backup jobs healthy? | **No.** `backup-e6cc3e8b-ac39` lists vmid `109`, a guest that no longer exists. `backup-a6c792f3-ad6c` is `all` excluding only `100`, so `104` is in scope, yet PBS holds no group for `104`. The definitions are right and the execution is not. Nothing reports this. |
 | Is the PBS storage encrypted? | Yes. `storage.cfg` carries the key's fingerprint; the key itself lives in `/etc/pve/priv/storage/`. |
@@ -68,14 +68,29 @@ Measured against the live estate on 2026-09-21, not assumed:
    lock the estate out. Drift in the other direction is a reporting problem,
    handled by `report.yml`, not a deletion problem.
 
-5. **Roles are split by blast radius, using Proxmox's own boundary.** Storage,
+5. **One mechanism per object, chosen by what actually exists.** Storage uses
+   `proxmox_storage`, which gives check mode and diff for free. Backup jobs
+   use `pvesh` against `/cluster/backup`, because no module can define a job;
+   using `proxmox_backup_schedule` for the vmid list while using `pvesh` for
+   the schedule would mean two mechanisms owning one object, which is worse
+   than one mechanism that is merely less convenient. `proxmox_access` stays
+   on `pveum` throughout, matching the read-modify-write guard it already has
+   — a guard `proxmox_role` does not offer, and which exists because setting
+   an empty privilege list revokes API access for every playbook here.
+
+6. **`local-lvm` is out of scope, at no cost.** `proxmox_storage` cannot
+   express `lvmthin`. It is also created by the PVE installer and never
+   edited afterwards, so a rebuild recreates it without help. Recorded as
+   deliberately unmanaged rather than left silently missing.
+
+7. **Roles are split by blast radius, using Proxmox's own boundary.** Storage,
    backup jobs and access are Datacenter-level objects reached over the API,
    where a wrong value is a wrong value. Networking is node-level, where a
    wrong value ends the session. That split is visible in the role names, so
    the question "may this run in the nightly converge?" is answered by the
    name rather than by reading the tasks.
 
-6. **The drill is a playbook, not a checklist.** Running it once answers the
+8. **The drill is a playbook, not a checklist.** Running it once answers the
    question once. Making it repeatable means it can run after any change to
    the provisioning path, which is when the answer is most likely to have
    changed.
@@ -85,7 +100,7 @@ Measured against the live estate on 2026-09-21, not assumed:
 ### Role layout
 
 ```text
-roles/proxmox_datacenter/   NEW    storage.cfg, jobs.cfg          -> site.yml
+roles/proxmox_datacenter/   NEW    storage (module), jobs (pvesh) -> site.yml
 roles/proxmox_access/       EXTEND users, groups, roles, ACLs     -> site.yml
 roles/proxmox_network/      NEW    vmbr0/vmbr1                    -> NOT in site.yml
 roles/pbs/                  EXTEND datastore, prune, verify       -> site.yml
@@ -185,6 +200,11 @@ are a transcription of what is live, a `--check` run of the new roles against th
 unchanged estate must report `changed=0`. Any change reported is a
 transcription error, not a pending fix. This is the same bar `site.yml` is
 already held to.
+
+One exception, measured rather than overlooked: `proxmox_access_acl` declares
+no check-mode support, so ACL tasks prove nothing under `--check`. Those are
+verified instead by a real run followed by `pveum acl list`, compared against
+`pve_acls`.
 
 Beyond that: the drill completes and destroys its container, and
 `ansible-lint` passes at the production profile.
