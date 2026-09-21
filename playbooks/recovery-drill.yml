@@ -101,6 +101,30 @@
       delegate_to: localhost
       become: false
 
+    # A container this new presents an SSH host key nobody has seen, and
+    # Ansible cannot accept an unknown key non-interactively. README.md tells
+    # you to run ssh-keyscan by hand before bootstrap.yml for exactly this
+    # reason - which is precisely the kind of remembered step a drill exists
+    # to find.
+    #
+    # `pct exec` reads the key through the hypervisor rather than over the
+    # network, so this trusts a key we fetched from the machine's own disk
+    # instead of whatever answers on that address. That is the same standard
+    # roles/semaphore holds itself to when it builds its known_hosts from
+    # gathered facts, rather than from a keyscan.
+    - name: Read the drill container's SSH host key
+      ansible.builtin.command: pct exec {{ drill_vmid }} -- cat /etc/ssh/ssh_host_ed25519_key.pub
+      register: drill_host_key
+      changed_when: false
+
+    - name: Trust that key on the controller
+      ansible.builtin.known_hosts:
+        name: "{{ drill_ip | split('/') | first }}"
+        key: "{{ drill_ip | split('/') | first }} {{ drill_host_key.stdout.split()[0] }} {{ drill_host_key.stdout.split()[1] }}"
+        state: present
+      delegate_to: localhost
+      become: false
+
     - name: Add the drill container to the in-memory inventory
       ansible.builtin.add_host:
         name: drill
@@ -144,6 +168,14 @@
       changed_when: false
       failed_when: drill_id.stdout != 'root'
 
+    # baseline_packages lives in roles/baseline/defaults/main.yml, and role
+    # defaults are only in scope while that role is running - by this play they
+    # are gone. Reading the role's own defaults file keeps the assertion
+    # checking the same list the role installed, with no second copy to drift.
+    - name: Read the baseline role's package list
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/baseline/defaults/main.yml"
+
     - name: Read the installed packages
       ansible.builtin.package_facts:
 
@@ -166,7 +198,18 @@
 - name: Destroy the drill container
   hosts: pve01
   gather_facts: true
+  vars:
+    drill_ip: 192.168.0.199/24
   tasks:
+    # Before the container goes, so a later drill is not refused by a stale
+    # entry: the next container on this address will have a different key.
+    - name: Stop trusting the drill container's key
+      ansible.builtin.known_hosts:
+        name: "{{ drill_ip | split('/') | first }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+
     - name: Destroy the drill container
       community.proxmox.proxmox:
         api_host: "{{ pve_api_host }}"

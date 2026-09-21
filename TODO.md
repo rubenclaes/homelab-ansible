@@ -34,18 +34,6 @@ backlog na drie maanden niet meer te lezen.
 
 ---
 
-## Herstelpad testen
-
-- [ ] **Bouw één keer een wegwerp-LXC en gooi hem weg**
-      Zet een tijdelijke entry in `pve_lxcs`, draai `proxmox-lxcs.yml`,
-      `bootstrap.yml`, `baseline.yml`, en verwijder hem daarna met
-      `pct destroy`.
-      *Waarom:* er is nu voor elke host een rol die hem installeert, maar dat
-      is nooit bewezen. Een herstelpad dat niet gedraaid heeft, is een
-      aanname. Dit is de goedkoopste manier om te weten of het klopt.
-
----
-
 ## Opruimen in de estate
 
 - [ ] **Route `torrent` wijst nergens heen**
@@ -115,6 +103,7 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] Herstelpad bewezen: recovery-drill.yml bouwt, bootstrapt, baselinet en vernietigt een wegwerp-LXC
 - [x] caddy-upgrade.yml: upgradet en weigert als de Cloudflare-module verdwijnt
 - [x] SystemMaxUse=500M op alle acht hosts (docker-grafana-stack stond op 276M)
 - [x] Finder-restart handler bij de macOS-defaults
