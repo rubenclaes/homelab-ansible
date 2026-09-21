@@ -1,0 +1,22 @@
+- name: Controlled system update
+  hosts: linux
+  serial: 1
+  vars:
+    allow_reboot: false
+  tasks:
+    - name: Refresh cache and full-upgrade
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    - name: Check whether a reboot is needed
+      ansible.builtin.include_role:
+        name: baseline
+        tasks_from: reboot_check
+
+    - name: Reboot if needed and allowed
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+      when:
+        - reboot_needed | bool
+        - allow_reboot | bool

@@ -48,18 +48,4 @@
   notify: Reload ssh
   when: baseline_ssh_hardening
 
-- name: Find newest installed kernel
-  ansible.builtin.shell: set -o pipefail && ls -1 /boot/vmlinuz-* | sort -V | tail -n1 | sed 's|/boot/vmlinuz-||'
-  args:
-    executable: /bin/bash
-  register: newest_kernel
-  changed_when: false
-  check_mode: false
-  when: ansible_facts['virtualization_type'] != 'lxc'
-
-- name: Report pending reboot
-  ansible.builtin.debug:
-    msg: "REBOOT NEEDED: running {{ ansible_facts['kernel'] }}, newest installed is {{ newest_kernel.stdout }}"
-  when:
-    - ansible_facts['virtualization_type'] != 'lxc'
-    - newest_kernel.stdout != ansible_facts['kernel']
+- ansible.builtin.import_tasks: reboot_check.yml
