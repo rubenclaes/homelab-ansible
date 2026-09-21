@@ -1,3 +1,4 @@
+---
 - name: Generate deploy key for the stacks repo
   community.crypto.openssh_keypair:
     path: "{{ docker_stacks_deploy_key }}"

@@ -1,3 +1,4 @@
+---
 semaphore_version: "2.19.12"
 semaphore_user: semaphore
 semaphore_home: /var/lib/semaphore

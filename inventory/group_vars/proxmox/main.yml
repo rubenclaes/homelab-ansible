@@ -1,3 +1,4 @@
+---
 baseline_unattended_upgrades: false
 pve_api_user: ansible@pve
 pve_api_token_id: automation

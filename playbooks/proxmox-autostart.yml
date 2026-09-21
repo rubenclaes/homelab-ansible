@@ -1,3 +1,4 @@
+---
 - name: Ensure guests autostart with pve01
   hosts: pve01
   vars:

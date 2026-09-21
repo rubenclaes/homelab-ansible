@@ -1,3 +1,4 @@
+---
 - name: Install Homebrew formulae
   community.general.homebrew:
     name: "{{ macos_brew_packages + macos_brew_packages_extra }}"

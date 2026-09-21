@@ -1,3 +1,4 @@
+---
 - name: Proxmox guests via the API
   hosts: pve01
   tasks:

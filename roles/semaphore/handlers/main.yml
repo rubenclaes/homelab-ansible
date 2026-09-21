@@ -1,3 +1,4 @@
+---
 - name: Restart semaphore
   ansible.builtin.systemd_service:
     name: semaphore

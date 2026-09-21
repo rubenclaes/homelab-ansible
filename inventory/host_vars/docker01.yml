@@ -1,13 +1,14 @@
+---
 docker_stacks:
-  - { name: utils,     path: utils }
-  - { name: glance,    path: glance }
-  - { name: homepage,  path: homepage }
-  - { name: metrics,   path: metrics }
-  - { name: rustdesk,  path: apps/rustdesk }
+  - { name: utils, path: utils }
+  - { name: glance, path: glance }
+  - { name: homepage, path: homepage }
+  - { name: metrics, path: metrics }
+  - { name: rustdesk, path: apps/rustdesk }
   - { name: portainer, path: portainer, env: false }
-  - { name: neogate,   path: neogate }
-  - { name: infra,     path: infra }
+  - { name: neogate, path: neogate }
+  - { name: infra, path: infra }
   - { name: azuracast, path: apps/azuracast }
-  
+
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas

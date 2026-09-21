@@ -1,3 +1,4 @@
+---
 - name: Linux baseline
   hosts: linux
   roles:

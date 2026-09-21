@@ -1,3 +1,4 @@
+---
 - name: Controlled system update
   hosts: linux
   serial: 1

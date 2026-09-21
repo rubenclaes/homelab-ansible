@@ -1,3 +1,4 @@
+---
 - name: Caddyfile from Git
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../files/caddy/Caddyfile"

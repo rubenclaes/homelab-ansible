@@ -1,3 +1,4 @@
+---
 - name: Bootstrap ansible service account
   hosts: linux
   vars:

@@ -1,8 +1,8 @@
+---
 docker_stacks_root: /opt/containers/stacks
 docker_stacks_owner: ruben
 docker_stacks_env_dir: "{{ playbook_dir }}/../files/env"
 docker_stacks: []
-
 docker_stacks_repo: git@github.com:rubenclaes/containers.git
 docker_stacks_repo_dir: /opt/containers
 docker_stacks_repo_version: master

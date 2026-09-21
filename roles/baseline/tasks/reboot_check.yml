@@ -1,3 +1,4 @@
+---
 - name: Find newest installed kernel
   ansible.builtin.shell: set -o pipefail && ls -1 /boot/vmlinuz-* | sort -V | tail -n1 | sed 's|/boot/vmlinuz-||'
   args:

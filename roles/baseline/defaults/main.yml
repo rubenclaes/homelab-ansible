@@ -1,3 +1,4 @@
+---
 baseline_timezone: Europe/Brussels
 baseline_packages:
   - acl
@@ -13,4 +14,3 @@ baseline_packages:
 baseline_unattended_upgrades: true
 baseline_ssh_hardening: true
 baseline_held_packages: []
-

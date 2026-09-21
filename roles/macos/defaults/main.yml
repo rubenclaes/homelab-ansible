@@ -1,3 +1,4 @@
+---
 macos_brew_path: /opt/homebrew/bin
 macos_brew_packages:
   - jq

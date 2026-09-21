@@ -1,3 +1,4 @@
+---
 - name: Install prerequisites
   ansible.builtin.apt:
     name: [git, python3-venv, python3-packaging]
