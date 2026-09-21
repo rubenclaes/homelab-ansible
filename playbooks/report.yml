@@ -38,6 +38,69 @@
       ansible.builtin.debug:
         var: report_row
 
+- name: Collect macOS report data
+  hosts: macs
+  tasks:
+    # `mbp` is ansible_connection: local, which means "whatever machine is
+    # running Ansible". Run from the MacBook that is a Mac; run from Semaphore
+    # (LXC 104) it is a Debian container. Gating on the gathered facts keeps
+    # both cases honest rather than reporting a Debian LXC as a Mac.
+    - name: Report on this host only when it really is a Mac
+      when: ansible_facts['system'] == 'Darwin'
+      block:
+        # One call, parsed twice below. This is the slow part of the play
+        # (~45s per Mac) and softwareupdate has no fast path, so it must not
+        # be run once per field. Progress goes to stderr, hence the redirect.
+        - name: List pending macOS updates
+          ansible.builtin.shell: softwareupdate --list 2>&1
+          register: report_swu
+          changed_when: false
+          check_mode: false
+          failed_when: false
+
+        # Counts formulae and casks. `2>/dev/null` drops the "Downloading
+        # Homebrew API data" progress line. A Mac without Homebrew yields an
+        # empty list and therefore a count of zero, which reads as healthy;
+        # that is acceptable here because roles/macos installs it anyway.
+        - name: Count outdated Homebrew packages
+          ansible.builtin.shell: "{{ macos_brew_path }}/brew outdated --quiet 2>/dev/null"
+          register: report_brew
+          changed_when: false
+          check_mode: false
+          failed_when: false
+
+        # BSD df has no --output=pcent, so the Linux play's approach does not
+        # port. NR==2 is the data line, $5 the capacity column.
+        - name: Measure root disk usage
+          ansible.builtin.shell: set -o pipefail; df -P / | awk 'NR==2 {print $5}' | tr -dc '0-9'
+          args:
+            executable: /bin/bash
+          register: report_disk
+          changed_when: false
+          check_mode: false
+
+        # Deliberately the same keys as the Linux play's report_row, so the
+        # overview table in report.html.j2 needs no per-OS branching. Only the
+        # sources differ: softwareupdate for apt, `Action: restart` for the
+        # baseline role's reboot check.
+        - name: Build this Mac's report line
+          ansible.builtin.set_fact:
+            report_row:
+              host: "{{ inventory_hostname }}"
+              os: "macOS {{ ansible_facts['distribution_version'] }}"
+              kernel: "{{ ansible_facts['kernel'] }}"
+              uptime_days: "{{ (ansible_facts['uptime_seconds'] / 86400) | round(1) }}"
+              disk_used_pct: "{{ report_disk.stdout | int }}"
+              pending: '{{ report_swu.stdout_lines | select("search", "^\s*\* Label:") | list | length }}'
+              reboot: "{{ report_swu.stdout is search('Action: restart') }}"
+            report_mac:
+              brew_outdated: "{{ report_brew.stdout_lines | length }}"
+              brew_packages: "{{ report_brew.stdout_lines }}"
+
+        - name: Show it
+          ansible.builtin.debug:
+            var: report_row
+
 - name: Collect Docker status
   hosts: docker
   gather_facts: false

@@ -1,0 +1,70 @@
+---
+# Installs the AdGuard Home binary and its unit.
+#
+# It does NOT manage AdGuardHome.yaml or data/. That file holds the admin
+# password hash, the upstream resolvers and every filter rule, it is edited
+# through the web UI, and it is genuine runtime state. Templating it would
+# mean this role fights the UI for ownership.
+- name: Read the installed AdGuard Home version
+  ansible.builtin.command: "{{ adguard_dir }}/AdGuardHome --version"
+  register: adguard_installed
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+# Only when the pinned version is not what is running. This host resolves DNS
+# for the whole network, so an unnecessary binary swap is an outage.
+- name: Install AdGuard Home
+  when: adguard_version | regex_replace('^v', '') not in (adguard_installed.stdout | default(''))
+  block:
+    - name: Ensure the install directory exists
+      ansible.builtin.file:
+        path: "{{ adguard_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download and unpack the release
+      ansible.builtin.unarchive:
+        src: "{{ adguard_url }}"
+        dest: "{{ adguard_dir }}"
+        remote_src: true
+        checksum: "{{ adguard_checksum }}"
+        extra_opts: [--strip-components=1]
+        owner: root
+        group: root
+      notify: Restart AdGuardHome
+
+- name: Install the systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/AdGuardHome.service
+    content: |
+      [Unit]
+      Description=AdGuard Home: Network-level blocker
+      ConditionFileIsExecutable={{ adguard_dir }}/AdGuardHome
+      After=syslog.target network-online.target
+
+      [Service]
+      StartLimitInterval=5
+      StartLimitBurst=10
+      ExecStart={{ adguard_dir }}/AdGuardHome "-s" "run"
+      WorkingDirectory={{ adguard_dir }}
+      StandardOutput=file:/var/log/AdGuardHome.out
+      StandardError=file:/var/log/AdGuardHome.err
+      Restart=always
+      RestartSec=10
+      EnvironmentFile=-/etc/sysconfig/AdGuardHome
+
+      [Install]
+      WantedBy=multi-user.target
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd for AdGuardHome
+
+- name: Ensure AdGuard Home is enabled and running
+  ansible.builtin.systemd_service:
+    name: AdGuardHome
+    enabled: true
+    state: started

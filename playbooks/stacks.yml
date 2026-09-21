@@ -1,8 +1,13 @@
 ---
+# The engine, on every host that runs one; then the stacks, on the host whose
+# stacks this repo manages. docker-grafana-stack runs an engine but its stacks
+# are not yet described here.
+- name: Docker engine
+  hosts: docker_hosts
+  roles:
+    - docker_engine
+
 - name: Docker stacks
   hosts: docker
   roles:
-    # The engine first, then the workloads that need it. docker_engine
-    # installs with state: present, so on an existing host it is a no-op.
-    - docker_engine
     - docker_stacks

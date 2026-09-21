@@ -1,0 +1,61 @@
+---
+# Installs Proxmox Backup Server.
+#
+# The datastore, its pruning and verification jobs, and the API tokens are
+# NOT managed here. They are state that lives in PBS's own configuration and
+# is edited through its UI; recreating them from a playbook would mean this
+# role fights the appliance for ownership. What the role guarantees is that a
+# rebuilt host reaches the point where that configuration can be restored.
+- name: Install the Proxmox archive keyring
+  ansible.builtin.copy:
+    src: proxmox-archive-keyring.gpg
+    dest: "{{ pbs_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Define the Proxmox Backup Server repository
+  ansible.builtin.deb822_repository:
+    name: proxmox
+    types: [deb]
+    uris: "{{ pbs_repo_uri }}"
+    suites: ["{{ pbs_repo_suite }}"]
+    components: ["{{ pbs_repo_component }}"]
+    signed_by: "{{ pbs_keyring }}"
+    state: present
+    enabled: true
+  register: pbs_repo
+
+# A fresh install enables this, and without a subscription every apt run then
+# fails on it with 401. Disabled rather than deleted, so the file stays as
+# documentation of what would be used with a subscription.
+- name: Keep the enterprise repository disabled
+  ansible.builtin.deb822_repository:
+    name: pbs-enterprise
+    types: [deb]
+    uris: https://enterprise.proxmox.com/debian/pbs
+    suites: ["{{ pbs_repo_suite }}"]
+    components: [pbs-enterprise]
+    signed_by: "{{ pbs_keyring }}"
+    state: present
+    enabled: false
+  register: pbs_enterprise_repo
+
+- name: Refresh the package list when a repository changed
+  ansible.builtin.apt:
+    update_cache: true
+  when: pbs_repo is changed or pbs_enterprise_repo is changed
+
+- name: Install Proxmox Backup Server
+  ansible.builtin.apt:
+    name: proxmox-backup-server
+    state: present
+
+- name: Ensure the PBS services are enabled and running
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - proxmox-backup
+    - proxmox-backup-proxy

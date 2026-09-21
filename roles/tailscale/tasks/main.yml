@@ -1,0 +1,65 @@
+---
+# Installs the Tailscale client. Joining the tailnet is deliberately NOT done
+# here: `tailscale up` needs an auth key, and the node's identity is state that
+# lives in /var/lib/tailscale, not something a converge run should recreate.
+# After a rebuild, authenticate once by hand - see the disaster-recovery
+# runbook. The role reports whether that is still needed.
+- name: Install the Tailscale archive keyring
+  ansible.builtin.copy:
+    src: tailscale-archive-keyring.gpg
+    dest: "{{ tailscale_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Define the Tailscale apt repository
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: [deb]
+    uris: "{{ tailscale_repo_uri }}"
+    suites: ["{{ tailscale_repo_suite }}"]
+    components: [main]
+    signed_by: "{{ tailscale_keyring }}"
+    state: present
+    enabled: true
+  register: tailscale_repo
+
+- name: Remove the superseded one-line repository file
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/tailscale.list
+    state: absent
+  register: tailscale_old_repo
+
+- name: Refresh the package list when the repository changed
+  ansible.builtin.apt:
+    update_cache: true
+  when: tailscale_repo is changed or tailscale_old_repo is changed
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+
+- name: Ensure tailscaled is enabled and running
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Read the tailnet backend state
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Report that the node still needs authenticating
+  ansible.builtin.debug:
+    msg: >-
+      tailscaled runs but this node is not on the tailnet
+      ({{ (tailscale_status.stdout | from_json).BackendState | default('unknown') }}).
+      Authenticate once with `tailscale up`; the role deliberately does not
+      hold an auth key.
+  when:
+    - tailscale_status.rc == 0
+    - (tailscale_status.stdout | from_json).BackendState | default('') != 'Running'

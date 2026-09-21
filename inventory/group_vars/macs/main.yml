@@ -1,0 +1,8 @@
+---
+# Settings shared by every Mac in the inventory.
+
+# Where Homebrew lives. Inventory-level rather than only a role default,
+# because playbooks/report.yml needs it too and the report applies no role,
+# so roles/macos/defaults is invisible to it. The role default keeps the same
+# value as a fallback for a Mac reached outside this group.
+macos_brew_path: /opt/homebrew/bin

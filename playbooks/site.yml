@@ -23,6 +23,15 @@
 - name: Reverse proxy
   ansible.builtin.import_playbook: caddy.yml
 
+- name: DNS
+  ansible.builtin.import_playbook: adguard.yml
+
+- name: Tailnet client
+  ansible.builtin.import_playbook: tailscale.yml
+
+- name: Backup server
+  ansible.builtin.import_playbook: pbs.yml
+
 - name: Docker stacks
   ansible.builtin.import_playbook: stacks.yml
 

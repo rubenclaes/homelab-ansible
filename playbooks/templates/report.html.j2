@@ -23,6 +23,7 @@
   th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; }
   tr:last-child td { border-bottom: none; }
   .ok { color: var(--ok); } .warn { color: var(--warn); font-weight: 600; } .bad { color: var(--bad); font-weight: 700; }
+  .muted { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -44,7 +45,7 @@
   <div class="card">
     <table>
       <tr><th>Host</th><th>OS</th><th>Kernel</th><th>Uptime</th><th>Disk</th><th>Updates</th><th>Reboot</th></tr>
-{% for h in groups['linux'] | sort %}
+{% for h in (groups['linux'] + groups['macs'] | default([])) | sort %}
 {% if hostvars[h].report_row is defined %}
 {% set r = hostvars[h].report_row %}
       <tr>
@@ -56,6 +57,8 @@
         <td class="{{ 'warn' if r.pending | int > 0 else 'ok' }}">{{ r.pending }}</td>
         <td class="{{ 'bad' if r.reboot | bool else 'ok' }}">{{ 'yes' if r.reboot | bool else 'no' }}</td>
       </tr>
+{% elif h in groups['macs'] | default([]) %}
+      <tr><td><strong>{{ h }}</strong></td><td colspan="6" class="muted">niet gemeten</td></tr>
 {% else %}
       <tr><td><strong>{{ h }}</strong></td><td colspan="6" class="bad">unreachable during this run</td></tr>
 {% endif %}
@@ -77,6 +80,30 @@
         <td><strong>{{ project }}</strong></td>
         <td class="{{ 'ok' if running | length == items | length else 'warn' }}">{{ running | length }} / {{ items | length }}</td>
         <td class="{{ 'bad' if problems else 'ok' }}">{{ problems | map(attribute='name') | join(', ') if problems else 'none' }}</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% endif %}
+
+{# ---------------------------------------------------------------------------
+   Homebrew drift. Separate from the overview table because it has no Linux
+   counterpart: apt pending counts already live in the Updates column, while
+   brew is a second, independent package tree that drifts on its own.
+   --------------------------------------------------------------------------- #}
+{% set brew_macs = groups['macs'] | default([]) | sort | map('extract', hostvars)
+                   | selectattr('report_mac', 'defined') | list %}
+{% if brew_macs %}
+  <div class="card">
+    <strong>Homebrew-drift op de Macs</strong>
+    <div class="sub">Verouderde formulae en casks</div>
+    <table>
+      <tr><th>Mac</th><th>Verouderd</th><th>Pakketten</th></tr>
+{% for m in brew_macs %}
+      <tr>
+        <td><strong>{{ m.report_row.host }}</strong></td>
+        <td class="{{ 'warn' if m.report_mac.brew_outdated | int > 0 else 'ok' }}">{{ m.report_mac.brew_outdated }}</td>
+        <td>{{ m.report_mac.brew_packages | join(', ') if m.report_mac.brew_packages else 'geen' }}</td>
       </tr>
 {% endfor %}
     </table>

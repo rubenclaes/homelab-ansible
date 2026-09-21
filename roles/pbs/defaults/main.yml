@@ -1,0 +1,9 @@
+---
+# Proxmox Backup Server from the no-subscription repository.
+#
+# state: present, never latest. PBS holds the backups every other recovery
+# path depends on; upgrading it is a deliberate act.
+pbs_keyring: /usr/share/keyrings/proxmox-archive-keyring.gpg
+pbs_repo_uri: http://download.proxmox.com/debian/pbs
+pbs_repo_component: pbs-no-subscription
+pbs_repo_suite: "{{ ansible_facts['distribution_release'] }}"

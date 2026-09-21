@@ -1,0 +1,5 @@
+---
+- name: Tailscale client
+  hosts: tailscale
+  roles:
+    - tailscale

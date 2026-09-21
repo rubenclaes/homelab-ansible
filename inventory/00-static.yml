@@ -20,6 +20,14 @@ all:
             # (exclude_nodes), since a node is not one of its own guests.
             pve01: { ansible_host: 192.168.0.14 }
 
+    # Which guests run the Docker engine is not something Proxmox knows, so
+    # it is declared here. The hosts themselves still come from the dynamic
+    # inventory; this only adds them to a group.
+    docker_hosts:
+      hosts:
+        docker: {}
+        docker-grafana-stack: {}
+
     # Hosts that are not Debian and cannot take the baseline role.
     # Declared here so site.yml can reason about the group even when the
     # dynamic inventory contributes every member.

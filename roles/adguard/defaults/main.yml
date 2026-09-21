@@ -1,0 +1,12 @@
+---
+# AdGuard Home ships as a tarball, not a package, so the version is pinned
+# here and the checksum comes from the release's own checksums.txt. Bumping
+# the version means bumping the checksum with it, deliberately - this host is
+# the network's DNS, and replacing the binary interrupts resolution for
+# everything.
+adguard_version: v0.107.71
+adguard_checksum: sha256:b4b01a5da971a67bc2458ba0fc075de1b356cf6a37843e900177f329777cc5db
+
+adguard_dir: /opt/AdGuardHome
+adguard_url: >-
+  https://github.com/AdguardTeam/AdGuardHome/releases/download/{{ adguard_version }}/AdGuardHome_linux_amd64.tar.gz

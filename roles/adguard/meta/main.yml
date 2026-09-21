@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: adguard
+  author: rubenclaes
+  description: >-
+    Installs the AdGuard Home binary and unit. Its configuration stays owned
+    by the web UI.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - networking
+    - dns
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

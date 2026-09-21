@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: pbs
+  author: rubenclaes
+  description: >-
+    Installs Proxmox Backup Server. Datastores and jobs stay owned by PBS.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - system
+    - backup
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

@@ -1,0 +1,5 @@
+---
+- name: Proxmox Backup Server
+  hosts: pbs
+  roles:
+    - pbs

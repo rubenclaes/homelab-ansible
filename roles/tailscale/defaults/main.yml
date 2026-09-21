@@ -1,0 +1,7 @@
+---
+tailscale_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
+tailscale_repo_uri: https://pkgs.tailscale.com/stable/debian
+
+# Follows the host's own release rather than a literal suite, so a container
+# rebuilt from the Debian 13 template gets the right one.
+tailscale_repo_suite: "{{ ansible_facts['distribution_release'] }}"

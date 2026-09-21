@@ -1,0 +1,5 @@
+---
+- name: AdGuard Home
+  hosts: adguard
+  roles:
+    - adguard
