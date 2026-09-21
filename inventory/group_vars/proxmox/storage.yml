@@ -4,8 +4,16 @@
 # `params` keys are the Proxmox API's own names, passed through unchanged, and
 # their VALUE TYPES matter: the reconcile compares a merged dict against the
 # live one, so a string "0" where the API returns an integer 0 reports a
-# difference on every run, forever. `content` must carry the API's ordering,
-# which is not the ordering /etc/pve/storage.cfg shows.
+# difference on every run, forever.
+#
+# `content` is written here in alphabetical order, but that order is
+# cosmetic, not load-bearing: pvesh spawns a fresh Perl process per call, and
+# Perl randomises hash-key iteration order per process, so `pvesh get`
+# returns this field in a different comma order on almost every call, with
+# no configuration change involved. The role's comparison (storage_entry.yml)
+# sorts both sides before comparing this one field for exactly that reason -
+# see the comment there. Every other field is still compared as a literal
+# string, so its value here must still match the API's own representation.
 #
 # `digest` is never declared. It is a checksum of the whole storage.cfg and
 # changes whenever any storage does, so declaring it would mean permanent
@@ -15,7 +23,7 @@ pve_storages:
     params:
       type: dir
       path: /var/lib/vz
-      content: iso,import,vztmpl
+      content: import,iso,vztmpl
       shared: 0
 
   - id: local-lvm
@@ -23,7 +31,7 @@ pve_storages:
       type: lvmthin
       vgname: pve
       thinpool: data
-      content: rootdir,images
+      content: images,rootdir
 
   - id: vm-hdd
     params:
