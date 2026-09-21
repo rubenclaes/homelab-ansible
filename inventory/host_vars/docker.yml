@@ -7,6 +7,7 @@ docker_stacks_list:
   - { name: portainer, path: portainer, env: false }
   - { name: neogate, path: neogate }
   - { name: infra, path: infra }
+  - { name: homebox, path: homebox }
 
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas

@@ -90,6 +90,11 @@
     project_src: "{{ docker_stacks_root }}/{{ item.path }}"
     project_name: "{{ item.project | default(omit) }}"
     state: present
+    # Without this the role is not actually declarative: deleting a service
+    # from a compose file leaves its container running forever, because
+    # `up` only adds and updates. Anything in the project namespace that the
+    # compose file no longer describes is removed.
+    remove_orphans: true
   loop: "{{ docker_stacks_list }}"
   loop_control:
     label: "{{ item.name }}"

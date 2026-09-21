@@ -5,13 +5,15 @@
 - [ ] Pocket ID: two instances running (auth → Mac mini .26, id → docker .15). Find out which one apps use, migrate, retire the other
 - [ ] evcc: stack exists on docker but isn't running, Caddy route still points to .15:7070. Run it or remove the route
 - [ ] Semaphore: run "Update guests" once by hand, then schedule (limit `guests:!semaphore`)
+- [ ] Semaphore: cleanup.yml as two templates — "Cleanup (report)" with no extra vars, "Cleanup (apply)" with `cleanup_apply: true`. Schedule the apply one Saturday 03:00, away from the Sunday 04:00 updates
 - [ ] Semaphore: notifications for failed tasks (Telegram/email)
 - [ ] PBS: check backup job includes semaphore (LXC 104) and doesn't overlap Sunday 04:00 updates
 
 ## Fixes
-- [ ] Remove orphan network `portainer_default`, review other leftover networks on docker
+- [ ] Remove orphan network `portainer_default`, review other leftover networks on docker — `cleanup.yml` prunes unused networks; run it once with `-e cleanup_apply=true` and tick this off
 - [ ] Caddy is held: write a small playbook for controlled `caddy upgrade` (keeps plugins)
-- [ ] Optional: vacuum caddy journal (old, now-worthless token)
+- [ ] Optional: vacuum caddy journal (old, now-worthless token) — `cleanup.yml` does this, `cleanup_journal_keep` is 14d
+- [ ] Optional: `SystemMaxUse` cap in the baseline role. A vacuum is a treadmill; the cap is what stops the journal regrowing between cleanups. Deferred, not decided
 
 ## Cleanup
 - [ ] Duplicate docker / docker-desktop casks (MBP + Mini), by hand

@@ -44,6 +44,7 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `docs.yml` | alles → `caddy` | Rendert en publiceert de documentatiepagina. |
 | `caddy-smoketest.yml` | localhost | Bevraagt elke site in `caddy_sites`. |
 | `update.yml` | `linux` | Pakketupgrades en optionele reboots. **Zie onder.** |
+| `cleanup.yml` | `linux` + `docker_hosts` | Maakt schijfruimte vrij. Rapporteert; ruimt pas met een schakelaar. **Zie onder.** |
 | `bootstrap.yml` | nieuwe host | Maakt het `ansible`-serviceaccount. **Zie onder.** |
 | `proxmox-info.yml` | `pve01` | Lijst alle guests via de API. |
 | `proxmox-lxcs.yml` | `pve01` | Maakt ontbrekende LXCs uit `pve_lxcs`. |
@@ -135,6 +136,58 @@ ansible-playbook playbooks/update.yml \
 - `baseline_held_packages` blijft gepind; `dist-upgrade` respecteert dpkg holds,
   dus de custom Caddy-build overleeft elke update.
 
+## Opruimen
+
+`cleanup.yml` maakt schijfruimte vrij. **Zonder schakelaar verandert het niets**:
+dan rapporteert het per host wat er te halen valt — schijfgebruik, de grootte van
+de journal, de namen van de pakketten die `autoremove` zou meenemen, en de
+uitvoer van `docker system df`.
+
+```bash
+ansible-playbook playbooks/cleanup.yml                        # alleen rapport
+ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true  # echt opruimen
+
+# eerst één host, voor je het op alles laat lopen
+ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true --limit docker
+```
+
+| Waar | Wat | Wat niet |
+|---|---|---|
+| `linux` | `apt autoremove` + `autoclean`, `journalctl --vacuum-time` | gepinde pakketten; dpkg holds blijven staan |
+| `docker_hosts` | ongebruikte images, build cache, losse networks | **volumes**, en containers — draaiend of gestopt |
+
+- **Volumes nooit, op geen enkele instelling.** Daar staat de data van de stacks
+  in; zo'n volume weggooien is een restore, geen opruiming.
+- Een gestopte container houdt zijn image buiten de prune. Een stack die `down`
+  staat overleeft dit dus; alleen een image waar geen enkele container meer naar
+  wijst verdwijnt, en de prijs van een vergissing is een `pull`.
+- `cleanup_docker_until` (720h) kijkt naar de *aanmaakdatum* van het image, niet
+  naar wanneer het binnengehaald is. Een lang stabiel upstream-image geldt dus
+  als oud, ook al is het gisteren gepulld.
+- `cleanup_apply` staat met opzet **niet** in `group_vars`. Dat is de schakelaar
+  die een rapport in een verwijdering verandert, dus hij hoort per run of per
+  Semaphore-template; een default daar zou elke run destructief maken. Hij wordt
+  gelezen met `| default(false)`, om dezelfde reden als bij `update.yml`.
+- Retentie staat in `inventory/group_vars/all/cleanup.yml`:
+  `cleanup_journal_keep` en `cleanup_docker_until`.
+- Niet in `site.yml`: dit playbook verwijdert.
+
+> Een vacuum is een tredmolen — de journal groeit gewoon weer aan. De echte fix
+> is een `SystemMaxUse`-cap in de baseline-rol. Staat in [TODO.md](TODO.md).
+
+### In Semaphore
+
+Templates staan niet in deze repo: de rol installeert Semaphore, de templates
+maak je in de UI. Twee op hetzelfde playbook, en het verschil zit alleen in de
+extra vars:
+
+| Template | Extra vars | Schema |
+|---|---|---|
+| Cleanup (report) | *(geen)* | met de hand, of dagelijks |
+| Cleanup (apply) | `cleanup_apply: true` | zaterdag 03:00 |
+
+Niet zondag 04:00: daar zitten de updates en de PBS-backup al.
+
 ## Nieuwe host
 
 Kip-en-ei: de inventory verbindt als `ansible`, maar dat account bestaat nog
@@ -218,7 +271,7 @@ collections/                gepinde Galaxy-dependencies (niet gecommit)
 inventory/
   00-static.yml             pve01, macmini, mbp + groepsdefinities
   homelab.proxmox.yml       vaulted; guests, live uit Proxmox
-  group_vars/all/           gedeelde settings (report.*)
+  group_vars/all/           gedeelde settings (report.*, cleanup.*)
   group_vars/proxmox/       Proxmox API-creds (main.yml + vault.yml)
   host_vars/<host>/         per host; vault.yml waar secrets spelen
 files/env/                  vaulted .env's voor de Docker-stacks

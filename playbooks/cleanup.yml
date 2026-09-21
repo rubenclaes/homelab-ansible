@@ -56,7 +56,8 @@
       ansible.builtin.debug:
         msg: >-
           {{ inventory_hostname }}: root {{ cleanup_disk_before.stdout | int }}% used,
-          journal {{ cleanup_journal_before.stdout | regex_search('take up ([^ ]+)', '\1') | first | default('unknown') }},
+          journal {{ cleanup_journal_before.stdout | regex_search('take up ([^ ]+)', '\1')
+                     | default([], true) | first | default('unknown') }},
           {{ cleanup_apt_removable.stdout_lines | length }} autoremovable package(s)
           {{ cleanup_apt_removable.stdout_lines | join(', ') if cleanup_apt_removable.stdout_lines else '' }}
 
@@ -101,15 +102,6 @@
 - name: Reclaim disk space on Docker hosts
   hosts: docker_hosts
   tasks:
-    # docker_prune speaks to the Docker API directly, which needs requests --
-    # not the Docker SDK for Python. docker_stacks installs its own libraries
-    # on `docker`, but docker-grafana-stack is not in that role, so ensure it
-    # here and this play stands on its own for both engines.
-    - name: Ensure Python libraries for the Docker modules
-      ansible.builtin.apt:
-        name: python3-requests
-        state: present
-
     - name: Read reclaimable Docker space # noqa: command-instead-of-module
       ansible.builtin.command: docker system df
       register: cleanup_docker_df
@@ -123,6 +115,17 @@
     - name: Reclaim it
       when: cleanup_apply | default(false) | bool
       block:
+        # docker_prune speaks to the Docker API directly, which needs requests
+        # -- not the Docker SDK for Python. docker_stacks installs its own
+        # libraries on `docker`, but docker-grafana-stack is not in that role,
+        # so ensure it here and this play stands on its own for both engines.
+        # Inside the block, not above it: a report run installs nothing, and
+        # `docker system df` above is a plain command that needs no library.
+        - name: Ensure Python libraries for the Docker modules
+          ansible.builtin.apt:
+            name: python3-requests
+            state: present
+
         # `until` filters on the image's own creation timestamp, not on when it
         # was pulled: a long-stable upstream image counts as old even if it
         # arrived yesterday. It is still only ever an *unused* image -- one no
