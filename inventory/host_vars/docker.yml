@@ -10,9 +10,13 @@ docker_stacks_list:
   - { name: homebox, path: homebox }
   - { name: media, path: media, project: media-stack }
 
+docker_stacks_nfs_mounts:
+  - { src: "192.168.0.26:/Volumes/FastStore", path: /mnt/faststore }
+
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas
   - /mnt/media01
+  - /mnt/faststore
 
 # Published ports that deliberately have no Caddy route, so the drift table in
 # report.yml stays signal rather than noise. Anything not listed here and not

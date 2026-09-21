@@ -42,6 +42,17 @@
     name: [python3-yaml, python3-docker]
     state: present
 
+- name: Mount the NFS shares the stacks need
+  ansible.posix.mount:
+    src: "{{ item.src }}"
+    path: "{{ item.path }}"
+    fstype: nfs
+    opts: "{{ item.opts | default('vers=3,hard,noresvport,proto=tcp,timeo=30,retrans=3,_netdev') }}"
+    state: mounted
+  loop: "{{ docker_stacks_nfs_mounts }}"
+  loop_control:
+    label: "{{ item.path }}"
+
 - name: Verify mount units exist # noqa: command-instead-of-module
   ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
   loop: "{{ docker_stacks_wait_for_mounts }}"

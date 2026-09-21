@@ -11,3 +11,4 @@ docker_stacks_repo_version: master
 docker_stacks_deploy_key: "/home/{{ docker_stacks_owner }}/.ssh/containers_deploy"
 
 docker_stacks_wait_for_mounts: []
+docker_stacks_nfs_mounts: []
