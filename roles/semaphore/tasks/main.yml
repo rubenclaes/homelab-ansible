@@ -31,3 +31,42 @@
   loop:
     - "{{ semaphore_config_dir }}"
     - "{{ semaphore_home }}/tmp"
+
+- name: Deploy Semaphore config from Vault
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/semaphore/config.json"
+    dest: "{{ semaphore_config_dir }}/config.json"
+    owner: "{{ semaphore_user }}"
+    group: "{{ semaphore_user }}"
+    mode: "0600"
+  diff: false
+  notify: Restart semaphore
+
+- name: Install systemd unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/semaphore.service
+    content: |
+      [Unit]
+      Description=Semaphore UI
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User={{ semaphore_user }}
+      Group={{ semaphore_user }}
+      Environment=HOME={{ semaphore_home }}
+      Environment=PATH={{ semaphore_venv }}/bin:/usr/local/bin:/usr/bin:/bin
+      ExecStart=/usr/bin/semaphore server --config {{ semaphore_config_dir }}/config.json
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  notify: Restart semaphore
+
+- name: Enable and start Semaphore
+  ansible.builtin.systemd_service:
+    name: semaphore
+    enabled: true
+    state: started
+    daemon_reload: true
