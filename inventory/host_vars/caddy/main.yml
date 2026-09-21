@@ -16,6 +16,11 @@ caddy_domain: neodata.be
 # Flags: https (upstream speaks TLS with a self-signed cert), host_header
 # (pass the original Host through), forwarded (add X-Real-IP / X-Forwarded-*),
 # auth (require tinyauth).
+# Safe because it is only ever resolved while rendering the Caddyfile on the
+# caddy host, where hostvars is populated. A var containing hostvars[...] is
+# NOT safe to read from a localhost-delegated task: arg finalisation there
+# fails with "'hostvars' is undefined". That is what broke docs.yml and
+# report.yml, whose addresses are literal for this reason.
 caddy_tinyauth_upstream: "{{ hostvars['macmini']['ansible_host'] }}:3000"
 
 caddy_sites:

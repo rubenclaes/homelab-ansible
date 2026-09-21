@@ -24,6 +24,9 @@
   tr:last-child td { border-bottom: none; }
   .ok { color: var(--ok); } .warn { color: var(--warn); font-weight: 600; } .bad { color: var(--bad); font-weight: 700; }
   .muted { color: var(--muted); }
+  /* Long enumerations (a Mac can be 50+ packages behind) must wrap
+     rather than inherit the table's nowrap and scroll off sideways. */
+  td.wrap { white-space: normal; min-width: 22rem; }
 </style>
 </head>
 <body>
@@ -103,7 +106,7 @@
       <tr>
         <td><strong>{{ m.report_row.host }}</strong></td>
         <td class="{{ 'warn' if m.report_mac.brew_outdated | int > 0 else 'ok' }}">{{ m.report_mac.brew_outdated }}</td>
-        <td>{{ m.report_mac.brew_packages | join(', ') if m.report_mac.brew_packages else 'geen' }}</td>
+        <td class="wrap">{{ m.report_mac.brew_packages | join(', ') if m.report_mac.brew_packages else 'geen' }}</td>
       </tr>
 {% endfor %}
     </table>
