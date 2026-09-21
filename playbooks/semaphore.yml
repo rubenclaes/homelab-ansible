@@ -1,3 +1,8 @@
+- name: Gather facts from all managed hosts
+  hosts: linux:macmini
+  gather_facts: true
+  tasks: []
+
 - name: Semaphore UI
   hosts: semaphore
   roles:

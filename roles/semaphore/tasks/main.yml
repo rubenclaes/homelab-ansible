@@ -70,3 +70,28 @@
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Ensure .ssh directory for the semaphore user
+  ansible.builtin.file:
+    path: "{{ semaphore_home }}/.ssh"
+    state: directory
+    owner: "{{ semaphore_user }}"
+    group: "{{ semaphore_user }}"
+    mode: "0700"
+
+- name: Trust managed hosts' SSH keys
+  ansible.builtin.known_hosts:
+    path: "{{ semaphore_home }}/.ssh/known_hosts"
+    name: "{{ hostvars[item].ansible_host }}"
+    key: "{{ hostvars[item].ansible_host }} ssh-ed25519 {{ hostvars[item].ansible_facts['ssh_host_key_ed25519_public'] }}"
+  loop: "{{ groups['linux'] + ['macmini'] }}"
+  loop_control:
+    label: "{{ item }}"
+  become_user: "{{ semaphore_user }}"
+
+- name: Trust GitHub's SSH key
+  ansible.builtin.known_hosts:
+    path: "{{ semaphore_home }}/.ssh/known_hosts"
+    name: github.com
+    key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+  become_user: "{{ semaphore_user }}"
