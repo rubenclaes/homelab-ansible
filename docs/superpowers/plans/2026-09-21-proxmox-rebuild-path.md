@@ -1283,10 +1283,18 @@ pve_node_interfaces:
 # bridges is a converge run that can end the estate.
 proxmox_network_apply: false
 
-# Seconds before the dead-man switch restores the previous configuration. Long
-# enough for ifreload plus a reachability probe, short enough that a lockout
-# is over before you have finished reading the traceback.
-proxmox_network_revert_after: 120
+# Seconds before the dead-man switch restores the previous configuration.
+#
+# The arithmetic, so this is not a guess: copy, reset-failed and arm are about
+# a second each, the API apply plus ifreload runs to roughly fifteen, and the
+# reachability probe is two addresses at twenty seconds each in the worst
+# case. That is around eighty, leaving margin without stretching the window in
+# which you are locked out.
+#
+# Erring long is the safer direction. A timer that fires while a good config
+# is still being verified merely undoes a change you can re-apply; one that
+# fires too late leaves you waiting with an unreachable hypervisor.
+proxmox_network_revert_after: 180
 ```
 
 `roles/proxmox_network/meta/main.yml`:
@@ -1356,6 +1364,37 @@ dependencies: []
 ---
 # Everything here runs on the node itself, because the sequence has to survive
 # the controller losing its connection halfway through.
+# Everything below assumes the running configuration is one that worked. If a
+# previous apply is still counting down, that assumption is false: this run
+# would copy a config that may already be broken, and the earlier timer would
+# then faithfully restore the breakage. Refuse, and say what to do instead.
+- name: Check whether a previous revert is still armed
+  ansible.builtin.command: systemctl is-active ansible-network-revert.timer
+  register: proxmox_network_revert_armed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Refuse to apply while a previous revert is pending
+  ansible.builtin.assert:
+    that: proxmox_network_revert_armed.stdout | trim != 'active'
+    fail_msg: >-
+      ansible-network-revert.timer is still armed from an earlier apply, which
+      means the running configuration may be the one that earlier run broke.
+      Copying it as this run's rollback target would leave you with no way
+      back. Wait for the timer to fire and restore the previous config, or - if
+      you are certain the running config is good - stop it deliberately with
+      `systemctl stop ansible-network-revert.timer` and run this again.
+    success_msg: "No previous revert pending"
+
+# A transient unit that failed rather than completing lingers under the same
+# name and blocks the next systemd-run. Clearing it is safe: the assert above
+# has already established that nothing is counting down.
+- name: Clear any lingering revert unit
+  ansible.builtin.command: systemctl reset-failed ansible-network-revert.timer
+  changed_when: false
+  failed_when: false
+
 - name: Keep a copy of the running configuration
   ansible.builtin.copy:
     src: /etc/network/interfaces
@@ -1399,7 +1438,7 @@ dependencies: []
   ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 22
-    timeout: 30
+    timeout: 20
   loop:
     - 192.168.0.10
     - 192.168.0.14
@@ -1428,8 +1467,13 @@ dependencies: []
 # connected to it over that same network.
 #
 # Before using the flag, know where the machine physically is. The dead-man
-# switch restores the previous configuration after 120 seconds if anything
-# goes wrong, but it is a safety net, not a guarantee.
+# switch restores the previous configuration if anything goes wrong, but it is
+# a safety net, not a guarantee.
+#
+# Read the live configuration and diff it against inventory/group_vars/proxmox/
+# network.yml before the first real apply. The transcription in that file was
+# made once and has not been re-checked since; applying it blind assumes the
+# node has not been touched by hand in the meantime.
 - name: Proxmox node networking
   hosts: proxmox
   gather_facts: true
