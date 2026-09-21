@@ -1,0 +1,29 @@
+---
+# The Proxmox role used by the ansible@pve API token, and the full privilege
+# list it must have. This list is authoritative: the task below sets exactly
+# these privileges, so removing an entry here revokes it on the next run.
+proxmox_access_role: AnsibleAutomation
+
+proxmox_access_privileges:
+  - Datastore.AllocateSpace
+  - Datastore.AllocateTemplate
+  - Datastore.Audit
+  - SDN.Use
+  - Sys.Audit
+  - VM.Allocate
+  - VM.Audit
+  - VM.Config.CPU
+  - VM.Config.Disk
+  - VM.Config.Memory
+  - VM.Config.Network
+  - VM.Config.Options
+  - VM.PowerMgmt
+  # Required by /nodes/{node}/qemu/{vmid}/agent/network-get-interfaces, which
+  # the dynamic inventory uses to resolve ansible_host for QEMU guests.
+  # Without it that endpoint returns 403 and those hosts get no address.
+  #
+  # PVE 8.2 split the old VM.Monitor into VM.GuestAgent.*; on PVE 9 the name
+  # VM.Monitor is rejected outright. Audit is the read-only member of that
+  # family and is all the inventory needs - it reads interfaces, never writes
+  # files or runs commands in the guest.
+  - VM.GuestAgent.Audit

@@ -45,9 +45,9 @@
 
 ---
 
-### Task 1: Codify the `VM.Monitor` grant
+### Task 1: Codify the `VM.GuestAgent.Audit` grant
 
-The QEMU agent endpoint returns HTTP 403 without `VM.Monitor`, so four of eight
+The QEMU agent endpoint returns HTTP 403 without `VM.GuestAgent.Audit`, so four of eight
 guests get no `ansible_host`. This is the gate for everything else.
 
 **Files:**
@@ -58,7 +58,7 @@ guests get no `ansible_host`. This is the gate for everything else.
 
 **Interfaces:**
 - Consumes: `pve_api_*` vars from `inventory/group_vars/proxmox/`.
-- Produces: the `AnsibleAutomation` role gains `VM.Monitor`. Task 2's `compose:` fallback depends on this; nothing else does.
+- Produces: the `AnsibleAutomation` role gains `VM.GuestAgent.Audit`. Task 2's `compose:` fallback depends on this; nothing else does.
 
 - [ ] **Step 1: Capture the current state as the failing test**
 
@@ -70,7 +70,7 @@ ansible pve01 -m command -a "pveum role list --output-format json" --become \
   | python3 -c "import json,sys; print([r['privs'] for r in json.load(sys.stdin) if r['roleid']=='AnsibleAutomation'][0])"
 ```
 
-Expected: a 13-item list **without** `VM.Monitor`.
+Expected: a 13-item list **without** `VM.GuestAgent.Audit`.
 
 - [ ] **Step 2: Write the role defaults**
 
@@ -100,7 +100,7 @@ proxmox_access_privileges:
   # Required by /nodes/{node}/qemu/{vmid}/agent/network-get-interfaces, which
   # the dynamic inventory uses to resolve ansible_host for QEMU guests.
   # Without it that endpoint returns 403 and those hosts get no address.
-  - VM.Monitor
+  - VM.GuestAgent.Audit
 ```
 
 - [ ] **Step 3: Write the tasks**
@@ -189,7 +189,7 @@ dependencies: []
 - [ ] **Step 4: Dry-run it and read the diff line**
 
 Run: `ansible-playbook playbooks/proxmox-access.yml --check --diff`
-Expected: the debug task prints `adding ['VM.Monitor'], removing []`. If it
+Expected: the debug task prints `adding ['VM.GuestAgent.Audit'], removing []`. If it
 prints anything under `removing`, **stop** — the defaults list has drifted
 from reality and applying it would revoke access.
 
@@ -199,15 +199,41 @@ from reality and applying it would revoke access.
 ansible-playbook playbooks/proxmox-access.yml
 ```
 
-Then confirm all four VMs answer, where they previously returned 403:
+The playbook verifies itself: its second play queries the agent endpoint
+through the API token and asserts no guest returns 403.
 
-```bash
-ansible pve01 -m shell -a 'for id in 100 101 102 103; do \
-  pvesh get /nodes/$(hostname)/qemu/$id/agent/network-get-interfaces --output-format json >/dev/null 2>&1 \
-  && echo "$id OK" || echo "$id FAIL"; done' --become
+Do **not** verify with `pvesh` — it runs as root and succeeds regardless of the
+token's privileges, so it proves nothing about what the inventory plugin sees.
+
+Expected: `agent reachable` for all four guests, and
+`No guest is blocked by token permissions`.
+
+- [ ] **Step 5a: If a guest reports HTTP 500, install the agent inside it**
+
+`500` means the agent is enabled on the VM but not answering in the guest —
+distinct from `403`, which is the token. `pbs` hit this: `qemu-guest-agent`
+was not installed.
+
+The fix belongs in `baseline`, not in a one-off, so any future VM gets it.
+Add to `roles/baseline/tasks/main.yml` before the ssh.service task:
+
+```yaml
+- name: Install the QEMU guest agent on virtual machines
+  ansible.builtin.apt:
+    name: qemu-guest-agent
+    state: present
+  when: ansible_facts['virtualization_type'] == 'kvm'
+
+- name: Ensure the QEMU guest agent is running
+  ansible.builtin.systemd_service:
+    name: qemu-guest-agent
+    enabled: true
+    state: started
+  when: ansible_facts['virtualization_type'] == 'kvm'
 ```
 
-Expected: `100 OK`, `101 OK`, `102 OK`, `103 OK`.
+Then `ansible-playbook playbooks/baseline.yml --limit <host>` and re-run the
+access playbook until every guest reports `agent reachable`.
 
 - [ ] **Step 6: Verify idempotence**
 
@@ -220,11 +246,11 @@ comparison, not a cosmetic issue — fix it before continuing.
 ```bash
 ansible-lint
 git add roles/proxmox_access playbooks/proxmox-access.yml
-git commit -m "Grant VM.Monitor to the Proxmox API role
+git commit -m "Grant VM.GuestAgent.Audit to the Proxmox API role
 
 The dynamic inventory resolves ansible_host for QEMU guests through
 /nodes/{node}/qemu/{vmid}/agent/network-get-interfaces, which requires
-VM.Monitor. Without it the endpoint returns 403 and those hosts get no
+VM.GuestAgent.Audit. Without it the endpoint returns 403 and those hosts get no
 address.
 
 The role sets the full privilege list rather than appending: pveum role
@@ -241,7 +267,7 @@ playbook here, so the complete list is passed every time."
 - Create: `inventory/homelab.proxmox.yml` (vault-encrypted with identity `infra`)
 
 **Interfaces:**
-- Consumes: `VM.Monitor` from Task 1.
+- Consumes: `VM.GuestAgent.Audit` from Task 1.
 - Produces: `bin/check-inventory-parity OLD NEW` exits 0 when every host in
   OLD exists in NEW with an identical `ansible_host`; Task 4 reuses it.
   `inventory/homelab.proxmox.yml` defines the eight guests, group `linux`
@@ -357,7 +383,7 @@ want_proxmox_nodes_ansible_host: false
 exclude_nodes: true
 
 compose:
-  # LXC: runtime interfaces. QEMU: guest agent (needs VM.Monitor, Task 1).
+  # LXC: runtime interfaces. QEMU: guest agent (needs VM.GuestAgent.Audit, Task 1).
   ansible_host: >-
     (proxmox_lxc_interfaces | default([]) | selectattr('name', 'ne', 'lo')
      | map(attribute='inet') | map('regex_replace', '/.*', '') | list | first)
@@ -715,7 +741,7 @@ ansible-inventory --host docker    # one host's variables
 with no apt and no standard Python, so `site.yml` skips it while reports
 still see it.
 
-The API token needs `VM.Monitor` — without it the guest-agent endpoint
+The API token needs `VM.GuestAgent.Audit` — without it the guest-agent endpoint
 returns 403 and QEMU guests get no address. That privilege is managed by
 `playbooks/proxmox-access.yml`, not by hand.
 
@@ -766,7 +792,7 @@ git add README.md TODO.md
 git commit -m "Document the Proxmox dynamic inventory
 
 Covers the merged inventory directory, why guests are never listed by hand,
-the VM.Monitor prerequisite, and the parity checker. Records that Semaphore's
+the VM.GuestAgent.Audit prerequisite, and the parity checker. Records that Semaphore's
 inventory entry must point at the directory rather than the deleted file."
 ```
 
@@ -777,7 +803,7 @@ inventory entry must point at the directory rather than the deleted file."
 **Spec coverage.** Every section of the spec maps to a task: hybrid layout →
 Task 4 Step 2; repo adopts Proxmox names → Task 3; token stays encrypted →
 Task 2 Step 5; `haos` included but not baselined → Task 2 Step 3 (`groups:`)
-and Task 4 Step 2 (`appliances`); `VM.Monitor` → Task 1; all five spec phases
+and Task 4 Step 2 (`appliances`); `VM.GuestAgent.Audit` → Task 1; all five spec phases
 → Tasks 1-5 in order; every verification item in the spec appears as a step
 that can fail.
 

@@ -45,6 +45,23 @@
           APT::Periodic::Unattended-Upgrade "1";
         mode: "0644"
 
+# The dynamic inventory resolves ansible_host for QEMU guests through the
+# guest agent. A VM without it running reports no address and drops out of
+# inventory, so the agent is part of the baseline rather than something
+# remembered per host. LXC guests have no agent and are skipped.
+- name: Install the QEMU guest agent on virtual machines
+  ansible.builtin.apt:
+    name: qemu-guest-agent
+    state: present
+  when: ansible_facts['virtualization_type'] == 'kvm'
+
+- name: Ensure the QEMU guest agent is running
+  ansible.builtin.systemd_service:
+    name: qemu-guest-agent
+    enabled: true
+    state: started
+  when: ansible_facts['virtualization_type'] == 'kvm'
+
 - name: Use classic ssh.service, not socket activation
   ansible.builtin.systemd_service:
     name: ssh.socket

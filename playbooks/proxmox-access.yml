@@ -1,0 +1,71 @@
+---
+# Grants the Proxmox API token the privileges this repo needs, then proves it
+# worked. Run after rebuilding a node, or after changing the privilege list.
+#
+#   ansible-playbook playbooks/proxmox-access.yml
+#
+# The verification play queries the guest-agent endpoint through the API TOKEN
+# rather than with pvesh. pvesh runs as root and would succeed regardless of
+# the token's privileges, so it proves nothing about what the inventory plugin
+# can actually see.
+- name: Proxmox API access
+  hosts: proxmox
+  roles:
+    - proxmox_access
+
+- name: Verify the token can reach the guest agent
+  hosts: proxmox
+  gather_facts: true
+  vars:
+    proxmox_access_auth: >-
+      PVEAPIToken={{ pve_api_user }}!{{ pve_api_token_id }}={{ pve_api_token_secret }}
+  tasks:
+    - name: List QEMU guests
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        node: "{{ ansible_facts['hostname'] }}"
+        type: qemu
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: proxmox_access_qemu
+
+    - name: Query the agent endpoint for each running QEMU guest
+      ansible.builtin.uri:
+        url: >-
+          https://{{ pve_api_host }}:8006/api2/json/nodes/{{ ansible_facts['hostname'] }}/qemu/{{ item.vmid }}/agent/network-get-interfaces
+        headers:
+          Authorization: "{{ proxmox_access_auth }}"
+        validate_certs: false
+      loop: "{{ proxmox_access_qemu.proxmox_vms | selectattr('status', 'eq', 'running') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: proxmox_access_agent
+      failed_when: false
+      changed_when: false
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Report reachability per guest
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.item.name }} (vmid {{ item.item.vmid }}):
+          {{ 'agent reachable' if item.status == 200
+             else 'HTTP ' ~ item.status ~ (' - token lacks VM.Monitor' if item.status == 403
+             else ' - agent enabled but not responding inside the guest') }}
+      loop: "{{ proxmox_access_agent.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Fail if any guest is blocked by permissions
+      ansible.builtin.assert:
+        that: (proxmox_access_agent.results | selectattr('status', 'eq', 403) | list) | length == 0
+        fail_msg: >-
+          {{ proxmox_access_agent.results | selectattr('status', 'eq', 403)
+             | map(attribute='item.name') | join(', ') }}
+          returned 403 - the token still lacks VM.Monitor.
+        success_msg: "No guest is blocked by token permissions"
