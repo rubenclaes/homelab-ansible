@@ -990,6 +990,10 @@ Create `roles/pbs/tasks/config.yml`:
 # from the command's exit code - `datastore create` on an existing store fails
 # rather than no-ops, so a bare command would report changed on every run and
 # fail on the second.
+- name: Start with an empty drift list
+  ansible.builtin.set_fact:
+    pbs_drift: []
+
 - name: Read the current PBS datastores
   ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
   register: pbs_datastores_current
@@ -1065,6 +1069,38 @@ Create `roles/pbs/tasks/config.yml`:
   changed_when: true
 ```
 
+Beside each of the three creation tasks, add a `set_fact` sharing its `when`,
+recording what would be created — `'datastore ' ~ item.name`,
+`'prune job ' ~ item.id`, `'verify job ' ~ item.id`. As in Task 3, an absent
+object here is not an error: creating it is the point.
+
+Then `roles/pbs/tasks/verify.yml`, imported last:
+
+```yaml
+---
+# Its own file, imported after config.yml, because assert is fatal: asserting
+# inside config.yml would halt the play before the verify jobs were evaluated,
+# and this run exists to report the whole picture in one pass.
+- name: Report which PBS objects are missing
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Every declared datastore and job is in place'
+         if pbs_drift | length == 0
+         else 'Would be created: ' ~ pbs_drift | join(', ') }}
+
+# `changed` cannot serve as the test: ansible.builtin.command is skipped
+# outright under --check, so the recap is clean whether or not anything is
+# missing. set_fact and assert do run in check mode.
+- name: Require every declared datastore and job to be in place
+  ansible.builtin.assert:
+    that: pbs_drift | length == 0
+    fail_msg: >-
+      Not yet in place: {{ pbs_drift | join(', ') }}.
+      Run this playbook without --check to create them.
+    success_msg: "All declared datastores and jobs are in place"
+  when: pbs_require_clean | default(false) | bool
+```
+
 - [ ] **Step 4: Rewrite the role's header and include the new tasks**
 
 The comment at the top of `roles/pbs/tasks/main.yml` currently says the datastore and its jobs are deliberately NOT managed. That is now false. Replace that comment block with:
@@ -1091,16 +1127,30 @@ Append to the end of `roles/pbs/tasks/main.yml`:
 
 - name: Datastore and job configuration
   ansible.builtin.import_tasks: config.yml
+
+- name: Report and verify
+  ansible.builtin.import_tasks: verify.yml
 ```
 
 - [ ] **Step 5: Run the test**
 
 ```bash
 ansible-lint roles/pbs playbooks/pbs.yml
-ansible-playbook playbooks/pbs.yml --check
+ansible-playbook playbooks/pbs.yml --check -e pbs_require_clean=true
 ```
 
-Expected: lint passes, recap reports `changed=0`. The datastore and both jobs already exist, so every `when` is false.
+Expected: lint passes, and the assert passes with "All declared datastores and
+jobs are in place". The datastore and both jobs already exist, so the drift
+list stays empty.
+
+Do not read the play recap. `ansible.builtin.command` is skipped under
+`--check`, so `changed=0` is guaranteed and means nothing here.
+
+One thing to watch that is specific to this role: `pbs.yml` also installs the
+PBS package and manages its repositories. Under `--check` those tasks may
+report changes on a host that is merely due an apt cache refresh. That is
+unrelated to your work — read the assert, not the recap, and say so in your
+report if you see it.
 
 - [ ] **Step 6: Commit**
 
