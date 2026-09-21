@@ -7,20 +7,22 @@ import { Callout } from 'nextra/components'
 # Hosts
 
 <Callout type="warning">
-Generated from the merged `inventory/` directory. Edit the inventory, not this file.
+Generated from the merged `inventory/` directory: `00-static.yml` plus the
+Proxmox guests discovered by `homelab.proxmox.yml`. Edit the inventory, not
+this file.
 </Callout>
 
 | Host | Address | Groups | OS |
 | --- | --- | --- | --- |
-| **adguard** | `192.168.0.29` | guests, linux | Debian 13.7 |
-| **caddy** | `192.168.0.25` | guests, linux | Debian 12.15 |
-| **docker** | `192.168.0.15` | guests, linux | Debian 12.15 |
+| **adguard** | `192.168.0.29` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
+| **caddy** | `192.168.0.25` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
+| **docker** | `192.168.0.15` | linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 12.15 |
+| **docker-grafana-stack** | `192.168.0.17` | linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 12.15 |
 | **macmini** | `192.168.0.26` | macs | MacOSX 14.6.1 |
-| **docker-grafana-stack** | `192.168.0.17` | guests, linux | Debian 12.15 |
-| **pbs** | `192.168.0.181` | guests, linux | Debian 13.7 |
+| **pbs** | `192.168.0.181` | linux, proxmox_all_qemu, proxmox_all_running, proxmox_pve01_qemu | Debian 13.7 |
 | **pve01** | `192.168.0.14` | linux, proxmox | Debian 13.7 |
-| **semaphore** | `192.168.0.30` | guests, linux | Debian 13.7 |
-| **tailscale** | `192.168.0.50` | guests, linux | Debian 12.15 |
+| **semaphore** | `192.168.0.30` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 13.7 |
+| **tailscale** | `192.168.0.50` | linux, proxmox_all_lxc, proxmox_all_running, proxmox_pve01_lxc | Debian 12.15 |
 
 All Linux hosts are reached as the `ansible` service account over key-only SSH
 and escalate with passwordless sudo. `mbp` is the control node and manages itself.

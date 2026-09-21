@@ -34,6 +34,13 @@ changes every route that points at it.
 | [torrent.neodata.be](https://torrent.neodata.be) | `8089` | qBittorrent — writes to the NFS share from the Mac mini |  |
 | [trek.neodata.be](https://trek.neodata.be) | `8083` | TODO: describe this service | Forwarded headers.  |
 
+## docker-grafana-stack <span style={{ opacity: 0.5, fontWeight: 400 }}>— 2 services</span>
+
+| Service | Port | What it is | Notes |
+| --- | --- | --- | --- |
+| [monitoring.neodata.be](https://monitoring.neodata.be) | `3001` | Uptime Kuma — uptime checks and alerting | Host header passed.  |
+| [prometheus.neodata.be](https://prometheus.neodata.be) | `9090` | Metrics store scraped by Grafana |  |
+
 ## macmini <span style={{ opacity: 0.5, fontWeight: 400 }}>— 16 services</span>
 
 | Service | Port | What it is | Notes |
@@ -54,13 +61,6 @@ changes every route that points at it.
 | [tautulli.neodata.be](https://tautulli.neodata.be) | `8181` | Plex usage statistics |  |
 | [tinyauth.neodata.be](https://tinyauth.neodata.be) | `3000` | Auth middleware used by Caddy forward_auth |  |
 | [wizarr.neodata.be](https://wizarr.neodata.be) | `5690` | Plex/Jellyfin invitations for new users | Behind tinyauth.  |
-
-## docker-grafana-stack <span style={{ opacity: 0.5, fontWeight: 400 }}>— 2 services</span>
-
-| Service | Port | What it is | Notes |
-| --- | --- | --- | --- |
-| [monitoring.neodata.be](https://monitoring.neodata.be) | `3001` | Uptime Kuma — uptime checks and alerting | Host header passed.  |
-| [prometheus.neodata.be](https://prometheus.neodata.be) | `9090` | Metrics store scraped by Grafana |  |
 
 ## semaphore <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
 
