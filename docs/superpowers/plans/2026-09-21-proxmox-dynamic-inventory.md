@@ -350,6 +350,12 @@ validate_certs: false
 want_facts: true
 want_proxmox_nodes_ansible_host: false
 
+# Guests only. The PVE node is itself called pve01, so without this the
+# plugin would define a second pve01 that collides with the one in
+# 00-static.yml. The node's address is static and known; it does not need
+# discovering.
+exclude_nodes: true
+
 compose:
   # LXC: runtime interfaces. QEMU: guest agent (needs VM.Monitor, Task 1).
   ansible_host: >-
@@ -378,7 +384,8 @@ for h in semaphore caddy adguard tailscale pbs docker docker-grafana-stack haos;
 done
 ```
 
-Expected: eight addresses, none `(none)`. Known-good values —
+Expected: **exactly eight hosts, no `pve01` among them** (`exclude_nodes`),
+and no address `(none)`. Known-good values —
 `semaphore 192.168.0.30`, `caddy 192.168.0.25`, `adguard 192.168.0.29`,
 `tailscale 192.168.0.50`. If any QEMU host is `(none)`, Task 1 did not take.
 
