@@ -24,6 +24,7 @@ caddy_domain: neodata.be
 caddy_tinyauth_upstream: "{{ hostvars['macmini']['ansible_host'] }}:3000"
 
 caddy_sites:
+  - { name: memos, host: docker, port: 5230, desc: "Memos - snelle notities" }
   # --- Infra ---
   - { name: portainer, host: docker, port: 9443, https: true, desc: "Docker management UI for docker" }
   - { name: semaphore, host: semaphore, port: 3000, desc: "Ansible control plane — runs the playbooks on a schedule" }

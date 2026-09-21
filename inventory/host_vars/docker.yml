@@ -1,5 +1,6 @@
 ---
 docker_stacks_list:
+  - { name: memos, path: memos }
   - { name: utils, path: utils }
   - { name: homepage, path: homepage }
   - { name: metrics, path: metrics }
