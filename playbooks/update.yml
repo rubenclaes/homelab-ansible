@@ -19,5 +19,5 @@
       ansible.builtin.reboot:
         reboot_timeout: 900
       when:
-        - reboot_needed | bool
+        - baseline_reboot_needed | bool
         - allow_reboot | bool

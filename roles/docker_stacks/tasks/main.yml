@@ -4,13 +4,14 @@
     path: "{{ docker_stacks_deploy_key }}"
     type: ed25519
     comment: "docker01 deploy key (read-only)"
+  become: true
   become_user: "{{ docker_stacks_owner }}"
-  register: deploy_key
+  register: docker_stacks_keypair
   tags: deploy_key
 
 - name: Show public key (add once to GitHub)
   ansible.builtin.debug:
-    msg: "{{ deploy_key.public_key }}"
+    msg: "{{ docker_stacks_keypair.public_key }}"
   tags: deploy_key
 
 - name: Trust GitHub's SSH host key
@@ -18,6 +19,7 @@
     path: "/home/{{ docker_stacks_owner }}/.ssh/known_hosts"
     name: github.com
     key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+  become: true
   become_user: "{{ docker_stacks_owner }}"
   tags: deploy_key
 
@@ -28,6 +30,7 @@
     version: "{{ docker_stacks_repo_version }}"
     key_file: "{{ docker_stacks_deploy_key }}"
     accept_hostkey: false
+  become: true
   become_user: "{{ docker_stacks_owner }}"
 
 - name: Ensure PyYAML is present (needed by the compose module)
@@ -38,9 +41,9 @@
 - name: Verify mount units exist
   ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
   loop: "{{ docker_stacks_wait_for_mounts }}"
-  register: mount_state
+  register: docker_stacks_mount_state
   changed_when: false
-  failed_when: mount_state.stdout != 'loaded'
+  failed_when: docker_stacks_mount_state.stdout != 'loaded'
 
 - name: Ensure Docker drop-in directory exists
   ansible.builtin.file:

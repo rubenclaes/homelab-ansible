@@ -2,4 +2,4 @@
 - name: Docker stacks
   hosts: docker01
   roles:
-    - docker_stack
+    - docker_stacks
