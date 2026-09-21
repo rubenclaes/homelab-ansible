@@ -4,9 +4,17 @@
 # Run locally with `bin/check-vaulted`, and in CI on every push. This catches
 # the one mistake that is expensive to undo: committing a secret, which stays
 # in git history even after you delete it.
+#
+# With --staged it reads the *staged* blob for each file instead of the file on
+# disk. That distinction matters in a pre-commit hook: `git add` snapshots
+# content, so a file can be encrypted on disk while a plaintext version sits in
+# the index waiting to be committed. Checking the working tree would miss it.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+staged=0
+[[ "${1:-}" == "--staged" ]] && staged=1
 
 # Every path here must begin with the $ANSIBLE_VAULT header.
 patterns=(
@@ -19,11 +27,25 @@ patterns=(
 failed=0
 checked=0
 
+# Reads the first bytes of a path, from the index or from disk.
+head_of() {
+	if [[ $staged -eq 1 ]]; then
+		git show ":$1" 2>/dev/null | head -c 15
+	else
+		head -c 15 "$1"
+	fi
+}
+
 for pattern in "${patterns[@]}"; do
 	for file in $pattern; do
-		[[ -f "$file" ]] || continue
+		if [[ $staged -eq 1 ]]; then
+			# Only consider paths that are actually in the index.
+			git ls-files --error-unmatch -- "$file" >/dev/null 2>&1 || continue
+		else
+			[[ -f "$file" ]] || continue
+		fi
 		checked=$((checked + 1))
-		if head -c 15 "$file" | grep -q '^\$ANSIBLE_VAULT'; then
+		if head_of "$file" | grep -q '^\$ANSIBLE_VAULT'; then
 			echo "  encrypted  $file"
 		else
 			echo "  PLAINTEXT  $file" >&2

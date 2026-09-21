@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Pre-commit guard. Enable once per clone with:
+#
+#     git config core.hooksPath .githooks
+#
+# Why this exists rather than relying on CI: the CI check runs after a push,
+# by which point a leaked secret is already in GitHub's history and needs a
+# rotation, not a revert. This is the gate; CI is the backstop.
+#
+# Bypass in a genuine emergency with `git commit --no-verify`.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+fail=0
+
+# 1. Nothing sensitive may be committed as plaintext. Checks the staged blob,
+#    not the working tree - `git add` snapshots content, so the two can differ.
+if ! bin/check-vaulted --staged > /tmp/.check-vaulted.$$ 2>&1; then
+	echo "pre-commit: a file that must be encrypted is staged as plaintext." >&2
+	grep 'PLAINTEXT' /tmp/.check-vaulted.$$ >&2 || true
+	echo >&2
+	echo "  Encrypt it:  ansible-vault encrypt <file> && git add <file>" >&2
+	fail=1
+fi
+rm -f /tmp/.check-vaulted.$$
+
+# 2. The collection cache is a build artefact and must never be committed,
+#    even with `git add -f`.
+if git diff --cached --name-only | grep -q '^\.ansible/'; then
+	echo "pre-commit: .ansible/ is a regenerable collection cache; do not commit it." >&2
+	echo "  Unstage it:  git rm -r --cached .ansible" >&2
+	fail=1
+fi
+
+exit $fail

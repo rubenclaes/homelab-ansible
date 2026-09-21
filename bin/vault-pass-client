@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Vault password client script, referenced by vault_identity_list in
+# ansible.cfg. Ansible passes --vault-id to any executable whose name ends in
+# "-client", which is how one script can serve several vault identities.
+#
+# Identities:
+#   infra   inventory vault.yml files and the Semaphore config - credentials
+#           that control the hypervisor, DNS and backups
+#   stacks  files/env/*.env - application secrets for the Docker stacks
+#
+# They are split by blast radius: a leaked stack .env means rotating app
+# logins, a leaked infra token means rotating control of the estate.
+#
+# Resolution order per identity <id>:
+#   1. $ANSIBLE_VAULT_PASSWORD_<ID>   uppercased - for CI and Semaphore
+#   2. ~/.ansible/vault_pass_<id>     the workstation location
+#   3. ~/.ansible/vault_pass          legacy single password, pre-split
+#   4. placeholder                    so lint and --syntax-check still run in
+#                                     a clone with no secrets (see README)
+set -euo pipefail
+
+vault_id=""
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--vault-id) vault_id="${2:-}"; shift 2 ;;
+		--vault-id=*) vault_id="${1#*=}"; shift ;;
+		*) shift ;;
+	esac
+done
+
+# Ansible may append "@source" to the id; keep the label only.
+vault_id="${vault_id%%@*}"
+
+if [[ -n "$vault_id" ]]; then
+	env_var="ANSIBLE_VAULT_PASSWORD_$(printf '%s' "$vault_id" | tr '[:lower:]-' '[:upper:]_')"
+	if [[ -n "${!env_var:-}" ]]; then
+		printf '%s\n' "${!env_var}"
+		exit 0
+	fi
+	if [[ -r "${HOME}/.ansible/vault_pass_${vault_id}" ]]; then
+		cat -- "${HOME}/.ansible/vault_pass_${vault_id}"
+		exit 0
+	fi
+fi
+
+if [[ -n "${ANSIBLE_VAULT_PASSWORD:-}" ]]; then
+	printf '%s\n' "$ANSIBLE_VAULT_PASSWORD"
+	exit 0
+fi
+
+if [[ -r "${HOME}/.ansible/vault_pass" ]]; then
+	cat -- "${HOME}/.ansible/vault_pass"
+	exit 0
+fi
+
+echo "vault-pass-client: no password for vault id '${vault_id:-<none>}'." >&2
+echo "vault-pass-client: set ANSIBLE_VAULT_PASSWORD_${vault_id:-X} or create" >&2
+echo "vault-pass-client: ~/.ansible/vault_pass_${vault_id:-<id>} to use encrypted files." >&2
+printf '%s\n' 'no-vault-password-available'

@@ -3,4 +3,5 @@ baseline_unattended_upgrades: false
 pve_api_user: ansible@pve
 pve_api_token_id: automation
 pve_api_token_secret: "{{ vault_pve_api_token_secret }}"
-pve_api_host: 192.168.0.14
+# The node's own address, from the inventory - not restated here.
+pve_api_host: "{{ hostvars['pve01']['ansible_host'] }}"

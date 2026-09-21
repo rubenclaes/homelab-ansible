@@ -20,11 +20,17 @@ pipx install "ansible-core==2.21.4" "ansible-lint==26.8.0"
 # 2. Collections (pinned in collections/requirements.yml).
 ansible-galaxy collection install -r collections/requirements.yml
 
-# 3. Vault password. Without this you can lint, but not run anything real.
-install -m 600 /dev/null ~/.ansible/vault_pass
-$EDITOR ~/.ansible/vault_pass          # paste the password, no trailing spaces
+# 3. Vault passwords - two of them, see below. Without these you can lint,
+#    but not run anything real.
+install -m 600 /dev/null ~/.ansible/vault_pass_infra
+install -m 600 /dev/null ~/.ansible/vault_pass_stacks
+$EDITOR ~/.ansible/vault_pass_infra    # paste, no trailing spaces
+$EDITOR ~/.ansible/vault_pass_stacks
 
-# 4. Check it works.
+# 4. Enable the pre-commit guard. Per clone; git does not do this for you.
+git config core.hooksPath .githooks
+
+# 5. Check it works.
 bin/check-vaulted
 ansible-lint
 ansible all -m ping
@@ -33,21 +39,40 @@ ansible all -m ping
 The SSH key is `~/.ssh/ansible_ed25519` (set in `ansible.cfg`). Every managed
 Linux host authorises its public half for the `ansible` service account.
 
-### Where the vault password comes from
+### The two vault identities
 
-`ansible.cfg` points `vault_password_file` at **`bin/vault-pass`**, an
-executable resolver rather than a plain file. It tries, in order:
+There is no single password. Secrets are split by **blast radius**, so either
+half can be rotated without touching the other:
+
+| Identity | Covers | A leak means |
+|---|---|---|
+| `infra` | `inventory/**/vault.yml`, `roles/semaphore/files/config.json` | rotating Proxmox, Cloudflare and PBS tokens — control of the estate |
+| `stacks` | `files/env/*.env` | rotating application logins inside the stacks |
+
+`ansible.cfg` sets `vault_identity_list` to **`bin/vault-pass-client`** for both.
+Ansible passes `--vault-id` to any executable whose name ends in `-client`, so
+one script serves both identities. Per identity `<id>` it tries, in order:
 
 | Source | Used by |
 |---|---|
-| `$ANSIBLE_VAULT_PASSWORD` | CI, Semaphore (inject as a secret) |
-| `$ANSIBLE_VAULT_PASSWORD_FILE` | an explicit one-off override |
-| `~/.ansible/vault_pass` | your workstation, the normal case |
+| `$ANSIBLE_VAULT_PASSWORD_<ID>` | CI and Semaphore (inject as secrets) |
+| `~/.ansible/vault_pass_<id>` | your workstation, the normal case |
+| `~/.ansible/vault_pass` | the pre-split single password, kept as a fallback |
 | *(placeholder)* | a clone with no secrets — lint and syntax-check still work |
 
 That last row is the point: `ansible-lint` and `--syntax-check` must pass in a
 fresh clone with no secrets at all. Anything that genuinely needs to decrypt
 still fails loudly with `Decryption failed`.
+
+Encrypting a **new** file requires naming the identity, or it picks `infra`:
+
+```bash
+ansible-vault encrypt --encrypt-vault-id stacks files/env/newstack.env
+```
+
+> **Semaphore needs both passwords.** It previously held one. Add `infra` and
+> `stacks` as separate vault keys in its UI (Key Store → Vault), or its runs
+> will fail with `Decryption failed`.
 
 ---
 
@@ -121,8 +146,9 @@ impossible.) After bootstrap, normal runs work with the key alone.
 
 ```
 ansible.cfg                 config; also pins the vault resolver
-bin/vault-pass              vault password resolver (executable)
+bin/vault-pass-client       resolves the vault password per identity
 bin/check-vaulted           fails if any secret is committed in plaintext
+.githooks/pre-commit        blocks a commit that would leak a secret
 collections/                pinned Galaxy dependencies
 inventory/
   hosts.yml                 all hosts and groups
@@ -155,9 +181,22 @@ ansible-vault edit   files/env/media.env
 ansible-vault encrypt files/env/newstack.env    # before the first commit!
 ```
 
-`bin/check-vaulted` verifies every one of those paths is still encrypted. CI
-runs it on every push, as the first step — a committed secret stays in git
-history even after you delete it, so it is worth catching early.
+`bin/check-vaulted` verifies every one of those paths is still encrypted.
+
+It runs in two places. The **pre-commit hook** (`.githooks/pre-commit`) is the
+real gate: it inspects the *staged blob*, not the working tree, because `git
+add` snapshots content — a file can be encrypted on disk while a plaintext
+version sits in the index. CI runs the same check as a backstop, but CI fires
+*after* a push, by which point a leaked secret is already in GitHub's history
+and needs a rotation rather than a revert.
+
+Enable the hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Bypass in a genuine emergency with `git commit --no-verify`.
 
 Plaintext `vault_*` variables are referenced from unencrypted files
 (`main.yml`) and defined in the encrypted sibling (`vault.yml`), so you can read
@@ -245,4 +284,9 @@ bin/check-vaulted && ansible-lint && \
 - **`validate:` on anything that can lock you out** — sudoers, sshd config, the
   Caddyfile. A broken config fails the task instead of the host.
 - **`no_log: true` and `diff: false`** on tasks handling secrets.
+- **Upstreams are named, not numbered.** `caddy_sites` entries reference an
+  inventory host and port (`{ name: photos, host: docker01, port: 2283 }`), and
+  the Caddyfile resolves the IP from that host's `ansible_host`. Re-addressing a
+  host is a one-line change in `inventory/hosts.yml`. Use `upstream:` only for a
+  target that is not in the inventory.
 - Open work lives in [TODO.md](TODO.md).

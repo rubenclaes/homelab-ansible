@@ -1,6 +1,10 @@
 ---
 # LXC definitions: used to (re)create containers that are missing.
 # Existing containers are never modified by the role.
+#
+# Each container's IP is read from its inventory entry's ansible_host rather
+# than repeated here, so hosts.yml stays the single source of truth for
+# addressing. The /24 and the gateway are the only literals left.
 pve_lxc_defaults:
   template: local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
   bridge: vmbr0
@@ -16,7 +20,7 @@ pve_lxcs:
     memory: 2048
     swap: 512
     disk: { storage: local-lvm, size: 8 }
-    ip: 192.168.0.30/24
+    ip: "{{ hostvars['semaphore']['ansible_host'] }}/24"
     features: [nesting=1]
 
   - vmid: 106
@@ -25,7 +29,7 @@ pve_lxcs:
     memory: 512
     swap: 512
     disk: { storage: vm-hdd, size: 6 }
-    ip: 192.168.0.25/24 # live container still uses DHCP (see TODO)
+    ip: "{{ hostvars['caddy']['ansible_host'] }}/24" # live container still uses DHCP (see TODO)
     features: [nesting=1, keyctl=1]
 
   - vmid: 107
@@ -34,7 +38,7 @@ pve_lxcs:
     memory: 512
     swap: 512
     disk: { storage: vm-hdd, size: 2 }
-    ip: 192.168.0.29/24 # live container still uses DHCP (see TODO)
+    ip: "{{ hostvars['adguard']['ansible_host'] }}/24" # live container still uses DHCP (see TODO)
     features: [nesting=1, keyctl=1]
 
   - vmid: 108
@@ -43,7 +47,7 @@ pve_lxcs:
     memory: 1024
     swap: 1024
     disk: { storage: vm-hdd, size: 8 }
-    ip: 192.168.0.50/24
+    ip: "{{ hostvars['tailscale']['ansible_host'] }}/24"
     features: [nesting=1]
     # After recreation, as root on pve01 (the API token can't set raw lxc keys):
     #   pct set 108 -lxc.cgroup2.devices.allow "c 10:200 rwm"
