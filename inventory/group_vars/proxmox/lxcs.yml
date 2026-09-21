@@ -59,3 +59,9 @@ pve_lxcs:
     # After recreation, as root on pve01 (the API token can't set raw lxc keys):
     #   pct set 108 -lxc.cgroup2.devices.allow "c 10:200 rwm"
     #   pct set 108 -lxc.mount.entry "/dev/net/tun dev/net/tun none bind,create=file"
+
+# The vmid playbooks/recovery-drill.yml builds and destroys. It is declared
+# here, not guessed at run time, so a glance at this file shows the one id a
+# playbook is allowed to destroy. 199 sits well above the range pve_lxcs uses
+# and is asserted free before every drill.
+drill_vmid: 199

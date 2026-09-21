@@ -1,0 +1,31 @@
+---
+# Shared by bootstrap.yml and recovery-drill.yml so a drill container is
+# provisioned exactly the way a real new host is. If these drift apart, the
+# drill stops proving anything about the real path.
+- name: Ensure sudo is installed
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the service account
+  ansible.builtin.user:
+    name: "{{ svc_user }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Authorize only the ansible key
+  ansible.posix.authorized_key:
+    user: "{{ svc_user }}"
+    key: "{{ svc_pubkey }}"
+    exclusive: true
+
+- name: Passwordless sudo for the service account
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/ansible
+    content: "{{ svc_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
