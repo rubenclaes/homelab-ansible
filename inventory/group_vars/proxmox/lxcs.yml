@@ -21,7 +21,12 @@ pve_lxcs:
     cores: 2
     memory: 2048
     swap: 512
-    disk: { storage: local-lvm, size: 8 }
+    # 16G rather than the 8G the other containers get: Semaphore is the
+    # Ansible controller, so playbooks/docs.yml builds the Nextra site here.
+    # node_modules, the .next output and npm's cache together run to several
+    # gigabytes, on top of the Ansible virtualenv and Semaphore's per-template
+    # repository clones.
+    disk: { storage: local-lvm, size: 16 }
     ip: 192.168.0.30/24
     features: [nesting=1]
 

@@ -27,11 +27,19 @@
     # `npm ci` installs exactly what package-lock.json pins, and fails rather
     # than silently resolving something newer. Nextra is pinned to 4.5.0 on
     # purpose: see docs-site/package.json.
+    #
+    # Installed unconditionally, with no `creates:` guard on node_modules.
+    # Semaphore re-clones the repo for every run, so the guard never fired
+    # there; on a workstation it fired for the wrong reason, skipping the
+    # install whenever node_modules existed - including after the lockfile
+    # had moved on, which built the site against stale dependencies. npm's
+    # cache (semaphore_npm_cache on the controller) keeps the unconditional
+    # install cheap.
     - name: Install site dependencies
       ansible.builtin.command:
         cmd: npm ci --no-audit --no-fund
         chdir: "{{ docs_site }}"
-        creates: "{{ docs_site }}/node_modules/.package-lock.json"
+      changed_when: true
 
     - name: Build the static site
       ansible.builtin.command:
