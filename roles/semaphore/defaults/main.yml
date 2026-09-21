@@ -4,10 +4,32 @@ semaphore_user: semaphore
 semaphore_home: /var/lib/semaphore
 semaphore_config_dir: /etc/semaphore
 semaphore_venv: /opt/ansible-venv
+
+# Semaphore is the Ansible controller for every template, so anything a
+# playbook shells out to has to exist on this host. nodejs and npm are here
+# for playbooks/docs.yml, which runs `npm ci` and `npm run build` against
+# hosts: localhost - meaning this container, not a workstation. Debian 13
+# ships Node 20, comfortably above the 18.18 floor Next 15 asks for, so the
+# distro packages are enough and no NodeSource repo is needed.
+semaphore_apt_packages:
+  - git
+  - python3-venv
+  - python3-packaging
+  - nodejs
+  - npm
+
 semaphore_pip_packages:
   - ansible
   - "proxmoxer>=2.3"
   - requests
+
+# Semaphore re-clones the repository into a fresh directory on every run, so
+# node_modules never survives between builds and `npm ci` would re-download
+# the whole tree each time. A cache outside the clone turns that back into a
+# local copy. It is exported from the systemd unit rather than set in the
+# playbook, so every task run inherits it the same way PATH reaches the
+# Ansible virtualenv - and so docs.yml stays portable to a workstation.
+semaphore_npm_cache: "{{ semaphore_home }}/.npm"
 
 # Hosts whose SSH host key Semaphore must trust before it can reach them.
 # Each one needs gathered facts (ssh_host_key_ed25519_public); the first play

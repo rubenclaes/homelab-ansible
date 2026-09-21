@@ -1,7 +1,7 @@
 ---
 - name: Install prerequisites
   ansible.builtin.apt:
-    name: [git, python3-venv, python3-packaging]
+    name: "{{ semaphore_apt_packages }}"
     state: present
 
 - name: Create the semaphore system user
@@ -32,6 +32,7 @@
   loop:
     - "{{ semaphore_config_dir }}"
     - "{{ semaphore_home }}/tmp"
+    - "{{ semaphore_npm_cache }}"
 
 - name: Deploy Semaphore config from Vault
   ansible.builtin.copy:
@@ -57,6 +58,7 @@
       Group={{ semaphore_user }}
       Environment=HOME={{ semaphore_home }}
       Environment=PATH={{ semaphore_venv }}/bin:/usr/local/bin:/usr/bin:/bin
+      Environment=npm_config_cache={{ semaphore_npm_cache }}
       ExecStart=/usr/bin/semaphore server --config {{ semaphore_config_dir }}/config.json
       Restart=on-failure
 

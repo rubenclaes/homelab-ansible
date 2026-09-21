@@ -1,0 +1,35 @@
+---
+# The container list itself is inventory data and lives in
+# inventory/group_vars/proxmox/lxcs.yml - it describes this estate, not the
+# role. What lives here are the fallbacks that keep the role safe and
+# self-describing when that data is absent.
+
+# An empty list means "nothing to create", not a crash. Without this the role
+# fails with an undefined variable on any host that has no pve_lxcs.
+pve_lxcs: []
+
+# Shape of each pve_lxcs entry, for reference:
+#   vmid:     104                      required, the Proxmox VM id
+#   hostname: semaphore                required
+#   cores:    2                        required
+#   memory:   2048                     required, MB
+#   swap:     512                      required, MB
+#   disk:     { storage: local-lvm, size: 8 }   required, size in GB
+#   ip:       192.168.0.30/24          required, literal - see lxcs.yml
+#   features: [nesting=1]              optional
+#   template: local:vztmpl/...         optional, defaults to pve_lxc_defaults
+
+# Per-container settings that are the same for every container. Overridden
+# wholesale in group_vars; the keys here document what the role reads.
+pve_lxc_defaults:
+  template: local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
+  bridge: vmbr0
+  gateway: 192.168.0.1
+  unprivileged: true
+  onboot: true
+  pubkey: ""
+
+# How long to keep retrying a newly created container's start. A container
+# can take a moment to become startable after creation.
+pve_lxc_start_retries: 6
+pve_lxc_start_delay: 5

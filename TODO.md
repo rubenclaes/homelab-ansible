@@ -3,8 +3,9 @@
 ## Next up
 - [ ] Onboard media stack (`project: media-stack`, contains immich-postgres → pick a quiet moment)
 - [ ] Pocket ID: two instances running (auth → Mac mini .26, id → docker .15). Find out which one apps use, migrate, retire the other
-- [ ] evcc: stack exists on docker but isn't running, Caddy route still points to .15:7070. Run it or remove the route
-- [ ] Semaphore: run "Update guests" once by hand, then schedule (limit `guests:!semaphore`)
+- [ ] Semaphore: "Update guests" runs `--limit guests`, which includes semaphore itself —
+      it would apt-upgrade the host running the job. Change to `guests:!semaphore`,
+      and patch semaphore by hand or from the workstation
 - [ ] Semaphore: cleanup.yml as two templates — "Cleanup (report)" with no extra vars, "Cleanup (apply)" with `cleanup_apply: true`. Schedule the apply one Saturday 03:00, away from the Sunday 04:00 updates
 - [ ] Semaphore: notifications for failed tasks (Telegram/email)
 - [ ] PBS: check backup job includes semaphore (LXC 104) and doesn't overlap Sunday 04:00 updates
@@ -24,10 +25,13 @@
 
 ## Next projects
 - [ ] Action1 for parents' PC (+ Macs)
-- [ ] Proxmox: turn create-lxc into a list-driven role (all LXCs as code)
-- [ ] Caddyfile routes as variables instead of hand-edited blocks
 
 ## Done
+- [x] evcc en trek routes weg; glance en azuracast verwijderd; beszel uit de infra-stack
+- [x] BESZEL_TOKEN/KEY uit de vaulted infra.env
+- [x] Caddyfile-routes komen uit `caddy_sites`; upstreams via inventory-hostnaam
+- [x] proxmox_lxc is list-driven vanuit `pve_lxcs` en heeft nu defaults/
+- [x] docker_stacks ruimt orphans op als een service uit een compose verdwijnt
 - [x] Inventory komt live uit Proxmox; hosts.yml is weg
 - [x] API-token heeft VM.GuestAgent.Audit (beheerd via proxmox-access.yml)
 - [x] qemu-guest-agent hoort bij de baseline voor KVM-guests
