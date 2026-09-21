@@ -1,0 +1,146 @@
+- name: Scaffold a new Docker service
+  hosts: localhost
+  gather_facts: false
+
+  # Everything the five manual steps used to do:
+  #   compose file -> .env -> vault -> docker_stacks_list -> caddy_sites
+  #
+  #   ansible-playbook playbooks/new-service.yml \
+  #     -e svc_name=memos \
+  #     -e svc_port=5230 \
+  #     -e svc_image=ghcr.io/usememos/memos:0.24.4 \
+  #     -e svc_volume=/var/opt/memos \
+  #     -e '{"svc_desc": "Memos - snelle notities"}'
+  #
+  # A value containing spaces MUST go in as JSON. Ansible reads -e key=value
+  # as a space-separated list of pairs, so -e 'svc_desc=a b c' quietly becomes
+  # svc_desc=a and two stray words. Quoting in the shell does not help.
+  #
+  # Afterwards: push the containers repo, then run stacks.yml and caddy.yml.
+  vars:
+    containers_repo: "{{ lookup('env', 'HOME') }}/Development/containers"
+    svc_host: docker
+    svc_subdomain: "{{ svc_name | default('') }}"
+    svc_container_port: "{{ svc_port | default('') }}"
+    svc_volume: /data
+    svc_env: []
+    svc_desc: "TODO: beschrijf deze service"
+    svc_container_prefix: neodata-
+    svc_tz: Europe/Brussels
+    svc_restart: unless-stopped
+    svc_network: neodata
+
+    stack_dir: "{{ containers_repo }}/stacks/{{ svc_name | default('') }}"
+    env_file: "{{ playbook_dir }}/../files/env/{{ svc_name | default('') }}.env"
+    docker_vars: "{{ playbook_dir }}/../inventory/host_vars/{{ svc_host }}.yml"
+    caddy_vars: "{{ playbook_dir }}/../inventory/host_vars/caddy/main.yml"
+
+  tasks:
+    - name: Require the arguments that have no sensible default
+      ansible.builtin.assert:
+        that:
+          - svc_name is defined and svc_name | length > 0
+          - svc_port is defined
+          - svc_image is defined and svc_image | length > 0
+        fail_msg: |
+          Missing arguments. Minimum:
+            ansible-playbook playbooks/new-service.yml \
+              -e svc_name=<naam> -e svc_port=<poort> -e svc_image=<image:tag>
+          Optional: svc_volume, svc_desc, svc_subdomain, svc_host, svc_env
+
+    - name: Read the current stack list
+      ansible.builtin.slurp:
+        src: "{{ docker_vars }}"
+      register: docker_vars_raw
+
+    - name: Read the current site list
+      ansible.builtin.slurp:
+        src: "{{ caddy_vars }}"
+      register: caddy_vars_raw
+
+    # Catching a clash here is far cheaper than catching it after a deploy:
+    # a duplicate port silently fails to bind, a duplicate name overwrites.
+    - name: Refuse to overwrite an existing service
+      ansible.builtin.assert:
+        that:
+          - not stack_exists
+          - "'name: ' ~ svc_name ~ ',' not in docker_vars_text"
+          - "'name: ' ~ svc_subdomain ~ ',' not in caddy_vars_text"
+          - "'port: ' ~ svc_port ~ ',' not in caddy_vars_text"
+        fail_msg: >-
+          '{{ svc_name }}' or port {{ svc_port }} is already taken —
+          check stacks/{{ svc_name }}, docker_stacks_list and caddy_sites.
+      vars:
+        stack_exists: "{{ (stack_dir ~ '/docker-compose.yml') is exists }}"
+        docker_vars_text: "{{ docker_vars_raw.content | b64decode }}"
+        caddy_vars_text: "{{ caddy_vars_raw.content | b64decode }}"
+
+    - name: Create the stack folder
+      ansible.builtin.file:
+        path: "{{ stack_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Write the compose file
+      ansible.builtin.template:
+        src: new-service/docker-compose.yml.j2
+        dest: "{{ stack_dir }}/docker-compose.yml"
+        mode: "0644"
+
+    # Gitignored in the containers repo; the copy below is the one that lasts.
+    - name: Write the .env next to it
+      ansible.builtin.template:
+        src: new-service/env.j2
+        dest: "{{ stack_dir }}/.env"
+        mode: "0600"
+
+    - name: Copy the .env into this repo
+      ansible.builtin.copy:
+        src: "{{ stack_dir }}/.env"
+        dest: "{{ env_file }}"
+        mode: "0600"
+
+    # chdir matters: ansible.cfg points vault_identity_list at the relative
+    # path bin/vault-pass-client, which only resolves from the repo root.
+    - name: Encrypt it under the stacks vault identity
+      ansible.builtin.command:
+        cmd: ansible-vault encrypt --encrypt-vault-id stacks {{ env_file }}
+        chdir: "{{ playbook_dir }}/.."
+      changed_when: true
+
+    - name: Fail loudly if that did not actually encrypt
+      ansible.builtin.lineinfile:
+        path: "{{ env_file }}"
+        line: "$ANSIBLE_VAULT;1.2;AES256;stacks"
+        state: present
+      check_mode: true
+      register: vault_header
+      failed_when: vault_header is changed
+
+    # Both entries go directly under their list header rather than at the end:
+    # order is irrelevant to Ansible, and anchoring to a header is the one
+    # position that cannot land inside a comment block or another variable.
+    - name: Register the stack
+      ansible.builtin.lineinfile:
+        path: "{{ docker_vars }}"
+        insertafter: '^docker_stacks_list:'
+        line: "  - {{ '{' }} name: {{ svc_name }}, path: {{ svc_name }} {{ '}' }}"
+
+    - name: Register the route
+      ansible.builtin.lineinfile:
+        path: "{{ caddy_vars }}"
+        insertafter: '^caddy_sites:'
+        line: >-
+          {{ '  - {' }} name: {{ svc_subdomain }}, host: {{ svc_host }},
+          port: {{ svc_port }}, desc: "{{ svc_desc }}" {{ '}' }}
+
+    - name: What happens next
+      ansible.builtin.debug:
+        msg:
+          - "Created stacks/{{ svc_name }}/ in the containers repo."
+          - "Vaulted files/env/{{ svc_name }}.env."
+          - "Registered the stack and the route in the inventory."
+          - ""
+          - "1. cd {{ containers_repo }} && git add stacks/{{ svc_name }} && git commit -m 'Add {{ svc_name }} stack' && git push"
+          - "2. ansible-playbook playbooks/stacks.yml && ansible-playbook playbooks/caddy.yml"
+          - "3. open https://{{ svc_subdomain }}.{{ hostvars['caddy'].caddy_domain }}"

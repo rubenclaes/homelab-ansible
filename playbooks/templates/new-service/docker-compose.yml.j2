@@ -1,0 +1,19 @@
+services:
+  {{ svc_name }}:
+    image: {{ svc_image }}
+    container_name: ${CONTAINER_PREFIX}{{ svc_name }}
+    environment:
+      - TZ=${TZ}
+{% for e in svc_env %}
+      - {{ e }}
+{% endfor %}
+    volumes:
+      - ${DATA_PATH}/data:{{ svc_volume }}
+    ports:
+      - "${VM_IP}:{{ svc_port }}:{{ svc_container_port }}"
+    restart: ${RESTART_POLICY}
+    networks: [{{ svc_name }}_network]
+
+networks:
+  {{ svc_name }}_network:
+    name: ${NETWORK_NAME}_{{ svc_name }}
