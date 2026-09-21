@@ -39,9 +39,10 @@
         chdir: "{{ docs_site }}"
       changed_when: true
 
-    # Plain tar rather than community.general.archive: one less collection to
-    # resolve, and `-C out .` keeps the paths relative to the site root.
-    - name: Pack the build for transfer
+    # Plain tar rather than community.general.archive: `-C out .` keeps the
+    # paths relative to the site root, which archive cannot express as
+    # cleanly. Same reason report.yml and the baseline role carry this noqa.
+    - name: Pack the build for transfer # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: tar -czf out.tar.gz -C out .
         chdir: "{{ docs_site }}"
