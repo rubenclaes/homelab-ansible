@@ -1,0 +1,14 @@
+---
+# Login for the AdGuard Home web API, used by roles/adguard to sync the
+# rewrite list. It is the same user you log into the web UI with. Defined in
+# the encrypted vault.yml next to this file; without that file the role
+# fails with a message that says so.
+adguard_api_user: "{{ vault_adguard_api_user }}"
+adguard_api_password: "{{ vault_adguard_api_password }}"
+
+# The zone the inventory's names live in: <host>.home.arpa for every managed
+# host, <device>.home.arpa for every device in devices.yml with an ip. The
+# role has the same default; it is repeated here as a plain value because
+# docs.yml reads it through hostvars from the localhost play, where a role
+# default is not visible.
+adguard_rewrite_domain: home.arpa
