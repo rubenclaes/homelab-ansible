@@ -13,9 +13,6 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **Wat de node nu adverteert hoort in `tailscale_up_extra_args`.**
-      Nu staat het alleen in de staat van die ene container.
-
 ---
 
 ## Semaphore — automatiseren wat nu van jouw geheugen afhangt

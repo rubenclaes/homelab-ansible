@@ -10,3 +10,17 @@
 # can add tagged nodes to the tailnet, not read or change anything on it.
 tailscale_oauth_client_id: "{{ vault_tailscale_oauth_client_id }}"
 tailscale_oauth_client_secret: "{{ vault_tailscale_oauth_client_secret }}"
+
+# Wat deze node aanbiedt aan de rest van de tailnet. Op 22-09 van de draaiende
+# node afgelezen (`tailscale debug prefs`): hij adverteert het hele LAN, is
+# geen exit node, en accepteert zelf geen routes.
+#
+# Dit stond hier eerder niet, en dat was het gat: de route zat alleen in de
+# staat van die ene container. Werd hij herbouwd, dan meldde de rol hem netjes
+# aan bij de tailnet - zonder de route. Je remote toegang tot 192.168.0.0/24
+# was dan weg, en niets zou het gezegd hebben tot je het nodig had.
+#
+# Let op bij goedkeuren: een opnieuw aangemelde node biedt de route opnieuw
+# aan en die moet je in de admin console weer goedkeuren voor hij werkt.
+tailscale_up_extra_args:
+  - --advertise-routes=192.168.0.0/24
