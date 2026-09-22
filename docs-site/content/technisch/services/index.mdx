@@ -14,6 +14,12 @@ Bewerk de inventory, niet deze pagina.
 Elke service draait op `https://<naam>.neodata.be`. Klik de naam voor
 het upstream-adres en de instellingen.
 
+## adguard <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [dns](/technisch/services/dns/) | `80` | AdGuard Home — DNS voor de hele estate, en filtering |  |
+
 ## docker <span style={{ opacity: 0.5, fontWeight: 400 }}>— 19 services</span>
 
 | Service | Poort | Wat het is | Opmerkingen |
@@ -45,6 +51,12 @@ het upstream-adres en de instellingen.
 | [monitoring](/technisch/services/monitoring/) | `3001` | Grafana — dashboards op Prometheus en Loki | Host-header doorgegeven.  |
 | [prometheus](/technisch/services/prometheus/) | `9090` | Metrics-store die Grafana scrapet |  |
 
+## haos <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [haos](/technisch/services/haos/) | `8123` | Home Assistant — domotica | Forwarded headers.  |
+
 ## macmini <span style={{ opacity: 0.5, fontWeight: 400 }}>— 4 services</span>
 
 | Service | Poort | Wat het is | Opmerkingen |
@@ -53,6 +65,18 @@ het upstream-adres en de instellingen.
 | [books](/technisch/services/books/) | `6061` | Grimmory — bibliotheek voor e-books, strips en luisterboeken |  |
 | [duplicati](/technisch/services/duplicati/) | `8200` | Back-ups vanaf de Mac mini |  |
 | [plex](/technisch/services/plex/) | `32400` | Plex — de hoofdtaak van de Mac mini |  |
+
+## pbs <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [backup](/technisch/services/backup/) | `8007` | Proxmox Backup Server — de back-ups en hun verificatie | TLS-upstream.  |
+
+## pve01 <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+
+| Service | Poort | Wat het is | Opmerkingen |
+| --- | --- | --- | --- |
+| [proxmox](/technisch/services/proxmox/) | `8006` | Proxmox VE — de hypervisor | TLS-upstream.  |
 
 ## semaphore <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
 
