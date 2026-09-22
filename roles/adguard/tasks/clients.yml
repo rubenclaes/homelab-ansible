@@ -3,9 +3,8 @@
 # `dns` policy it declares.
 #
 # Two reasons a client exists at all. First, the query log then says
-# "ipad-kinderen" instead of an address, which is the whole point of the
-# ClientID the DNS profile carries. Second, AdGuard's per-client settings are
-# the only filtering knobs that can be aimed at one device, and those are
+# "ipad-kinderen" instead of an address. Second, AdGuard's per-client settings
+# are the only filtering knobs that can be aimed at one device, and those are
 # exactly what a phone or a printer needs to differ in.
 #
 # Ownership is by name: a client whose name is a key in `devices` belongs to

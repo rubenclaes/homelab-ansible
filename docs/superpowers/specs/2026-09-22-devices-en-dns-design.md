@@ -22,7 +22,6 @@ die niets doet is werk dat je erin stopt en er niet uit krijgt.
 | `<host>.home.arpa` | `ansible_host` uit de inventory | AdGuard REST API |
 | `<toestel>.home.arpa` | `ip` uit `devices.yml` | AdGuard REST API |
 | Filterbeleid per toestel | het `dns`-blok | AdGuard REST API |
-| `.mobileconfig` per telefoon | `devices_profile_types` | sjabloon, via docs.yml |
 | Aanmelden op de tailnet | eenmalige sleutel via de Tailscale-API | `roles/tailscale` |
 
 `AdGuardHome.yaml` wordt één keer gelezen, voor de webpoort, en nooit
@@ -50,14 +49,6 @@ vierentwintig uur. Daar staat een assert op, want AdGuard accepteert het
 zonder klagen. Intern zijn de grenzen milliseconden sinds middernacht, een
 API-detail dat niet hoort in een bestand dat een mens bewerkt.
 
-**Het telefoonprofiel bestaat om de naam.** Een telefoon wisselt van MAC per
-netwerk, dus de reservering kan hem niet identificeren. Het client-ID in
-`https://dns.<domein>/dns-query/<toestel>` wel. De payload is overgenomen uit
-AdGuards eigen generator, met twee verschillen: de UUID's zijn afgeleid van de
-toestelnaam zodat een tweede run niets verandert, en het profiel kan tot de
-thuis-wifi beperkt worden. Caddy laat op `dns.<domein>` alleen `/dns-query`
-door, zodat het beheerscherm nooit een route wordt.
-
 **Tailscale meldt zichzelf aan, met een sleutel die daarna op is.** In de repo
 staat alleen een OAuth-client met scope `auth_keys`. Lekt die, dan kan iemand
 getagde nodes toevoegen en verder niets. Een node die al `Running` is wordt
@@ -66,8 +57,8 @@ converge-run niet opnieuw.
 
 ## Wat er gebouwd is en weer weggehaald
 
-Een rol die op de UniFi-gateway client-records aanmaakte, namen zette,
-bandbreedtegroepen toewees en vaste adressen reserveerde. Hij werkte en was
+**De UniFi-rol.** Hij maakte client-records op de gateway aan, zette namen en
+bandbreedtegroepen, en reserveerde vaste adressen. Hij werkte en was
 idempotent. Hij is verwijderd.
 
 De rekensom klopte niet. Een vast adres toekennen in het scherm kost twintig
@@ -75,11 +66,19 @@ seconden en gebeurt één keer per toestel. Daartegenover stonden een apart
 lokaal account, een vault-bestand, een gateway in de inventory, en het
 onderhoud van een API die Ubiquiti bezit en zonder aankondiging kan wijzigen.
 
-De regel die dit had moeten voorkomen, en die vanaf nu geldt: **automatiseer
+**De telefoonprofielen.** Een `.mobileconfig` per telefoon, met de toestelnaam
+als AdGuard-client-ID, zodat het querylog de telefoon bij naam kent wat zijn
+MAC ook is. Ook gebouwd, ook weer weg. Het genereerde een bestand dat je
+vervolgens met de hand op het toestel aantikt, dus de automatisering hield op
+vóór het apparaat. En het sleepte een publiek bereikbare `dns.<domein>` mee,
+plus een schakelaar in AdGuard, voor iets wat nog nooit gebruikt was.
+
+De regel die beide had moeten voorkomen, en die vanaf nu geldt: **automatiseer
 wat je drie keer met de hand hebt gedaan en waar je drie keer chagrijnig van
 werd.** Het AdGuard-beleid haalt die lat wel, want het komt langs dezelfde API
 met dezelfde login, het is priegelig genoeg om fouten in te maken, en het
-drift zodra iemand in het scherm iets omzet.
+drift zodra iemand in het scherm iets omzet. Een reservering en een profiel
+halen hem niet.
 
 ## Buiten scope, en dat blijft zo
 

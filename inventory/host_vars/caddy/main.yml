@@ -23,13 +23,6 @@ caddy_domain: neodata.be
 # report.yml, whose addresses are literal for this reason.
 caddy_tinyauth_upstream: "{{ hostvars['macmini']['ansible_host'] }}:3000"
 
-# AdGuard Home's web port, which also answers /dns-query once "Allow
-# unencrypted DNS-over-HTTPS" is on in its Encryption settings. Same shape and
-# same localhost caveat as caddy_tinyauth_upstream. Not a caddy_sites entry:
-# the Caddyfile passes only /dns-query through, so the admin UI never becomes
-# a route.
-caddy_doh_upstream: "{{ hostvars['adguard']['ansible_host'] }}:80"
-
 caddy_sites:
   - { name: memos, host: docker, port: 5230, desc: "Memos - snelle notities" }
   # --- Infra ---

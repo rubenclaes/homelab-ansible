@@ -4,10 +4,10 @@ title: Toestellen
 
 import { Callout } from 'nextra/components'
 
-{# Flattened to a list of rows first, so groupby has a plain attribute to work
-   on and the table loop does not need to know that `devices` is a mapping.
-   dictsort makes the order within a type deterministic; groupby sorts the
-   types themselves, so a second run produces no diff. -#}
+{# Eerst platgeslagen tot een lijst met rijen, zodat groupby een gewoon
+   attribuut heeft en de tabellus niet hoeft te weten dat `devices` een
+   mapping is. dictsort maakt de volgorde binnen een type vast; groupby
+   sorteert de types zelf, dus een tweede run geeft geen diff. -#}
 {% set dagen = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] -%}
 {% set dagnaam = {'mon': 'ma', 'tue': 'di', 'wed': 'wo', 'thu': 'do', 'fri': 'vr', 'sat': 'za', 'sun': 'zo'} -%}
 {% set rows = [] -%}
@@ -19,7 +19,6 @@ import { Callout } from 'nextra/components'
      'mac': d.mac,
      'ip': d.ip | default(''),
      'note': d.note | default(''),
-     'profile': d.type in devices_profile_types,
      'dns': d.dns | default({})
    }) -%}
 {% endfor %}
@@ -38,19 +37,17 @@ weten: `roles/adguard` maakt de naam `<toestel>.{{ adguard_rewrite_domain }}` en
 zet het filterbeleid uit het `dns`-blok. Elke host uit de inventory krijgt langs
 dezelfde weg `<host>.{{ adguard_rewrite_domain }}`.
 
-De router blijft handwerk. Een vast adres toekennen is twintig seconden klikken
-en gebeurt één keer per toestel; daar is een playbook voor duurder dan het
-oplevert.
+Doorvoeren na een wijziging: `ansible-playbook playbooks/site.yml --tags dns`.
 
-{# The blank lines inside the loops are deliberate. Ansible renders with
-   trim_blocks on, so the newline after a block tag is eaten; without these a
-   table runs straight into the next heading and Markdown stops seeing it as
-   one. -#}
 {% if rows | length == 0 %}
 Er staan nog geen toestellen in de lijst. Voeg er een toe in
 `inventory/group_vars/all/devices.yml`; het bestand bevat voorbeelden om te
 kopiëren.
 {% endif %}
+{# De lege regels in de lussen staan er met opzet. Ansible rendert met
+   trim_blocks aan, dus de newline na een blok-tag verdwijnt; zonder die
+   regels loopt een tabel rechtstreeks door in de volgende kop en ziet
+   Markdown het niet meer als tabel. -#}
 {% for type, group in rows | groupby('type') %}
 
 ## {{ type }}
@@ -63,10 +60,6 @@ kopiëren.
 {% for r in group if r.note %}
 
 {{ r.name }} — {{ r.note }}
-{% endfor %}
-{% for r in group if r.profile %}
-
-{{ r.name }} — [DNS-profiel](/profielen/{{ r.name }}.mobileconfig)
 {% endfor %}
 {% for r in group if r.dns %}
 
@@ -81,37 +74,3 @@ kopiëren.
  ) | join(' · ') }}
 {% endfor %}
 {% endfor %}
-
-{% if rows | selectattr('profile') | list | length > 0 %}
-## Telefoonprofielen
-
-Een telefoon wisselt van MAC-adres per netwerk, dus de reservering hierboven
-zegt AdGuard niet welke telefoon er vraagt. Het profiel wel: het laat het
-toestel DNS-over-HTTPS spreken met `https://dns.{{ caddy_domain }}/dns-query/<toestel>`,
-en dat laatste stuk is het client-ID waaronder AdGuard de vragen toont.
-Elk toestel van type {{ devices_profile_types | map('regex_replace', '^(.*)$', '`\\1`') | join(', ') }}
-krijgt er een; de links staan bij het toestel.
-
-Installeren, op de telefoon zelf:
-
-1. Open de link in Safari. iOS vraagt of het profiel gedownload mag worden.
-2. Instellingen → **Profiel gedownload** → **Installeer**.
-3. Controleer in AdGuard onder *Querylog* dat de vragen op de naam van het
-   toestel binnenkomen.
-
-{% if devices_profile_ssids | length > 0 %}
-Het profiel is alleen actief op {{ devices_profile_ssids | map('regex_replace', '^(.*)$', '`\\1`') | join(', ') }}.
-Elders gebruikt de telefoon de DNS van het netwerk waar hij op zit.
-{% else %}
-Het profiel staat altijd aan, ook buitenshuis. Dat werkt alleen zolang
-`dns.{{ caddy_domain }}` van daar bereikbaar is; iOS valt niet terug op gewone
-DNS als de versleutelde server niet antwoordt. Wie dat niet wil, zet de
-thuisnetwerken in `devices_profile_ssids`.
-{% endif %}
-
-Weghalen: Instellingen → Algemeen → VPN en apparaatbeheer → het profiel →
-**Verwijder profiel**.
-
-Gegenereerd uit dezelfde `devices`; het profiel zelf uit
-`playbooks/templates/profiles/dns.mobileconfig.j2`.
-{% endif %}

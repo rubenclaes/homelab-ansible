@@ -63,25 +63,6 @@
         dest: "{{ docs_site }}/content/technisch/toestellen.mdx"
         mode: "0644"
 
-    # Wiped and rebuilt like the service pages: a phone that leaves the list
-    # must not keep a downloadable profile behind. Next copies public/ into
-    # the export as it is, so these land at /profielen/<name>.mobileconfig.
-    - name: Clear the DNS profiles
-      ansible.builtin.file:
-        path: "{{ docs_site }}/public/profielen"
-        state: "{{ item }}"
-        mode: "0755"
-      loop: [absent, directory]
-
-    - name: Render one DNS profile per phone
-      ansible.builtin.template:
-        src: profiles/dns.mobileconfig.j2
-        dest: "{{ docs_site }}/public/profielen/{{ item.key }}.mobileconfig"
-        mode: "0644"
-      loop: "{{ devices | dict2items | selectattr('value.type', 'in', devices_profile_types) | sort(attribute='key') }}"
-      loop_control:
-        label: "{{ item.key }}"
-
     # Wiped and rebuilt rather than overwritten: a service deleted from
     # caddy_sites must not leave its page behind, and a stale page looks live.
     # Same absent -> directory swap this playbook already uses when publishing.

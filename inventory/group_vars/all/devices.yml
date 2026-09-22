@@ -7,7 +7,7 @@
 # `adguard` role reads it and does two things over the API:
 #
 #   a DNS name      <device>.home.arpa, from `ip`
-#   a client        so the query log says "ipad-kinderen" instead of an
+#   a client        so AdGuard knows this device by name rather than by
 #                   address, with the filtering policy from the `dns` block
 #
 # What this file is NOT for is the router. Reserving an address there is
@@ -22,8 +22,8 @@
 # phone.
 #
 # MACs are lowercase with colons; the key is lowercase letters, digits and
-# hyphens. docs.yml asserts both, because the key becomes a DNS name, a file
-# name and the AdGuard client ID all at once.
+# hyphens. docs.yml asserts both, because the key becomes a DNS name and the
+# AdGuard client ID.
 #
 # --- The `dns` block ------------------------------------------------------
 # Optional. Leave it out and the device uses AdGuard's global settings; it
@@ -82,18 +82,6 @@
 #         mon: { from: "16:00", to: "20:00" }
 #         sat: { from: "09:00", to: "21:00" }
 devices: {}
-
-# Which device types get a DNS-over-HTTPS profile. A profile is the only way
-# to have a phone use AdGuard by name: its MAC changes per network, so the
-# reservation cannot identify it, and the client ID in the profile's URL can.
-devices_profile_types: [phone, tablet]
-
-# Wi-Fi networks on which the profile is active. Empty means always, wherever
-# the device is - which needs dns.<domain> to be reachable from there, or the
-# device has no DNS at all: iOS does not fall back to plain DNS when the
-# encrypted resolver is unreachable. Name the home network(s) here to limit
-# the profile to them.
-devices_profile_ssids: []
 
 # Time zone for every `allowed` schedule. AdGuard stores one per client; this
 # keeps them from drifting apart.
