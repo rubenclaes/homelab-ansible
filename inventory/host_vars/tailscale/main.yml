@@ -2,8 +2,9 @@
 # OAuth client for the Tailscale API, made in the admin console with the
 # single scope auth_keys and the tag tag:homelab. With it, roles/tailscale
 # joins this node by itself after a rebuild, and playbooks/tailscale-key.yml
-# mints keys for devices. Defined in the encrypted vault.yml next to this
-# file; until that exists the role only reports, which is the old behaviour.
+# mints a key for anything else that needs one. Defined in the encrypted
+# vault.yml next to this file; until that exists the role only reports, which
+# is the old behaviour.
 #
 # The client can make auth keys and nothing else. Leaking it means someone
 # can add tagged nodes to the tailnet, not read or change anything on it.

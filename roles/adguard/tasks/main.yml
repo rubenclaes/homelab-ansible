@@ -1,6 +1,6 @@
 ---
 # Installs the AdGuard Home binary and its unit, then syncs the DNS rewrite
-# list and the per-device client policy over the REST API.
+# list over the REST API (rewrites.yml).
 #
 # It does NOT manage AdGuardHome.yaml or data/. That file holds the admin
 # password hash, the upstream resolvers and every filter rule, it is edited
@@ -73,6 +73,3 @@
 
 - name: Sync the DNS rewrites
   ansible.builtin.import_tasks: rewrites.yml
-
-- name: Sync the per-device client policy
-  ansible.builtin.import_tasks: clients.yml

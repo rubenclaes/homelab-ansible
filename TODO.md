@@ -41,11 +41,6 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       Zonder client blijft aanmelden na een herbouw handwerk. Wat de node nu
       adverteert hoort in `tailscale_up_extra_args`.
 
-- [ ] **`devices.yml` vullen.** De lijst is leeg met voorbeelden in
-      commentaar. MAC-adressen en vaste adressen staan in UniFi onder Clients;
-      de reservering zelf zet je daar met de hand. Draai de eerste keer met
-      `--check --diff`.
-
 ---
 
 ## Semaphore — automatiseren wat nu van jouw geheugen afhangt

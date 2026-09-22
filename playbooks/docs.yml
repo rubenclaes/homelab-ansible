@@ -21,7 +21,6 @@
     pve_lxc_defaults: "{{ hostvars['pve01'].pve_lxc_defaults }}"
     docker_stacks_list: "{{ hostvars['docker'].docker_stacks_list }}"
     docker_stacks_wait_for_mounts: "{{ hostvars['docker'].docker_stacks_wait_for_mounts }}"
-    adguard_rewrite_domain: "{{ hostvars['adguard'].adguard_rewrite_domain }}"
   tasks:
     # A tile that points at a service which no longer exists is worse than no
     # tile: it looks live and 404s. Fail the run instead of rendering it.
@@ -39,11 +38,6 @@
             | difference(directory_categories.keys() | list) | join(', ') | default('none', true) }}.
         success_msg: "{{ directory_services | length }} tiles, all routed."
 
-    # Shared with devices.yml, which acts on this list rather than only
-    # rendering it. See playbooks/tasks/check_devices.yml.
-    - name: Check the device list
-      ansible.builtin.import_tasks: tasks/check_devices.yml
-
     - name: Render the generated reference pages
       ansible.builtin.template:
         src: "docs/{{ item }}.md.j2"
@@ -55,12 +49,6 @@
       ansible.builtin.template:
         src: docs/diensten.md.j2
         dest: "{{ docs_site }}/content/diensten.mdx"
-        mode: "0644"
-
-    - name: Render the device list
-      ansible.builtin.template:
-        src: docs/toestellen.md.j2
-        dest: "{{ docs_site }}/content/technisch/toestellen.mdx"
         mode: "0644"
 
     # Wiped and rebuilt rather than overwritten: a service deleted from

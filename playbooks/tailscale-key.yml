@@ -1,12 +1,16 @@
 ---
-# Mints one single-use, pre-authorised Tailscale key for a device from
-# devices.yml and prints it once.
+# Mints one single-use, pre-authorised Tailscale key and prints it once.
 #
-#   ansible-playbook playbooks/tailscale-key.yml -e device=pc-ouders
+#   ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 #
 # For things with a command line - a Windows PC, a NAS, a Raspberry Pi - where
 # `tailscale up --auth-key=...` is how you join. NOT for phones: the iOS and
 # Android apps sign in through a browser and have nowhere to paste a key.
+#
+# `label` is free text. It becomes the key's description in the admin console
+# and is the only trace the key leaves, so make it something you recognise.
+# Not called `name`, because that is a task keyword and Ansible would read it
+# in places where a variable was meant.
 #
 # Run it from the workstation, not from Semaphore: the key is printed, and a
 # Semaphore task log would keep it.
@@ -16,22 +20,24 @@
 # run locally, and override the linux group's ansible_become, which would
 # otherwise sudo on the workstation. A play-level var overriding inventory is
 # exactly the trap README warns about; here it is the point.
-- name: Tailscale key for one device
+- name: Tailscale key
   hosts: tailscale
   gather_facts: false
   vars:
     ansible_connection: local
     ansible_become: false
   tasks:
-    - name: Require a device from the list
+    # `is match` rather than `| regex_search`: the filter returns None when it
+    # does not match, and a conditional has to be a boolean.
+    - name: Require a label for the key
       ansible.builtin.assert:
         that:
-          - device is defined
-          - device in devices
+          - label is defined
+          - label is match('^[a-z0-9][a-z0-9-]*$')
         fail_msg: >-
-          Pass -e device=<name>, one of: {{ devices.keys() | sort | join(', ') }}.
-          A device that is not in inventory/group_vars/all/devices.yml gets no key;
-          add it there first.
+          Pass -e label=<naam>, lowercase letters, digits and hyphens. It
+          becomes the key's description in the Tailscale admin console, so
+          make it something you will recognise later.
         quiet: true
 
     # public: the role's defaults (tag, expiry) stay visible for the message
@@ -42,7 +48,7 @@
         tasks_from: mint_key
         public: true
       vars:
-        tailscale_key_description: "device-{{ device }}"
+        tailscale_key_description: "device-{{ label }}"
         tailscale_key_tags: "{{ tailscale_tags }}"
 
     # Shown once, on purpose. The API cannot show it again; if it is lost,
@@ -50,7 +56,7 @@
     - name: Show the key
       ansible.builtin.debug:
         msg:
-          - "Single-use key for {{ device }} ({{ devices[device].owner }}), id {{ tailscale_minted_key_id }}, valid {{ tailscale_key_expiry_seconds }}s:"
+          - "Single-use key for {{ label }}, id {{ tailscale_minted_key_id }}, valid {{ tailscale_key_expiry_seconds }}s:"
           - "{{ tailscale_minted_key }}"
           - "On the device: tailscale up --auth-key={{ tailscale_minted_key }}"
           - "It joins pre-authorised, tagged {{ tailscale_tags | join(', ') }}, and the key is spent."
