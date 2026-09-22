@@ -48,11 +48,34 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       Proxmox-inventory heeft weggehaald. Draai hem zodra de
       Local Network-toestemming aan staat, dan komen ze uit de echte bron.
 
-- [ ] **Tailscale OAuth-client maken** en in
-      `inventory/host_vars/tailscale/vault.yml` zetten. Scope `auth_keys`, tag
-      `tag:homelab`, en die tag moet in de policy onder `tagOwners` staan.
-      Zonder client blijft aanmelden na een herbouw handwerk. Wat de node nu
-      adverteert hoort in `tailscale_up_extra_args`.
+- [ ] **Controleren of `tag:homelab` in de tailnet-policy staat.**
+      De OAuth-client staat sinds 22-09 in
+      `inventory/host_vars/tailscale/vault.yml` en is half nagekeken: het
+      token-endpoint geeft 200 en de scope is precies `auth_keys`, dus id en
+      secret kloppen. Wat NIET nagekeken is, is of `tag:homelab` onder
+      `tagOwners` staat met deze client als eigenaar - dat bewijs je alleen
+      door echt een sleutel te maken, en dat is hier niet gedaan. Draai dit
+      één keer; komt er een sleutel uit, dan klopt de hele keten:
+
+        TOKEN=$(curl -s -X POST https://api.tailscale.com/api/v2/oauth/token \
+          -d client_id=<id> -d client_secret=<secret> | jq -r .access_token)
+        curl -s -X POST https://api.tailscale.com/api/v2/tailnet/-/keys \
+          -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+          -d '{"description":"test","expirySeconds":600,"capabilities":
+               {"devices":{"create":{"reusable":false,"ephemeral":false,
+                "preauthorized":true,"tags":["tag:homelab"]}}}}' | jq '.id,.expires'
+
+      Faalt hij, dan zegt de fout meestal iets over permissions en niet over
+      de tag, en moet je in de policy onder `tagOwners` kijken.
+
+      Let op: dit is geen haast. De node staat al op de tailnet
+      (100.79.171.109), dus `tailscale_backend_state` is `Running` en de rol
+      slaat het aanmelden over. De client doet pas iets bij een herbouw, of
+      via `playbooks/tailscale-key.yml`. Precies dan wil je niet ontdekken
+      dat de tag niet klopt.
+
+- [ ] **Wat de node nu adverteert hoort in `tailscale_up_extra_args`.**
+      Nu staat het alleen in de staat van die ene container.
 
 ---
 
