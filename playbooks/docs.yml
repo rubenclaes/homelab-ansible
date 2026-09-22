@@ -25,7 +25,8 @@
     docs_services: "{{ docs_site }}/content/technisch/services"
     # Read straight off the caddy host. Safe here because none of these values
     # contain a template themselves. A var whose VALUE is a hostvars template -
-    # caddy_tinyauth_upstream is the one - cannot be read from a localhost play;
+    # caddy_tinyauth_upstream was one, until it was removed - cannot be read
+    # from a localhost play;
     # that is what broke docs.yml and report.yml before.
     caddy_domain: "{{ hostvars['caddy'].caddy_domain }}"
     caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"

@@ -6,7 +6,6 @@
 {% set up = s.upstream | default((h.ansible_host | default('?')) ~ ':' ~ (s.port | default('?'))) -%}
 {% set flags = [] -%}
 {% if s.https | default(false) %}{% set _ = flags.append('TLS-upstream') %}{% endif -%}
-{% if s.auth | default(false) %}{% set _ = flags.append('achter tinyauth') %}{% endif -%}
 {% if s.forwarded | default(false) %}{% set _ = flags.append('forwarded headers') %}{% endif -%}
 {% if s.host_header | default(false) %}{% set _ = flags.append('host-header doorgegeven') %}{% endif -%}
 {# proxmox_all_* en proxmox_pve01_* zijn artefacten van de dynamische Proxmox-

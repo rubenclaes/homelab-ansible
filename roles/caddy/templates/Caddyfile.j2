@@ -60,12 +60,6 @@
 	}
 }
 
-(tinyauth_forwarder) {
-	forward_auth {{ caddy_tinyauth_upstream }} {
-		uri /api/auth/caddy
-	}
-}
-
 (https_upstream_insecure) {
 	transport http {
 		tls_insecure_skip_verify
@@ -121,9 +115,6 @@ docs.{{ caddy_domain }} {
 {% set upstream = site.upstream | default(hostvars[site.host]['ansible_host'] ~ ':' ~ site.port) %}
 {{ site.name }}.{{ caddy_domain }} {
 	import proxy_defaults
-{% if site.auth | default(false) %}
-	import tinyauth_forwarder
-{% endif %}
 {% if site.https | default(false) or site.host_header | default(false) or site.forwarded | default(false) %}
 	reverse_proxy {{ 'https://' if site.https | default(false) else '' }}{{ upstream }} {
 {% if site.https | default(false) %}

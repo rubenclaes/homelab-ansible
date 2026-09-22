@@ -15,14 +15,14 @@ caddy_domain: neodata.be
 #             overrides host/port when present
 #
 # Flags: https (upstream speaks TLS with a self-signed cert), host_header
-# (pass the original Host through), forwarded (add X-Real-IP / X-Forwarded-*),
-# auth (require tinyauth).
-# Safe because it is only ever resolved while rendering the Caddyfile on the
-# caddy host, where hostvars is populated. A var containing hostvars[...] is
-# NOT safe to read from a localhost-delegated task: arg finalisation there
-# fails with "'hostvars' is undefined". That is what broke docs.yml and
-# report.yml, whose addresses are literal for this reason.
-caddy_tinyauth_upstream: "{{ hostvars['macmini']['ansible_host'] }}:3000"
+# (pass the original Host through), forwarded (add X-Real-IP / X-Forwarded-*).
+#
+# Er was ook een `auth`-vlag, die een site achter tinyauth zette. Die is op
+# 22-09 weg: tinyauth draaide nergens meer, geen enkele site gebruikte de
+# vlag, en `caddy_tinyauth_upstream` wees naar een dode poort op de Mac mini.
+# Wil je ooit weer een site achter een forward_auth, bouw hem dan opnieuw
+# tegen wat er dan draait - een snippet dat naar niets wijst is erger dan
+# geen snippet.
 
 caddy_sites:
   - { name: memos, host: docker, port: 5230, desc: "Memos - snelle notities" }
@@ -83,12 +83,6 @@ caddy_sites:
   # (8096) zijn weg - geen container, geen proces, niets op de poort. Die drie
   # routes stonden hier nog wel, en een route die een 502 teruggeeft is erger
   # dan geen route: tijdens een storing kost hij je de eerste tien minuten.
-  #
-  # tinyauth is ook nergens in gebruik: geen enkele site in deze lijst zet
-  # `auth: true`, dus het snippet tinyauth_forwarder in de Caddyfile wordt
-  # nooit geimporteerd. caddy_tinyauth_upstream hierboven wijst dus naar een
-  # dode poort, maar doet niets. Laat staan tot je beslist of tinyauth
-  # terugkomt; zet je hem niet terug, dan kunnen de var en het snippet weg.
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
   - { name: duplicati, host: macmini, port: 8200, desc: "Back-ups vanaf de Mac mini" }
   - { name: auth, host: macmini, port: 1411, desc: "Pocket ID — oude instantie, wordt uitgefaseerd" } # TODO: old Pocket ID instance

@@ -135,11 +135,11 @@ docker_stacks_docker_cli: /usr/local/bin/docker
 # van het .env-bestand onder files/env/, `path` is de map in de repo.
 #
 # env: false betekent "deze stack heeft geen .env", niet "de secrets doen er
-# niet toe". Alleen Grimmory en pocketid hebben er een op de schijf staan.
-# Grimmory's .env staat inmiddels gevault onder files/env/grimmory.env.
+# niet toe". Grimmory en Duplicati staan gevault onder files/env/; pocketid
+# heeft er wel een op de schijf maar wacht op het uitfaseer-besluit.
 docker_stacks_list:
   - { name: alloy, path: Alloy, env: false }
-  - { name: duplicati, path: Duplicati, env: false }   # secrets staan hard in de compose, zie TODO
+  - { name: duplicati, path: Duplicati }   # .env gevault onder `stacks`
   - { name: grimmory, path: Grimmory }
   - { name: portainer, path: Portainer, env: false }
   - { name: recyclarr, path: recyclarr, env: false }

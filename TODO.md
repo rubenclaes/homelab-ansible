@@ -9,11 +9,6 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Nu — hier kan iets misgaan
 
-- [ ] **De Semaphore-template "Update guests" patcht Semaphore zelf.**
-      Zet de limit op `guests:!semaphore`; die machine patch je met de hand.
-      Herstart Semaphore halverwege, dan is de job dood en weet je niet of de
-      upgrade af is.
-
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
@@ -62,13 +57,6 @@ de API beschrijven.
       uit. Zolang dit niet beslist is staat pocketid met opzet níét in
       `docker_stacks_list` van de Mini: anders vault je de secrets van een
       dienst die je volgende maand uitzet.
-
-- [ ] **`tinyauth` bestaat niet meer, maar de machinerie wel.**
-      De route is weg (22-09), maar `caddy_tinyauth_upstream` in
-      `host_vars/caddy/main.yml` en het snippet `tinyauth_forwarder` in de
-      Caddyfile staan er nog. Geen enkele site zet `auth: true`, dus het
-      snippet wordt nooit geïmporteerd en de var wijst naar een dode poort.
-      Komt tinyauth niet terug, dan kunnen beide weg.
 
 ---
 
@@ -126,30 +114,25 @@ de API beschrijven.
             `host_vars/macmini.yml` en de docker-host mount ze alle drie, maar
             niets zet ze terug als de Mini opnieuw opgebouwd wordt.
 
-- [ ] **Secrets staan hard in `Duplicati/docker-compose.yml`** in
-      `rubenclaes/homelab` - `SETTINGS_ENCRYPTION_KEY` en
-      `DUPLICATI__WEBSERVICE_PASSWORD`, beide `helipost`. De repo is privé,
-      dus dit is geen brand, maar ze staan in de historie en zijn niet te
-      roteren zonder de compose-file aan te raken. Naar een `.env`, en dan
-      naar `files/env/duplicati.env` onder de `stacks`-identiteit, zoals elke
-      andere stack hier. De stack staat al in `docker_stacks_list` met
-      `env: false`; dat wordt dan weer de standaard.
+- [ ] **De Duplicati-secrets roteren.** Ze staan sinds 22-09 niet meer hard
+      in de compose-file: die leest nu `${SETTINGS_ENCRYPTION_KEY}` en
+      `${DUPLICATI__WEBSERVICE_PASSWORD}` uit een `.env`, gevault onder
+      `stacks` in `files/env/duplicati.env`, net als elke andere stack hier.
+      De waarden zijn niet veranderd, dus er is niets herbouwd.
 
-- [x] **Bewezen dat een back-up terugkomt.** `restore-drill.yml` is op 22-09
-      voor het eerst echt gedraaid en geslaagd: `ok=22, changed=6, failed=0`.
-      Hij zette `pbs:backup/ct/107/2026-09-22T00:34:14Z` van adguard terug op
-      vmid 199, haalde net0 eraf, startte hem, las er
-      `/opt/AdGuardHome/AdGuardHome.yaml` uit (3896 bytes) en sloopte hem
-      weer. vmid 199 is daarna gecontroleerd en vrij.
+      Wat blijft: ze staan nog in de historie van `rubenclaes/homelab`, en
+      die krijg je er niet uit zonder de historie te herschrijven. Roteren is
+      het echte antwoord, maar het is niet gratis:
 
-      Daarmee is bewezen wat er te bewijzen viel: PBS is bereikbaar, de
-      encryptiesleutel werkt, het archief is leesbaar, en er komt echte staat
-      uit terug - niet alleen een container die start.
+      - `DUPLICATI__WEBSERVICE_PASSWORD` is gewoon een wachtwoord - nieuwe
+        waarde in de vault, stack opnieuw uitrollen, klaar.
+      - `SETTINGS_ENCRYPTION_KEY` ontsleutelt Duplicati's eigen
+        instellingen-database. Verander je die zomaar, dan kan hij zijn
+        configuratie niet meer lezen en mag je al je back-upjobs opnieuw
+        aanmaken. Dat hoort via Duplicati zelf te gaan, niet via een
+        variabele.
 
-      - [ ] **Op een schema in Semaphore zetten.** Een drill die je alleen
-            draait als je eraan denkt, draai je precies niet in het half jaar
-            waarin de back-ups stilletjes stukgaan. Nu hij één keer groen is,
-            is dit het enige dat hem betrouwbaar houdt.
+      Doe dat eerste stuk gerust los; het tweede vraagt een rustig moment.
 
 - [ ] **De monitoring-stack herstart bij de eerste beheerde run.**
       `docker compose up --dry-run` op docker-grafana-stack zegt Recreate voor

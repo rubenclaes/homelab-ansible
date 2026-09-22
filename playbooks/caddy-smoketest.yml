@@ -4,7 +4,7 @@
 #   ansible-playbook playbooks/caddy-smoketest.yml
 #
 # Een 5xx of een verbinding die niet tot stand komt telt als stuk; een 401 of
-# een redirect niet, want dat is tinyauth die zijn werk doet.
+# een redirect niet, want dat is een dienst die zelf om inloggen vraagt.
 #
 # Draai dit na caddy.yml en na caddy-upgrade.yml. Niet in site.yml: het
 # controleert, het convergeert niet.

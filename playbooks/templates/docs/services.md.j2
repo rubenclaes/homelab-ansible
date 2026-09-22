@@ -20,7 +20,7 @@ het upstream-adres en de instellingen.
 | Service | Poort | Wat het is | Opmerkingen |
 | --- | --- | --- | --- |
 {% for s in sites | sort(attribute='name') -%}
-| [{{ s.name }}](/technisch/services/{{ s.name }}/) | `{{ s.port | default(s.upstream) }}` | {{ s.desc | default('_niet gedocumenteerd_') }} | {% if s.https | default(false) %}TLS-upstream. {% endif %}{% if s.auth | default(false) %}Achter tinyauth. {% endif %}{% if s.forwarded | default(false) %}Forwarded headers. {% endif %}{% if s.host_header | default(false) %}Host-header doorgegeven. {% endif %} |
+| [{{ s.name }}](/technisch/services/{{ s.name }}/) | `{{ s.port | default(s.upstream) }}` | {{ s.desc | default('_niet gedocumenteerd_') }} | {% if s.https | default(false) %}TLS-upstream. {% endif %}{% if s.forwarded | default(false) %}Forwarded headers. {% endif %}{% if s.host_header | default(false) %}Host-header doorgegeven. {% endif %} |
 {% endfor %}
 
 {% endfor %}
