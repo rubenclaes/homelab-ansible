@@ -8,6 +8,8 @@ import { Callout } from 'nextra/components'
    on and the table loop does not need to know that `devices` is a mapping.
    dictsort makes the order within a type deterministic; groupby sorts the
    types themselves, so a second run produces no diff. -#}
+{% set dagen = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] -%}
+{% set dagnaam = {'mon': 'ma', 'tue': 'di', 'wed': 'wo', 'thu': 'do', 'fri': 'vr', 'sat': 'za', 'sun': 'zo'} -%}
 {% set rows = [] -%}
 {% for name, d in devices | dictsort -%}
 {% set _ = rows.append({
@@ -17,7 +19,9 @@ import { Callout } from 'nextra/components'
      'mac': d.mac,
      'ip': d.ip | default(''),
      'note': d.note | default(''),
-     'profile': d.type in devices_profile_types
+     'profile': d.type in devices_profile_types,
+     'dns': d.dns | default({}),
+     'group': d.group | default('')
    }) -%}
 {% endfor %}
 
@@ -29,12 +33,15 @@ Machines mét SSH staan onder [Hosts](/technisch/hosts/) — die komen uit de
 inventory, niet uit deze lijst.
 </Callout>
 
-Adressen zijn reserveringen in de router, geen metingen. De lijst legt vast wat
-er hoort te staan; niets hier dwingt het af.
+Deze pagina beschrijft niet wat er is, maar wat er hoort te gelden.
+`playbooks/devices.yml` zet het door naar de twee systemen die een toestel
+zonder SSH kunnen configureren: de UniFi-gateway reserveert het adres en zet de
+naam, AdGuard maakt de DNS-naam `<toestel>.{{ adguard_rewrite_domain }}` en past
+het filterbeleid toe. Een toestel dat hier staat maar nog nooit verbonden heeft,
+is dus al ingericht vóór je het uitpakt.
 
-Elk toestel mét adres heeft ook een naam: `<toestel>.{{ adguard_rewrite_domain }}`.
-Die zet `roles/adguard` via de API in AdGuard, uit dezelfde lijst, samen met
-`<host>.{{ adguard_rewrite_domain }}` voor elke host uit de inventory.
+Elke host uit de inventory krijgt langs dezelfde weg
+`<host>.{{ adguard_rewrite_domain }}`.
 
 {# The blank lines inside the loops are deliberate. Ansible renders with
    trim_blocks on, so the newline after a block tag is eaten; without these a
@@ -56,6 +63,19 @@ Die zet `roles/adguard` via de API in AdGuard, uit dezelfde lijst, samen met
 {% for r in group if r.profile %}
 
 {{ r.name }} — [DNS-profiel](/profielen/{{ r.name }}.mobileconfig)
+{% endfor %}
+{% for r in group if r.dns or r.group %}
+
+{{ r.name }} — {{ (
+     (['geen filtering'] if r.dns.filtering is defined and not r.dns.filtering else [])
+   + (['safe search'] if r.dns.safe_search | default(false) else [])
+   + (['parental control'] if r.dns.parental | default(false) else [])
+   + (['safe browsing'] if r.dns.safebrowsing | default(false) else [])
+   + (['geblokkeerd: ' ~ (r.dns.blocked_services | join(', '))] if r.dns.blocked_services | default([]) else [])
+   + (['toegestaan ' ~ (dagen | select('in', r.dns.allowed) | map('extract', dagnaam) | zip(dagen | select('in', r.dns.allowed) | map('extract', r.dns.allowed) | map(attribute='from')) | map('join', ' ') | zip(dagen | select('in', r.dns.allowed) | map('extract', r.dns.allowed) | map(attribute='to')) | map('join', '-') | join(', '))] if r.dns.allowed | default({}) else [])
+   + (['eigen upstream'] if r.dns.upstreams | default([]) else [])
+   + (['bandbreedtegroep ' ~ r.group] if r.group else [])
+ ) | join(' · ') }}
 {% endfor %}
 {% endfor %}
 

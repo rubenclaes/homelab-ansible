@@ -13,12 +13,15 @@ Machines mét SSH staan onder [Hosts](/technisch/hosts/) — die komen uit de
 inventory, niet uit deze lijst.
 </Callout>
 
-Adressen zijn reserveringen in de router, geen metingen. De lijst legt vast wat
-er hoort te staan; niets hier dwingt het af.
+Deze pagina beschrijft niet wat er is, maar wat er hoort te gelden.
+`playbooks/devices.yml` zet het door naar de twee systemen die een toestel
+zonder SSH kunnen configureren: de UniFi-gateway reserveert het adres en zet de
+naam, AdGuard maakt de DNS-naam `<toestel>.home.arpa` en past
+het filterbeleid toe. Een toestel dat hier staat maar nog nooit verbonden heeft,
+is dus al ingericht vóór je het uitpakt.
 
-Elk toestel mét adres heeft ook een naam: `<toestel>.home.arpa`.
-Die zet `roles/adguard` via de API in AdGuard, uit dezelfde lijst, samen met
-`<host>.home.arpa` voor elke host uit de inventory.
+Elke host uit de inventory krijgt langs dezelfde weg
+`<host>.home.arpa`.
 
 
 ## phone
@@ -33,7 +36,21 @@ iphone-ruben — [DNS-profiel](/profielen/iphone-ruben.mobileconfig)
 
 | Toestel | Van wie | MAC | Adres |
 | --- | --- | --- | --- |
-| **printer** | gedeeld | `77:88:99:aa:bb:cc` | — |
+| **printer** | gedeeld | `77:88:99:aa:bb:cc` | `192.168.0.71` |
+
+printer — geen filtering
+
+## tablet
+
+| Toestel | Van wie | MAC | Adres |
+| --- | --- | --- | --- |
+| **ipad-kinderen** | kinderen | `aa:bb:cc:dd:ee:01` | `192.168.0.62` |
+
+ipad-kinderen — Deelt het profiel met de telefoon van de kinderen
+
+ipad-kinderen — [DNS-profiel](/profielen/ipad-kinderen.mobileconfig)
+
+ipad-kinderen — safe search · parental control · geblokkeerd: tiktok, youtube · toegestaan ma 16:00-20:00, di 16:00-20:00, wo 13:00-20:00, do 16:00-20:00, vr 16:00-21:00, za 09:00-21:00, zo 09:00-20:00
 
 ## tv
 
@@ -49,7 +66,7 @@ Een telefoon wisselt van MAC-adres per netwerk, dus de reservering hierboven
 zegt AdGuard niet welke telefoon er vraagt. Het profiel wel: het laat het
 toestel DNS-over-HTTPS spreken met `https://dns.neodata.be/dns-query/<toestel>`,
 en dat laatste stuk is het client-ID waaronder AdGuard de vragen toont.
-Elk toestel van type `phone`
+Elk toestel van type `phone`, `tablet`
 krijgt er een; de links staan bij het toestel.
 
 Installeren, op de telefoon zelf:

@@ -3,31 +3,67 @@
 # TV, the printer, the parents' PC. Machines with SSH live in the inventory
 # and stay there - one fact, one place.
 #
-# The MAC is the identifier, not the IP. Same reason pve_vms records them: a
-# new MAC means a new DHCP lease. The router at 192.168.0.1 hands out the
-# addresses; `ip` here is the reservation set there, written down so a rebuilt
-# router can be put back the way it was. Nothing in this repo enforces it.
+# This is NOT a register. It is the desired state of a device, and
+# playbooks/devices.yml pushes it to the two systems that can actually
+# configure something without logging in:
 #
-# A device with no reservation simply has no `ip`. That is normal for a guest's
-# phone and is not a gap.
+#   UniFi    creates the client on its MAC and reserves `ip` for it. It does
+#            this for a device that has never connected, so a new phone is
+#            fully prepared before it is unboxed.
+#   AdGuard  gives it a named client, so the query log says "ipad-kinderen"
+#            instead of an address, and applies the `dns` policy below.
 #
-# MACs are lowercase with colons. docs.yml asserts the form, so two spellings
-# cannot become two devices.
+# The MAC is the identifier, not the IP. A new MAC means a new device. `ip` is
+# the reservation UniFi hands out, and unlike before it is now enforced rather
+# than written down: a device with no `ip` simply gets no reservation, which
+# is normal for a guest's phone.
 #
-# The key does three things beyond naming the row, so it is lowercase letters,
-# digits and hyphens only (docs.yml asserts that too):
-#   - a device with an `ip` gets the DNS name <key>.home.arpa in AdGuard, set
-#     by roles/adguard over the API together with the inventory hosts;
-#   - a device whose `type` is in devices_profile_types gets a DNS profile at
-#     https://docs.<domain>/profielen/<key>.mobileconfig, in which <key> is
-#     the AdGuard client ID, so its queries are attributed to it by name;
-#   - playbooks/tailscale-key.yml mints a Tailscale key described with it.
+# MACs are lowercase with colons; the key is lowercase letters, digits and
+# hyphens. docs.yml asserts both, because the key becomes a DNS name, a file
+# name and the AdGuard client ID all at once.
+#
+# --- The `dns` block ------------------------------------------------------
+# Optional. Leave it out and the device uses AdGuard's global settings; it
+# still gets a named client, which is the point of naming it at all.
+#
+#   filtering: false          turn ad blocking off for this device
+#   safebrowsing / parental   AdGuard's own toggles, same meaning as the UI
+#   safe_search: true         force safe search on the big search engines
+#   blocked_services: [...]   service IDs as AdGuard spells them; the exact
+#                             list your version knows is at
+#                             `GET /control/blocked_services/all`
+#   allowed: {mon: {...}}     the window in which blocked_services are NOT
+#                             blocked. AdGuard stores a schedule of
+#                             *inactivity*, so this is an allowance, not a
+#                             ban. A day that is missing is blocked all day.
+#   upstreams: [...]          send this device's queries somewhere else
 devices:
   iphone-ruben:
     owner: Ruben
     type: phone
     mac: "aa:bb:cc:dd:ee:ff"
     ip: 192.168.0.60
+
+  ipad-kinderen:
+    owner: kinderen
+    type: tablet
+    mac: "aa:bb:cc:dd:ee:01"
+    ip: 192.168.0.62
+    note: "Deelt het profiel met de telefoon van de kinderen"
+    dns:
+      safe_search: true
+      parental: true
+      blocked_services: [tiktok, youtube]
+      # Kijken mag na school en in het weekend. Buiten deze vensters staan
+      # de diensten hierboven dicht.
+      allowed:
+        mon: { from: "16:00", to: "20:00" }
+        tue: { from: "16:00", to: "20:00" }
+        wed: { from: "13:00", to: "20:00" }
+        thu: { from: "16:00", to: "20:00" }
+        fri: { from: "16:00", to: "21:00" }
+        sat: { from: "09:00", to: "21:00" }
+        sun: { from: "09:00", to: "20:00" }
 
   tv-woonkamer:
     owner: gedeeld
@@ -40,16 +76,25 @@ devices:
     owner: gedeeld
     type: printer
     mac: "77:88:99:aa:bb:cc"
+    ip: 192.168.0.71
+    dns:
+      # A printer that cannot reach its vendor is a printer that sulks about
+      # cartridges. Nothing on it browses the web, so filtering buys nothing
+      # and only creates a failure mode nobody will think to look for.
+      filtering: false
 
 # Which device types get a DNS-over-HTTPS profile. A profile is the only way
 # to have a phone use AdGuard by name: its MAC changes per network, so the
 # reservation cannot identify it, and the client ID in the profile's URL can.
-devices_profile_types: [phone]
+devices_profile_types: [phone, tablet]
 
 # Wi-Fi networks on which the profile is active. Empty means always, wherever
-# the phone is - which needs dns.<domain> to be reachable from there, or the
-# phone has no DNS at all: iOS does not fall back to plain DNS when the
+# the device is - which needs dns.<domain> to be reachable from there, or the
+# device has no DNS at all: iOS does not fall back to plain DNS when the
 # encrypted resolver is unreachable. Name the home network(s) here to limit
-# the profile to them; away from home the phone then uses whatever the
-# network hands out.
+# the profile to them.
 devices_profile_ssids: []
+
+# Time zone for every `allowed` schedule. AdGuard stores one per client; this
+# keeps them from drifting apart.
+devices_dns_timezone: Europe/Brussels
