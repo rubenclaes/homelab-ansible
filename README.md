@@ -48,6 +48,7 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `bootstrap.yml` | nieuwe host | Maakt het `ansible`-serviceaccount. **Zie onder.** |
 | `proxmox-info.yml` | `pve01` | Lijst alle guests via de API. |
 | `proxmox-lxcs.yml` | `pve01` | Maakt ontbrekende LXCs uit `pve_lxcs`. |
+| `new-guest.yml` | `pve01` → nieuwe host | Maakt één container uit `pve_lxcs`, bootstrapt en baselinet hem. **Zie de runbook Nieuwe machine.** |
 | `proxmox-autostart.yml` | `pve01` | Zet `onboot=1` waar dat mist. |
 | `proxmox-access.yml` | `pve01` | Zet de rechten van het API-token; verifieert zichzelf. |
 | `proxmox-datacenter.yml` | `pve01` | Storage-definities en backup-jobs uit `pve_storages`/`pve_backup_jobs`. |

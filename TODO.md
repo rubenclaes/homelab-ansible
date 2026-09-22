@@ -91,6 +91,12 @@ backlog na drie maanden niet meer te lezen.
 
 ## Repo zelf
 
+- [ ] **De GitHub-actions draaien op Node 20 en dat wordt uitgefaseerd**
+      `actions/checkout@v4`, `actions/setup-python@v5` en `actions/cache@v4`
+      geven nu een waarschuwing. *Waarom:* het blijft een waarschuwing tot het
+      een fout wordt, en dan staat CI stil op een moment dat je iets anders
+      aan het doen bent. Bump de drie versies als je toch in dat bestand zit.
+
 - [ ] **Geen tests**
       Lint en `--syntax-check` zijn spellingscontrole. Niets bewijst dat een
       rol op een schone machine werkt.
@@ -138,6 +144,8 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] CI is groen: de twee "bestaande" lint-overtredingen zijn opgelost zonder de uitvoer te veranderen, en de workflow is nu ook handmatig te starten op een branch
+- [x] `new-guest.yml`: één commando van lege lijstregel tot gebaselinede container, met een runbook in gewone taal ernaast
 - [x] Toestellen krijgen hun filterbeleid uit `devices.yml`: een client per toestel in AdGuard, met safe search, geblokkeerde diensten en een schema
 - [x] De UniFi-rol weer verwijderd: een reservering zetten is twintig seconden klikken en woog niet op tegen een account, een vault en andermans API onderhouden
 - [x] `*.home.arpa`-namen voor hosts en toestellen in AdGuard, via de API; het scherm blijft eigenaar van `AdGuardHome.yaml`
