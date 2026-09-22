@@ -1,0 +1,45 @@
+---
+# Finds the web API and proves it can be used. Imported by both rewrites.yml
+# and clients.yml, guarded on adguard_http_port so a role run that does both
+# only pays for it once.
+- name: Require AdGuard API credentials
+  ansible.builtin.assert:
+    that:
+      - adguard_api_user is defined
+      - adguard_api_password is defined
+    fail_msg: >-
+      adguard_api_user / adguard_api_password are not set. They come from
+      vault_adguard_api_user and vault_adguard_api_password in
+      inventory/host_vars/adguard/vault.yml; create it with
+      `ansible-vault create --encrypt-vault-id infra inventory/host_vars/adguard/vault.yml`.
+    quiet: true
+
+# A host straight out of the install task has no AdGuardHome.yaml yet: the
+# setup wizard writes it. Say so, instead of failing on a missing file.
+- name: Check that AdGuard Home has been set up
+  ansible.builtin.stat:
+    path: "{{ adguard_dir }}/AdGuardHome.yaml"
+  register: adguard_config_stat
+
+- name: Require a completed setup wizard
+  ansible.builtin.assert:
+    that: adguard_config_stat.stat.exists
+    fail_msg: >-
+      {{ adguard_dir }}/AdGuardHome.yaml does not exist: AdGuard Home has not
+      been through its setup wizard. Open http://{{ ansible_host | default(inventory_hostname) }}:3000, finish
+      it, and run this role again.
+    quiet: true
+
+# The file also holds the admin password hash, hence no_log on everything
+# that carries its contents. Only the port survives into a fact.
+- name: Read the AdGuard Home configuration
+  ansible.builtin.slurp:
+    src: "{{ adguard_dir }}/AdGuardHome.yaml"
+  register: adguard_config_raw
+  no_log: true
+
+- name: Work out where the web API listens
+  ansible.builtin.set_fact:
+    adguard_http_port: >-
+      {{ (adguard_config_raw.content | b64decode | from_yaml).http.address | regex_replace('^.*:', '') }}
+  no_log: true
