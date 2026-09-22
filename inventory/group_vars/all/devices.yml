@@ -44,51 +44,44 @@
 # This block is the one part that earns a playbook. It is fiddly to enter by
 # hand, it drifts when someone changes it in the UI, and a schedule you argue
 # about is worth having in Git with a history.
-devices:
-  iphone-ruben:
-    owner: Ruben
-    type: phone
-    mac: "aa:bb:cc:dd:ee:ff"
-    ip: 192.168.0.60
-
-  ipad-kinderen:
-    owner: kinderen
-    type: tablet
-    mac: "aa:bb:cc:dd:ee:01"
-    ip: 192.168.0.62
-    note: "Deelt het profiel met de telefoon van de kinderen"
-    dns:
-      safe_search: true
-      parental: true
-      blocked_services: [tiktok, youtube]
-      # Kijken mag na school en in het weekend. Buiten deze vensters staan
-      # de diensten hierboven dicht.
-      allowed:
-        mon: { from: "16:00", to: "20:00" }
-        tue: { from: "16:00", to: "20:00" }
-        wed: { from: "13:00", to: "20:00" }
-        thu: { from: "16:00", to: "20:00" }
-        fri: { from: "16:00", to: "21:00" }
-        sat: { from: "09:00", to: "21:00" }
-        sun: { from: "09:00", to: "20:00" }
-
-  tv-woonkamer:
-    owner: gedeeld
-    type: tv
-    mac: "11:22:33:44:55:66"
-    ip: 192.168.0.70
-    note: "Chromecast ingebouwd; praat met Plex"
-
-  printer:
-    owner: gedeeld
-    type: printer
-    mac: "77:88:99:aa:bb:cc"
-    ip: 192.168.0.71
-    dns:
-      # A printer that cannot reach its vendor is a printer that sulks about
-      # cartridges. Nothing on it browses the web, so filtering buys nothing
-      # and only creates a failure mode nobody will think to look for.
-      filtering: false
+# Leeg tot je echte toestellen invult. Zolang hier niets staat maakt de
+# adguard-rol alleen namen voor de hosts uit de inventory, en dat is precies
+# goed: een verzonnen MAC-adres levert een DNS-naam op die nergens bij hoort.
+#
+# Kopieer een van deze blokken naar binnen en vul je eigen gegevens in. Het
+# MAC-adres en het vaste adres vind je in UniFi, onder Clients.
+#
+#   iphone-ruben:
+#     owner: Ruben
+#     type: phone
+#     mac: "aa:bb:cc:dd:ee:ff"
+#     ip: 192.168.0.60
+#
+#   printer:
+#     owner: gedeeld
+#     type: printer
+#     mac: "77:88:99:aa:bb:cc"
+#     ip: 192.168.0.71
+#     dns:
+#       # Een printer die zijn fabrikant niet kan bereiken, gaat zeuren over
+#       # cartridges. Er browst niets op, dus filteren levert niets op.
+#       filtering: false
+#
+#   ipad-kinderen:
+#     owner: kinderen
+#     type: tablet
+#     mac: "aa:bb:cc:dd:ee:01"
+#     ip: 192.168.0.62
+#     dns:
+#       safe_search: true
+#       parental: true
+#       blocked_services: [tiktok, youtube]
+#       # Kijken mag na school en in het weekend. Buiten deze vensters staan
+#       # de diensten hierboven dicht.
+#       allowed:
+#         mon: { from: "16:00", to: "20:00" }
+#         sat: { from: "09:00", to: "21:00" }
+devices: {}
 
 # Which device types get a DNS-over-HTTPS profile. A profile is the only way
 # to have a phone use AdGuard by name: its MAC changes per network, so the

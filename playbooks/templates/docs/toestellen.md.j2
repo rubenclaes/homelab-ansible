@@ -46,6 +46,11 @@ oplevert.
    trim_blocks on, so the newline after a block tag is eaten; without these a
    table runs straight into the next heading and Markdown stops seeing it as
    one. -#}
+{% if rows | length == 0 %}
+Er staan nog geen toestellen in de lijst. Voeg er een toe in
+`inventory/group_vars/all/devices.yml`; het bestand bevat voorbeelden om te
+kopiëren.
+{% endif %}
 {% for type, group in rows | groupby('type') %}
 
 ## {{ type }}
@@ -77,6 +82,7 @@ oplevert.
 {% endfor %}
 {% endfor %}
 
+{% if rows | selectattr('profile') | list | length > 0 %}
 ## Telefoonprofielen
 
 Een telefoon wisselt van MAC-adres per netwerk, dus de reservering hierboven
@@ -108,3 +114,4 @@ Weghalen: Instellingen → Algemeen → VPN en apparaatbeheer → het profiel �
 
 Gegenereerd uit dezelfde `devices`; het profiel zelf uit
 `playbooks/templates/profiles/dns.mobileconfig.j2`.
+{% endif %}

@@ -23,66 +23,7 @@ De router blijft handwerk. Een vast adres toekennen is twintig seconden klikken
 en gebeurt één keer per toestel; daar is een playbook voor duurder dan het
 oplevert.
 
+Er staan nog geen toestellen in de lijst. Voeg er een toe in
+`inventory/group_vars/all/devices.yml`; het bestand bevat voorbeelden om te
+kopiëren.
 
-## phone
-
-| Toestel | Van wie | MAC | Adres |
-| --- | --- | --- | --- |
-| **iphone-ruben** | Ruben | `aa:bb:cc:dd:ee:ff` | `192.168.0.60` |
-
-iphone-ruben — [DNS-profiel](/profielen/iphone-ruben.mobileconfig)
-
-## printer
-
-| Toestel | Van wie | MAC | Adres |
-| --- | --- | --- | --- |
-| **printer** | gedeeld | `77:88:99:aa:bb:cc` | `192.168.0.71` |
-
-printer — geen filtering
-
-## tablet
-
-| Toestel | Van wie | MAC | Adres |
-| --- | --- | --- | --- |
-| **ipad-kinderen** | kinderen | `aa:bb:cc:dd:ee:01` | `192.168.0.62` |
-
-ipad-kinderen — Deelt het profiel met de telefoon van de kinderen
-
-ipad-kinderen — [DNS-profiel](/profielen/ipad-kinderen.mobileconfig)
-
-ipad-kinderen — safe search · parental control · geblokkeerd: tiktok, youtube · toegestaan ma 16:00-20:00, di 16:00-20:00, wo 13:00-20:00, do 16:00-20:00, vr 16:00-21:00, za 09:00-21:00, zo 09:00-20:00
-
-## tv
-
-| Toestel | Van wie | MAC | Adres |
-| --- | --- | --- | --- |
-| **tv-woonkamer** | gedeeld | `11:22:33:44:55:66` | `192.168.0.70` |
-
-tv-woonkamer — Chromecast ingebouwd; praat met Plex
-
-## Telefoonprofielen
-
-Een telefoon wisselt van MAC-adres per netwerk, dus de reservering hierboven
-zegt AdGuard niet welke telefoon er vraagt. Het profiel wel: het laat het
-toestel DNS-over-HTTPS spreken met `https://dns.neodata.be/dns-query/<toestel>`,
-en dat laatste stuk is het client-ID waaronder AdGuard de vragen toont.
-Elk toestel van type `phone`, `tablet`
-krijgt er een; de links staan bij het toestel.
-
-Installeren, op de telefoon zelf:
-
-1. Open de link in Safari. iOS vraagt of het profiel gedownload mag worden.
-2. Instellingen → **Profiel gedownload** → **Installeer**.
-3. Controleer in AdGuard onder *Querylog* dat de vragen op de naam van het
-   toestel binnenkomen.
-
-Het profiel staat altijd aan, ook buitenshuis. Dat werkt alleen zolang
-`dns.neodata.be` van daar bereikbaar is; iOS valt niet terug op gewone
-DNS als de versleutelde server niet antwoordt. Wie dat niet wil, zet de
-thuisnetwerken in `devices_profile_ssids`.
-
-Weghalen: Instellingen → Algemeen → VPN en apparaatbeheer → het profiel →
-**Verwijder profiel**.
-
-Gegenereerd uit dezelfde `devices`; het profiel zelf uit
-`playbooks/templates/profiles/dns.mobileconfig.j2`.

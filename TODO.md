@@ -7,6 +7,13 @@ backlog na drie maanden niet meer te lezen.
 
 ## Eerst dit — er kan nu iets misgaan
 
+- [ ] **De PBS-encryptiesleutel staat nergens buiten pve01**
+      `proxmox-backup-client key show`, uitprinten, buiten het huis leggen.
+      *Waarom:* de back-ups op de PBS-opslag zijn versleuteld. Ben je pve01 én
+      de sleutel kwijt, dan is er niets terug te zetten en is elke back-up die
+      je ooit hebt gemaakt waardeloos. Dit is vijf minuten werk en het is het
+      enige punt op deze lijst waar alles van afhangt.
+
 - [ ] **Semaphore: "Update guests" raakt Semaphore zelf**
       De template draait `--limit guests`, en `semaphore` zit in die groep. De
       job doet dus `apt full-upgrade` op de machine waarop hij zelf draait.
@@ -91,12 +98,6 @@ backlog na drie maanden niet meer te lezen.
 
 ## Repo zelf
 
-- [ ] **De GitHub-actions draaien op Node 20 en dat wordt uitgefaseerd**
-      `actions/checkout@v4`, `actions/setup-python@v5` en `actions/cache@v4`
-      geven nu een waarschuwing. *Waarom:* het blijft een waarschuwing tot het
-      een fout wordt, en dan staat CI stil op een moment dat je iets anders
-      aan het doen bent. Bump de drie versies als je toch in dat bestand zit.
-
 - [ ] **Geen tests**
       Lint en `--syntax-check` zijn spellingscontrole. Niets bewijst dat een
       rol op een schone machine werkt.
@@ -144,6 +145,9 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] GitHub-actions op hun huidige versies (checkout v7, setup-python v7, cache v6) en de workflow leest alleen nog
+- [x] README omgebouwd tot stappenplan: eenmalig opzetten, wat wil je doen, hoe voer je een wijziging door, wat als het misgaat
+- [x] Herstelrunbook met het volledige terugzetten erin, inclusief `pct restore` en `qmrestore` en de omgekeerde argumentvolgorde
 - [x] CI is groen: de twee "bestaande" lint-overtredingen zijn opgelost zonder de uitvoer te veranderen, en de workflow is nu ook handmatig te starten op een branch
 - [x] `new-guest.yml`: één commando van lege lijstregel tot gebaselinede container, met een runbook in gewone taal ernaast
 - [x] Toestellen krijgen hun filterbeleid uit `devices.yml`: een client per toestel in AdGuard, met safe search, geblokkeerde diensten en een schema
