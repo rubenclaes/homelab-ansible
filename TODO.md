@@ -41,6 +41,22 @@ de API beschrijven.
 
 ## Opruimen in de estate
 
+- [ ] **De VPN deelt de verkeerde DNS uit.** WireGuard op de UniFi-gateway
+      geeft clients `192.168.0.26` mee - de AdGuard op de Mac mini, precies
+      degene die uit moet. Zet hem in de UniFi-controller op `192.168.0.29`
+      en download het iPhone-profiel opnieuw: de clientconfiguratie heeft die
+      waarde ingebakken, dus alleen serverzijde wijzigen is niet genoeg.
+      **Doe dit vóór je de AdGuard op de Mini uitzet**, anders heeft je VPN
+      geen naamresolutie meer. AdGuard op `.29` beperkt geen clients, dus
+      `10.10.30.x` mag meteen vragen stellen.
+
+- [ ] **`vpn.neodata.be` hangt aan een dynamisch WAN-adres.** Hij wees op
+      22-09 naar `94.111.99.122` en dat klopte, maar de VPN-server staat op
+      "Existing IP Address" en UniFi waarschuwt zelf dat dat adres wijzigt.
+      Zoek uit of iets die Cloudflare-record bijwerkt; zo niet, zet Dynamic
+      DNS aan. Een VPN die stil kapot gaat bij een IP-wijziging ontdek je op
+      het slechtst denkbare moment.
+
 - [ ] **`openbooks` draait zonder route**, alleen op `192.168.0.15:8080`.
       Geef hem een naam of zet hem uit, maar kies.
 

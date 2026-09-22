@@ -194,3 +194,42 @@ dig +short books.neodata.be    # 192.168.0.25 - de wildcard naar Caddy
 ```
 
 Die eerste is de bewijzende: die naam bestaat nergens anders.
+
+## Van buitenaf naar binnen: twee wegen
+
+Er zijn er twee, en ze vallen onafhankelijk om. Dat is met opzet nuttig, geen
+rommel.
+
+| | draait op | weg als |
+| --- | --- | --- |
+| Tailscale, ct 108 | pve01 | pve01 eruit ligt |
+| WireGuard "Neodata VPN" | de UniFi-gateway | de gateway eruit ligt |
+
+Ligt pve01 eruit — precies wanneer je erbij wil — dan is de Tailscale-route
+weg en de WireGuard niet.
+
+### WireGuard, zoals het staat
+
+Beheerd in de UniFi-controller, niet in deze repo.
+
+- Endpoint `vpn.neodata.be:51820`, WAN `94.111.99.122`
+- VPN-subnet `10.10.30.0/24`, gateway `10.10.30.1`
+- Biedt `192.168.0.0/24` aan (`Allowed IPs` op de client)
+- Eén profiel: de iPhone, `10.10.30.2/32`
+
+<Callout type="warning">
+De DNS-server die de VPN uitdeelt moet `192.168.0.29` zijn, niet
+`192.168.0.26`. Die tweede is de oude AdGuard op de Mac mini; gaat die uit,
+dan heeft je VPN geen naamresolutie meer. De clientconfiguratie heeft de
+waarde ingebakken, dus na het wijzigen moet het profiel opnieuw
+geïmporteerd worden op de telefoon.
+</Callout>
+
+### Het WAN-adres is dynamisch
+
+UniFi waarschuwt er zelf voor, en de server staat op "Existing IP Address" in
+plaats van Dynamic DNS. `vpn.neodata.be` wees op 22-09 naar het juiste adres,
+maar als niets die record bijwerkt breekt de VPN stil zodra je provider je een
+ander IP geeft — en dat merk je precies op het moment dat je van buitenaf naar
+binnen wil. Zet Dynamic DNS aan, of controleer wat die Cloudflare-record nu
+bijhoudt.
