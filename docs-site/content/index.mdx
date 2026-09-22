@@ -2,31 +2,23 @@
 title: Overzicht
 ---
 
-import { Cards } from 'nextra/components'
-
 # neodata.homelab
 
-Eén Proxmox-host, een handvol LXC-guests, een Docker-host en twee Macs,
-geconvergeerd door [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
+Eén Proxmox-machine, een stuk of tien servertjes daarop, een Docker-host en
+twee Macs. Ingericht door
+[homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
 
-<Cards>
-  <Cards.Card title="NeoGate — de voordeur voor wie hier woont" href="https://neogate.neodata.be" arrow />
-  <Cards.Card title="Technisch — hosts, containers, stacks, services, runbooks" href="/technisch/hosts/" arrow />
-</Cards>
+| Ik zoek… | Sta hier |
+| --- | --- |
+| Op welk adres draait Sonarr, Plex, Immich? | [Diensten](/technisch/services/) |
+| Welke machines zijn er? | [Hosts](/technisch/hosts/) |
+| Welke Docker-stacks staan waar? | [Stacks](/technisch/stacks/) |
+| Welke LXC-containers bestaan er? | [LXC-containers](/technisch/containers/) |
+| Hoe update ik alles? | [Updates](/technisch/runbooks/updates/) |
+| Nieuwe machine opzetten | [Nieuwe guest](/technisch/runbooks/nieuwe-guest/) |
+| Er is iets stuk | [Disaster recovery](/technisch/runbooks/disaster-recovery/) |
 
-## Waarom het zo staat
+Pagina's onder Technisch komen uit de inventory en worden bij elke
+`playbooks/docs.yml` overschreven. De runbooks zijn met de hand geschreven.
 
-De inventory wordt niet met de hand bijgehouden. Proxmox is de bron: maak een
-guest aan en hij staat er de volgende run in, met het adres dat hij op dat
-moment echt heeft.
-
-Secrets zijn gesplitst op blast radius over twee vault-identiteiten. `infra`
-bevat de credentials die de estate besturen — Proxmox, Cloudflare, PBS.
-`stacks` bevat applicatielogins. Elke helft roteert los van de andere.
-
-`semaphore` draait de playbooks volgens schema, zodat niets hiervan afhangt
-van een laptop die openstaat.
-
-Pagina's onder Technisch worden gegenereerd uit de inventory en kunnen dus niet
-uit de pas lopen. Runbooks zijn met de hand geschreven: daar staat de redenering
-die code niet uitdrukt.
+[NeoGate — de voordeur voor wie hier woont](https://neogate.neodata.be)

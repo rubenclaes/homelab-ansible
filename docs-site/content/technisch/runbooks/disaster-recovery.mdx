@@ -23,6 +23,17 @@ Ben je pve01 én de sleutel kwijt, dan zijn je back-ups onleesbaar en stopt dit
 document hier.
 </Callout>
 
+## Eerst even de woorden
+
+**Node** — de fysieke machine, `pve01`. Eén kast met Proxmox erop. Alles draait
+daarbovenop.
+
+**Guest** — een container of virtuele machine *op* die node. `caddy`, `adguard`,
+`docker` zijn guests.
+
+**PBS** — Proxmox Backup Server, de machine die je back-ups bewaart. Draait hier
+zelf als guest, met zijn opslag op een aparte schijf.
+
 ## Wat ben je kwijt?
 
 | Situatie | Ga naar |

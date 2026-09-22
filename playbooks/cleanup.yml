@@ -207,11 +207,23 @@
       changed_when: false
       check_mode: false
 
+    # Separate from cleanup, because they remove different things. `cleanup`
+    # drops old versions and downloads; `autoremove` drops formulae that were
+    # only ever pulled in as someone else's dependency and now hang loose.
+    # Taking minikube out of a host_vars list leaves a dozen of those behind,
+    # and no amount of `brew cleanup` will touch them.
+    - name: List the dependencies autoremove would take
+      ansible.builtin.command: "{{ macos_brew_path }}/brew autoremove --dry-run"
+      register: cleanup_brew_orphans
+      changed_when: false
+      check_mode: false
+
     - name: Report what could be reclaimed here
       ansible.builtin.debug:
         msg: >-
           {{ inventory_hostname }}: Homebrew cache
           {{ (cleanup_brew_before.stdout | int / 1024) | round(1) }} MiB,
+          {{ cleanup_brew_orphans.stdout_lines | reject('search', '^==>') | select | list | length }} orphaned dependency/-ies,
           {{ cleanup_brew_dry.stdout_lines | select('search', '^Would remove') | list | length }}
           item(s) removable, freeing
           {{ cleanup_brew_dry.stdout | regex_search('would free approximately ([^ ]+)', '\1')
@@ -227,6 +239,17 @@
           # brew exits 0 whether or not it removed anything, and prints one
           # `Removing: <path>` line per item. No such line means nothing went.
           changed_when: cleanup_brew_run.stdout is search('Removing:')
+
+        # After the formulae, not before: uninstalling minikube is what turns
+        # its dependencies into orphans in the first place, and the macos role
+        # runs in a different playbook. Running it here means the next cleanup
+        # sweeps up whatever the last converge orphaned.
+        - name: Remove dependencies nothing needs any more
+          ansible.builtin.command: "{{ macos_brew_path }}/brew autoremove"
+          register: cleanup_brew_autoremoved
+          # brew prints nothing at all when there is nothing to take, and exits
+          # 0 either way, so emptiness is the signal rather than any keyword.
+          changed_when: cleanup_brew_autoremoved.stdout | trim | length > 0
 
         - name: Measure the Homebrew cache again
           ansible.builtin.shell: >-

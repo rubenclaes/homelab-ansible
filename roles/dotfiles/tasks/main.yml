@@ -5,12 +5,37 @@
     state: directory
     mode: "0700"
 
+# Het sjabloon loopt over groups['linux'], en op pve01 na komt die groep
+# volledig uit homelab.proxmox.yml. Laadt de Proxmox-API niet - en die is hier
+# wisselvallig bereikbaar - dan levert dat geen foutmelding maar een lege
+# groep, en schrijft het sjabloon een SSH-config met nog een enkele host erin.
+# Je merkt dat pas als je de volgende dag geen enkele host meer kunt bereiken.
+#
+# Niet hard falen: de rest van deze rol (git, zshrc) heeft de inventory niet
+# nodig en moet gewoon doorlopen. Alleen dit ene bestand blijft dan staan
+# zoals het was. Zelfde afweging als de assert in playbooks/docs.yml, andere
+# uitkomst, omdat daar het hele doel van de playbook eraan hangt en hier niet.
+- name: Check whether the dynamic inventory contributed its guests
+  ansible.builtin.set_fact:
+    dotfiles_inventory_complete: >-
+      {{ groups['linux'] | difference(groups['proxmox']) | length > 0 }}
+
 - name: Generate homelab SSH config from the inventory
   ansible.builtin.template:
     src: ssh_homelab.j2
     dest: ~/.ssh/config.d/homelab
     mode: "0600"
     validate: ssh -G -F %s localhost
+  when: dotfiles_inventory_complete | bool
+
+- name: Leave the SSH config alone when the inventory is incomplete
+  ansible.builtin.debug:
+    msg: >-
+      ~/.ssh/config.d/homelab niet aangeraakt: de inventory leverde geen
+      Proxmox-gasten, dus het sjabloon zou hem bijna leeg schrijven. Controleer
+      met `ansible-inventory --graph` of de Proxmox-API bereikbaar is en draai
+      dit opnieuw. Het bestaande bestand is ongewijzigd.
+  when: not (dotfiles_inventory_complete | bool)
 
 - name: Include config.d at the top of ~/.ssh/config
   ansible.builtin.lineinfile:

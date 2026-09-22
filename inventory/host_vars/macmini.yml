@@ -15,9 +15,7 @@ macos_brew_packages_extra:
   - htop
   - iperf3
   - jq
-  - k9s
   - kubectx
-  - minikube
   - node
   - ollama
   - pass
@@ -40,9 +38,14 @@ macos_brew_packages_extra:
 # draait. Dit was het echte antwoord op "dubbele docker-casks" in de TODO -
 # het waren er niet twee, het waren er nul.
 #
-# OrbStack is nu buiten Homebrew geinstalleerd, dus de eerste echte run
-# struikelt mogelijk over de bestaande app. Dan `brew install --cask orbstack
-# --adopt` met de hand, en daarna klopt het weer.
+# OrbStack staat hier NIET bij, en dat is geprobeerd en opgegeven. Hij is
+# buiten Homebrew geinstalleerd, dus adopteren moet met `--adopt`, en dat wil
+# `chgrp -hR admin /Applications/OrbStack.app` draaien. Over SSH faalt dat op
+# elk bestand met "Operation not permitted", ook als root: sinds Ventura mag
+# een proces het bundel van een andere app niet aanraken zonder het recht
+# "App-beheer", en sshd heeft dat niet. Het zou dus alleen lukken door met de
+# hand achter de Mini te gaan zitten, en daar staat niets tegenover: OrbStack
+# updatet zichzelf al via Sparkle.
 #
 # Plex staat NIET in deze lijst en dat is met opzet: hij draait als
 # /Applications/Plex Media Server.app, buiten Homebrew om. Zet je hem hier
@@ -52,8 +55,56 @@ macos_casks:
   - chromium
   - iterm2
   - multipass
-  - orbstack
   - spotify
+
+# Wat hier weg MOET, niet alleen "wat hier niet meer staat". De macos-rol
+# installeerde alleen; iets uit de lijsten hierboven schrappen zorgt er
+# enkel voor dat hij niet terugkomt, niet dat hij verdwijnt.
+#
+# De k8s-spullen gaan eruit omdat er op deze Mac geen cluster meer draait:
+# minikube 266M, k9s 136M, kubernetes-cli 122M. Die laatste stond nooit in
+# de lijst hierboven - `brew leaves` verzweeg hem omdat minikube van hem
+# afhing - maar het INSTALL_RECEIPT zegt installed_on_request, dus hij is
+# wel degelijk zelf geinstalleerd en verdwijnt niet vanzelf met minikube mee.
+#
+# `kubectx` staat nog bij de gewenste pakketten: klein, en niet gevraagd om
+# weg te halen. Zet hem erbij zodra je ook vanaf deze Mac geen enkel cluster
+# meer aanspreekt.
+# Geen brew-upgrades op deze machine, tot macOS bijgewerkt is.
+#
+# Dit is geen voorkeur, het is een muur. Op 22-09 heeft een volledige
+# `brew upgrade --formula` hier 22 minuten gedraaid en daarna gefaald.
+# Homebrew zegt het zelf:
+#
+#   You are using macOS 14. We (and Apple) do not provide support for this
+#   old version. Homebrew no longer builds bottles for this configuration.
+#   This is a Tier 3 configuration.
+#
+# Gevolg: alles wordt vanaf broncode gebouwd. Dertien pakketten blijven
+# daarbij gewoon achter - python@3.12, python@3.14, node, ollama, ffmpeg,
+# wget, tmux, gnupg, sqlite, unbound, merve, libngtcp2, p11-kit - omdat
+# Homebrew ze zonder bottle niet eens probeert. `node` wil er llvm 23.1.1
+# vanaf broncode bij, en dat is uren.
+#
+# De cache liep in die ene run van 321 MB naar 6,5 GB, en er bleven twee
+# niet-gelinkte kegs achter (gh en libvpx). Elke volgende run herhaalt dat.
+#
+# Dit weghalen zodra de Mini op een ondersteunde macOS staat - zie het punt
+# "Mac mini draait macOS 14.6.1" in TODO.md. Casks blijven wel werken: die
+# zijn kant-en-klare apps en hebben geen bottle nodig.
+macos_brew_upgrade: false
+
+macos_brew_packages_absent:
+  - k9s
+  - kubernetes-cli
+  - minikube
+
+# De twee dode cask-registraties uit de Caskroom. Ze uit macos_casks halen is
+# niet genoeg: dan blijven ze staan en blijft `brew upgrade --cask` proberen
+# Docker Desktop terug te zetten.
+macos_casks_absent:
+  - docker
+  - docker-desktop
 
 # --- Docker op deze Mac ---------------------------------------------------
 # De stacks staan in github.com/rubenclaes/homelab. Die repo heeft GEEN

@@ -176,18 +176,50 @@ ansible-playbook playbooks/docs.yml               # servicepagina's volgen caddy
 
 
 # === Pakketten updaten ====================================================
-ansible-playbook playbooks/report.yml             # eerst kijken wat er openstaat
-ansible-playbook playbooks/update.yml                          # patchen, niet herstarten
-ansible-playbook playbooks/update.yml -e allow_reboot=true     # guests mogen herstarten
+# Uitleg van de begrippen en alle vlaggen: docs-site runbook "Updates".
+ansible-playbook playbooks/report.yml                # wat staat er open
+ansible-playbook playbooks/update.yml                # patchen, niet herstarten
+ansible-playbook playbooks/update.yml -e allow_reboot=true
 ansible-playbook playbooks/update.yml -e allow_reboot=true -e allow_hypervisor_reboot=true
-# Guests gaan eerst, één voor één, dan pas pve01: anders herstart de
-# hypervisor onder zijn eigen guests vandaan. De Macs komen daarna en gaan
-# via Homebrew, niet via apt - `brew update` plus `brew upgrade`.
-ansible-playbook playbooks/update.yml --limit macs         # alleen de Macs, formulae
+ansible-playbook playbooks/update.yml --limit macs   # alleen de Macs
 ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
-# Casks staan standaard uit: die vervangen applicaties. Op de Mini zit
-# docker-desktop ertussen en een herstart daarvan haalt elke compose-stack op
-# die machine onderuit. Vraag er dus om op een moment dat dat mag.
+#
+# Vier vlaggen, allemaal standaard uit:
+#   allow_reboot             guests mogen herstarten
+#   allow_hypervisor_reboot  pve01 mag ook (alleen samen met allow_reboot)
+#   allow_cask_upgrade       ook de apps op de Macs, niet alleen de pakketten
+#   macos_brew_upgrade       in host_vars; op false krijgt die Mac geen
+#                            pakket-upgrades meer
+#
+# Volgorde: guests één voor één, dan pve01, dan de Macs. Anders herstart de
+# hypervisor onder zijn eigen guests vandaan.
+#
+# De Mac mini staat op macos_brew_upgrade: false - macOS 14.6.1 is te oud voor
+# Homebrew en alles zou vanaf broncode gebouwd moeten worden. Zijn apps gaan
+# wel gewoon:
+ansible-playbook playbooks/update.yml --limit macmini -e allow_cask_upgrade=true
+
+
+# === Een pakket of app van een Mac halen ==================================
+# De macos-rol installeert alleen. Iets uit `macos_brew_packages_extra` of
+# `macos_casks` schrappen zorgt er alleen voor dat hij niet TERUGKOMT - wat
+# er al staat blijft staan. Weghalen doe je in twee stappen:
+$EDITOR inventory/host_vars/macmini.yml
+#   1. haal de naam uit macos_brew_packages_extra / macos_casks
+#   2. zet hem in macos_brew_packages_absent / macos_casks_absent
+ansible-playbook playbooks/site.yml --tags macos --limit macmini --check --diff
+ansible-playbook playbooks/site.yml --tags macos --limit macmini
+# Staat een naam per ongeluk in beide lijsten, dan weigert de rol te draaien
+# en noemt hij de namen. Anders zou hij hem elke run installeren en de
+# volgende run weer weggooien.
+#
+# Daarna de wezen opruimen - afhankelijkheden die nergens meer voor dienen:
+ansible-playbook playbooks/cleanup.yml --limit macmini -e cleanup_apply=true
+#
+# Sommige casks willen sudo om hun app uit /Applications te gooien. Ansible
+# heeft geen terminal om je wachtwoord te vragen, dus die ene keer met de
+# hand: `brew uninstall --cask <naam>` in je eigen terminal, of over SSH met
+# `ssh -t <host> '/opt/homebrew/bin/brew uninstall --cask <naam>'`.
 
 
 # === Uitzoeken wat er op een host draait ==================================

@@ -7,6 +7,13 @@ macos_brew_packages:
   - wget
 macos_brew_packages_extra: []
 macos_casks: []
+
+# Explicitly unwanted, as opposed to merely undeclared. Dropping a name from
+# the lists above only stops it being reinstalled; what is already on the disk
+# stays. A machine is only described once what it should NOT have is written
+# down too, so removals survive a rebuild instead of living in someone's head.
+macos_brew_packages_absent: []
+macos_casks_absent: []
 macos_defaults:
   - { domain: NSGlobalDomain, key: AppleShowAllExtensions, type: bool, value: true }
   - { domain: com.apple.desktopservices, key: DSDontWriteNetworkStores, type: bool, value: true }

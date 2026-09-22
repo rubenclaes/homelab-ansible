@@ -6,13 +6,40 @@ import { Callout } from 'nextra/components'
 
 # Updates
 
+## Eerst even de woorden
+
+Vier begrippen die overal terugkomen. Ken je ze al, sla dit over.
+
+**Hypervisor** — de fysieke machine waar virtuele machines op draaien. Hier is
+dat `pve01`: één kast met Proxmox erop. Zet je die uit, dan gaat alles uit.
+
+**Guest** — een virtuele machine of container *op* die hypervisor. `caddy`,
+`adguard`, `pbs` en `docker` zijn guests. Ze voelen als losse servertjes, maar
+ze delen één stuk hardware. Vandaar de volgorde verderop: guests eerst, de
+hypervisor als laatste.
+
+**Formula** — een Homebrew-*pakket* op een Mac. Commandoregel-gereedschap:
+`jq`, `ffmpeg`, `node`. Klein en onzichtbaar.
+
+**Cask** — een Homebrew-*applicatie* op een Mac. Dingen met een venster:
+Spotify, VLC, Chromium. Die upgraden vervangt een app die misschien openstaat,
+dus dat gebeurt alleen als je er expliciet om vraagt.
+
+## Wat het playbook doet
+
 `playbooks/update.yml` draait `apt full-upgrade` met `serial: 1`: één host is
 helemaal klaar voordat de volgende begint. Een mislukte upgrade sloopt één
 machine, niet de vloot.
 
-Het playbook bestaat uit **twee plays**, en die volgorde is het punt. Eerst alle
-guests, daarna pas de hypervisor. In één play zou `pve01` kunnen herstarten
-terwijl de guests die erop draaien nog bezig zijn — en die gaan dan mee.
+Het playbook bestaat uit **drie plays**, en die volgorde is het punt. Eerst alle
+guests, daarna de hypervisor, en als laatste de Macs. In één play zou `pve01`
+kunnen herstarten terwijl de guests die erop draaien nog bezig zijn — en die
+gaan dan mee.
+
+De Macs staan achteraan om een andere reden: op de MacBook komt `ansible` zélf
+uit Homebrew, en de verbinding is `local`. Een upgrade daar vervangt dus het
+programma dat op dat moment de playbook draait. Achteraan is dat venster zo
+klein mogelijk.
 
 ## Reboots zijn opt-in
 
@@ -23,6 +50,8 @@ schakelaars, allebei uit:
 |---|---|
 | `allow_reboot` | herstart guests die het nodig hebben |
 | `allow_hypervisor_reboot` | staat daarbovenop toe dat ook `pve01` herstart |
+
+Alles staat standaard uit. Zonder vlaggen wordt er gepatcht en verder niets.
 
 ```bash
 # De wekelijkse ronde. Semaphore draait dit zondag om 04:00.
@@ -43,6 +72,38 @@ staan. Zo kan een gewone run nooit per ongeluk de hypervisor meenemen.
 Draai de `pve01`-upgrade nooit vanuit Semaphore. Semaphore is een container
 **op** `pve01`, dus een reboot doodt de job die hem gaf. Een controller
 herstart de machine waar hij zelf op draait niet.
+</Callout>
+
+## De Macs
+
+Linux gaat via `apt`, de Macs via Homebrew. Zelfde playbook, andere gereedschap.
+
+| Variabele | Waar | Doet |
+|---|---|---|
+| `allow_cask_upgrade` | op de opdrachtregel | upgradet ook de **apps**, niet alleen de pakketten |
+| `macos_brew_upgrade` | in `host_vars/<mac>.yml` | zet `false` en deze Mac krijgt geen pakket-upgrades meer |
+
+```bash
+# Alleen de Macs, alleen pakketten.
+ansible-playbook playbooks/update.yml --limit macs
+
+# Ook de apps. Doe dit als je een herstart van Spotify of VLC kunt hebben.
+ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
+
+# Eén machine.
+ansible-playbook playbooks/update.yml --limit mbp
+```
+
+<Callout type="warning">
+De **Mac mini** krijgt geen pakket-upgrades meer. Hij draait macOS 14.6.1, en
+dat is voor Homebrew een *Tier 3*-configuratie: er worden geen kant-en-klare
+bottles meer gebouwd, dus elk pakket moet vanaf broncode gecompileerd worden.
+Een volledige run duurde 22 minuten en faalde alsnog — dertien pakketten
+worden niet eens geprobeerd.
+
+Daarom staat `macos_brew_upgrade: false` in zijn host_vars. De playbook slaat
+hem over en zégt dat ook, elke run. Zijn **apps** kun je wel gewoon bijwerken.
+Wil je de pakketten terug, dan moet die Mac eerst naar een nieuwere macOS.
 </Callout>
 
 ## Caddy staat vast

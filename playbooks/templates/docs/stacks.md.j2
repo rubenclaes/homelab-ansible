@@ -12,6 +12,10 @@ beheert. Staat een host hieronder niet, dan heeft hij geen lijst en raakt de
 rol hem niet aan.
 </Callout>
 
+Een stack is een compose-bestand, niet één dienst. Sonarr, Radarr en Prowlarr
+draaien samen in `media`, dus die zoek je niet hier maar onder
+[Diensten](/technisch/services/).
+
 Elke `.env` staat versleuteld onder de vault-identiteit `stacks` en wordt pas
 bij het deployen weggeschreven. De compose-bestanden komen per host uit de
 repo die eronder staat, via een read-only deploy key.

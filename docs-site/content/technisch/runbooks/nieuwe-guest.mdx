@@ -17,6 +17,23 @@ pad is volledig geautomatiseerd. Heb je een echte virtuele machine nodig, lees
 dan [Virtuele machines](#virtuele-machines) onderaan.
 </Callout>
 
+## Eerst even de woorden
+
+**Inventory** — de map `inventory/`. Daarin staat welke machines er zijn en wat
+erop hoort. Dit is waar je dingen aanpast; nooit op de machine zelf.
+
+**Playbook** — een bestand in `playbooks/` dat je met `ansible-playbook` draait.
+Eén playbook is één klus.
+
+**Rol** — een herbruikbaar recept in `roles/`, bijvoorbeeld "installeer AdGuard".
+Playbooks roepen rollen aan.
+
+**Baseline** — het minimum dat elke Linux-machine krijgt: tijdzone,
+basispakketten, automatische beveiligingsupdates, SSH dichtgetimmerd.
+
+**Vault** — de versleutelde bestanden met wachtwoorden en sleutels. Je hebt de
+vault-wachtwoorden op je werkstation nodig om ze te kunnen lezen.
+
 ## Wat je nodig hebt
 
 Je werkstation, met de repo en de vault-wachtwoorden. Verder niets. Je hoeft

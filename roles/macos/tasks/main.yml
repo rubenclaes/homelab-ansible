@@ -1,4 +1,20 @@
 ---
+# A name in both lists would make the role fight itself: install on one run,
+# remove on the next, changed every time and never converged. Cheaper to refuse
+# than to debug, and the message names the offenders.
+- name: Fail when a package is both wanted and unwanted
+  ansible.builtin.assert:
+    that:
+      - (macos_brew_packages + macos_brew_packages_extra)
+        | intersect(macos_brew_packages_absent) | length == 0
+      - macos_casks | intersect(macos_casks_absent) | length == 0
+    fail_msg: >-
+      {{ inventory_hostname }} lists these as both wanted and unwanted:
+      {{ ((macos_brew_packages + macos_brew_packages_extra)
+          | intersect(macos_brew_packages_absent))
+         + (macos_casks | intersect(macos_casks_absent)) }}
+    quiet: true
+
 - name: Install Homebrew formulae
   community.general.homebrew:
     name: "{{ macos_brew_packages + macos_brew_packages_extra }}"
@@ -11,6 +27,24 @@
     state: present
     path: "{{ macos_brew_path }}"
   when: macos_casks | length > 0
+
+# Removals come after the installs so a single run can move a package from one
+# list to the other. Homebrew refuses to uninstall a formula something else
+# still depends on, so this cannot quietly gut a dependency tree; what it
+# leaves behind as an orphan is playbooks/cleanup.yml's job.
+- name: Remove Homebrew formulae that no longer belong here
+  community.general.homebrew:
+    name: "{{ macos_brew_packages_absent }}"
+    state: absent
+    path: "{{ macos_brew_path }}"
+  when: macos_brew_packages_absent | length > 0
+
+- name: Remove Homebrew casks that no longer belong here
+  community.general.homebrew_cask:
+    name: "{{ macos_casks_absent }}"
+    state: absent
+    path: "{{ macos_brew_path }}"
+  when: macos_casks_absent | length > 0
 
 - name: Apply macOS defaults
   community.general.osx_defaults:

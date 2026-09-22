@@ -1,7 +1,42 @@
 ---
+# Mijn eigen laptop. De Mac mini is de dev-machine; wat hier staat is bewust
+# iets anders. Gelezen van de machine zelf op 22-09 met discover.yml.
+
+# `brew leaves`: alleen wat ik zelf gevraagd heb, niet de afhankelijkheden.
+macos_brew_packages_extra:
+  - ansible
+  - ansible-lint
+  - caddy
+  - ffmpeg
+  - gh
+  - git
+  - git-filter-repo
+  - gnupg
+  - htop
+  - iperf3
+  - jq
+  - nicotine-plus
+  - nvm
+  - ollama
+  - pnpm
+  - postgresql@14
+  - ripgrep
+  - rsync
+  - tldr
+  - tmux
+  - transmission-cli
+  - wget
+  - xcodegen
+  - zellij
+  - zplug
+  - zsh
+
+# Docker Desktop staat hier bewust niet meer bij: op deze laptop draait
+# OrbStack, net als op de Mini. OrbStack zelf is met de hand geinstalleerd en
+# wordt niet door brew beheerd - hij updatet zichzelf via Sparkle, en hem
+# adopteren vraagt sudo-rechten op een app-bundel die Ansible niet kan geven.
 macos_casks:
   - claude-code
-  - docker-desktop
   - firefox
   - font-meslo-lg-nerd-font
   - google-chrome
@@ -23,5 +58,14 @@ dotfiles_git_config:
 dotfiles_zsh_block: |-
   export EDITOR="code --wait"
   export ANSIBLE_VAULT_PASSWORD_FILE=~/.ansible/vault_pass
+  # pve01 heeft een zelfondertekend certificaat en de proxmox-inventory staat
+  # op validate_certs: false. Zonder dit waarschuwt urllib3 daar bij elke run
+  # twee keer over. Weg zodra pve01 een vertrouwd certificaat heeft.
+  #
+  # Filteren op de tekst, niet op de categorie: `ignore::urllib3.exceptions.
+  # InsecureRequestWarning` lijkt logischer maar werkt niet. Python verwerkt
+  # -W bij het opstarten en kan urllib3 dan nog niet importeren, dus het geeft
+  # "Invalid -W option ignored: invalid module name" en waarschuwt alsnog.
+  export PYTHONWARNINGS="ignore:Unverified HTTPS request"
   alias hl='cd ~/Development/homelab-ansible'
   alias ap='ansible-playbook'

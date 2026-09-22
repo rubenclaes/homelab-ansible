@@ -5,6 +5,9 @@
 #   allow_hypervisor_reboot  also reboot pve01                 (default false)
 #   allow_cask_upgrade       upgrade Homebrew casks on the Macs (default false)
 #
+# Per host, from the inventory rather than the command line:
+#   macos_brew_upgrade       upgrade formulae on this Mac      (default true)
+#
 # All three are read with `| default(false)` rather than declared as play vars,
 # so they can be set in group_vars, host_vars, or on the command line:
 #   ansible-playbook playbooks/update.yml -e allow_reboot=true
@@ -79,6 +82,18 @@
         upgrade_all: true
         upgrade_options: [formula]
         path: "{{ macos_brew_path }}"
+      when: macos_brew_upgrade | default(true) | bool
+
+    # Not silent. A Mac that is skipped here stops receiving security fixes for
+    # everything Homebrew installed, and that is a decision someone has to keep
+    # seeing rather than discover a year later.
+    - name: Say so when a Mac is deliberately left unpatched
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} skipped: macos_brew_upgrade is false.
+          Its formulae are frozen at whatever is installed now. Remove the
+          flag from its host_vars once the machine can take upgrades again.
+      when: not (macos_brew_upgrade | default(true) | bool)
 
     # Off by default because a cask upgrade is not a package upgrade: it
     # replaces applications. On the Mini that means docker-desktop, and
