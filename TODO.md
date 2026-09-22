@@ -117,19 +117,25 @@ de API beschrijven.
             Daar is `/etc/resolv.conf` wél een gewoon bestand en beheert
             niets het, dus rechtstreeks bewerken werkt. Backup staat als
             `/etc/resolv.conf.bak-22-09`.
-      - [ ] De containers 104 (semaphore) en 106 (caddy) omzetten. ALLEEN
-            die twee:
-              * 107 is AdGuard zelf - die moet niet zichzelf gaan vragen.
-              * 108 is tailscale, en daar beheert tailscaled de resolv.conf
-                (MagicDNS, `100.100.100.100`, search `brill-atlas.ts.net`).
-                Die overschrijven breekt je tailnet-namen.
-            Zet `--searchdomain` er expliciet bij, want die verschilt per
-            container (caddy heeft `home.arpa`, semaphore `neodata.be`) en
-            een herstart zou hem anders stil gelijktrekken:
-              pct set 104 --nameserver 192.168.0.29 --searchdomain neodata.be
-              pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa
-            Dat geldt pas na een herstart, dus pas daarnaast ook
-            `/etc/resolv.conf` in de container zelf aan als je het meteen wil.
+      - [x] Alle Linux-hosts omgezet (22-09). Elke host had een ander
+            mechanisme, dus kijk altijd eerst:
+              * pve01, pbs, caddy, semaphore, adguard - gewoon bestand,
+                rechtstreeks bewerken.
+              * docker en grafana-stack - symlink naar systemd-resolved, dus
+                `/etc/netplan/90-default.yaml` + `netplan apply`.
+              * 104 en 106 ook in de container-config vastgelegd met
+                `pct set --nameserver --searchdomain`, zodat een herstart het
+                niet terugdraait. Searchdomain expliciet meegegeven: caddy
+                heeft `home.arpa`, semaphore `neodata.be`.
+              * 107 (adguard) wijst naar 127.0.0.1 met 1.1.1.1 erachter - hij
+                is zelf de resolver, maar moet nog kunnen apt-updaten als hij
+                stilstaat.
+              * 108 (tailscale) NIET aangeraakt: tailscaled beheert daar de
+                resolv.conf voor MagicDNS.
+            Overal gecontroleerd: intern (books.neodata.be -> .25) én
+            internet. Alle acht dienst-URL's getest na afloop.
+            Backups staan als `.bak-22-09` naast elk gewijzigd bestand.
+
       - [ ] Daarna pas de UniFi-DHCP 192.168.0.29 laten uitdelen.
       - [ ] Daarna de AdGuard op de Mini uitzetten, of bewust als tweede
             resolver laten staan - maar kies, want twee DNS-servers waarvan
