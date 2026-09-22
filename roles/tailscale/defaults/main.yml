@@ -20,8 +20,29 @@ tailscale_api_url: https://api.tailscale.com/api/v2
 tailscale_tailnet: "-"
 
 # Every node joined this way carries these tags. A key made by an OAuth
-# client must be tagged, and the tag must exist in the tailnet policy
-# (tagOwners) with the OAuth client allowed to assign it.
+# client must be tagged, and the tag must exist in the tailnet policy under
+# tagOwners. Wie daar als eigenaar staat is jij, niet de client:
+#
+#   "tagOwners": {
+#     "tag:homelab": ["rubes.claes@gmail.com"],   // of ["autogroup:admin"]
+#   }
+#
+# Dat lijkt verkeerd om, en dat is de val. Twee verschillende regels:
+#
+#  1. tagOwners bepaalt wie een tag MAG TOEKENNEN. Je hebt het nodig om de
+#     OAuth-client met tag:homelab te kunnen aanmaken. Staat de tag er niet,
+#     dan faalt dat met "not owner of any tag" - een melding die naar de
+#     client wijst terwijl het aan de policy ligt.
+#  2. Of de client vervolgens een sleutel MAG MAKEN met die tag, hangt er
+#     niet van af. Tailscale staat het toe als de gevraagde tags precies
+#     gelijk zijn aan de tags van de client zelf. Die client draagt
+#     tag:homelab en vraagt tag:homelab, dus dat klopt exact en er is geen
+#     eigendomsketen nodig.
+#
+# Wil je later sleutels maken met een andere tagset dan de client draagt, dan
+# valt regel 2 weg en heb je wel een eigendomsketen nodig: geef de tag dan
+# zichzelf als mede-eigenaar ("tag:homelab": [..., "tag:homelab"]), of
+# gebruik een aparte eigenaar-tag zoals de Tailscale-documentatie doet.
 tailscale_tags: [tag:homelab]
 
 # The minted key only has to survive until `tailscale up` uses it.

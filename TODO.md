@@ -66,7 +66,10 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
                 "preauthorized":true,"tags":["tag:homelab"]}}}}' | jq '.id,.expires'
 
       Faalt hij, dan zegt de fout meestal iets over permissions en niet over
-      de tag, en moet je in de policy onder `tagOwners` kijken.
+      de tag. In `tagOwners` hoor jij als eigenaar te staan, niet de client:
+      `"tag:homelab": ["rubes.claes@gmail.com"]` of `["autogroup:admin"]`.
+      Waarom dat niet omgekeerd is, staat uitgelegd in
+      `roles/tailscale/defaults/main.yml`.
 
       Let op: dit is geen haast. De node staat al op de tailnet
       (100.79.171.109), dus `tailscale_backend_state` is `Running` en de rol
