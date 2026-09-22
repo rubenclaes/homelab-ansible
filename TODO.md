@@ -38,10 +38,15 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **`inventory/host_vars/adguard/vault.yml` aanmaken.**
-      `vault_adguard_api_user` en `vault_adguard_api_password`, identiteit
-      `infra`. Tot dan faalt `site.yml` op `adguard`, met opzet: een lijst die
-      stil niet meer wordt toegepast is erger dan een rode run.
+- [ ] **`adguard.yml` één keer echt draaien.** Het vault-bestand staat er
+      (22-09) en de inloggegevens zijn nagekeken tegen de API: login en
+      `/control/status` geven allebei 200, en de web-API luistert op poort 80,
+      niet op 3000. De droogloop is groen en wil negen rewrites onder
+      `home.arpa` toevoegen. Bewust nog niet toegepast: die adressen kwamen
+      uit een met de hand gemaakte inventory, en met de hand onderhouden
+      adressen in DNS zetten is precies wat de overstap naar de
+      Proxmox-inventory heeft weggehaald. Draai hem zodra de
+      Local Network-toestemming aan staat, dan komen ze uit de echte bron.
 
 - [ ] **Tailscale OAuth-client maken** en in
       `inventory/host_vars/tailscale/vault.yml` zetten. Scope `auth_keys`, tag
@@ -100,15 +105,6 @@ de API beschrijven.
       `docker_stacks_list` van de Mini: anders vault je de secrets van een
       dienst die je volgende maand uitzet.
 
-- [ ] **`expenseowl` draait op de Mini maar staat in geen repo meer.**
-      Commit `04742c2` in `rubenclaes/homelab` gooide zijn compose-file weg,
-      samen met die van Prowlarr, Sonarr, Radarr, Seerr, audiobookshelf en
-      Flareresolver. Voor die zes klopt dat — ze draaien op de docker-VM. Voor
-      expenseowl niet: die draait alléén daar. De checkout op de Mini staat
-      één commit achter, dus het bestand staat er lokaal nog; de eerste
-      beheerde run haalt die commit binnen en dan is het weg. Kies: terugzetten
-      in de repo, of de dienst uitzetten.
-
 - [ ] **`tinyauth` bestaat niet meer, maar de machinerie wel.**
       De route is weg (22-09), maar `caddy_tinyauth_upstream` in
       `host_vars/caddy/main.yml` en het snippet `tinyauth_forwarder` in de
@@ -130,9 +126,10 @@ de API beschrijven.
       Wat er nog te doen is:
 
       - [ ] **Eén keer echt draaien.** Tot dat gebeurd is, is het een
-            beschrijving en geen herbouwpad. De git-taak trekt dan commit
-            `04742c2` binnen — zie het expenseowl-punt hierboven, doe dat
-            eerst.
+            beschrijving en geen herbouwpad. Er staat nu niets meer in de
+            weg: expenseowl is uitgezet en gearchiveerd, dus de commit die de
+            git-taak binnenhaalt (`04742c2`) gooit geen draaiende dienst meer
+            om.
       - [ ] **Plex als cask.** Hij draait als
             `/Applications/Plex Media Server.app`, buiten Homebrew om. Zet je
             hem in `macos_casks` als `plex-media-server`, dan gaat brew over
