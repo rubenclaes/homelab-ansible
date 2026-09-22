@@ -1,11 +1,14 @@
 ---
-# This role configures Caddy; it deliberately does NOT install the binary.
-# The running Caddy is a custom build that includes the Cloudflare DNS module
-# (needed for the DNS-01 wildcard cert in Caddyfile.j2). The stock Debian
-# package has no plugins, so installing it here would break TLS issuance.
-# That is why `caddy` is listed in baseline_held_packages for this host.
+# Installs Caddy (install.yml) and then configures it.
 #
-# To build/upgrade the binary, see "Upgrading Caddy" in the README.
+# The running Caddy is the packaged binary with the Cloudflare DNS module
+# added in place - needed for the DNS-01 wildcard cert in Caddyfile.j2. The
+# stock binary refuses to start against that Caddyfile, so a plain apt upgrade
+# would take every *.neodata.be name down. That is why `caddy` is listed in
+# baseline_held_packages for this host, and why install.yml only swaps the
+# binary when the module is genuinely absent.
+#
+# To move to a new upstream version: playbooks/caddy-upgrade.yml.
 - name: Install Caddy and its DNS module
   ansible.builtin.import_tasks: install.yml
 

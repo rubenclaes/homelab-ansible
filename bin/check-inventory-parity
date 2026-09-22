@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Compares two Ansible inventory sources host-by-host on ansible_host.
 #
-#   bin/check-inventory-parity inventory/hosts.yml inventory/homelab.proxmox.yml
+#   bin/check-inventory-parity <old-source> inventory/homelab.proxmox.yml
+#
+# Written for the migration off the hand-maintained inventory/hosts.yml, which
+# no longer exists. Kept because the comparison is still the right check to run
+# against a snapshot before and after any inventory change.
 #
 # Exits non-zero if any host in OLD is missing from NEW, or resolves to a
 # different address. Hosts present only in NEW are reported but not fatal:

@@ -1,8 +1,12 @@
 ---
 # This role deploys compose stacks; it does NOT install the Docker engine.
-# docker was provisioned with Docker beforehand. Adding an engine install
-# here would risk an unattended daemon upgrade restarting every stack, so the
-# engine is managed out of band. See "Host prerequisites" in the README.
+# That is the docker_engine role, which playbooks/stacks.yml runs first on
+# every host in docker_hosts. One owns the platform, the other the workloads.
+#
+# FIRST RUN ON A NEW HOST NEEDS A HAND. The deploy key below is generated
+# here and printed; the git clone right after it fails until that public key
+# is added to github.com/rubenclaes/containers -> Deploy keys. See section 4
+# of the README.
 - name: Generate deploy key for the stacks repo
   community.crypto.openssh_keypair:
     path: "{{ docker_stacks_deploy_key }}"

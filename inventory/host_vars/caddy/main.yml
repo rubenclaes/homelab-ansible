@@ -6,7 +6,8 @@ caddy_email: ruben.claes@neodata.be
 caddy_domain: neodata.be
 
 # Upstreams are named by inventory host, not by IP. Re-addressing a host means
-# editing its ansible_host in inventory/hosts.yml and nothing else.
+# changing it in one place - in Proxmox for a guest, or ansible_host in
+# inventory/00-static.yml for a host the hypervisor does not know about.
 #
 #   host:  an inventory hostname; its ansible_host becomes the upstream IP
 #   port:  the upstream port
