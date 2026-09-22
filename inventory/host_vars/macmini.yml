@@ -1,85 +1,130 @@
 ---
-# De Mac mini. Draait Plex als macOS-app, een reeks containers uit
-# github.com/rubenclaes/homelab, en exporteert /Volumes/FastStore over NFS
-# naar de docker-host.
+# De Mac mini. Draait Plex als macOS-app, acht compose-projecten uit
+# github.com/rubenclaes/homelab, en exporteert drie shares over NFS naar de
+# docker-host. Alles hieronder is op 22-09 van de machine zelf gelezen
+# (discover.yml, docker compose ls, een poortscan en /etc/exports), niet uit
+# het geheugen overgetikt.
 
+# `brew leaves`: wat je zelf gevraagd hebt, zonder de afhankelijkheden
+# eronder. Precies de lijst die de macos-rol terugzet.
 macos_brew_packages_extra:
+  - autojump
   - ffmpeg
   - gh
-  - ripgrep
-  - tailscale
+  - go
+  - htop
+  - iperf3
+  - jq
+  - k9s
+  - kubectx
+  - minikube
+  - node
   - ollama
-  # ...de rest van `brew leaves`, zie discover.yml
+  - pass
+  - ripgrep
+  - ssh-copy-id
+  - tailscale
+  - tldr
+  - tmux
+  - wget
 
-# Plex, Docker Desktop en wat er verder met de hand geïnstalleerd is. Leeg
-# tot `discover.yml --limit macmini` de echte lijst geeft: de macos-rol slaat
-# de cask-taak over bij een lege lijst, dus dit kost nu niets, en een gegokte
-# cask installeert software die je niet vroeg.
-macos_casks: []
+# LET OP bij docker. `brew list --cask` geeft hier `docker` EN
+# `docker-desktop`, maar dat zijn allebei restanten: /Applications/Docker.app
+# bestaat niet meer op deze machine. Wat er echt draait is OrbStack -
+# /usr/local/bin/docker is een symlink naar
+# /Applications/OrbStack.app/Contents/MacOS/xbin/docker en de actieve
+# docker-context heet `orbstack`. Alle containers hierboven draaien daarop.
+#
+# Daarom staat hier `orbstack` en geen van beide docker-casks: die zouden bij
+# een herbouw Docker Desktop installeren, en dat is niet wat deze machine
+# draait. Dit was het echte antwoord op "dubbele docker-casks" in de TODO -
+# het waren er niet twee, het waren er nul.
+#
+# OrbStack is nu buiten Homebrew geinstalleerd, dus de eerste echte run
+# struikelt mogelijk over de bestaande app. Dan `brew install --cask orbstack
+# --adopt` met de hand, en daarna klopt het weer.
+#
+# Plex staat NIET in deze lijst en dat is met opzet: hij draait als
+# /Applications/Plex Media Server.app, buiten Homebrew om. Zet je hem hier
+# als `plex-media-server`, dan gaat brew over een bestaande installatie heen
+# die hij niet geplaatst heeft. Eerst met de hand overzetten, dan pas hier.
+macos_casks:
+  - chromium
+  - iterm2
+  - multipass
+  - orbstack
+  - spotify
 
 # --- Docker op deze Mac ---------------------------------------------------
 # De stacks staan in github.com/rubenclaes/homelab. Die repo heeft GEEN
 # stacks/-map: één map per dienst in de wortel. Checkout en root zijn dus
-# hetzelfde pad, en `path` is de mapnaam.
+# hetzelfde pad.
+#
+# Het pad stond hier eerder als vermoeden; het is nu nagekeken. De clone op
+# /Users/rubenclaes/Container heeft origin
+# https://github.com/rubenclaes/homelab.git, staat op main, en is schoon:
+# geen gewijzigde getrackte bestanden en geen untracked bestanden. De harde
+# checkout van de git-module kan hier dus niets ongepusht weggooien - de zorg
+# die hier eerder stond, is nagekeken en bestaat niet.
 docker_stacks_repo: git@github.com:rubenclaes/homelab.git
 docker_stacks_repo_version: main
+docker_stacks_repo_dir: /Users/rubenclaes/Container
+docker_stacks_root: /Users/rubenclaes/Container
 docker_stacks_become: false      # Ansible verbindt hier al als de eigenaar
 docker_stacks_owner: rubenclaes
 docker_stacks_group: staff       # macOS, niet een groep per gebruiker
 docker_stacks_home: /Users/rubenclaes
 
-# NIET INGEVULD, EN DAT IS MET OPZET. De compose-files verwijzen naar
-# /Users/rubenclaes/Container/<Dienst>/config voor hun data, dus de repo is
-# vrijwel zeker gekloond op /Users/rubenclaes/Container - met de data
-# ertussenin, want `Duplicati/docker-compose.yml` is getrackt en
-# `Duplicati/config/` is gitignored in dezelfde map.
-#
-# Dat is precies de situatie waarin de git-module pijn doet: hij doet een
-# harde checkout op `version`, en lokale wijzigingen aan een compose-file die
-# nog niet gepusht zijn, zijn dan weg. Kijk eerst:
-#
-#   ssh macmini 'cd /Users/rubenclaes/Container && git remote -v && git status'
-#
-# Klopt het, zet dan beide op dat pad. Klopt het niet, zoek de echte clone.
-# docker_stacks_repo_dir: /Users/rubenclaes/Container
-# docker_stacks_root: /Users/rubenclaes/Container
+# Ansible krijgt hier PATH=/usr/bin:/bin:/usr/sbin:/sbin en vindt de docker
+# CLI dus niet zelf. Zonder deze regel faalt elke stack op "Cannot find
+# docker CLI in path".
+docker_stacks_docker_cli: /usr/local/bin/docker
 
-# Leeg tot het bovenstaande vaststaat. De rol slaat een host met een lege
-# lijst over, dus site.yml blijft groen.
+# De projecten die hier draaien én in de repo staan. `name` is ook de naam
+# van het .env-bestand onder files/env/, `path` is de map in de repo.
 #
-# De kandidaten, uit de README van die repo naast caddy_sites gelegd:
-#
-#   Draait hier en is hier gerouteerd -- deze horen in de lijst:
-#     Duplicati      8200   route `duplicati`   geen .env, alles staat hard
-#                                               in de compose (zie TODO)
-#     Grimmory       6061   route `books`       heeft .env: MEDIA_PREFIX,
-#                                               PUID/PGID, TZ, GRIMMORY_DB_*,
-#                                               GRIMMORY_PORT, _DATA_PATH,
-#                                               RESTART_POLICY
-#     pocketid       1411   route `auth`        heeft .env. Wordt uitgefaseerd
-#                                               ten gunste van `id` op docker,
-#                                               dus mogelijk niet beschrijven
-#                                               maar uitzetten.
-#
-#   Staat in die repo maar draait inmiddels op de docker-VM -- naar Archive/,
-#   niet in deze lijst, anders beschrijf je hem twee keer:
-#     Prowlarr 9696, Sonarr 8989, Radarr 7878, Seerr 5055,
-#     audiobookshelf 13378
-#
-#   Staat in die repo, heeft geen route -- eerst beslissen of ze blijven:
-#     recyclarr, Flareresolver, Shelfmark 8084, expenseowl,
-#     Portainer-agent 9001, Alloy
-#
-#   Is hier gerouteerd maar staat in GEEN repo -- dit is het echte gat:
-#     tinyauth  3000    plex  32400 (macOS-app, hoort als cask)
-#     jellyfin  8096    bazarr 6767
-docker_stacks_list: []
+# env: false betekent "deze stack heeft geen .env", niet "de secrets doen er
+# niet toe". Alleen Grimmory en pocketid hebben er een op de schijf staan.
+# Grimmory's .env staat inmiddels gevault onder files/env/grimmory.env.
+docker_stacks_list:
+  - { name: alloy, path: Alloy, env: false }
+  - { name: duplicati, path: Duplicati, env: false }   # secrets staan hard in de compose, zie TODO
+  - { name: grimmory, path: Grimmory }
+  - { name: portainer, path: Portainer, env: false }
+  - { name: recyclarr, path: recyclarr, env: false }
+  - { name: shelfmark, path: Shelfmark, env: false }
+  # pocketid draait hier op 1411 (route `auth`) en heeft een .env, maar staat
+  # bewust niet in de lijst: hij wordt uitgefaseerd ten gunste van `id` op de
+  # docker-host. Beschrijf hem pas als je besluit dat hij blijft, anders
+  # vault je secrets van een dienst die je volgende maand uitzet.
+  # - { name: pocketid, path: pocketid }
+
+# LET OP - expenseowl draait hier (poort 8080, intern) maar staat sinds
+# commit 04742c2 niet meer in de repo; die commit gooide zijn compose-file
+# weg samen met die van Prowlarr, Sonarr, Radarr, Seerr, audiobookshelf en
+# Flareresolver. Voor die zes klopt dat, ze draaien op de docker-VM. Voor
+# expenseowl niet: die draait alleen hier. Deze checkout staat één commit
+# achter, dus het bestand staat er lokaal nog. De eerste beheerde run haalt
+# die commit binnen en dan is het weg. Beslis eerst: terugzetten in de repo,
+# of de dienst uitzetten.
+
+# Poorten die hier luisteren en bewust geen route hebben.
+docker_ports_without_route:
+  - { port: 9001, why: "portainer agent - gesproken door de portainer op docker, geen UI" }
+  - { port: 8084, why: "shelfmark - geen route, nog te beslissen of hij blijft" }
 
 # --- Wat hier buiten valt -------------------------------------------------
-# De NFS-export naar de docker-host wordt door geen enkele rol beheerd. Hij
-# staat in /etc/exports op de Mini; `showmount -e localhost` toont hem. De
-# stacks op de docker-host monteren hem (docker_stacks_nfs_mounts in
-# host_vars/docker.yml) en vallen om zonder. Schrijf hem op.
+# De NFS-export naar de docker-host wordt door geen enkele rol beheerd. Het
+# zijn er DRIE, niet één - dat is op 22-09 uit /etc/exports en
+# `showmount -e localhost` gelezen:
+#
+#   /Volumes/media01    -alldirs -mapall=1000:1000 -network=192.168.0.0 -mask=255.255.255.0
+#   /Volumes/FastStore  -alldirs -mapall=1000:1000 -network=192.168.0.0 -mask=255.255.255.0
+#   "/Volumes/SSD Nas"  -alldirs -mapall=1000:1000 -network=192.168.0.0 -mask=255.255.255.0
+#
+# De docker-host mount alle drie (docker_stacks_nfs_mounts in
+# host_vars/docker.yml, nu ook alle drie) en de media-stack valt om zonder.
+# Raakt deze Mini kwijt, dan is dit het eerste wat je terug moet zetten.
 #
 # Het netwerk `External` dat die compose-files delen wordt met de hand
 # aangemaakt (`docker network create External`, staat in de README van die

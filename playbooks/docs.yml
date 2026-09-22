@@ -6,8 +6,8 @@
 # De pagina's onder technisch/ worden uit de inventory gegenereerd - hosts,
 # containers, stacks, en één pagina per route in caddy_sites - en kunnen dus
 # niet uit de pas lopen. De runbooks zijn met de hand geschreven en worden
-# alleen meegenomen. De servicemap wordt gewist en opnieuw gebouwd, zodat een
-# geschrapte route geen pagina achterlaat die er nog live uitziet.
+# alleen meegenomen. Een geschrapte route laat geen pagina achter: die wordt
+# opgeruimd nadat de rest opnieuw gerenderd is.
 #
 # Draait `npm ci` en `npm run build` op de controller, niet op caddy, en
 # stuurt alleen het resultaat door.
@@ -22,6 +22,7 @@
   vars:
     docs_site: "{{ playbook_dir }}/../docs-site"
     docs_pages: [hosts, containers, stacks]
+    docs_services: "{{ docs_site }}/content/technisch/services"
     # Read straight off the caddy host. Safe here because none of these values
     # contain a template themselves. A var whose VALUE is a hostvars template -
     # caddy_tinyauth_upstream is the one - cannot be read from a localhost play;
@@ -30,8 +31,34 @@
     caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
     pve_lxcs: "{{ hostvars['pve01'].pve_lxcs }}"
     pve_lxc_defaults: "{{ hostvars['pve01'].pve_lxc_defaults }}"
-    docker_stacks_list: "{{ hostvars['docker'].docker_stacks_list }}"
-    docker_stacks_wait_for_mounts: "{{ hostvars['docker'].docker_stacks_wait_for_mounts }}"
+    # Elke host die stacks.yml beheert, niet alleen `docker`. Die regel is
+    # daar `hosts: docker_hosts:macs` met een guard op een niet-lege
+    # docker_stacks_list, en hier staat dezelfde: één hostvars-lookup liet
+    # een tweede docker-host stil uit de pagina vallen, en een lijst die
+    # incompleet is zonder dat te zeggen is erger dan geen lijst.
+    docs_stack_hosts: >-
+      {{ ((groups['docker_hosts'] | default([])) + (groups['macs'] | default([])))
+         | unique | sort }}
+  pre_tasks:
+    # De helft van deze pagina's komt uit hosts die homelab.proxmox.yml live
+    # ophaalt. Laadt die bron niet - API plat, geen route, token verlopen -
+    # dan bestaat `caddy` niet en klapt pas de eerste template die hem nodig
+    # heeft eruit met `hostvars['caddy']` en verder niets, halverwege de run.
+    # Hier staat de stop ervoor, met een zin die zegt waar je moet kijken:
+    # het ligt aan de inventory, niet aan de site.
+    - name: Check that the inventory loaded the hosts these pages come from
+      ansible.builtin.assert:
+        that:
+          - "'caddy' in hostvars"
+          - "'pve01' in hostvars"
+          - docs_stack_hosts | length > 0
+        fail_msg: >-
+          De inventory is incompleet: caddy, pve01 of de docker-hosts
+          ontbreken. Waarschijnlijk laadde homelab.proxmox.yml niet -
+          controleer met `ansible-inventory --graph` of de Proxmox-API
+          bereikbaar is. Er is niets geschreven.
+        quiet: true
+
   tasks:
     - name: Render the generated reference pages
       ansible.builtin.template:
@@ -40,26 +67,22 @@
         mode: "0644"
       loop: "{{ docs_pages }}"
 
-    # Wiped and rebuilt rather than overwritten: a service deleted from
-    # caddy_sites must not leave its page behind, and a stale page looks live.
-    # Same absent -> directory swap this playbook already uses when publishing.
-    - name: Clear the per-service pages
+    - name: Ensure the per-service page directory exists
       ansible.builtin.file:
-        path: "{{ docs_site }}/content/technisch/services"
-        state: "{{ item }}"
+        path: "{{ docs_services }}"
+        state: directory
         mode: "0755"
-      loop: [absent, directory]
 
     - name: Render the services index
       ansible.builtin.template:
         src: docs/services.md.j2
-        dest: "{{ docs_site }}/content/technisch/services/index.mdx"
+        dest: "{{ docs_services }}/index.mdx"
         mode: "0644"
 
     - name: Render one page per service
       ansible.builtin.template:
         src: docs/service.md.j2
-        dest: "{{ docs_site }}/content/technisch/services/{{ item.name }}.mdx"
+        dest: "{{ docs_services }}/{{ item.name }}.mdx"
         mode: "0644"
       loop: "{{ caddy_sites }}"
       loop_control:
@@ -68,8 +91,35 @@
     - name: Render the per-service navigation
       ansible.builtin.template:
         src: docs/services-meta.js.j2
-        dest: "{{ docs_site }}/content/technisch/services/_meta.js"
+        dest: "{{ docs_services }}/_meta.js"
         mode: "0644"
+
+    # Opruimen achteraf, niet de map wissen vooraf. Een geschrapte route mag
+    # geen pagina achterlaten die er nog live uitziet - dat blijft waar - maar
+    # eerst wissen betekent dat elke fout tussen het wissen en het renderen je
+    # de hele set kost. Dat gebeurde op 22-09: de Proxmox-inventory laadde
+    # niet, `hostvars['caddy']` klapte eruit, en wat er overbleef was een lege
+    # map en 31 bestanden als verwijderd in de working tree.
+    #
+    # Deze volgorde heeft dat venster niet: de pagina's worden overschreven,
+    # en pas als ze er allemaal staan gaat weg wat niet meer in caddy_sites
+    # zit. Faalt er iets ervoor, dan staat de vorige set er nog gewoon.
+    - name: Find the per-service pages on disk
+      ansible.builtin.find:
+        paths: "{{ docs_services }}"
+        patterns: "*.mdx"
+      register: docs_service_pages
+
+    - name: Remove pages for services that are no longer routed
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ docs_service_pages.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: >-
+        (item.path | basename | splitext | first)
+        not in (['index'] + (caddy_sites | map(attribute='name') | list))
 
     # `npm ci` installs exactly what package-lock.json pins, and fails rather
     # than silently resolving something newer. Nextra is pinned to 4.5.0 on

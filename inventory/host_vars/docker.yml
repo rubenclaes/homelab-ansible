@@ -11,8 +11,27 @@ docker_stacks_list:
   - { name: homebox, path: homebox }
   - { name: media, path: media, project: media-stack }
 
+# Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
+# 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
+# een herbouwde docker-host kwam met twee mounts minder terug - en dan blijft
+# hij hangen op wait_for_mounts hieronder in plaats van op te starten.
+#
+# De opties zijn letterlijk overgenomen van wat er nu in fstab staat, met
+# opzet: `state: mounted` hermount bij een afwijking, en dat wil je niet
+# terwijl de media-stack draait. media01 wijkt af van de andere twee
+# (`resvport` in plaats van `noresvport`, plus x-systemd.automount); dat is
+# geen vergissing van nu, dat stond er al. Gelijktrekken is een aparte klus
+# op een rustig moment, niet iets om er stilletjes bij te doen.
 docker_stacks_nfs_mounts:
-  - { src: "192.168.0.26:/Volumes/FastStore", path: /mnt/faststore }
+  - src: '192.168.0.26:/Volumes/SSD\040Nas'
+    path: /mnt/ssdnas
+    opts: 'nfsvers=3,proto=tcp,noresvport,hard,timeo=30,retrans=3,nofail,_netdev'
+  - src: '192.168.0.26:/Volumes/media01'
+    path: /mnt/media01
+    opts: 'rw,hard,intr,nofail,_netdev,x-systemd.automount,nfsvers=3,tcp,resvport'
+  - src: '192.168.0.26:/Volumes/FastStore'
+    path: /mnt/faststore
+    opts: 'vers=3,hard,noresvport,proto=tcp,timeo=30,retrans=3,_netdev'
 
 docker_stacks_wait_for_mounts:
   - /mnt/ssdnas

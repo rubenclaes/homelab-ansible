@@ -2,52 +2,40 @@
 # VM 102. Debian, zit in docker_hosts en krijgt dus de docker_engine-rol.
 #
 # Zijn stack staat in github.com/rubenclaes/monitoring-stack, niet in de
-# containers-repo. Vandaar de repo-variabelen hier: de defaults in
-# roles/docker_stacks/defaults/main.yml wijzen naar `containers` op branch
-# master, en deze repo heet anders en staat op main. De stacks/-indeling is
-# wel dezelfde, dus `path` blijft de mapnaam eronder.
+# containers-repo. Alleen de repo-naam en de branch wijken daarvoor af; de
+# checkout staat op /opt/containers en de stacks eronder, precies zoals de
+# defaults in roles/docker_stacks/defaults/main.yml het al zeggen. Dat is op
+# 22-09 van de host zelf gelezen: `docker compose ls` geeft project
+# `monitoring` op /opt/containers/stacks/monitoring, en `git remote -v` daar
+# geeft monitoring-stack. Eerder stond hier /opt/monitoring-stack; dat pad
+# bestaat op die host niet en de eerste echte run zou de clone dus naast de
+# draaiende stack hebben gezet in plaats van erop.
 docker_stacks_repo: git@github.com:rubenclaes/monitoring-stack.git
 docker_stacks_repo_version: main
-docker_stacks_repo_dir: /opt/monitoring-stack
-docker_stacks_root: /opt/monitoring-stack/stacks
 
 docker_stacks_list:
   - { name: monitoring, path: monitoring }
 
-# WAT ER NOG MOET GEBEUREN VOOR DIT DRAAIT
+# Draait hier met een gepubliceerde poort en hoort bewust geen route te
+# krijgen, anders meldt report.yml hem elke run als drift.
+docker_ports_without_route:
+  - { port: 9001, why: "portainer agent - gesproken door de portainer op docker, geen UI" }
+  - { port: 12345, why: "alloy ui - alleen lokaal, scrapet zichzelf" }
+  - { port: 3100, why: "loki - push/query api voor alloy en grafana, geen UI" }
+
+# De read-only deploy key op /home/ruben/.ssh/containers_deploy is op 22-09
+# aangemaakt en als deploy key aan monitoring-stack toegevoegd. Nagekeken met
+# `git ls-remote` als ruben over die sleutel: die geeft main terug. De
+# git-taak van de rol kan hier dus zelfstandig trekken.
 #
-# 1. files/env/monitoring.env aanmaken en vaulten onder `stacks`:
+# `remove_orphans` is hier veilig: het project heet al `monitoring` en staat
+# al op het pad dat de rol gebruikt, dus de eerste run herkent de vier
+# draaiende containers als de zijne. De portainer-agent op 9001 draait zonder
+# compose-project-label en valt er dus buiten - nagekeken met docker inspect.
 #
-#      ansible-vault create --encrypt-vault-id stacks files/env/monitoring.env
-#
-#    De compose-file leest deze zeven. Alleen GRAFANA_PASSWORD heeft een
-#    fallback (`admin`); de rest heeft er geen, en een lege ${DATA_PATH} zet
-#    de volumes van grafana, prometheus, loki en alloy in de wortel van de
-#    schijf. Vul ze dus allemaal:
-#
-#      CONTAINER_PREFIX=   voorvoegsel voor de containernamen
-#      NETWORK_NAME=       het netwerk heet <deze waarde>_monitoring
-#      DATA_PATH=          waar de vier hun data neerzetten
-#      VM_IP=              adres waarop de poorten binden
-#      RESTART_POLICY=     unless-stopped
-#      TZ=                 Europe/Brussels
-#      GRAFANA_PASSWORD=   admin-wachtwoord
-#
-# 2. De deploy-key. De eerste run maakt er een en print de publieke helft;
-#    zet die in monitoring-stack -> Settings -> Deploy keys. Tot dan faalt
-#    de git-clone.
-#
-# 3. Eerst drooglopen, en wel hierom:
-#
-#      ansible-playbook playbooks/stacks.yml --limit docker-grafana-stack --check --diff
-#
-#    `remove_orphans` staat aan in de rol. Draaien deze vier containers nu
-#    onder een andere projectnaam dan `monitoring`, dan ruimt de eerste echte
-#    run ze op en bouwt ze opnieuw. Dat is te overleven - de data zit in
-#    ${DATA_PATH}, niet in de containers - maar je wil het weten voor het
-#    gebeurt en niet erna.
-#
-# LET OP, de route klopt waarschijnlijk niet. caddy_sites beschrijft
-# `monitoring` (poort 3001) als "Uptime Kuma", maar deze compose zet daar
-# Grafana neer. Uptime Kuma staat in geen van beide repo's. Wat er echt
-# luistert zegt `playbooks/discover.yml --limit docker-grafana-stack`.
+# MAAR: `docker compose up --dry-run` op 22-09 zegt Recreate voor alle vier.
+# De draaiende containers zijn ooit met een andere config gestart dan wat er
+# nu in de compose-file en de .env staat. De eerste echte run herstart dus
+# grafana, prometheus, loki en alloy. Dat is te overleven - hun data staat in
+# ${DATA_PATH} en niet in de container - maar het is een korte onderbreking
+# van je monitoring, en je wil hem plannen in plaats van hem tegenkomen.

@@ -7,17 +7,33 @@ import { Callout } from 'nextra/components'
 # Docker-stacks
 
 <Callout type="warning">
-Gegenereerd uit `docker_stacks_list` in `inventory/host_vars/docker.yml`.
+Gegenereerd uit `docker_stacks_list` van elke host die `playbooks/stacks.yml`
+beheert. Staat een host hieronder niet, dan heeft hij geen lijst en raakt de
+rol hem niet aan.
 </Callout>
 
-Compose-bestanden komen uit [rubenclaes/containers](https://github.com/rubenclaes/containers)
-via een read-only deploy key. Elke `.env` staat versleuteld onder de
-vault-identiteit `stacks` en wordt pas bij het deployen weggeschreven.
+Elke `.env` staat versleuteld onder de vault-identiteit `stacks` en wordt pas
+bij het deployen weggeschreven. De compose-bestanden komen per host uit de
+repo die eronder staat, via een read-only deploy key.
 
-| Stack | Pad in repo | Compose-project | Secrets |
+{% for h in docs_stack_hosts if hostvars[h].docker_stacks_list | default([]) | length > 0 %}
+{%- set repo = hostvars[h].docker_stacks_repo | default('git@github.com:rubenclaes/containers.git') %}
+{%- set root = hostvars[h].docker_stacks_root | default('/opt/containers/stacks') %}
+{%- set slug = repo | regex_replace('^git@github\.com:', '') | regex_replace('\.git$', '') %}
+{%- set mounts = hostvars[h].docker_stacks_wait_for_mounts | default([]) %}
+## {{ h }}
+
+Compose-bestanden uit [{{ slug }}](https://github.com/{{ slug }}), uitgecheckt
+op `{{ hostvars[h].docker_stacks_repo_dir | default('/opt/containers') }}`.
+
+| Stack | Pad op de host | Compose-project | Secrets |
 | --- | --- | --- | --- |
-{% for st in docker_stacks_list | sort(attribute='name') -%}
-| **{{ st.name }}** | `stacks/{{ st.path }}` | {{ ('`' ~ st.project ~ '`') if st.project is defined else '—' }} | {{ '`.env` in vault' if st.env | default(true) else 'geen' }} |
+{% for st in hostvars[h].docker_stacks_list | sort(attribute='name') -%}
+| **{{ st.name }}** | `{{ root }}/{{ st.path }}` | {{ ('`' ~ st.project ~ '`') if st.project is defined else '—' }} | {{ '`.env` in vault' if st.env | default(true) else 'geen' }} |
 {% endfor %}
+{%- if mounts | length > 0 %}
 
-Docker wacht bij het opstarten op deze mounts: {% for m in docker_stacks_wait_for_mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.
+Docker wacht hier bij het opstarten op deze mounts: {% for m in mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.
+{% endif %}
+
+{% endfor %}

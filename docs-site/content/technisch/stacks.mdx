@@ -7,24 +7,38 @@ import { Callout } from 'nextra/components'
 # Docker-stacks
 
 <Callout type="warning">
-Gegenereerd uit `docker_stacks_list` in `inventory/host_vars/docker.yml`.
+Gegenereerd uit `docker_stacks_list` van elke host die `playbooks/stacks.yml`
+beheert. Staat een host hieronder niet, dan heeft hij geen lijst en raakt de
+rol hem niet aan.
 </Callout>
 
-Compose-bestanden komen uit [rubenclaes/containers](https://github.com/rubenclaes/containers)
-via een read-only deploy key. Elke `.env` staat versleuteld onder de
-vault-identiteit `stacks` en wordt pas bij het deployen weggeschreven.
+Elke `.env` staat versleuteld onder de vault-identiteit `stacks` en wordt pas
+bij het deployen weggeschreven. De compose-bestanden komen per host uit de
+repo die eronder staat, via een read-only deploy key.
 
-| Stack | Pad in repo | Compose-project | Secrets |
+## docker
+
+Compose-bestanden uit [rubenclaes/containers](https://github.com/rubenclaes/containers), uitgecheckt
+op `/opt/containers`.
+
+| Stack | Pad op de host | Compose-project | Secrets |
 | --- | --- | --- | --- |
-| **homebox** | `stacks/homebox` | — | `.env` in vault |
-| **homepage** | `stacks/homepage` | — | `.env` in vault |
-| **infra** | `stacks/infra` | — | `.env` in vault |
-| **media** | `stacks/media` | `media-stack` | `.env` in vault |
-| **memos** | `stacks/memos` | — | `.env` in vault |
-| **metrics** | `stacks/metrics` | — | `.env` in vault |
-| **neogate** | `stacks/neogate` | — | `.env` in vault |
-| **portainer** | `stacks/portainer` | — | geen |
-| **rustdesk** | `stacks/apps/rustdesk` | — | `.env` in vault |
-| **utils** | `stacks/utils` | — | `.env` in vault |
+| **homebox** | `/opt/containers/stacks/homebox` | — | `.env` in vault |
+| **homepage** | `/opt/containers/stacks/homepage` | — | `.env` in vault |
+| **infra** | `/opt/containers/stacks/infra` | — | `.env` in vault |
+| **media** | `/opt/containers/stacks/media` | `media-stack` | `.env` in vault |
+| **memos** | `/opt/containers/stacks/memos` | — | `.env` in vault |
+| **metrics** | `/opt/containers/stacks/metrics` | — | `.env` in vault |
+| **neogate** | `/opt/containers/stacks/neogate` | — | `.env` in vault |
+| **portainer** | `/opt/containers/stacks/portainer` | — | geen |
+| **rustdesk** | `/opt/containers/stacks/apps/rustdesk` | — | `.env` in vault |
+| **utils** | `/opt/containers/stacks/utils` | — | `.env` in vault |
+Docker wacht hier bij het opstarten op deze mounts: `/mnt/ssdnas`, `/mnt/media01`, `/mnt/faststore`.
+## docker-grafana-stack
 
-Docker wacht bij het opstarten op deze mounts: `/mnt/ssdnas`, `/mnt/media01`, `/mnt/faststore`.
+Compose-bestanden uit [rubenclaes/monitoring-stack](https://github.com/rubenclaes/monitoring-stack), uitgecheckt
+op `/opt/containers`.
+
+| Stack | Pad op de host | Compose-project | Secrets |
+| --- | --- | --- | --- |
+| **monitoring** | `/opt/containers/stacks/monitoring` | — | `.env` in vault |

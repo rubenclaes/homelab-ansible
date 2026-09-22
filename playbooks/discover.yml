@@ -20,6 +20,21 @@
 # Daarna is `docker_stacks_list` het enige dat de host beheerd maakt:
 # playbooks/stacks.yml pakt elke host op die er een heeft.
 
+- name: Zorg dat de doelmap bestaat
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    # .discovered/ is gitignored en staat dus niet in een verse checkout.
+    # Zonder deze taak faalt elke template-taak hieronder op een map die er
+    # niet is, en dat is een rare eerste kennismaking met dit playbook.
+    - name: Maak .discovered/
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../.discovered"
+        state: directory
+        mode: "0755"
+      become: false
+      check_mode: false
+
 - name: Wat draait er op de Docker-hosts
   hosts: docker_hosts
   gather_facts: true

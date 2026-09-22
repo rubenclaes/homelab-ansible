@@ -21,5 +21,13 @@ docker_stacks_repo_dir: /opt/containers
 docker_stacks_repo_version: master
 docker_stacks_deploy_key: "{{ docker_stacks_home }}/.ssh/containers_deploy"
 
+# Waar de docker CLI staat. Op Debian staat hij in het standaard-PATH en is
+# leeg hier goed. Op macOS niet: een niet-interactieve SSH-sessie krijgt
+# PATH=/usr/bin:/bin:/usr/sbin:/sbin, en OrbStack en Docker Desktop zetten
+# hun CLI allebei in /usr/local/bin. Zonder dit faalt de rol daar op
+# "Cannot find docker CLI in path" - wat hem op de Mac mini onbruikbaar
+# maakte zolang niemand hem daar echt gedraaid had.
+docker_stacks_docker_cli: ~
+
 docker_stacks_wait_for_mounts: []
 docker_stacks_nfs_mounts: []

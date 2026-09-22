@@ -29,7 +29,11 @@ caddy_sites:
   # --- Infra ---
   - { name: portainer, host: docker, port: 9443, https: true, desc: "Docker-beheer voor de docker-host" }
   - { name: semaphore, host: semaphore, port: 3000, desc: "Ansible control plane — draait de playbooks volgens schema" }
-  - { name: monitoring, host: docker-grafana-stack, port: 3001, host_header: true, desc: "Uptime Kuma — bereikbaarheidscontroles en meldingen" }
+  # Poort 3001 is Grafana, niet Uptime Kuma: `docker ps` op die host geeft
+  # monitoring-grafana 192.168.0.17:3001->3000/tcp, gecontroleerd 22-09.
+  # Uptime Kuma draait nergens in deze estate. De oude omschrijving hier was
+  # de enige plek waar hij nog bestond, en die geloof je tijdens een storing.
+  - { name: monitoring, host: docker-grafana-stack, port: 3001, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
   - { name: prometheus, host: docker-grafana-stack, port: 9090, desc: "Metrics-store die Grafana scrapet" }
 
   # --- docker ---
@@ -54,14 +58,18 @@ caddy_sites:
 
 
   # --- Mac mini ---
-  - { name: tinyauth, host: macmini, port: 3000, desc: "Auth-middleware achter Caddy's forward_auth" }
+  # Op 22-09 nagelopen met een poortscan op 192.168.0.26: alleen wat hier nog
+  # staat luistert daar ook echt. tinyauth (3000), bazarr (6767) en jellyfin
+  # (8096) zijn weg - geen container, geen proces, niets op de poort. Die drie
+  # routes stonden hier nog wel, en een route die een 502 teruggeeft is erger
+  # dan geen route: tijdens een storing kost hij je de eerste tien minuten.
+  #
+  # tinyauth is ook nergens in gebruik: geen enkele site in deze lijst zet
+  # `auth: true`, dus het snippet tinyauth_forwarder in de Caddyfile wordt
+  # nooit geimporteerd. caddy_tinyauth_upstream hierboven wijst dus naar een
+  # dode poort, maar doet niets. Laat staan tot je beslist of tinyauth
+  # terugkomt; zet je hem niet terug, dan kunnen de var en het snippet weg.
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
-
-
-  - { name: bazarr, host: macmini, port: 6767, desc: "Ondertitels ophalen voor Sonarr en Radarr" }
-
   - { name: duplicati, host: macmini, port: 8200, desc: "Back-ups vanaf de Mac mini" }
   - { name: auth, host: macmini, port: 1411, desc: "Pocket ID — oude instantie, wordt uitgefaseerd" } # TODO: old Pocket ID instance
   - { name: books, host: macmini, port: 6061, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
-
-  - { name: jellyfin, host: macmini, port: 8096, desc: "Jellyfin — mediaserver naast Plex" }

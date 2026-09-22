@@ -3,13 +3,15 @@
 #
 #   allow_reboot             reboot guests that need it        (default false)
 #   allow_hypervisor_reboot  also reboot pve01                 (default false)
+#   allow_cask_upgrade       upgrade Homebrew casks on the Macs (default false)
 #
-# Both are read with `| default(false)` rather than declared as play vars,
+# All three are read with `| default(false)` rather than declared as play vars,
 # so they can be set in group_vars, host_vars, or on the command line:
 #   ansible-playbook playbooks/update.yml -e allow_reboot=true
 #
 # Guests are patched to completion first, then the hypervisor. Running them in
-# one play would let pve01 reboot out from under the guests it hosts.
+# one play would let pve01 reboot out from under the guests it hosts. The Macs
+# are unrelated to that order and come last, for the reason on their play.
 
 - name: Update guests
   hosts: linux:!proxmox
@@ -49,3 +51,45 @@
       when:
         - baseline_reboot_needed | bool
         - not (allow_reboot | default(false) | bool and allow_hypervisor_reboot | default(false) | bool)
+
+# The Macs are not in `linux`, so neither play above touches them; apt is not
+# their package manager. They come last on purpose: Homebrew on the mbp owns
+# the `ansible` that is running this file (ansible_connection is local), and
+# upgrading it replaces the interpreter mid-run. Last keeps that window down to
+# nothing, and HOMEBREW_NO_INSTALL_CLEANUP stops brew from deleting the Cellar
+# directory the running process still reads from.
+#
+# No `become` here, deliberately: Homebrew refuses to run as root, and `macs`
+# inherits none of the `linux` group's become settings.
+- name: Update Macs
+  hosts: macs
+  serial: 1
+  gather_facts: false
+  environment:
+    HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  tasks:
+    # `upgrade_options: [formula]` becomes `brew upgrade --formula`, and that
+    # is not cosmetic. A bare `brew upgrade` upgrades outdated formulae AND
+    # casks, which would walk straight through the gate on the next task and
+    # restart Docker Desktop on a run that only asked for packages. The module
+    # prepends the dashes itself, so the value is written without them.
+    - name: Update Homebrew itself and upgrade every formula
+      community.general.homebrew:
+        update_homebrew: true
+        upgrade_all: true
+        upgrade_options: [formula]
+        path: "{{ macos_brew_path }}"
+
+    # Off by default because a cask upgrade is not a package upgrade: it
+    # replaces applications. On the Mini that means docker-desktop, and
+    # restarting Docker there takes every compose stack on the machine down
+    # with it. Ask for it when you can take that, not on a routine patch run.
+    #
+    # `greedy` stays at the module default (false), so casks that update
+    # themselves - Spotify, Chromium - are left to do that themselves rather
+    # than being reinstalled underneath a running app.
+    - name: Upgrade casks
+      community.general.homebrew_cask:
+        upgrade_all: true
+        path: "{{ macos_brew_path }}"
+      when: allow_cask_upgrade | default(false) | bool

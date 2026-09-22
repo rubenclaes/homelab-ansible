@@ -10,21 +10,27 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 ## Nu — hier kan iets misgaan
 
 - [ ] **De PBS-encryptiesleutel staat nergens buiten pve01.**
-      `proxmox-backup-client key show`, uitprinten, buiten het huis leggen.
-      Ben je pve01 én de sleutel kwijt, dan is elke back-up die je ooit maakte
-      onleesbaar. Vijf minuten werk, en alles hangt ervan af.
+      Hij staat op `/etc/pve/priv/storage/pbs.enc` (gecontroleerd 22-09).
+      `proxmox-backup-client key paperkey` geeft er een uitprintbare versie
+      van. Uitprinten, buiten het huis leggen. Ben je pve01 én de sleutel
+      kwijt, dan is elke back-up die je ooit maakte onleesbaar. Vijf minuten
+      werk, en alles hangt ervan af.
 
 - [ ] **De Semaphore-template "Update guests" patcht Semaphore zelf.**
       Zet de limit op `guests:!semaphore`; die machine patch je met de hand.
       Herstart Semaphore halverwege, dan is de job dood en weet je niet of de
       upgrade af is.
 
-- [ ] **De wekelijkse PBS-job heeft nog nooit een back-up gemaakt** —
-      `backup-e6cc3e8b-ac39`, gecontroleerd op 21-09.
-      Storage `local` mist het content-type `backup`, dus `vzdump` breekt af
-      voordat hij de vmid-lijst leest. Kies: `backup` toevoegen aan `local`,
-      of de job naar `pbs` richten zoals de dagelijkse al doet. De dagelijkse
-      job dekt alles, dus het derde antwoord is hem weggooien.
+- [ ] **Deze MacBook mag het LAN niet op vanuit Python.**
+      `curl`, `ssh` en `nc` komen bij 192.168.0.x, Python niet: elke poging
+      geeft `[Errno 65] No route to host`. Dat is de Local Network-toestemming
+      van macOS 26. Gevolg: de Proxmox-inventoryplugin werkt hier niet, dus
+      `site.yml`, `drift.yml` en `stacks.yml` vinden hun hosts niet, en
+      `caddy-smoketest.yml` meldt álle sites stuk terwijl ze het doen (die
+      test draait `delegate_to: localhost`). Zet hem aan onder
+      Systeeminstellingen -> Privacy en beveiliging -> Lokaal netwerk, voor de
+      app die Claude Code draait. Tot dan is er van deze Mac uit alleen met de
+      hand een statische inventory te draaien.
 
 ---
 
@@ -61,88 +67,84 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 - [ ] **"Cleanup (apply)" als tweede template**, met `cleanup_apply: true`,
       zaterdag 03:00. Zonder die versie ruimt de rapportversie nooit iets op.
 
+Alle vier de Semaphore-punten zijn UI-werk: de rol installeert en configureert
+Semaphore, maar beheert geen templates. Wie ze in code wil, moet ze eerst via
+de API beschrijven.
+
 ---
 
 ## Opruimen in de estate
 
 - [ ] **Twee verweesde PBS-groepen** — `ct/109` en `vm/110`, van guests die
-      niet meer bestaan. Een back-uplijst met groepen die nergens bij horen
-      lees je na een half jaar niet meer met vertrouwen.
-
-- [ ] **Vier diensten draaien door zonder route** — `wizarr`, `dozzle`,
-      `jackett` en `tautulli` op de Mac mini. Geen playbook zet ze stil, dus
-      met de hand. Let op dat Sonarr of Radarr Jackett nog als indexer kunnen
-      hebben; Prowlarr doet dat werk al. Doe dit vóór je de lijst van de Mini
-      vult, anders beschrijf je vier diensten die je toch weghaalt.
-
-- [ ] **De route `monitoring` heet Uptime Kuma maar is waarschijnlijk
-      Grafana.** `caddy_sites` beschrijft poort 3001 op docker-grafana-stack
-      als Uptime Kuma; `monitoring-stack` zet daar Grafana neer, en Uptime
-      Kuma staat in geen van beide repo's. `discover.yml` zegt wat er echt
-      luistert. Een routebeschrijving die niet klopt is erger dan geen, want
-      je gelooft hem tijdens een storing.
+      niet meer bestaan. Elk één snapshot van 18-09, samen ~57 GB. Ze staan er
+      nog: `pve@pbs` heeft alleen `DatastoreBackup` en mag niet verwijderen,
+      dus `pvesm free` geeft "missing Datastore.Modify|Datastore.Prune".
+      Weghalen doe je in de PBS-UI (Datastore -> store1 -> Content -> groep ->
+      Forget), of door `pve@pbs` tijdelijk `DatastorePowerUser` op
+      `/datastore/store1` te geven. Een back-uplijst met groepen die nergens
+      bij horen lees je na een half jaar niet meer met vertrouwen.
 
 - [ ] **`openbooks` draait zonder route**, alleen op `192.168.0.15:8080`.
       Geef hem een naam of zet hem uit, maar kies.
 
-- [ ] **Pocket ID draait dubbel** — `auth` op de Mac mini en `id` op docker.
-      Bij een storing weet je niet welke stuk is. Zoek uit welke de apps
-      gebruiken, migreer, zet de andere uit.
+- [ ] **`shelfmark` draait zonder route**, op `192.168.0.26:8084`. Zelfde
+      keuze. Hij staat nu in `docker_ports_without_route` zodat report.yml
+      hem niet elke run meldt, maar dat is uitstel, geen besluit.
+
+- [ ] **Pocket ID draait dubbel** — `auth` op de Mac mini (poort 1411) en `id`
+      op docker (ook 1411). Beide geven 200. Bij een storing weet je niet
+      welke stuk is. Zoek uit welke de apps gebruiken, migreer, zet de andere
+      uit. Zolang dit niet beslist is staat pocketid met opzet níét in
+      `docker_stacks_list` van de Mini: anders vault je de secrets van een
+      dienst die je volgende maand uitzet.
+
+- [ ] **`expenseowl` draait op de Mini maar staat in geen repo meer.**
+      Commit `04742c2` in `rubenclaes/homelab` gooide zijn compose-file weg,
+      samen met die van Prowlarr, Sonarr, Radarr, Seerr, audiobookshelf en
+      Flareresolver. Voor die zes klopt dat — ze draaien op de docker-VM. Voor
+      expenseowl niet: die draait alléén daar. De checkout op de Mini staat
+      één commit achter, dus het bestand staat er lokaal nog; de eerste
+      beheerde run haalt die commit binnen en dan is het weg. Kies: terugzetten
+      in de repo, of de dienst uitzetten.
+
+- [ ] **`tinyauth` bestaat niet meer, maar de machinerie wel.**
+      De route is weg (22-09), maar `caddy_tinyauth_upstream` in
+      `host_vars/caddy/main.yml` en het snippet `tinyauth_forwarder` in de
+      Caddyfile staan er nog. Geen enkele site zet `auth: true`, dus het
+      snippet wordt nooit geïmporteerd en de var wijst naar een dode poort.
+      Komt tinyauth niet terug, dan kunnen beide weg.
 
 ---
 
 ## Grotere projecten
 
-- [ ] **Twee hosts draaien diensten die geen playbook kan terugbouwen.**
-      De Mac mini heeft zeven routes en `docker-grafana-stack` twee, en van
-      geen enkele staat de stack in deze repo. Gaat de Mini stuk, dan zet jij
-      Plex met de hand terug.
-
-      De weg ernaartoe ligt er nu wel, en hij is korter dan gedacht: de
-      compose-files bestáán, alleen in eigen repo's.
-      `rubenclaes/monitoring-stack` draagt de monitoring-stack,
-      `rubenclaes/homelab` die van de Mini. `stacks.yml` is niet langer aan de
-      host `docker` gebonden - elke host met een `docker_stacks_list` wordt
-      beheerd, ook een Mac, want de Debian-only stukken van de rol staan nu
-      apart in `roles/docker_stacks/tasks/linux.yml`. Beide host_vars wijzen
-      naar hun eigen repo.
+- [ ] **De Mac mini: van beschreven naar beheerd.**
+      `host_vars/macmini.yml` beschrijft hem nu wél — brew-formules, casks,
+      de zes compose-projecten die er draaien én in de repo staan, het pad van
+      de clone, de docker-CLI en de drie NFS-exports. De droogloop
+      (`stacks.yml --limit macmini --check --diff`) is groen en `Bring stacks
+      up` meldt voor alle zes `ok`, dus een echte run herbouwt niets.
 
       Wat er nog te doen is:
 
-      - [ ] **`files/env/monitoring.env` aanmaken en vaulten onder `stacks`.**
-            Zeven variabelen, opgesomd in
-            `inventory/host_vars/docker-grafana-stack.yml`. Alleen
-            GRAFANA_PASSWORD heeft een fallback; een lege `DATA_PATH` zet de
-            volumes van vier containers in de wortel van de schijf. Daarna is
-            docker-grafana-stack af: de lijst staat er al.
-      - [ ] **Deploy-keys** voor beide repo's. De eerste run maakt er een aan
-            en print hem; zonder faalt de clone.
-      - [ ] `discover.yml --limit macmini`, dan `brew leaves` en de casks
-            overnemen. Dat alleen al maakt de software van de Mini
-            herbouwbaar en kost niets.
-      - [ ] **Uitzoeken waar `rubenclaes/homelab` op de Mini gekloond staat.**
-            De compose-files wijzen naar `/Users/rubenclaes/Container/<Dienst>`
-            voor hun data, dus repo en data staan door elkaar in één map. De
-            git-module doet een harde checkout; niet-gepushte wijzigingen aan
-            een compose-file zijn dan weg. Pas daarna `docker_stacks_repo_dir`
-            en `_root` invullen.
-      - [ ] **De verhuisde diensten naar `Archive/`** in `rubenclaes/homelab`:
-            Prowlarr, Sonarr, Radarr, Seerr en audiobookshelf draaien
-            inmiddels op de docker-VM. Zolang ze in de wortel staan, beschrijf
-            je ze straks twee keer.
-      - [ ] **Vier gerouteerde diensten op de Mini staan in geen enkele
-            repo** - `tinyauth`, `jellyfin`, `bazarr`, en Plex zelf. Plex is
-            een macOS-app en hoort als cask; de andere drie hebben nergens een
-            compose-file. Dat is het echte gat in de Mini: voor die drie
-            bestaat geen herbouwpad, ook niet met de hand.
-      - [ ] `docs.yml` rendert `stacks.mdx` alleen uit de host `docker`. Zodra
-            een tweede host een lijst heeft, is die pagina onvolledig. Eén
-            loop over `docker_hosts` in plaats van één hostvars-lookup.
-      - [ ] De NFS-export van de Mini (`/Volumes/FastStore`) opschrijven. Geen
-            rol beheert hem, de stacks op de docker-host monteren hem, en
-            zonder hem vallen die om. Nu staat hij alleen in `/etc/exports`
-            op een machine die je aan het beschrijven bent omdat je hem kunt
-            verliezen.
+      - [ ] **Eén keer echt draaien.** Tot dat gebeurd is, is het een
+            beschrijving en geen herbouwpad. De git-taak trekt dan commit
+            `04742c2` binnen — zie het expenseowl-punt hierboven, doe dat
+            eerst.
+      - [ ] **Plex als cask.** Hij draait als
+            `/Applications/Plex Media Server.app`, buiten Homebrew om. Zet je
+            hem in `macos_casks` als `plex-media-server`, dan gaat brew over
+            een bestaande installatie heen die hij niet geplaatst heeft.
+            Eerst met de hand overzetten, dan pas beschrijven.
+      - [ ] **OrbStack staat buiten Homebrew.** `macos_casks` noemt hem nu
+            (dat is wat er draait, niet Docker Desktop), maar de installatie
+            op de machine komt niet van brew. De eerste echte run struikelt
+            daar mogelijk over; dan `brew install --cask orbstack --adopt`.
+            De oude `docker`- en `docker-desktop`-cask-restjes wijzen naar een
+            `/Applications/Docker.app` die niet meer bestaat en mogen weg.
+      - [ ] **De NFS-exports horen in een rol.** Ze staan nu opgeschreven in
+            `host_vars/macmini.yml` en de docker-host mount ze alle drie, maar
+            niets zet ze terug als de Mini opnieuw opgebouwd wordt.
 
 - [ ] **Secrets staan hard in `Duplicati/docker-compose.yml`** in
       `rubenclaes/homelab` - `SETTINGS_ENCRYPTION_KEY` en
@@ -150,7 +152,8 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       dus dit is geen brand, maar ze staan in de historie en zijn niet te
       roteren zonder de compose-file aan te raken. Naar een `.env`, en dan
       naar `files/env/duplicati.env` onder de `stacks`-identiteit, zoals elke
-      andere stack hier.
+      andere stack hier. De stack staat al in `docker_stacks_list` met
+      `env: false`; dat wordt dan weer de standaard.
 
 - [x] **Niets bewijst dat een back-up terugkomt.** `restore-drill.yml`
       geschreven: zet de nieuwste PBS-back-up van één guest terug op vmid 199,
@@ -167,21 +170,23 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
             draait als je eraan denkt, draai je precies niet in het half jaar
             waarin de back-ups stilletjes stukgaan.
 
+- [ ] **De monitoring-stack herstart bij de eerste beheerde run.**
+      `docker compose up --dry-run` op docker-grafana-stack zegt Recreate voor
+      grafana, prometheus, loki en alloy: ze zijn ooit met een andere config
+      gestart dan wat er nu in de compose-file en de `.env` staat. Te
+      overleven — hun data staat in `${DATA_PATH}` — maar plan het, want het
+      is een onderbreking van precies het ding dat je onderbrekingen moet
+      melden.
+
 - [ ] **Action1 voor de pc van de ouders**, en voor de Macs.
 
 ---
 
 ## Klein, wanneer het uitkomt
 
-- [ ] **`~/.ssh/config` staat op `0644`.** De volgende echte `dotfiles.yml`-run
-      zet hem op `0600`. Het bestand noemt je hosts, gebruikers en sleutelpaden.
 - [ ] **Vault-wachtwoorden roteren.** Tijdens het opzetten zijn de eerste
       tekens van beide in een sessielog terechtgekomen.
       `ansible-vault rekey --new-vault-id infra@<bestand>`.
 - [ ] **`~/.ssh/config` opruimen** — pv01-typo, `pve01-unifi-os` weg, nieuwe
-      hosts samenvoegen.
-- [ ] **Dubbele docker / docker-desktop casks** op MBP en Mini.
-- [ ] **Mini: `brew leaves` → `host_vars/macmini.yml`**, het `_extra`-patroon.
-      `discover.yml --limit macmini` schrijft die lijst voor je. Het kleinste
-      stuk van het grote punt hierboven, en los te doen.
+      hosts samenvoegen. (De rechten zijn al goed: `0600`, gecontroleerd 22-09.)
 - [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1.

@@ -181,7 +181,13 @@ ansible-playbook playbooks/update.yml                          # patchen, niet h
 ansible-playbook playbooks/update.yml -e allow_reboot=true     # guests mogen herstarten
 ansible-playbook playbooks/update.yml -e allow_reboot=true -e allow_hypervisor_reboot=true
 # Guests gaan eerst, één voor één, dan pas pve01: anders herstart de
-# hypervisor onder zijn eigen guests vandaan.
+# hypervisor onder zijn eigen guests vandaan. De Macs komen daarna en gaan
+# via Homebrew, niet via apt - `brew update` plus `brew upgrade`.
+ansible-playbook playbooks/update.yml --limit macs         # alleen de Macs, formulae
+ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
+# Casks staan standaard uit: die vervangen applicaties. Op de Mini zit
+# docker-desktop ertussen en een herstart daarvan haalt elke compose-stack op
+# die machine onderuit. Vraag er dus om op een moment dat dat mag.
 
 
 # === Uitzoeken wat er op een host draait ==================================
