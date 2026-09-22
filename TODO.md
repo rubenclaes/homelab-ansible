@@ -147,31 +147,21 @@ de API beschrijven.
       andere stack hier. De stack staat al in `docker_stacks_list` met
       `env: false`; dat wordt dan weer de standaard.
 
-- [x] **Niets bewijst dat een back-up terugkomt.** `restore-drill.yml`
-      geschreven: zet de nieuwste PBS-back-up van één guest terug op vmid 199,
-      haalt net0 eraf zodat hij niet botst met het origineel, start hem, leest
-      er één bestand uit en sloopt hem. De paden die hij controleert staan per
-      guest in `drill_probes` in `lxcs.yml`.
+- [x] **Bewezen dat een back-up terugkomt.** `restore-drill.yml` is op 22-09
+      voor het eerst echt gedraaid en geslaagd: `ok=22, changed=6, failed=0`.
+      Hij zette `pbs:backup/ct/107/2026-09-22T00:34:14Z` van adguard terug op
+      vmid 199, haalde net0 eraf, startte hem, las er
+      `/opt/AdGuardHome/AdGuardHome.yaml` uit (3896 bytes) en sloopte hem
+      weer. vmid 199 is daarna gecontroleerd en vrij.
 
-      - [ ] **Nog nooit echt gedraaid.** De droogloop is op 22-09 wél
-            helemaal doorgekomen, vanuit iTerm: `ok=11, changed=0,
-            failed=0`, alles wat schrijft netjes overgeslagen. Hij zou
-            `pbs:backup/ct/107/2026-09-22T00:34:14Z` van adguard terugzetten
-            op vmid 199 op `vm-hdd` en daar
-            `/opt/AdGuardHome/AdGuardHome.yaml` in zoeken; er staan vijf
-            back-ups van die guest klaar. Alles wat eraan vooraf gaat klopt
-            dus. Wat nog niet bewezen is, is het enige dat telt: dat die
-            back-up ook echt terugkomt. Draai hem één keer zonder `--check`:
+      Daarmee is bewezen wat er te bewijzen viel: PBS is bereikbaar, de
+      encryptiesleutel werkt, het archief is leesbaar, en er komt echte staat
+      uit terug - niet alleen een container die start.
 
-              ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
-
-            Een gefaalde drill laat het wrak staan, met opzet. Opruimen met
-            `pct destroy 199`. LXC-only, met opzet - een
-            teruggezette VM op hetzelfde netwerk botst op MAC en IP met het
-            origineel, en daar is geen veilige automatisering voor.
-      - [ ] **Daarna op een schema in Semaphore.** Een drill die je alleen
+      - [ ] **Op een schema in Semaphore zetten.** Een drill die je alleen
             draait als je eraan denkt, draai je precies niet in het half jaar
-            waarin de back-ups stilletjes stukgaan.
+            waarin de back-ups stilletjes stukgaan. Nu hij één keer groen is,
+            is dit het enige dat hem betrouwbaar houdt.
 
 - [ ] **De monitoring-stack herstart bij de eerste beheerde run.**
       `docker compose up --dry-run` op docker-grafana-stack zegt Recreate voor
