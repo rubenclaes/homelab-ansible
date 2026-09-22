@@ -1,0 +1,120 @@
+---
+# Wat zou site.yml veranderen als je hem nu draaide? Eén regel per host.
+#
+#   ansible-playbook playbooks/drift.yml
+#   ansible-playbook playbooks/drift.yml -e drift_fail=true    # faalt bij drift
+#
+# Draait `site.yml --check --diff` en vat de uitkomst samen. Verandert zelf
+# niets; de droogloop eronder ook niet.
+#
+# Waarom dit bestaat: `site.yml --check --diff` geeft een scherm vol dat je
+# alleen leest als je er speciaal voor gaat zitten. Deze samenvatting past in
+# een melding. Zet hem op een schema in Semaphore met -e drift_fail=true en
+# drift wordt iets wat je ziet ontstaan, in plaats van iets wat je ontdekt.
+#
+# Het volledige log blijft staan in .drift/site-check.log, gitignored. Dat is
+# waar de diffs staan; deze samenvatting zegt alleen wie en wat, niet hoe.
+#
+# LET OP: een host die niet bereikbaar is telt hier als nul wijzigingen, want
+# er viel niets te controleren. De regel eronder zegt het wel. Een slapende
+# Mac ziet er in een samenvatting uit als een host zonder drift, en dat is
+# precies het verschil tussen "niets te doen" en "niet gekeken".
+
+- name: Drift ten opzichte van de repo
+  hosts: localhost
+  gather_facts: false
+  vars:
+    drift_root: "{{ playbook_dir }}/.."
+    drift_dir: "{{ playbook_dir }}/../.drift"
+    drift_log: "{{ playbook_dir }}/../.drift/site-check.log"
+    drift_target: playbooks/site.yml
+  tasks:
+    - name: Zorg dat de logmap bestaat
+      ansible.builtin.file:
+        path: "{{ drift_dir }}"
+        state: directory
+        mode: "0755"
+
+    # chdir naar de repowortel: ansible.cfg wijst vault_identity_list naar het
+    # relatieve pad bin/vault-pass-client, en dat lost alleen vanaf daar op.
+    # Zelfde reden als in new-service.yml.
+    #
+    # failed_when: false, want een rode droogloop is een resultaat, geen fout
+    # van dit playbook. De samenvatting hieronder zegt het.
+    - name: Draai de converge in droogloop
+      ansible.builtin.command:
+        cmd: ansible-playbook {{ drift_target }} --check --diff
+        chdir: "{{ drift_root }}"
+      environment:
+        ANSIBLE_NOCOLOR: "1"
+        ANSIBLE_FORCE_COLOR: "0"
+      register: drift_run
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Bewaar het volledige log
+      ansible.builtin.copy:
+        content: "{{ drift_run.stdout }}\n{{ drift_run.stderr }}"
+        dest: "{{ drift_log }}"
+        mode: "0644"
+
+    # Twee dingen uit één log. De PLAY RECAP geeft per host de tellers; de
+    # TASK/changed-paren geven de namen erachter. Awk in plaats van Jinja,
+    # omdat het om regels gaat die je ook met het oog leest.
+    - name: Tel per host
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk '/^PLAY RECAP/ { recap = 1; next }
+             recap && /changed=/ {
+               host = $1
+               ch = un = fa = 0
+               for (i = 1; i <= NF; i++) {
+                 if ($i ~ /^changed=/)     { split($i, a, "="); ch = a[2] }
+                 if ($i ~ /^unreachable=/) { split($i, a, "="); un = a[2] }
+                 if ($i ~ /^failed=/)      { split($i, a, "="); fa = a[2] }
+               }
+               if (un > 0)      printf "  %-22s NIET BEREIKT - er is niets gecontroleerd\n", host
+               else if (fa > 0) printf "  %-22s %d wijziging(en), %d TAAK GEFAALD\n", host, ch, fa
+               else if (ch > 0) printf "  %-22s %d wijziging(en)\n", host, ch
+               else             printf "  %-22s gelijk aan de repo\n", host
+             }' {{ drift_log | quote }}
+      args:
+        executable: /bin/bash
+      register: drift_hosts
+      changed_when: false
+      check_mode: false
+
+    - name: Noem de taken die zouden wijzigen
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk '/^TASK \[/ { t = $0; sub(/^TASK \[/, "", t); sub(/\].*$/, "", t); next }
+             /^changed: \[/ { h = $0; sub(/^changed: \[/, "", h); sub(/\].*$/, "", h)
+                              sub(/ ->.*$/, "", h); printf "  %-22s %s\n", h, t }' {{ drift_log | quote }} \
+          | sort -u
+      args:
+        executable: /bin/bash
+      register: drift_tasks
+      changed_when: false
+      check_mode: false
+
+    - name: Samenvatting
+      ansible.builtin.debug:
+        msg: >-
+          {{ ['Drift ten opzichte van de repo:', '']
+             + (drift_hosts.stdout_lines | default([]))
+             + ['', 'Wat er zou veranderen:']
+             + (drift_tasks.stdout_lines | default(['  niets']))
+             + ['', 'Volledige diffs: .drift/site-check.log'] }}
+
+    # Standaard uit. Een samenvatting die altijd groen is leest niemand meer,
+    # maar een playbook dat rood wordt van normale drift is even nutteloos.
+    # Op een schema wil je 'm aan; aan je bureau meestal niet.
+    - name: Faal als er drift is en daarom gevraagd werd
+      ansible.builtin.assert:
+        that: (drift_tasks.stdout_lines | default([]) | length) == 0
+        fail_msg: >-
+          {{ drift_tasks.stdout_lines | length }} taken zouden iets wijzigen.
+          Zie .drift/site-check.log, of draai site.yml.
+        success_msg: "Geen drift: de estate staat zoals de repo zegt."
+      when: drift_fail | default(false) | bool

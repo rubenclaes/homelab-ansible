@@ -1,4 +1,16 @@
 ---
+# Toont elke guest op pve01 met zijn vmid, type en status.
+#
+#   ansible-playbook playbooks/proxmox-info.yml
+#
+# Leest via het API-token, net als de dynamische inventory, dus dit is ook de
+# snelste manier om te zien of dat token nog werkt.
+#
+# LET OP: de eerste taak verwijdert `python3-proxmoxer` van de hypervisor. De
+# modules hieronder draaien gedelegeerd op localhost en hebben dat pakket op
+# de node niet nodig; het staat er als opruiming van iets wat ooit door een
+# andere weg geïnstalleerd werd. Een leesplaybook dat iets weghaalt is een
+# verrassing - zie TODO.
 - name: Proxmox guests via the API
   hosts: pve01
   tasks:

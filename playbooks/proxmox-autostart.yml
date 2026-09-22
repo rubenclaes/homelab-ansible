@@ -1,4 +1,11 @@
 ---
+# Zet `onboot` aan op elke guest die hem uit heeft staan.
+#
+#   ansible-playbook playbooks/proxmox-autostart.yml
+#
+# Niet in site.yml, met opzet: een guest die bewust níét mee opstart wordt
+# hierdoor stilletjes aangezet. Dit is iets wat je kiest, meestal na een
+# herbouw waarin je guests met de hand hebt teruggezet.
 - name: Ensure guests autostart with pve01
   hosts: pve01
   vars:

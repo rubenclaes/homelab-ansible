@@ -1,4 +1,14 @@
 ---
+# Maakt elke container uit `pve_lxcs` die nog niet op de node bestaat.
+#
+#   ansible-playbook playbooks/proxmox-lxcs.yml
+#
+# Bestaande containers worden nooit gewijzigd; de rol kijkt alleen welke vmid
+# ontbreekt. Het bootstrappen en baselinen erna doet dit playbook NIET - dat
+# is playbooks/new-guest.yml, dat hetzelfde pad loopt met de vervolgstappen
+# eraan vast.
+#
+# Niet in site.yml: dit provisioneert.
 - name: LXC containers from the list
   hosts: pve01
   roles:

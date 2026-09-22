@@ -1,0 +1,231 @@
+---
+# Bewijst dat een PBS-back-up terugkomt. Niet dat een container te bouwen is -
+# dat doet recovery-drill.yml - maar dat de data die erop stond er nog is en
+# leesbaar is.
+#
+#   ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
+#   ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=caddy
+#
+# Zonder --check zet dit de nieuwste back-up van één guest terug op
+# {{ drill_vmid }}, start hem, leest er één bestand uit en sloopt hem weer.
+# Mét --check verandert er niets en zegt hij alleen welke back-up hij zou
+# pakken - dat is op zichzelf al een bruikbare vraag.
+#
+# WAT DIT ECHT TEST, en waarom het het engste onbekende afdekt: de
+# PBS-datastore is bereikbaar, de encryptiesleutel werkt, het archief is niet
+# stuk, en er zit staat in die geen enkele rol kan terugzetten. Dat laatste is
+# het punt. site.yml bouwt caddy opnieuw; niets bouwt je AdGuard-filterlijst
+# opnieuw.
+#
+# EEN GEFAALDE DRILL LAAT DE CONTAINER STAAN, net als recovery-drill.yml: het
+# wrak is het nuttigste wat een mislukte drill oplevert. Opruimen met
+# `pct destroy {{ drill_vmid }}` als je uitgekeken bent. De volgende run
+# weigert dan trouwens te starten, met een melding die zegt waarom, en dat is
+# beter dan stilletjes over een vorige mislukking heen bouwen.
+#
+# ALLEEN LXC. Een VM teruggezet en gestart op hetzelfde netwerk botst met het
+# origineel op MAC en IP; bij een container kan dit playbook net0 weghalen
+# voor het opstarten en dan nog steeds naar binnen via `pct exec`. Voor een
+# VM-herstel is er de runbook Herstellen, met de hand.
+#
+# Draai dit na elke wijziging aan de back-upjobs, en verder gewoon af en toe.
+# Een herstelpad dat nooit gelopen heeft is een aanname.
+
+- name: Zet de nieuwste back-up terug en lees hem
+  hosts: pve01
+  gather_facts: true
+  vars:
+    restore_guest: "{{ guest | default(drill_restore_guest) }}"
+  tasks:
+    - name: Vraag om bevestiging
+      ansible.builtin.assert:
+        that: drill_confirm | default(false) | bool
+        fail_msg: >-
+          Dit zet een back-up terug op vmid {{ drill_vmid }} en sloopt die
+          daarna. Draai opnieuw met -e drill_confirm=true als dat de bedoeling
+          is, of met --check om alleen te zien welke back-up gekozen zou
+          worden.
+        success_msg: "Drill bevestigd voor vmid {{ drill_vmid }}"
+
+    - name: Eis een guest die de inventory kent
+      ansible.builtin.assert:
+        that: restore_guest in (pve_lxcs | map(attribute='hostname') | list)
+        fail_msg: >-
+          '{{ restore_guest }}' staat niet in pve_lxcs. Kies er een:
+          {{ pve_lxcs | map(attribute='hostname') | sort | join(', ') }}.
+        success_msg: "Drill op de back-ups van {{ restore_guest }}"
+
+    - name: Onthoud wat de inventory over hem zegt
+      ansible.builtin.set_fact:
+        restore_source: "{{ pve_lxcs | selectattr('hostname', 'eq', restore_guest) | first }}"
+        restore_probe: "{{ drill_probes[restore_guest] | default('/etc/hostname') }}"
+
+    # Dezelfde twee wachten als recovery-drill.yml, en om dezelfde reden: dit
+    # playbook mag precies één vmid aanraken en die mag van niemand zijn.
+    - name: Weiger een vmid die de inventory claimt
+      ansible.builtin.assert:
+        that: drill_vmid not in (pve_lxcs | map(attribute='vmid') | list)
+        fail_msg: >-
+          vmid {{ drill_vmid }} hoort bij een echte container in pve_lxcs.
+          Dit playbook zou hem overschrijven. Verander drill_vmid.
+        success_msg: "vmid {{ drill_vmid }} wordt niet door pve_lxcs geclaimd"
+
+    - name: Lees de guests die op de node bestaan
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ pve_api_host }}"
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        node: "{{ ansible_facts['hostname'] }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: restore_existing
+
+    - name: Weiger een vmid die al bestaat
+      ansible.builtin.assert:
+        that: drill_vmid not in (restore_existing.proxmox_vms | map(attribute='vmid') | list)
+        fail_msg: >-
+          vmid {{ drill_vmid }} bestaat al op {{ ansible_facts['hostname'] }}.
+          Waarschijnlijk staat het wrak van een vorige gefaalde drill er nog.
+          Kijk ernaar, en ruim op met `pct destroy {{ drill_vmid }}`.
+        success_msg: "vmid {{ drill_vmid }} is vrij"
+
+    # check_mode: false, zodat --check wél vertelt welke back-up hij zou
+    # pakken. Dat is de vraag die je het vaakst hebt zonder iets te willen
+    # terugzetten.
+    - name: Lees de back-uplijst van de PBS-storage
+      ansible.builtin.command:
+        argv:
+          - pvesh
+          - get
+          - "/nodes/{{ ansible_facts['hostname'] }}/storage/{{ drill_pbs_storage }}/content"
+          - --content
+          - backup
+          - --output-format
+          - json
+      register: restore_content
+      changed_when: false
+      check_mode: false
+
+    - name: Kies de nieuwste back-up van deze guest
+      ansible.builtin.set_fact:
+        restore_candidates: >-
+          {{ restore_content.stdout | from_json
+             | selectattr('vmid', 'defined')
+             | selectattr('vmid', 'eq', restore_source.vmid)
+             | selectattr('volid', 'search', '/ct/')
+             | sort(attribute='ctime') | list }}
+
+    - name: Eis dat er iets terug te zetten is
+      ansible.builtin.assert:
+        that: restore_candidates | length > 0
+        fail_msg: >-
+          Geen enkele container-back-up van {{ restore_guest }}
+          (vmid {{ restore_source.vmid }}) op storage
+          '{{ drill_pbs_storage }}'. Dat is geen drill die faalt, dat is een
+          back-up die niet bestaat - kijk naar de back-upjobs voor je verder
+          gaat.
+        success_msg: >-
+          {{ restore_candidates | length }} back-ups gevonden van
+          {{ restore_guest }}
+
+    - name: Zeg wat er teruggezet wordt
+      ansible.builtin.debug:
+        msg:
+          - "guest:    {{ restore_guest }} (vmid {{ restore_source.vmid }})"
+          - "back-up:  {{ restore_candidates[-1].volid }}"
+          - "naar:     vmid {{ drill_vmid }} op {{ drill_storage }}"
+          - "controle: {{ restore_probe }}"
+
+    # Vanaf hier verandert er iets, dus alles hieronder staat stil onder
+    # --check. De regels erboven hebben dan al gezegd wat er zou gebeuren.
+    - name: Terugzetten en controleren
+      when: not ansible_check_mode
+      block:
+        - name: Zet de back-up terug op de drill-vmid
+          ansible.builtin.command:
+            argv:
+              - pct
+              - restore
+              - "{{ drill_vmid }}"
+              - "{{ restore_candidates[-1].volid }}"
+              - --storage
+              - "{{ drill_storage }}"
+          register: restore_run
+          changed_when: true
+
+        # Dit is de regel die dit playbook veilig maakt. De teruggezette
+        # container draagt de netwerkconfiguratie van het origineel: zelfde
+        # IP, zelfde MAC. Hem zo opstarten geeft een adresconflict met de
+        # guest die op dit moment gewoon zijn werk doet. Zonder net0 is hij
+        # onbereikbaar over het netwerk, en dat is precies goed - `pct exec`
+        # gaat via de hypervisor, niet via een adres.
+        - name: Haal de netwerkkaart eraf voor hij start
+          ansible.builtin.command: pct set {{ drill_vmid }} --delete net0
+          changed_when: true
+
+        - name: Zorg dat hij een herstart van de node niet overleeft
+          ansible.builtin.command: pct set {{ drill_vmid }} --onboot 0 --hostname restore-drill
+          changed_when: true
+
+        - name: Start hem
+          ansible.builtin.command: pct start {{ drill_vmid }}
+          changed_when: true
+
+        - name: Wacht tot hij draait
+          ansible.builtin.command: pct status {{ drill_vmid }}
+          register: restore_status
+          until: "'running' in restore_status.stdout"
+          retries: 20
+          delay: 3
+          changed_when: false
+
+        # De eigenlijke proef. Alles hierboven was opbouw.
+        - name: Lees het controlebestand uit de teruggezette container
+          ansible.builtin.command:
+            argv: [pct, exec, "{{ drill_vmid }}", --, stat, -c, "%s bytes, gewijzigd %y", "{{ restore_probe }}"]
+          register: restore_probe_result
+          changed_when: false
+          failed_when: false
+
+        - name: Eis dat het er is
+          ansible.builtin.assert:
+            that: restore_probe_result.rc == 0
+            fail_msg: >-
+              {{ restore_probe }} staat niet in de teruggezette container.
+              De back-up is wel teruggekomen, maar wat erop hoort te staan
+              niet. Container {{ drill_vmid }} blijft staan zodat je kunt
+              kijken: `pct exec {{ drill_vmid }} -- ls -la {{ restore_probe | dirname }}`.
+            success_msg: "{{ restore_probe }}: {{ restore_probe_result.stdout }}"
+
+        - name: Wat dit bewijst
+          ansible.builtin.debug:
+            msg:
+              - "PBS is bereikbaar, de encryptiesleutel werkt en het archief is leesbaar."
+              - "{{ restore_guest }} kwam terug met {{ restore_probe }} erin:"
+              - "  {{ restore_probe_result.stdout }}"
+              - "Back-up van {{ restore_candidates[-1].volid }}."
+
+# Een aparte play, net als in recovery-drill.yml: hier komt hij alleen als
+# elke controle hierboven is geslaagd. Faalt er iets, dan blijft de container
+# staan en is dit de play die niet draait.
+- name: Ruim de drill-container op
+  hosts: pve01
+  gather_facts: false
+  tasks:
+    - name: Opruimen
+      when: not ansible_check_mode
+      block:
+        - name: Zet hem stil
+          ansible.builtin.command: pct stop {{ drill_vmid }}
+          changed_when: true
+          failed_when: false
+
+        - name: Sloop hem
+          ansible.builtin.command: pct destroy {{ drill_vmid }}
+          changed_when: true
+
+        - name: Klaar
+          ansible.builtin.debug:
+            msg: "Drill geslaagd en opgeruimd. vmid {{ drill_vmid }} is weer vrij."

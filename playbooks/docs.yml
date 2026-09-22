@@ -1,3 +1,16 @@
+---
+# Bouwt de documentatiesite en zet hem op de caddy-host.
+#
+#   ansible-playbook playbooks/docs.yml
+#
+# De pagina's onder technisch/ worden uit de inventory gegenereerd - hosts,
+# containers, stacks, en één pagina per route in caddy_sites - en kunnen dus
+# niet uit de pas lopen. De runbooks zijn met de hand geschreven en worden
+# alleen meegenomen. De servicemap wordt gewist en opnieuw gebouwd, zodat een
+# geschrapte route geen pagina achterlaat die er nog live uitziet.
+#
+# Draait `npm ci` en `npm run build` op de controller, niet op caddy, en
+# stuurt alleen het resultaat door.
 - name: Gather facts for the reference pages
   hosts: linux:macs
   gather_facts: true

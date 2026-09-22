@@ -65,3 +65,28 @@ pve_lxcs:
 # playbook is allowed to destroy. 199 sits well above the range pve_lxcs uses
 # and is asserted free before every drill.
 drill_vmid: 199
+
+# Wat playbooks/restore-drill.yml in de teruggezette container opzoekt. Eén
+# pad per guest dat alléén bestaat als zijn data echt terug is: /etc/hostname
+# bewijst dat er een bestandssysteem is, niet dat je iets terugkreeg. Een
+# guest die hier niet in staat valt terug op /etc/hostname, en dan bewijst de
+# drill minder dan je denkt.
+drill_probes:
+  adguard: /opt/AdGuardHome/AdGuardHome.yaml
+  caddy: /etc/caddy/Caddyfile
+  semaphore: /etc/semaphore/config.json
+  tailscale: /var/lib/tailscale/tailscaled.state
+
+# De opslag waar de drill zijn teruggezette container neerzet. Los van waar
+# het origineel staat: een drill hoort niet te concurreren met de echte guest
+# om ruimte op dezelfde pool.
+drill_storage: vm-hdd
+
+# De PVE-storage die naar PBS wijst. De drill leest hier zijn back-uplijst
+# uit; de naam moet overeenkomen met wat Datacenter -> Storage toont.
+drill_pbs_storage: pbs
+
+# Welke guest de drill terugzet als je er geen meegeeft. adguard is de
+# kleinste (2G) en de snelste, en zijn AdGuardHome.yaml is echte staat die
+# geen enkele rol terugzet.
+drill_restore_guest: adguard

@@ -1,4 +1,13 @@
 ---
+# Vraagt elke site uit caddy_sites op en faalt als er een stuk is.
+#
+#   ansible-playbook playbooks/caddy-smoketest.yml
+#
+# Een 5xx of een verbinding die niet tot stand komt telt als stuk; een 401 of
+# een redirect niet, want dat is tinyauth die zijn werk doet.
+#
+# Draai dit na caddy.yml en na caddy-upgrade.yml. Niet in site.yml: het
+# controleert, het convergeert niet.
 - name: Smoke test all Caddy sites
   hosts: caddy
   gather_facts: false

@@ -1,0 +1,50 @@
+---
+# [[ svc_desc ]]
+#
+# Het patroon van de andere diensten hier - adguard, caddy, pbs, tailscale -
+# in drie stappen:
+#
+#   1. installeren, en alleen als de gepinde versie niet al draait. Deze
+#      hosts doen echt werk; een onnodige binary-swap is een storing.
+#   2. de configuratie schrijven, met `validate:` waar het commando dat kan,
+#      zodat een kapotte config nooit op schijf belandt.
+#   3. de dienst aan en draaiend, met een handler die herstart bij wijziging.
+#
+# Wat een rol hier NIET doet: staat beheren waar de dienst zelf of zijn
+# web-UI eigenaar van is. roles/adguard/tasks/main.yml legt uit waarom dat
+# een gevecht is dat je verliest - die rol raakt AdGuardHome.yaml niet aan en
+# doet zijn werk via de API.
+
+- name: Lees de geïnstalleerde versie
+  ansible.builtin.command: [[ svc_name ]] --version    # TODO: het echte commando
+  register: [[ svc_name ]]_installed
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Installeer [[ svc_name ]]
+  when: [[ svc_name ]]_version not in ([[ svc_name ]]_installed.stdout | default(''))
+  block:
+    - name: TODO vervang dit door de echte installatie
+      ansible.builtin.debug:
+        msg: >-
+          roles/[[ svc_name ]] installeert nog niets. Kijk naar
+          roles/adguard (tarball met checksum), roles/caddy/tasks/install.yml
+          (apt-repo met een eigen keyring) of roles/semaphore (een .deb van
+          een release-URL) en neem het patroon over dat past.
+
+- name: Schrijf de configuratie
+  ansible.builtin.template:
+    src: [[ svc_name ]].conf.j2
+    dest: "{{ [[ svc_name ]]_config }}"
+    owner: root
+    group: root
+    mode: "0644"
+    # validate: [[ svc_name ]] --test-config %s
+  notify: Restart [[ svc_name ]]
+
+- name: Zorg dat [[ svc_name ]] aan staat en draait
+  ansible.builtin.systemd_service:
+    name: [[ svc_name ]]
+    enabled: true
+    state: started

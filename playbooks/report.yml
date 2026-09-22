@@ -1,4 +1,21 @@
 ---
+# Gezondheidsrapport over de hele estate, gepubliceerd op
+# https://report.neodata.be.
+#
+#   ansible-playbook playbooks/report.yml
+#
+# Leest alleen. Per host: openstaande upgrades, of hij een herstart nodig
+# heeft, schijfgebruik. Daarnaast de PBS-back-upgroepen, de vervaldatum van
+# het wildcard-certificaat, en welke gepubliceerde Docker-poorten geen route
+# hebben (`docker_ports_without_route` in host_vars/docker.yml dempt wat
+# bewust geen route heeft).
+#
+# Niet in site.yml: traag, en hij hoort op een schema te staan in plaats van
+# in elke converge.
+#
+# Draai hem zonder --limit, of neem localhost erin mee. De HTML wordt daar
+# gerenderd; laat je localhost weg, dan is er niets om te publiceren en zegt
+# de laatste play dat ook.
 - name: Collect report data
   hosts: linux
   tasks:

@@ -33,3 +33,6 @@ vault_pass
 
 # Voorstellen van playbooks/discover.yml. Geen inventory: leesvoer.
 .discovered/
+
+# Droogloop-logs van playbooks/drift.yml.
+.drift/

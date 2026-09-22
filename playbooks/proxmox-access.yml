@@ -12,10 +12,12 @@
   hosts: proxmox
   roles:
     - proxmox_access
+  tags: [proxmox, access]
 
 - name: Verify the token can reach the guest agent
   hosts: proxmox
   gather_facts: true
+  tags: [proxmox, access]
   vars:
     proxmox_access_auth: >-
       PVEAPIToken={{ pve_api_user }}!{{ pve_api_token_id }}={{ pve_api_token_secret }}

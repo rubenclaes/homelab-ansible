@@ -45,6 +45,13 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Semaphore — automatiseren wat nu van jouw geheugen afhangt
 
+- [ ] **`drift.yml` op een schema zetten.** Geschreven, nog niet gedraaid.
+      Draait `site.yml --check --diff` en vat samen: per host één regel, dan
+      de taken die zouden wijzigen. Met `-e drift_fail=true` wordt hij rood
+      bij drift, en dat is de versie die op een schema hoort. Let op: dit
+      werkt pas als de droogloop groen kan zijn, dus na de twee
+      vault-bestanden hierboven.
+
 - [ ] **`site.yml` op een schema zetten, met een melding als hij faalt.**
       Dit is de grootste winst die er ligt en het kost nul regels code. Nu
       trek je alles gelijk als je eraan denkt; met een schema repareert drift
@@ -145,11 +152,20 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       naar `files/env/duplicati.env` onder de `stacks`-identiteit, zoals elke
       andere stack hier.
 
-- [ ] **Niets bewijst dat een back-up terugkomt.**
-      `recovery-drill.yml` bewijst dat een container te herbouwen is, niet dat
-      je data terug te zetten is. Een drill die een PBS-back-up op een vrij
-      nummer terugzet, een bestand controleert en weer opruimt, dekt het
-      engste onbekende af. Zie de runbook Herstellen.
+- [x] **Niets bewijst dat een back-up terugkomt.** `restore-drill.yml`
+      geschreven: zet de nieuwste PBS-back-up van één guest terug op vmid 199,
+      haalt net0 eraf zodat hij niet botst met het origineel, start hem, leest
+      er één bestand uit en sloopt hem. De paden die hij controleert staan per
+      guest in `drill_probes` in `lxcs.yml`.
+
+      - [ ] **Nog nooit gedraaid.** Tot je hem één keer draait bewijst hij
+            precies evenveel als geen drill. Eerst met `--check`: dan zegt hij
+            alleen welke back-up hij zou pakken. LXC-only, met opzet - een
+            teruggezette VM op hetzelfde netwerk botst op MAC en IP met het
+            origineel, en daar is geen veilige automatisering voor.
+      - [ ] **Daarna op een schema in Semaphore.** Een drill die je alleen
+            draait als je eraan denkt, draai je precies niet in het half jaar
+            waarin de back-ups stilletjes stukgaan.
 
 - [ ] **Action1 voor de pc van de ouders**, en voor de Macs.
 

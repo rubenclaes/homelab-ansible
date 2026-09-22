@@ -1,5 +1,10 @@
 ---
+# De baseline, los. Doet hetzelfde als de eerste play van site.yml, dus
+# `ansible-playbook playbooks/site.yml --tags baseline` is hetzelfde commando.
+# Dit bestand bestaat omdat Semaphore er een template op kan richten zonder
+# dat die template de rest van site.yml hoeft uit te sluiten.
 - name: Linux baseline
   hosts: linux
   roles:
     - baseline
+  tags: [baseline, linux]

@@ -143,6 +143,16 @@ ansible-playbook playbooks/new-guest.yml -e guest=<hostname>
 ansible-playbook playbooks/site.yml --check --diff --limit <hostname>
 
 
+# === Een nieuwe dienst die GEEN container is ==============================
+ansible-playbook playbooks/new-role.yml \
+  -e svc_name=vaultwarden -e svc_host=vaultwarden -e svc_tag=secrets \
+  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
+# Zet roles/<naam>/ op met het patroon van adguard, caddy en pbs erin als
+# commentaar, plus de wrapper-playbook met zijn tags. Zet hem daarna zelf in
+# site.yml: die volgorde is afhankelijkheidsvolgorde en dat weet geen playbook.
+# Draait de dienst op een nieuwe LXC, bouw die eerst met new-guest.yml.
+
+
 # === Een nieuwe Docker-dienst =============================================
 ansible-playbook playbooks/new-service.yml \
   -e svc_name=memos \
@@ -233,9 +243,26 @@ ansible-playbook playbooks/site.yml --limit adguard       # terug naar wat de re
 # === Bewijzen dat het herstelpad nog werkt ================================
 ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
 # Bouwt een wegwerpcontainer, bootstrapt, baselinet, controleert, sloopt.
-# Faalt hij, dan blijft de container staan zodat je kunt kijken.
-# Draai dit na elke wijziging aan proxmox_lxc, bootstrap.yml, baseline of
-# new-guest.yml.
+# Bewijst dat je een guest kunt BOUWEN. Draai dit na elke wijziging aan
+# proxmox_lxc, bootstrap.yml, baseline of new-guest.yml.
+
+ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
+ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=caddy
+ansible-playbook playbooks/restore-drill.yml --check          # welke back-up zou hij pakken
+# Bewijst dat je je DATA terugkrijgt: zet de nieuwste PBS-back-up terug op
+# vmid 199, haalt er de netwerkkaart af zodat hij niet botst met het
+# origineel, start hem, leest er één bestand uit en sloopt hem.
+# Dit is het enige dat aantoont dat de encryptiesleutel werkt.
+# Beide drills laten het wrak staan als ze falen; opruimen met
+# `pct destroy 199`.
+
+
+# === Zien of er drift is ==================================================
+ansible-playbook playbooks/drift.yml
+ansible-playbook playbooks/drift.yml -e drift_fail=true   # rood bij drift, voor een schema
+# Draait site.yml --check --diff en vat samen: per host één regel, daarna de
+# taken die zouden wijzigen. Volledige diffs in .drift/site-check.log.
+# Een host die niet bereikbaar was telt niet als "gelijk", dat zegt hij erbij.
 
 
 # === Guests moeten mee opstarten met pve01 ================================
@@ -286,9 +313,24 @@ ansible-lint
 ansible-playbook playbooks/site.yml --syntax-check
 ```
 
-Tags: `baseline`, `macos`, `caddy`/`web`, `adguard`/`dns`, `tailscale`/`vpn`,
-`pbs`/`backup`, `docker`, `semaphore`, `dotfiles`/`workstation`,
-`proxmox`/`datacenter`/`network`.
+Tags van `site.yml`, per play twee: een naam en een soort.
+
+| Onderdeel | Tags |
+| --- | --- |
+| Linux-baseline | `baseline` `linux` |
+| macOS-baseline | `macos` `workstation` |
+| Caddy | `caddy` `web` |
+| AdGuard | `adguard` `dns` |
+| Tailscale | `tailscale` `vpn` |
+| PBS | `pbs` `backup` |
+| Proxmox-storage en back-upjobs | `proxmox` `datacenter` |
+| Proxmox API-rechten | `proxmox` `access` |
+| Docker-engine en stacks | `docker` |
+| Semaphore | `semaphore` |
+| Dotfiles | `dotfiles` `workstation` |
+
+`proxmox-network.yml` heeft ook tags maar zit niet in `site.yml`, dus
+`--tags network` doet daar niets.
 
 `site.yml` is de converge en is veilig om te herhalen. Deze playbooks zitten
 er bewust niet in, want ze provisionen, herstarten of verwijderen:
