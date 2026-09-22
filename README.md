@@ -210,7 +210,12 @@ ansible-playbook playbooks/caddy-smoketest.yml
 # === Schijfruimte vrijmaken ===============================================
 ansible-playbook playbooks/cleanup.yml                          # rapporteert alleen
 ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true    # ruimt echt op
-# Raakt nooit: docker volumes, containers, vastgehouden pakketten.
+# Raakt nooit: docker volumes, containers, vastgehouden pakketten, en op de
+# Macs de geïnstalleerde Homebrew-versies - alleen verouderde versies en oude
+# downloads gaan weg. Draai dit ná update.yml, niet erin: op de mbp komt
+# ansible zelf uit Homebrew, en opruimen tijdens een upgrade trekt de
+# draaiende interpreter onder de play vandaan.
+ansible-playbook playbooks/cleanup.yml --limit macs             # alleen de brew-cache
 
 
 # === Een Tailscale-sleutel voor een pc of NAS =============================

@@ -18,6 +18,8 @@
 #     out of the prune below, which is why a `down` stack survives this.
 #   - Held packages. dpkg holds are honoured by autoremove, so the custom Caddy
 #     build in baseline_held_packages stays put.
+#   - Installed Homebrew versions. `brew cleanup` removes superseded versions
+#     and stale downloads; whatever is currently linked stays.
 #
 # Deliberately not in site.yml: this one deletes. Tunables live in
 # inventory/group_vars/all/cleanup.yml.
@@ -164,3 +166,82 @@
               {{ ((cleanup_pruned.images_space_reclaimed
                  + cleanup_pruned.builder_cache_space_reclaimed) / 1024 / 1024)
                  | round(1) }} MiB reclaimed.
+
+# Homebrew keeps every download it has ever made and every version it has
+# superseded. On a Mac that builds from source - the Mini, on macOS 14.6.1,
+# where Homebrew no longer ships bottles for everything - that is source
+# tarballs by the gigabyte.
+#
+# This lives here and NOT as a task at the end of update.yml, which is where it
+# looks like it belongs. On the mbp, `ansible` itself comes from Homebrew and
+# ansible_connection is local, so an update run can have just replaced the
+# interpreter that is executing the play; `brew cleanup` would then delete the
+# Cellar directory that running process still reads from. update.yml sets
+# HOMEBREW_NO_INSTALL_CLEANUP=1 to prevent exactly that, and a cleanup task
+# bolted onto the end would undo it. A separate run upgrades nothing, so the
+# linked version is the current one and cleanup has nothing dangerous to take.
+- name: Reclaim disk space on the Macs
+  hosts: macs
+  gather_facts: false
+  tasks:
+    # `brew --cache` rather than a hardcoded ~/Library/Caches/Homebrew: the
+    # location is Homebrew's to decide and it answers for it.
+    - name: Measure the Homebrew cache
+      ansible.builtin.shell: >-
+        set -o pipefail;
+        du -sk "$({{ macos_brew_path }}/brew --cache)" 2>/dev/null | cut -f1 || echo 0
+      args:
+        executable: /bin/bash
+      register: cleanup_brew_before
+      changed_when: false
+      check_mode: false
+
+    # The sizes, not just a count. Homebrew is conservative here: while an
+    # upgrade is still pending it keeps the download for the version you are
+    # about to move to, so the figure this reports is smaller than the cache on
+    # disk and gets larger once update.yml has run.
+    - name: List what a cleanup would remove
+      ansible.builtin.command: >-
+        {{ macos_brew_path }}/brew cleanup --dry-run --prune={{ cleanup_brew_prune }}
+      register: cleanup_brew_dry
+      changed_when: false
+      check_mode: false
+
+    - name: Report what could be reclaimed here
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: Homebrew cache
+          {{ (cleanup_brew_before.stdout | int / 1024) | round(1) }} MiB,
+          {{ cleanup_brew_dry.stdout_lines | select('search', '^Would remove') | list | length }}
+          item(s) removable, freeing
+          {{ cleanup_brew_dry.stdout | regex_search('would free approximately ([^ ]+)', '\1')
+             | default([], true) | first | default('nothing') }}
+
+    - name: Reclaim it
+      when: cleanup_apply | default(false) | bool
+      block:
+        - name: Remove superseded versions and stale downloads
+          ansible.builtin.command: >-
+            {{ macos_brew_path }}/brew cleanup --prune={{ cleanup_brew_prune }}
+          register: cleanup_brew_run
+          # brew exits 0 whether or not it removed anything, and prints one
+          # `Removing: <path>` line per item. No such line means nothing went.
+          changed_when: cleanup_brew_run.stdout is search('Removing:')
+
+        - name: Measure the Homebrew cache again
+          ansible.builtin.shell: >-
+            set -o pipefail;
+            du -sk "$({{ macos_brew_path }}/brew --cache)" 2>/dev/null | cut -f1 || echo 0
+          args:
+            executable: /bin/bash
+          register: cleanup_brew_after
+          changed_when: false
+
+        - name: Report what was reclaimed here
+          ansible.builtin.debug:
+            msg: >-
+              {{ inventory_hostname }}: Homebrew cache
+              {{ (cleanup_brew_before.stdout | int / 1024) | round(1) }} MiB
+              -> {{ (cleanup_brew_after.stdout | int / 1024) | round(1) }} MiB.
+              {{ cleanup_brew_run.stdout | regex_search('has freed approximately ([^ ]+)', '\1')
+                 | default([], true) | first | default('nothing freed') }}

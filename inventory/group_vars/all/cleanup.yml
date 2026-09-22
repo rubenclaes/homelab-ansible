@@ -19,3 +19,13 @@ cleanup_journal_keep: 14d
 # cost of pruning it wrongly is a rebuild, not a pull. See builder_cache_all
 # in the playbook.
 cleanup_docker_until: 720h
+
+# Age above which a cached Homebrew download is thrown away, in days. Passed to
+# `brew cleanup --prune`. Homebrew's own default is 120 days, which on a Mac
+# that compiles from source adds up to gigabytes of source tarballs nobody will
+# use again.
+#
+# Only the cache is governed by this. Superseded versions in the Cellar are
+# removed regardless of age, because a version that is no longer linked is not
+# coming back into use; the installed, linked version is never touched.
+cleanup_brew_prune: 30

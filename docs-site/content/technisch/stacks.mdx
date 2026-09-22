@@ -33,7 +33,9 @@ op `/opt/containers`.
 | **portainer** | `/opt/containers/stacks/portainer` | — | geen |
 | **rustdesk** | `/opt/containers/stacks/apps/rustdesk` | — | `.env` in vault |
 | **utils** | `/opt/containers/stacks/utils` | — | `.env` in vault |
+
 Docker wacht hier bij het opstarten op deze mounts: `/mnt/ssdnas`, `/mnt/media01`, `/mnt/faststore`.
+
 ## docker-grafana-stack
 
 Compose-bestanden uit [rubenclaes/monitoring-stack](https://github.com/rubenclaes/monitoring-stack), uitgecheckt
@@ -42,3 +44,18 @@ op `/opt/containers`.
 | Stack | Pad op de host | Compose-project | Secrets |
 | --- | --- | --- | --- |
 | **monitoring** | `/opt/containers/stacks/monitoring` | — | `.env` in vault |
+
+## macmini
+
+Compose-bestanden uit [rubenclaes/homelab](https://github.com/rubenclaes/homelab), uitgecheckt
+op `/Users/rubenclaes/Container`.
+
+| Stack | Pad op de host | Compose-project | Secrets |
+| --- | --- | --- | --- |
+| **alloy** | `/Users/rubenclaes/Container/Alloy` | — | geen |
+| **duplicati** | `/Users/rubenclaes/Container/Duplicati` | — | geen |
+| **grimmory** | `/Users/rubenclaes/Container/Grimmory` | — | `.env` in vault |
+| **portainer** | `/Users/rubenclaes/Container/Portainer` | — | geen |
+| **recyclarr** | `/Users/rubenclaes/Container/recyclarr` | — | geen |
+| **shelfmark** | `/Users/rubenclaes/Container/Shelfmark` | — | geen |
+
