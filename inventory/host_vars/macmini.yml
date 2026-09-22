@@ -129,7 +129,16 @@ docker_stacks_home: /Users/rubenclaes
 # Ansible krijgt hier PATH=/usr/bin:/bin:/usr/sbin:/sbin en vindt de docker
 # CLI dus niet zelf. Zonder deze regel faalt elke stack op "Cannot find
 # docker CLI in path".
-docker_stacks_docker_cli: /usr/local/bin/docker
+#
+# Het pad wijst naar het OrbStack-bundel en niet naar /usr/local/bin/docker,
+# want die symlink is er niet altijd: op 22-09 stond hij er 's middags nog
+# en 's avonds niet meer, terwijl `docker-compose` ernaast wel bleef staan.
+# OrbStack beheert die links zelf. Het bundel-pad gaat alleen weg als je
+# OrbStack weggooit, en dan heb je een groter probleem.
+#
+# De socket klopt wel vanzelf: /var/run/docker.sock is een symlink naar
+# ~/.orbstack/run/docker.sock, dus de module hoeft geen DOCKER_HOST.
+docker_stacks_docker_cli: /Applications/OrbStack.app/Contents/MacOS/xbin/docker
 
 # De projecten die hier draaien én in de repo staan. `name` is ook de naam
 # van het .env-bestand onder files/env/, `path` is de map in de repo.
