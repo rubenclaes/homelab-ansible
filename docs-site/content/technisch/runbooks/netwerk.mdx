@@ -1,0 +1,196 @@
+---
+title: Netwerk en Proxmox
+---
+
+import { Callout } from 'nextra/components'
+
+# Netwerk en Proxmox
+
+Drie dingen die je aan de node zelf doet, en die daarom geen van drieën in
+`site.yml` zitten.
+
+## De bridges van pve01 wijzigen
+
+<Callout type="error">
+Dit is het gevaarlijkste playbook in de repo. Ansible bereikt `pve01` op
+`192.168.0.14`, en dat ís `vmbr1`. Een verkeerde waarde levert geen mislukte
+taak op — het levert een onbereikbare hypervisor op en een ritje naar waar de
+machine fysiek staat. Weet dus wáár hij staat voordat je de vlag gebruikt.
+</Callout>
+
+```bash
+ansible-playbook playbooks/proxmox-network.yml                          # schrijft alleen
+ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
+```
+
+De bridges staan in `inventory/group_vars/proxmox/network.yml` als
+`pve_node_interfaces`. Zonder vlag schrijft het playbook ze naar
+`/etc/network/interfaces.new` en raakt het niets aan wat draait. Dat stagen is
+Proxmox' eigen gedrag, en het is de reden dat je dit zonder vlag gerust kunt
+draaien om te zien wat er zou veranderen.
+
+`proxmox_network_apply` staat op `false` in de rol-defaults en mag nergens in
+de inventory op `true`. Een converge-run die de bridges van de hypervisor kan
+herschrijven is een converge-run die de hele estate kan beëindigen.
+
+### Kijk eerst wat er nú staat
+
+De waarden in `network.yml` zijn één keer overgetikt van
+`/etc/network/interfaces` en sindsdien niet opnieuw nagelopen. Blind toepassen
+gaat ervan uit dat er in de tussentijd niemand met de hand aan die node gezeten
+heeft. Vergelijk dus eerst:
+
+```bash
+ssh pve01 cat /etc/network/interfaces
+```
+
+### De dodemansknop
+
+Gebruik je de vlag wél, dan loopt dit af:
+
+1. de draaiende config wordt gekopieerd naar
+   `/etc/network/interfaces.before-ansible`
+2. een `systemd-run`-timer wordt gewapend die die kopie over **180 seconden**
+   terugzet en `ifreload -a` draait
+3. de nieuwe config wordt via de API toegepast
+4. vanaf de controller wordt elk adres uit `pve_node_interfaces` op poort 22
+   geprobeerd
+5. lukt dat, dan wordt de timer gestopt
+
+Valt de playbook er op welk moment dan ook tussenuit, dan komt de node vanzelf
+terug op een configuratie die aantoonbaar werkte. De stappen die moeten
+doorlopen staan bewust op de node zelf; het toepassen en de bereikbaarheidstest
+draaien vanaf je laptop — een test die op de node zelf draait bewijst niets,
+die slaagt zolang de node zijn eigen userspace nog heeft.
+
+De 180 seconden zijn geen gok: kopiëren en wapenen kosten elk ongeveer een
+seconde, de API-apply met `ifreload` ongeveer vijftien, en de test is in het
+slechtste geval twee adressen van twintig seconden. Dat is een kleine tachtig,
+met marge. Te lang is veiliger dan te kort: een timer die afgaat terwijl een
+goede config nog gecontroleerd wordt draait alleen iets terug dat je opnieuw
+kunt toepassen — een timer die te laat afgaat laat je wachten met een
+onbereikbare hypervisor.
+
+<Callout type="warning">
+Staat er nog een revert-timer gewapend van een eerdere run, dan **weigert** het
+playbook. De draaiende config is dan mogelijk de config die die vorige run stuk
+maakte, en die kopiëren als terugvalpunt laat je zonder weg terug.
+
+Wacht tot de timer afgaat, of — als je zeker weet dat wat er draait goed is —
+zet hem bewust stop:
+
+```bash
+ssh pve01 systemctl stop ansible-network-revert.timer
+```
+</Callout>
+
+## Guests mee laten opstarten
+
+```bash
+ansible-playbook playbooks/proxmox-autostart.yml
+```
+
+Zet `onboot` aan op elke guest die hem uit heeft staan. Meer niet.
+
+Niet in `site.yml`, met opzet: een guest die bewust níét mee opstart wordt
+hierdoor stilletjes aangezet. Dit is iets wat je kiest, meestal na een herbouw
+waarin je guests met de hand hebt teruggezet en de helft nog op `onboot: 0`
+staat.
+
+## Een Tailscale-sleutel voor een pc of NAS
+
+```bash
+ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
+```
+
+Maakt één eenmalige, vooraf goedgekeurde sleutel en drukt hem één keer af. Het
+apparaat komt binnen met:
+
+```bash
+tailscale up --auth-key=<sleutel>
+```
+
+`label` is vrije tekst, kleine letters, cijfers en koppeltekens. Het wordt de
+omschrijving van de sleutel in de Tailscale-console en is het enige spoor dat
+de sleutel achterlaat — maak er dus iets van dat je over een half jaar nog
+herkent.
+
+| Wel | Niet |
+| --- | --- |
+| een Windows-pc, een NAS, een Raspberry Pi | telefoons |
+
+Telefoons niet, omdat de iOS- en Android-apps via een browser inloggen en
+nergens een sleutel kwijt kunnen.
+
+<Callout type="warning">
+Draai dit vanaf je werkstation, **niet** vanuit Semaphore. De sleutel wordt
+afgedrukt, en een Semaphore-tasklog bewaart hem.
+
+Kwijtgeraakt? Draai het opnieuw. Een ongebruikte sleutel verloopt vanzelf; de
+API kan hem geen tweede keer laten zien.
+</Callout>
+
+## DNS: wie vraagt wat aan wie
+
+Sinds 22-09 loopt alle naamresolutie via de AdGuard in **ct 107**
+(`192.168.0.29`). Daarvoor deed een tweede AdGuard op de Mac mini
+(`192.168.0.26`) het werk, en die stond in geen enkel playbook.
+
+Dat was het probleem: de DNS van de hele estate hing aan de machine die deze
+repo niet kan terugbouwen — dezelfde die de drie NFS-shares exporteert. Viel
+hij om, dan verloor je naamresolutie én media-opslag tegelijk. De AdGuard die
+Ansible wél beheert en die PBS meeneemt, deed ondertussen niets.
+
+### Hoe het nu staat
+
+| Host | Resolver | Waarom |
+| --- | --- | --- |
+| pve01, pbs, caddy, semaphore | `192.168.0.29` | gewone `/etc/resolv.conf` |
+| docker, docker-grafana-stack | `192.168.0.29` | via netplan, zie hieronder |
+| adguard zelf | `127.0.0.1` + `1.1.1.1` | hij ís de resolver; het vangnet is er zodat hij nog kan apt-updaten als hij stilstaat |
+| tailscale (ct 108) | `100.100.100.100` | **niet aankomen** — tailscaled beheert dit zelf voor MagicDNS |
+| telefoons, laptops | `192.168.0.29` | via DHCP in UniFi |
+
+<Callout type="warning">
+Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
+`1.1.1.1`. Staat ct 107 stil en is er geen tweede, dan heeft het hele huis geen
+internet meer — inclusief het toestel waarmee je het zou repareren.
+</Callout>
+
+### Twee soorten namen
+
+- `*.home.arpa` — één regel per host, door `roles/adguard` uit de inventory
+  gezet. Dit is het enige wat de rol beheert.
+- `*.neodata.be` — één wildcard naar Caddy (`192.168.0.25`), met de hand
+  gezet. De rol raakt rewrites buiten `home.arpa` nooit aan, dus die blijft
+  staan.
+
+### Voor je ergens de resolver omzet: kijk eerst
+
+Dit is de val waar drie verschillende mechanismen in zaten:
+
+```bash
+ssh <host> 'ls -l /etc/resolv.conf'
+```
+
+Staat er een `->` in, dan is het bestand een symlink naar systemd-resolved en
+zegt het zelf "Do not edit" — een `sed` daarop is bij de eerstvolgende
+netwerkwijziging weg. De echte plek is dan `/etc/netplan/90-default.yaml`,
+gevolgd door `netplan apply`.
+
+Bij een LXC hoort het ook in de container-config, anders draait een herstart
+het terug. Geef `--searchdomain` expliciet mee, want die verschilt per
+container:
+
+```bash
+ssh pve01 'sudo pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa'
+```
+
+### Controleren
+
+```bash
+dig +short pve01.home.arpa     # 192.168.0.14 - kent alleen de nieuwe AdGuard
+dig +short books.neodata.be    # 192.168.0.25 - de wildcard naar Caddy
+```
+
+Die eerste is de bewijzende: die naam bestaat nergens anders.
