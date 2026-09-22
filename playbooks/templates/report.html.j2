@@ -27,6 +27,28 @@
   /* Long enumerations (a Mac can be 50+ packages behind) must wrap
      rather than inherit the table's nowrap and scroll off sideways. */
   td.wrap { white-space: normal; min-width: 22rem; }
+
+  /* Tabs without JavaScript. The radios sit immediately before the panels,
+     so a sibling selector can reveal the panel whose radio is checked. They
+     are hidden with opacity rather than display:none so they stay focusable
+     and the tab bar can be driven from the keyboard. */
+  input.tab { position: absolute; width: 0; height: 0; opacity: 0; }
+  .tabbar { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .tabbar label { padding: 8px 14px; margin-bottom: -1px; cursor: pointer; font-size: .9rem;
+                  font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+  #tab-overzicht:checked ~ .tabbar label[for="tab-overzicht"],
+  #tab-updates:checked ~ .tabbar label[for="tab-updates"] { color: var(--fg); border-bottom-color: var(--fg); }
+  #tab-overzicht:focus-visible ~ .tabbar label[for="tab-overzicht"],
+  #tab-updates:focus-visible ~ .tabbar label[for="tab-updates"] { outline: 2px solid var(--fg); outline-offset: -2px; }
+  .panel { display: none; }
+  #tab-overzicht:checked ~ #panel-overzicht,
+  #tab-updates:checked ~ #panel-updates { display: block; }
+  .pill { background: var(--line); border-radius: 999px; padding: 1px 7px; font-size: .75rem;
+          margin-left: 5px; font-weight: 600; }
+  .pill.bad { background: var(--bad); color: #fff; }
+  /* A second line inside a card. `.sub` cannot serve here: it carries the
+     24px gap it needs under the page title. */
+  .note { color: var(--muted); font-size: .85rem; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -36,6 +58,54 @@
 {% set cert_days = (cert_end - now_utc).days %}
   <h1>Homelab report</h1>
   <div class="sub">Generated {{ now().strftime('%A %d %B %Y, %H:%M') }}</div>
+
+{# ---------------------------------------------------------------------------
+   Everything the Updates tab shows, gathered once so the tab bar can carry a
+   count before the panel is rendered.
+
+   Three sources, one shape. apt rows carry the origin they came from, which
+   is the only place the report can learn that an upgrade is a security fix;
+   brew and softwareupdate offer no equivalent, so their rows are never
+   marked. A host with report_row undefined was unreachable and is left out
+   of both lists rather than counted as up to date.
+   --------------------------------------------------------------------------- #}
+{% set update_rows = [] %}
+{% set update_clean = [] %}
+{% set update_reboot = [] %}
+{% for h in (groups['linux'] + groups['macs'] | default([])) | sort %}
+{% set hv = hostvars[h] %}
+{% if hv.report_row is defined %}
+{% set host_rows = [] %}
+{% for pkg in hv.report_packages | default([]) %}
+{% set _ = host_rows.append({'host': h, 'source': 'apt', 'name': pkg.name,
+                             'current': pkg.current, 'candidate': pkg.candidate,
+                             'security': 'security' in (pkg.origin | lower)}) %}
+{% endfor %}
+{% for pkg in hv.report_brew_rows | default([]) %}
+{% set _ = host_rows.append({'host': h, 'source': 'brew', 'name': pkg.name,
+                             'current': pkg.current, 'candidate': pkg.candidate,
+                             'security': false}) %}
+{% endfor %}
+{% for pkg in hv.report_swu_rows | default([]) %}
+{% set _ = host_rows.append({'host': h, 'source': 'macOS', 'name': pkg.name,
+                             'current': '', 'candidate': pkg.candidate,
+                             'security': false}) %}
+{% endfor %}
+{% set _ = update_rows.extend(host_rows) %}
+{% if not host_rows %}{% set _ = update_clean.append(h) %}{% endif %}
+{% if hv.report_row.reboot | bool %}{% set _ = update_reboot.append(h) %}{% endif %}
+{% endif %}
+{% endfor %}
+{% set update_security = update_rows | selectattr('security') | list %}
+
+  <input class="tab" type="radio" name="tab" id="tab-overzicht" checked>
+  <input class="tab" type="radio" name="tab" id="tab-updates">
+  <div class="tabbar">
+    <label for="tab-overzicht">Overzicht</label>
+    <label for="tab-updates">Updates<span class="pill{{ ' bad' if update_security else '' }}">{{ update_rows | length }}</span></label>
+  </div>
+
+  <div class="panel" id="panel-overzicht">
 
   <div class="card">
     <strong>*.neodata.be certificate</strong>:
@@ -90,9 +160,10 @@
 {% endif %}
 
 {# ---------------------------------------------------------------------------
-   Homebrew drift. Separate from the overview table because it has no Linux
-   counterpart: apt pending counts already live in the Updates column, while
-   brew is a second, independent package tree that drifts on its own.
+   Homebrew drift. The Updates column and the Updates tab both fold brew in
+   with everything else; this card is what splits it back out, because brew is
+   a second, independent package tree with its own upgrade gate in update.yml
+   (allow_cask_upgrade) and its own reasons to be left behind.
    --------------------------------------------------------------------------- #}
 {% set brew_macs = groups['macs'] | default([]) | sort | map('extract', hostvars)
                    | selectattr('report_mac', 'defined') | list %}
@@ -234,6 +305,47 @@
       </tr>
 {% endfor %}
     </table>
+  </div>
+
+  </div>
+
+  <div class="panel" id="panel-updates">
+
+  <div class="card">
+    <strong>{{ update_rows | length }} openstaande updates</strong>
+    op {{ update_rows | map(attribute='host') | unique | list | length }} van
+    {{ (update_rows | map(attribute='host') | unique | list | length) + (update_clean | length) }} gemeten hosts,
+    waarvan <span class="{{ 'bad' if update_security else 'ok' }}">{{ update_security | length }} security</span>.
+{% if update_reboot %}
+    <div class="note">Herstart nodig: <span class="bad">{{ update_reboot | join(', ') }}</span> -
+      <code>ansible-playbook playbooks/update.yml -e allow_reboot=true</code></div>
+{% endif %}
+{% if update_clean %}
+    <div class="note">Niets open bij: {{ update_clean | join(', ') }}</div>
+{% endif %}
+  </div>
+
+{% if update_rows %}
+  <div class="card">
+    <table>
+      <tr><th>Host</th><th>Pakket</th><th>Nu</th><th>Nieuw</th><th>Bron</th></tr>
+{# Three stable sorts, applied least significant first: host groups the table,
+   security floats to the top of each host, and the rest is alphabetical. #}
+{% for u in update_rows | sort(attribute='name') | sort(attribute='security', reverse=true) | sort(attribute='host') %}
+      <tr>
+        <td><strong>{{ u.host }}</strong></td>
+        <td>{{ u.name }}</td>
+        <td class="muted">{{ u.current or '-' }}</td>
+        <td>{{ u.candidate }}</td>
+        <td class="{{ 'warn' if u.security else 'muted' }}">{{ 'security' if u.security else u.source }}</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% else %}
+  <div class="card"><span class="ok">Alles is bij.</span></div>
+{% endif %}
+
   </div>
 
 </main>

@@ -130,7 +130,23 @@ $EDITOR inventory/group_vars/proxmox/lxcs.yml
 
 ## 2. Use cases
 
-Alles wat hier staat is te draaien vanaf het werkstation.
+Alles wat hier staat is te draaien vanaf het werkstation. Dit is de korte
+vorm: de commando's, met het waarom in commentaar. Elke use case hieronder
+heeft een uitgeschreven runbook op [docs.neodata.be](https://docs.neodata.be):
+
+| Runbook | Dekt |
+| --- | --- |
+| Werkplek | `ssh <host>`-snelkoppelingen, shell-afkortingen, wat je na een run doet |
+| Nieuwe machine | een nieuwe machine op pve01 |
+| Dienst toevoegen | `new-service.yml`, `new-role.yml`, een route in `caddy_sites` |
+| Updates | pakketten updaten, de Macs, Caddy upgraden |
+| Onderhoud | `report.yml`, `drift.yml`, `cleanup.yml`, `discover.yml`, `docs.yml` |
+| Netwerk en Proxmox | bridges, autostart, een Tailscale-sleutel |
+| Herstellen | een back-up terugzetten, de hele node, het herstelpad bewijzen |
+| Van niets naar alles | een nieuw werkstation, en pve01 na een herinstallatie |
+
+Wijzig je hieronder iets, werk dan het bijbehorende runbook in dezelfde commit
+bij en draai `ansible-playbook playbooks/docs.yml`.
 
 ```bash
 

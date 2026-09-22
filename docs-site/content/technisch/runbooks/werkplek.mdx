@@ -1,0 +1,119 @@
+---
+title: Werkplek
+---
+
+import { Callout } from 'nextra/components'
+
+# Werkplek
+
+Wat je laptop van `playbooks/dotfiles.yml` krijgt, en wat je daarna kunt typen.
+
+## Korte namen in plaats van adressen
+
+Na een run van de dotfiles-playbook hoef je geen IP meer te onthouden. De
+gebruiker en de sleutel zitten er ook al in, dus `ansible@` erbij zetten hoeft
+niet:
+
+| Typ dit | In plaats van |
+| --- | --- |
+| `ssh pve01` | `ssh ansible@192.168.0.14` |
+| `ssh docker` | `ssh ansible@192.168.0.15` |
+| `ssh docker-grafana-stack` | `ssh ansible@192.168.0.17` |
+| `ssh caddy` | `ssh ansible@192.168.0.25` |
+| `ssh adguard` | `ssh ansible@192.168.0.29` |
+| `ssh semaphore` | `ssh ansible@192.168.0.30` |
+| `ssh pbs` | `ssh ansible@192.168.0.181` |
+| `ssh tailscale` | `ssh ansible@192.168.0.50` |
+
+Namen en adressen komen uit de inventory, dus dit lijstje is niet de bron —
+[Hosts](/technisch/hosts/) is dat. Staat er een host op een ander adres, dan
+volgt de snelkoppeling vanzelf mee.
+
+## Waar die namen vandaan komen
+
+De dotfiles-rol schrijft `~/.ssh/config.d/homelab` uit de inventory-groep
+`linux`, en zet bovenin `~/.ssh/config` één regel `Include ~/.ssh/config.d/*`.
+Elke host in die groep krijgt een blok met zijn adres, de gebruiker `ansible`
+en `~/.ssh/ansible_ed25519`.
+
+Dat betekent dat er niets met de hand bijgehouden wordt. Een nieuwe guest op
+`pve01` verschijnt in de inventory, en één run later kun je hem bij naam
+sshen:
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+<Callout type="warning">
+Bewerk `~/.ssh/config.d/homelab` niet met de hand — de volgende run overschrijft
+het. Zet de host in de inventory.
+
+Kon de Proxmox-API niet gelezen worden, dan zou het sjabloon een bijna lege
+config schrijven en kun je de volgende dag niets meer bereiken. Daarom laat de
+rol het bestand in dat geval ongemoeid en zegt hij dat ook. Controleer dan met
+`ansible-inventory --graph` of de guests er wel zijn, en draai opnieuw.
+</Callout>
+
+## Snelkoppelingen in de shell
+
+Dezelfde playbook schrijft `~/.zshrc`. Wat daar aan afkortingen in staat komt
+uit `dotfiles_zsh_block` in `inventory/host_vars/mbp.yml`:
+
+| Typ dit | Doet |
+| --- | --- |
+| `hl` | `cd ~/Development/homelab-ansible` |
+| `ap` | `ansible-playbook` |
+
+Dus `hl && ap playbooks/site.yml` is een volledige run vanaf elke map. Verder
+staat `ANSIBLE_VAULT_PASSWORD_FILE` daar gezet, en dát is de reden dat geen
+enkel commando op deze pagina om een vault-wachtwoord vraagt.
+
+## Zonder ssh: één commando op een host
+
+Voor iets kleins hoef je er niet in. Een ad-hoc-commando draait tegen een host
+of een hele groep:
+
+```bash
+ansible caddy -a "caddy version"          # één host
+ansible guests -a "uptime"                # alle guests
+ansible linux -m ansible.builtin.ping     # bereik ik ze allemaal nog?
+```
+
+## Na een run: wat doe je dan
+
+De meeste playbooks hebben een natuurlijke volgende stap — meestal iets dat
+controleert of het klopt, of iets dat de rest van de wereld laat bijtrekken.
+
+| Draaide je | Draai dan | Waarom |
+| --- | --- | --- |
+| `site.yml` | `site.yml --check --diff` | tweede keer hoort niets meer te veranderen |
+| `new-guest.yml` | `site.yml --limit <host>`, daarna `dotfiles.yml` | de dienst erop, en de nieuwe `ssh <host>` |
+| `caddy.yml` | `caddy-smoketest.yml` | vraagt elke route echt op, faalt op een dode |
+| `stacks.yml` | `caddy.yml`, `docs.yml` | route en servicepagina volgen de stack |
+| `update.yml` | `report.yml` | de lijst met openstaande updates hoort nu leeg |
+| iets in de inventory | `docs.yml` | de pagina's onder Technisch komen daaruit |
+| wat dan ook, later | `drift.yml` | is er iets met de hand gewijzigd sindsdien |
+
+`report.yml` publiceert naar
+[report.neodata.be](https://report.neodata.be) en is de snelste manier om te
+zien of de vloot er nog goed bij staat: schijf, uptime, reboots, back-ups,
+drift. Wat die controle-playbooks precies doen en waarom ze niet in `site.yml`
+zitten staat in [Onderhoud](/technisch/runbooks/onderhoud/).
+
+## Voor je iets draait
+
+Drie vlaggen die nooit iets stukmaken:
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff   # droogloop, verandert niets
+ansible-playbook playbooks/site.yml --list-hosts     # wie raak ik
+ansible-playbook playbooks/site.yml --list-tags      # welke onderdelen zitten erin
+```
+
+En om te beperken wat je raakt:
+
+```bash
+ansible-playbook playbooks/site.yml --limit docker            # één host
+ansible-playbook playbooks/site.yml --limit 'linux:!proxmox'  # alles behalve de hypervisor
+ansible-playbook playbooks/site.yml --tags dns                # één onderdeel
+```

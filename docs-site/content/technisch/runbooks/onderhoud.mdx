@@ -1,0 +1,195 @@
+---
+title: Onderhoud
+---
+
+import { Callout } from 'nextra/components'
+
+# Onderhoud
+
+Zes playbooks die niets installeren. Ze kijken, ze ruimen op, of ze schrijven
+op wat er is. Geen van beide zit in `site.yml`, en per playbook staat hieronder
+waarom niet.
+
+| Je vraagt je af | Draai |
+| --- | --- |
+| staat de vloot er goed bij? | `report.yml` |
+| is er iets met de hand gewijzigd? | `drift.yml` |
+| waarom is die schijf vol? | `cleanup.yml` |
+| wat draait er eigenlijk op die host? | `discover.yml` |
+| welke guests draaien er nu écht? | `proxmox-info.yml` |
+| klopt deze site nog? | `docs.yml` |
+
+## Staat alles er goed bij?
+
+```bash
+ansible-playbook playbooks/report.yml
+```
+
+Leest alleen, en publiceert naar
+[report.neodata.be](https://report.neodata.be). Per host: openstaande
+upgrades, of hij een herstart nodig heeft, schijfgebruik. Daarnaast de
+PBS-back-upgroepen, de vervaldatum van het wildcard-certificaat, en welke
+gepubliceerde Docker-poorten géén route hebben.
+
+Die laatste is de nuttigste: een poort zonder route is meestal een dienst die
+je vergeten bent af te maken. Wat bewust geen route heeft, demp je met
+`docker_ports_without_route` in de host_vars van `docker` — dan verdwijnt het
+uit de lijst in plaats van dat je eroverheen leert kijken.
+
+<Callout type="info">
+Draai hem zonder `--limit`, of neem `localhost` er expliciet in mee. De HTML
+wordt daar gerenderd; laat je `localhost` weg, dan is er niets om te
+publiceren en zegt de laatste play dat ook.
+</Callout>
+
+Niet in `site.yml`, want hij is traag en hij hoort op een schema — niet in
+elke converge.
+
+## Loopt er iets uit de pas?
+
+```bash
+ansible-playbook playbooks/drift.yml
+ansible-playbook playbooks/drift.yml -e drift_fail=true   # rood bij drift
+```
+
+Draait `site.yml --check --diff` en vat de uitkomst samen: één regel per host,
+plus de namen van de taken die iets zouden wijzigen. Het volledige log met de
+echte diffs blijft staan in `.drift/site-check.log`.
+
+Waarom dit bestaat: `site.yml --check --diff` geeft een scherm vol dat je
+alleen leest als je er speciaal voor gaat zitten. Deze samenvatting past in een
+melding. Zet hem op een schema in Semaphore met `-e drift_fail=true` en drift
+wordt iets wat je ziet ontstaan, in plaats van iets wat je een half jaar later
+ontdekt.
+
+`drift_fail` staat standaard uit, en dat is een afweging in twee richtingen:
+een samenvatting die altijd groen is leest niemand meer, maar een playbook dat
+rood wordt van normale drift is even nutteloos. Op een schema wil je hem aan,
+aan je bureau meestal niet.
+
+<Callout type="error">
+Een host die **niet bereikbaar** is telt hier als nul wijzigingen, want er viel
+niets te controleren. De regel eronder zegt het wel — er staat dan `NIET
+BEREIKT` in plaats van `gelijk aan de repo`. Een slapende Mac ziet er in een
+samenvatting uit als een host zonder drift, en dat is precies het verschil
+tussen "niets te doen" en "niet gekeken".
+</Callout>
+
+## Schijfruimte vrijmaken
+
+```bash
+ansible-playbook playbooks/cleanup.yml                       # rapporteert alleen
+ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true # ruimt echt op
+ansible-playbook playbooks/cleanup.yml --limit macs          # alleen de brew-cache
+```
+
+Zonder vlag verandert hij niets en zegt hij alleen wat hij zou kunnen
+vrijmaken — mét de namen erbij, niet alleen een aantal. Op `pve01` is dat waar
+oude `proxmox-kernel-*`-pakketten opduiken, en dat lijstje zien vóór je
+opruimt is het hele punt van een rapportage-run.
+
+`cleanup_apply` heeft met opzet geen waarde in de inventory. Het is de
+schakelaar die een rapport in een verwijdering verandert, dus die zet je per
+run. Een default in `group_vars` zou elke run destructief maken.
+
+### Wat hij nooit aanraakt
+
+| Blijft staan | Waarom |
+| --- | --- |
+| Docker-volumes | daar staat de data van de stacks in; die weggooien is een restore, geen cleanup |
+| containers, ook gestopte | een gestopte container houdt zijn image buiten de prune, dus een `down`-stack overleeft dit |
+| gepinde pakketten | `autoremove` respecteert dpkg-holds, dus de custom Caddy-build blijft |
+| de geïnstalleerde Homebrew-versie | alleen verouderde versies en oude downloads gaan |
+
+Images hebben een leeftijdsgrens (`cleanup_docker_until`, 720 uur), build cache
+niet. Die twee kosten verschillend als je ze verkeerd weggooit: een image dat
+toch nodig blijkt moet opnieuw over het netwerk, build cache hoeft alleen
+opnieuw gebouwd te worden.
+
+<Callout type="warning">
+`brew cleanup` zit hier en **niet** aan het eind van `update.yml`, waar het
+logischer lijkt. Op de MacBook komt `ansible` zelf uit Homebrew en is de
+verbinding `local`: een update-run heeft dan net de interpreter vervangen die
+op dat moment de playbook draait. `brew cleanup` zou vervolgens de
+Cellar-map weggooien waar dat draaiende proces nog uit leest. `update.yml` zet
+`HOMEBREW_NO_INSTALL_CLEANUP=1` om precies dat te voorkomen — een opruimtaak
+aan het eind zou dat weer ongedaan maken.
+
+Een losse run upgradet niets, dus daar is de gelinkte versie de huidige en
+heeft cleanup niets gevaarlijks te pakken.
+</Callout>
+
+## Wat draait er op die host?
+
+```bash
+ansible-playbook playbooks/discover.yml
+ansible-playbook playbooks/discover.yml --limit docker-grafana-stack
+```
+
+Leest van een draaiende host af wat deze repo nodig zou hebben om hem terug te
+bouwen: compose-projecten, containers en poorten op een Docker-host,
+`brew leaves` en casks op een Mac.
+
+Verandert niets, op geen enkele host. Het resultaat komt in
+`.discovered/<host>.yml` en dat is **geen inventory** — het is een voorstel.
+Lees het, gooi eruit wat er niet in hoort, en zet de rest in
+`inventory/host_vars/<host>.yml`.
+
+Waarom dit bestaat: twee hosts draaien diensten die deze repo nog niet kan
+terugbouwen — de Mac mini en `docker-grafana-stack` — en wat daar precies op
+staat weet niemand uit het hoofd. Een lijst die je uit je geheugen overtikt is
+een lijst die niet klopt. Dit haalt hem één keer op bij de machine zelf, zodat
+het volgende antwoord uit git komt in plaats van uit de host.
+
+Zodra een host een `docker_stacks_list` in zijn host_vars heeft, pakt
+`stacks.yml` hem vanzelf op. Dat ene veld is wat een host beheerd maakt.
+
+## Welke guests draaien er nu echt?
+
+```bash
+ansible-playbook playbooks/proxmox-info.yml
+```
+
+Elke guest op `pve01` met zijn vmid, type en status. Leest via het API-token,
+net als de dynamische inventory — dus dit is meteen de snelste manier om te
+zien of dat token nog werkt. Zie je hier niets, dan ziet Ansible ook niets, en
+dan is dát het probleem en niet de host die je zocht.
+
+<Callout type="warning">
+Dit "leesplaybook" verwijdert `python3-proxmoxer` van de hypervisor. De
+modules eronder draaien gedelegeerd op `localhost` en hebben dat pakket op de
+node niet nodig; het staat er als opruiming van iets wat ooit langs een andere
+weg geïnstalleerd werd. Een playbook dat leest en tóch iets weghaalt is een
+verrassing — het staat als zodanig in `TODO.md`.
+</Callout>
+
+## De documentatiesite bijwerken
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+Bouwt deze site en zet hem op de `caddy`-host. `npm ci` en `npm run build`
+draaien op de controller, niet op `caddy`; alleen het resultaat gaat erheen.
+
+De pagina's onder **Technisch** — hosts, LXC-containers, stacks, en één pagina
+per route in `caddy_sites` — worden uit de inventory gegenereerd en kunnen dus
+niet uit de pas lopen. De **runbooks** zijn met de hand geschreven en worden
+alleen meegenomen.
+
+Een geschrapte route laat geen pagina achter: die wordt opgeruimd nadat de rest
+opnieuw gerenderd is. Verwijder je een dienst, dan verdwijnt zijn pagina bij de
+volgende run vanzelf.
+
+`docs.neodata.be` en `report.neodata.be` staan niet in `caddy_sites` maar als
+vaste blokken in de Caddyfile, en ze serveren van schijf in plaats van naar een
+upstream te proxyen. Allebei zijn ze afgeschermd op IP-bereik: alleen vanaf het
+LAN of de tailnet, daarbuiten een 403. Ze beschrijven de binnenkant van het
+netwerk, dus dat hoort niet op het open internet.
+
+<Callout type="info">
+Draai dit na elke wijziging in de inventory. Een hostnaam, een adres, een
+route of een stack die verandert zonder `docs.yml` betekent dat deze site iets
+beweert wat niet meer waar is — en dat is erger dan geen documentatie, want je
+gelooft het.
+</Callout>

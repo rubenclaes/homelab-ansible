@@ -18,14 +18,40 @@
 # de laatste play dat ook.
 - name: Collect report data
   hosts: linux
+  vars:
+    # An `Inst` line from `apt-get -s dist-upgrade` carries everything the
+    # Updates tab needs:
+    #
+    #   Inst libc6 [2.36-9+deb12u7] (2.36-9+deb12u10 Debian-Security:12/... [amd64])
+    #        \1     \2               \3              \4
+    #
+    # The bracketed installed version is absent on a package apt is pulling in
+    # for the first time, so group 2 is optional and comes back as null there.
+    report_apt_inst_re: '^Inst (\S+) (?:\[([^]]*)\] )?\((\S+) ([^)]*)\)'
   tasks:
-    - name: Count pending upgrades # noqa: command-instead-of-module
-      ansible.builtin.shell: set -o pipefail; apt-get -s dist-upgrade | grep -c '^Inst' || true
-      args:
-        executable: /bin/bash
-      register: report_pending
+    # One simulation, read twice: the count for the overview table and a row
+    # per package for the Updates tab. Asking apt a second time for the
+    # details would double the slowest part of this play for nothing.
+    - name: Simulate a dist-upgrade # noqa: command-instead-of-module
+      ansible.builtin.command: apt-get -s dist-upgrade
+      register: report_upgrade
       changed_when: false
       check_mode: false
+
+    - name: Turn each Inst line into a package row
+      ansible.builtin.set_fact:
+        report_packages: >-
+          {{ report_packages | default([]) + [{
+               'name': f[0],
+               'current': f[1] | default('', true),
+               'candidate': f[2],
+               'origin': f[3] | regex_replace(' \[[^]]*\]$', '')
+             }] }}
+      vars:
+        f: "{{ item | regex_search(report_apt_inst_re, '\\1', '\\2', '\\3', '\\4') }}"
+      loop: "{{ report_upgrade.stdout_lines | select('match', '^Inst ') | list }}"
+      loop_control:
+        label: "{{ item.split(' ')[1] }}"
 
     - name: Check whether a reboot is needed
       ansible.builtin.include_role:
@@ -48,7 +74,7 @@
           kernel: "{{ ansible_facts['kernel'] }}"
           uptime_days: "{{ (ansible_facts['uptime_seconds'] / 86400) | round(1) }}"
           disk_used_pct: "{{ report_disk.stdout | int }}"
-          pending: "{{ report_pending.stdout | int }}"
+          pending: "{{ report_packages | default([]) | length }}"
           reboot: "{{ baseline_reboot_needed | bool }}"
 
     - name: Show it
@@ -57,6 +83,18 @@
 
 - name: Collect macOS report data
   hosts: macs
+  vars:
+    # Every offered update prints two lines; this reads the second one:
+    #
+    #   \tTitle: Safari, Version: 18.6, Size: 132316KiB, Recommended: YES,
+    #             \1              \2
+    #
+    # The `* Label:` line above it is the precise identifier, but the title is
+    # what a human recognises. Counting these lines rather than the labels
+    # keeps the Updates tab and the overview column on one source: two counts
+    # that can drift apart would eventually disagree, and the report would
+    # have no way to say which of them is right.
+    report_swu_re: 'Title: (.+?), Version: ([^,]+),'
   tasks:
     # `mbp` is ansible_connection: local, which means "whatever machine is
     # running Ansible". Run from the MacBook that is a Mac; run from Semaphore
@@ -75,16 +113,51 @@
           check_mode: false
           failed_when: false
 
-        # Counts formulae and casks. `2>/dev/null` drops the "Downloading
-        # Homebrew API data" progress line. A Mac without Homebrew yields an
-        # empty list and therefore a count of zero, which reads as healthy;
-        # that is acceptable here because roles/macos installs it anyway.
-        - name: Count outdated Homebrew packages
-          ansible.builtin.shell: "{{ macos_brew_path }}/brew outdated --quiet 2>/dev/null"
+        # `--json=v2` rather than `--quiet`: the same single call now also
+        # yields the installed and available versions the Updates tab wants,
+        # and JSON is immune to the "Downloading Homebrew API data" progress
+        # line that `2>/dev/null` used to suppress, because the module keeps
+        # stderr separate. A Mac without Homebrew yields no stdout at all,
+        # which the `or '{}'` below turns into an empty list rather than a
+        # parse error; that reads as healthy, and roles/macos installs brew
+        # anyway.
+        - name: Read outdated Homebrew packages
+          ansible.builtin.command: "{{ macos_brew_path }}/brew outdated --json=v2"
           register: report_brew
           changed_when: false
           check_mode: false
           failed_when: false
+
+        # Formulae and casks are two lists in the JSON but one package tree to
+        # a reader, so they flatten into one. A formula can have several
+        # installed versions side by side; joining them keeps the row honest
+        # instead of picking one arbitrarily.
+        - name: Flatten outdated formulae and casks into rows
+          ansible.builtin.set_fact:
+            report_brew_rows: >-
+              {{ report_brew_rows | default([]) + [{
+                   'name': item.name,
+                   'current': item.installed_versions | default([]) | join(', '),
+                   'candidate': item.current_version | default('?')
+                 }] }}
+          vars:
+            brew: "{{ (report_brew.stdout | trim or '{}') | from_json }}"
+          loop: "{{ brew.formulae | default([]) + brew.casks | default([]) }}"
+          loop_control:
+            label: "{{ item.name }}"
+
+        - name: Turn each offered macOS update into a row
+          ansible.builtin.set_fact:
+            report_swu_rows: >-
+              {{ report_swu_rows | default([]) + [{
+                   'name': f[0] | trim,
+                   'candidate': f[1] | trim
+                 }] }}
+          vars:
+            f: "{{ item | regex_search(report_swu_re, '\\1', '\\2') }}"
+          loop: "{{ report_swu.stdout_lines | select('search', report_swu_re) | list }}"
+          loop_control:
+            label: "{{ f[0] | trim }}"
 
         # BSD df has no --output=pcent, so the Linux play's approach does not
         # port. NR==2 is the data line, $5 the capacity column.
@@ -100,6 +173,12 @@
         # overview table in report.html.j2 needs no per-OS branching. Only the
         # sources differ: softwareupdate for apt, `Action: restart` for the
         # baseline role's reboot check.
+        #
+        # `pending` counts Homebrew as well as macOS, which it did not before
+        # the Updates tab existed. It has to: the tab lists both, so a Mac
+        # showing 0 in the overview and a brew row in the tab would be the
+        # same page contradicting itself. The Homebrew card below still breaks
+        # the number back down per package tree.
         - name: Build this Mac's report line
           ansible.builtin.set_fact:
             report_row:
@@ -108,11 +187,11 @@
               kernel: "{{ ansible_facts['kernel'] }}"
               uptime_days: "{{ (ansible_facts['uptime_seconds'] / 86400) | round(1) }}"
               disk_used_pct: "{{ report_disk.stdout | int }}"
-              pending: '{{ report_swu.stdout_lines | select("search", "^\s*\* Label:") | list | length }}'
+              pending: "{{ (report_swu_rows | default([]) | length) + (report_brew_rows | default([]) | length) }}"
               reboot: "{{ report_swu.stdout is search('Action: restart') }}"
             report_mac:
-              brew_outdated: "{{ report_brew.stdout_lines | length }}"
-              brew_packages: "{{ report_brew.stdout_lines }}"
+              brew_outdated: "{{ report_brew_rows | default([]) | length }}"
+              brew_packages: "{{ report_brew_rows | default([]) | map(attribute='name') | list }}"
 
         - name: Show it
           ansible.builtin.debug:

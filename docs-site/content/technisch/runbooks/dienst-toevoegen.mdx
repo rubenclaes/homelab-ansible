@@ -1,0 +1,177 @@
+---
+title: Dienst toevoegen
+---
+
+import { Callout } from 'nextra/components'
+
+# Een dienst toevoegen
+
+## Eerst even de woorden
+
+**Stack** — een Docker-dienst zoals hij in de `containers`-repo staat: een map
+met een `docker-compose.yml` en een `.env`. Draait op `docker`, naast de
+andere stacks.
+
+**Rol** — een map onder `roles/` die een dienst installeert en configureert
+zonder Docker. `caddy`, `adguard`, `pbs` en `semaphore` zijn rollen.
+
+**Route** — een regel in `caddy_sites` die `naam.neodata.be` naar een host en
+een poort stuurt. Zonder route is een dienst alleen op zijn IP te bereiken.
+
+## Welke van de twee
+
+| Je hebt | Gebruik | Wat je krijgt |
+| --- | --- | --- |
+| een Docker-image | `new-service.yml` | een compose-stack op `docker`, mét route |
+| een pakket dat op een eigen machine hoort | `new-role.yml` | een lege rol met het huispatroon erin |
+| al een draaiende dienst, alleen geen naam | niets — alleen `caddy_sites` | een route |
+
+Draait je dienst op een nieuwe LXC, bouw die dan eerst met
+[Nieuwe machine](/technisch/runbooks/nieuwe-guest/). De twee playbooks
+hieronder gaan ervan uit dat de host al bestaat.
+
+## Een Docker-dienst
+
+```bash
+ansible-playbook playbooks/new-service.yml \
+  -e svc_name=memos \
+  -e svc_port=5230 \
+  -e svc_image=ghcr.io/usememos/memos:0.24.4 \
+  -e svc_volume=/var/opt/memos \
+  -e '{"svc_desc": "Memos - snelle notities"}'
+```
+
+<Callout type="warning">
+Een waarde met spaties **moet** als JSON binnenkomen. Ansible leest
+`-e key=value` als een spatie-gescheiden lijst van paren, dus
+`-e 'svc_desc=a b c'` wordt stilletjes `svc_desc=a` plus twee losse woorden.
+Aanhalingstekens in de shell helpen niet — die haalt de shell er al af voordat
+Ansible kijkt.
+</Callout>
+
+Het playbook doet in één keer wat vroeger vijf handmatige stappen waren:
+
+1. `stacks/<naam>/docker-compose.yml` in de `containers`-repo
+2. een `.env` ernaast
+3. diezelfde `.env` versleuteld in `files/env/<naam>.env`, onder de
+   vault-identiteit `stacks`
+4. de stack in `docker_stacks_list` (host_vars van `docker`)
+5. de route in `caddy_sites` (host_vars van `caddy`)
+
+De `.env` staat dus op twee plekken. Die in de containers-repo is gitignored;
+de versleutelde kopie in deze repo is de blijvende. Zou de versleuteling
+mislukken, dan faalt het playbook daar meteen op in plaats van een leesbaar
+geheim te laten staan.
+
+### Waarom het weigert te overschrijven
+
+Voor het iets schrijft controleert het of de naam én de poort nog vrij zijn.
+Dat is geen netheid: een dubbele poort bindt stilletjes niet en een dubbele
+naam overschrijft. Beide merk je pas ná een deploy, en dan sta je te zoeken in
+een stack die het gisteren nog deed. Hier kost het je een foutmelding.
+
+### Daarna, met de hand
+
+```bash
+cd ~/Development/containers
+git add stacks/memos && git commit -m 'Add memos stack' && git push
+
+ansible-playbook playbooks/stacks.yml
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/docs.yml
+```
+
+Pushen eerst, en niet uit gewoonte: `stacks.yml` haalt de compose-files op de
+host uit de git-repo, niet vanaf je laptop. Wat je niet gepusht hebt bestaat
+voor de host niet.
+
+## Een dienst die geen container is
+
+```bash
+ansible-playbook playbooks/new-role.yml \
+  -e svc_name=vaultwarden \
+  -e svc_host=vaultwarden \
+  -e svc_tag=secrets \
+  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
+```
+
+Dit zet `roles/<naam>/` op plus een wrapper-playbook. De taken zijn leeg, maar
+het patroon van `adguard`, `caddy` en `pbs` staat er als commentaar in:
+installeren op versie, config schrijven mét `validate`, dienst aanzetten,
+handler bij wijziging.
+
+Dat is waarom dit playbook bestaat. Die vijf rollen zijn allemaal volgens
+hetzelfde patroon gebouwd, maar dat patroon stond nergens opgeschreven — je
+moest het uit een bestaande rol afkijken en hopen dat je de goede koos. Nu
+staat het in de gegenereerde bestanden, als commentaar dat je overschrijft
+terwijl je het leest.
+
+De naam moet kleine letters, cijfers en underscores zijn. Niet willekeurig:
+dat is wat Ansible als rolnaam accepteert.
+
+<Callout type="info">
+Het zet je rol **niet** in `site.yml`. De volgorde daar is
+afhankelijkheidsvolgorde — na waar je dienst van afhangt, vóór wat van hem
+afhangt — en geen enkel playbook weet waar jouw dienst hoort. De twee regels
+om te plakken staan aan het eind van de run.
+</Callout>
+
+Daarna:
+
+```bash
+$EDITOR roles/vaultwarden/tasks/main.yml    # de TODO's wijzen naar de dichtstbijzijnde rol
+$EDITOR playbooks/site.yml                  # zet hem op zijn plek in de volgorde
+ansible-playbook playbooks/vaultwarden.yml --check --diff
+```
+
+## Alleen een route
+
+Staat de dienst er al en wil je hem alleen een naam geven, dan hoef je geen
+van beide playbooks. Eén regel in `caddy_sites`:
+
+```bash
+$EDITOR inventory/host_vars/caddy/main.yml
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/docs.yml
+```
+
+Een regel ziet er zo uit:
+
+```yaml
+- { name: memos, host: docker, port: 5230, desc: "Memos - snelle notities" }
+```
+
+| Veld | Doet |
+| --- | --- |
+| `name` | wordt `name.neodata.be` |
+| `host` | een **inventory-hostnaam**; zijn adres wordt de upstream |
+| `port` | de poort waar de dienst luistert |
+| `upstream` | noodgreep voor iets dat niet in de inventory staat |
+| `https` | de upstream praat zelf TLS, met een zelfondertekend certificaat |
+| `host_header` | stuur de oorspronkelijke `Host` door |
+| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij |
+| `auth` | zet tinyauth ervoor |
+
+Upstreams staan op hostnaam en niet op IP, en dat is met opzet. Verhuist een
+host naar een ander adres, dan verandert dat op één plek — in Proxmox voor een
+guest, of in `inventory/00-static.yml` voor de rest — en volgt de Caddyfile
+mee. Met IP's in deze lijst zou je hem elke keer moeten natrekken.
+
+`docs.yml` staat er telkens bij omdat de servicepagina's op deze site
+gegenereerd worden uit `caddy_sites`. Sla je hem over, dan klopt de route wel
+en de documentatie niet.
+
+## De smoketest
+
+```bash
+ansible-playbook playbooks/caddy-smoketest.yml
+```
+
+Vraagt elke site uit `caddy_sites` echt op en faalt als er een stuk is. Een
+5xx of een verbinding die niet tot stand komt telt als stuk. Een 401 of een
+redirect niet — dat is tinyauth die precies doet wat er van hem gevraagd wordt.
+
+Hij zit bewust niet in `site.yml`: hij controleert, hij convergeert niet.
+Draai hem na `caddy.yml` en na `caddy-upgrade.yml`.

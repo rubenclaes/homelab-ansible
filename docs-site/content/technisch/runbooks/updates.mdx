@@ -25,6 +25,20 @@ hypervisor als laatste.
 Spotify, VLC, Chromium. Die upgraden vervangt een app die misschien openstaat,
 dus dat gebeurt alleen als je er expliciet om vraagt.
 
+## Wat staat er open?
+
+`playbooks/report.yml` publiceert naar [report.neodata.be](https://report.neodata.be),
+en dat rapport heeft twee tabbladen. **Overzicht** is de gezondheid van de
+vloot: schijf, uptime, reboots, back-ups, drift. **Updates** is de lijst
+waar je hier iets aan hebt — per host één regel per pakket, met de versie die
+er nu staat en de versie die klaarligt.
+
+Wat apt uit een security-repo haalt staat bovenaan bij zijn host en is als
+`security` gemarkeerd. De LXC's staan er gewoon tussen: die zitten in de groep
+`linux`, dus ze worden net zo gemeten en net zo gepatcht als de rest.
+
+Het rapport verandert niets. Het vertelt alleen wat `update.yml` zou doen.
+
 ## Wat het playbook doet
 
 `playbooks/update.yml` draait `apt full-upgrade` met `serial: 1`: één host is

@@ -1,0 +1,230 @@
+---
+title: Van niets naar alles
+---
+
+import { Callout } from 'nextra/components'
+
+# Van niets naar alles
+
+Twee verschillende dingen staan hieronder. **A** is een nieuw werkstation —
+een laptop die nog nooit met deze repo gewerkt heeft. **B** is de hele estate
+opnieuw opbouwen na een herinstallatie van `pve01`, en dat hoop je nooit nodig
+te hebben.
+
+B zonder A gaat niet: zonder sleutel en vault-wachtwoorden begint daar niets.
+
+## A. Een nieuw werkstation
+
+```bash
+# Toolchain, versies gepind in requirements.txt
+pipx install "ansible-core==2.21.4" "ansible-lint==26.8.0"
+ansible-galaxy collection install -r collections/requirements.yml
+```
+
+### De sleutel
+
+```bash
+scp <mac>:'~/.ssh/ansible_ed25519*' ~/.ssh/
+chmod 600 ~/.ssh/ansible_ed25519
+```
+
+<Callout type="error">
+Maak deze sleutel **niet** opnieuw aan. Hij bestaat al en elke host kent hem.
+Een nieuwe sleutel betekent dat je bij geen enkele host meer binnenkomt, en
+`-u root -k` werkt daar niet als redmiddel: de baseline zette
+`PasswordAuthentication no`, dus een gebaselinede host neemt geen wachtwoord
+meer aan. Je komt er dan alleen nog langs de hypervisor in.
+</Callout>
+
+Verbinden gaat als gebruiker `ansible` met `~/.ssh/ansible_ed25519`, op elke
+Linux-host. Dat pad staat vast in `ansible.cfg`, dus hernoemen kan niet.
+
+Ben je hem écht kwijt, dan moet je een nieuwe per host met de hand naar binnen
+brengen, als root op `pve01`:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/ansible_ed25519 -C "ansible@homelab"
+
+# Per container, als root op pve01. Voor een VM: via de console in het scherm.
+pct exec <vmid> -- tee -a /home/ansible/.ssh/authorized_keys <<< "$(cat ~/.ssh/ansible_ed25519.pub)"
+```
+
+Zet de nieuwe publieke sleutel daarna ook in `pve_lxc_defaults.pubkey`
+(`inventory/group_vars/proxmox/lxcs.yml`), anders krijgt elke nieuw gebouwde
+container de oude mee.
+
+### De twee vault-wachtwoorden
+
+```bash
+install -m 600 /dev/null ~/.ansible/vault_pass_infra
+install -m 600 /dev/null ~/.ansible/vault_pass_stacks
+$EDITOR ~/.ansible/vault_pass_infra
+$EDITOR ~/.ansible/vault_pass_stacks
+```
+
+Plakken zonder spaties erachter — een trailing newline of spatie maakt het
+wachtwoord een ander wachtwoord.
+
+Twee stuks, en dat is een keuze over blast radius:
+
+| Identiteit | Beschermt | Een lek betekent |
+| --- | --- | --- |
+| `infra` | inventory-vaults, Semaphore-config | rotatie van controle over hypervisor, DNS en back-ups |
+| `stacks` | `files/env/*.env` | rotatie van applicatie-logins |
+
+### De pre-commit hook
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Git zet dit niet zelf aan bij een clone. De hook draait `bin/check-vaulted
+--staged` en blokkeert een commit met een onversleuteld geheim erin. Dat is de
+ene fout die duur is om terug te draaien: een gecommit geheim blijft in de
+git-historie staan, ook nadat je het bestand weggooit.
+
+### Werkt het?
+
+```bash
+bin/check-vaulted && ansible-lint && ansible all -m ping
+ansible-playbook playbooks/dotfiles.yml     # en dan werkt `ssh pve01` ook
+```
+
+## B. Na een herinstallatie van pve01
+
+<Callout type="warning">
+De volgorde hieronder is geen suggestie. Elke stap heeft iets nodig dat de
+vorige achterlaat, en dat staat er per stap bij. Sla er een over en je loopt
+vast op iets dat er niet uitziet als het echte probleem.
+</Callout>
+
+### 1. Proxmox erop, met de hand
+
+Van USB, vast op `192.168.0.14`. Dat adres staat hard in
+`inventory/00-static.yml` en in `pve_api_host`; een ander adres breekt alles.
+
+```bash
+zpool import vm-hdd
+```
+
+Overleefde de pool, dan overleefden de VM-schijven én de PBS-datastore. Is hij
+weg, dan zijn je back-ups weg — en dan is dit een heel ander verhaal.
+
+### 2. Het API-token
+
+Dit moet écht eerst. De dynamische inventory praat via dat token, dus zonder
+token ziet Ansible geen enkele guest. Geen playbook kan dit aanmaken: een
+playbook heeft het token al nodig om te kunnen draaien.
+
+```bash
+pveum role add AnsibleAutomation --privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use,Sys.Audit,VM.Allocate,VM.Audit,VM.Config.CPU,VM.Config.Disk,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.PowerMgmt,VM.GuestAgent.Audit"
+pveum user add ansible@pve
+pveum acl modify / --user ansible@pve --role AnsibleAutomation
+pveum user token add ansible@pve automation --privsep 0   # print het secret, één keer
+```
+
+Dat secret meteen in de vault zetten, op het werkstation:
+
+```bash
+ansible-vault edit inventory/group_vars/proxmox/vault.yml   # vault_pve_api_token_secret
+```
+
+### 3. Ansible kan bij pve01
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k
+ansible-playbook playbooks/proxmox-access.yml
+ansible-playbook playbooks/site.yml --limit pve01
+```
+
+Een verse Proxmox laat root nog met een wachtwoord binnen, dus hier werkt
+`-u root -k` wél. Na de baseline niet meer — dit is het enige venster waarin
+dat kan.
+
+`proxmox-access.yml` trekt niet alleen de rechten gelijk, hij bewíjst ook dat
+het token werkt: hij vraagt de guest-agent op dóór het token heen, niet met
+`pvesh`. `pvesh` draait als root en zou slagen ongeacht wat het token mag — dat
+bewijst dus niets over wat de inventory-plugin straks ziet.
+
+<Callout type="info">
+`bootstrap.yml` weigert meer dan één host tegelijk. Zonder die grendel
+herschrijft een vergeten `--limit` `/etc/sudoers.d/ansible` op alle acht.
+Idempotent, dus er gaat niets stuk — maar een playbook dat voor één nieuwe
+machine bedoeld is hoort de hele estate niet te kunnen raken.
+</Callout>
+
+### 4. Back-ups terug in beeld
+
+PBS is VM 100 en draait op `pve01` zelf, dus hij moet bestaan vóór je zijn
+opslag kunt koppelen. Maak hem met de hand, exact volgens `pve_vms` in
+`inventory/group_vars/proxmox/vms.yml`: MAC overnemen, `scsi1` ís de datastore.
+
+Daarna Datacenter → Storage → PBS toevoegen, ook met de hand. Die definitie
+draagt de encryptiesleutel en hoort niet in git.
+
+```bash
+ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
+```
+
+### 5. De containers
+
+Eén per keer, in deze volgorde. `adguard` is de DNS van het netwerk, `caddy` de
+voordeur — in die volgorde heeft de rest iets om naar te wijzen.
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
+ansible-playbook playbooks/new-guest.yml -e guest=tailscale
+ansible-playbook playbooks/new-guest.yml -e guest=semaphore
+```
+
+`tailscale` heeft daarna nog twee `pct set`-regels als root nodig; het token
+kan geen rauwe lxc-keys zetten. Ze staan bij vmid 108 in `lxcs.yml`.
+
+### 6. De virtuele machines
+
+Met de hand in het scherm, vorm uit `vms.yml`, MAC-adres overnemen — daar hangt
+de DHCP-reservering aan.
+
+```
+100 pbs    101 haos    102 docker-grafana-stack    103 docker
+```
+
+Hun waarde is hun schijf, niet hun vorm: de data komt daarna uit PBS. Zie
+[Herstellen](/technisch/runbooks/disaster-recovery/).
+
+`macmini` en `docker-grafana-stack` draaien diensten die deze repo nog niet kan
+terugbouwen. Voor die twee is PBS het herstelpad, niet een playbook. Wat ze
+draaien haal je op met `discover.yml` — zie
+[Onderhoud](/technisch/runbooks/onderhoud/).
+
+### 7. Handwerk waar een rol op staat te wachten
+
+| Host | Wat |
+| --- | --- |
+| `adguard` | loop de setup-wizard af op `http://192.168.0.29:3000`, anders stopt de rol met precies die melding. Login daarna in `host_vars/adguard/vault.yml`, identiteit `infra` |
+| `tailscale` | OAuth-client in `host_vars/tailscale/vault.yml` |
+| Docker-hosts | de `docker_stacks`-rol maakt per host een deploy-key en drukt de publieke helft af. Zet die in de juiste repo onder Settings → Deploy keys |
+
+Drie repo's, drie sleutels:
+
+```
+docker                 rubenclaes/containers
+docker-grafana-stack   rubenclaes/monitoring-stack
+macmini                rubenclaes/homelab
+```
+
+Tot die sleutel erin staat faalt de clone en komt er geen enkele stack omhoog.
+
+### 8. Alles gelijktrekken
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff
+ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/docs.yml
+ansible-playbook playbooks/report.yml
+```
+
+Eerst de droogloop, en die lees je ook echt. Op dit punt staat de helft met de
+hand gezet en wil je zien wat de repo daar nog van vindt voordat hij het
+rechttrekt.
