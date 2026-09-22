@@ -16,7 +16,8 @@ import { Callout } from 'nextra/components'
      'type': d.type,
      'mac': d.mac,
      'ip': d.ip | default(''),
-     'note': d.note | default('')
+     'note': d.note | default(''),
+     'profile': d.type in devices_profile_types
    }) -%}
 {% endfor %}
 
@@ -30,6 +31,10 @@ inventory, niet uit deze lijst.
 
 Adressen zijn reserveringen in de router, geen metingen. De lijst legt vast wat
 er hoort te staan; niets hier dwingt het af.
+
+Elk toestel mét adres heeft ook een naam: `<toestel>.{{ adguard_rewrite_domain }}`.
+Die zet `roles/adguard` via de API in AdGuard, uit dezelfde lijst, samen met
+`<host>.{{ adguard_rewrite_domain }}` voor elke host uit de inventory.
 
 {# The blank lines inside the loops are deliberate. Ansible renders with
    trim_blocks on, so the newline after a block tag is eaten; without these a
@@ -48,4 +53,40 @@ er hoort te staan; niets hier dwingt het af.
 
 {{ r.name }} — {{ r.note }}
 {% endfor %}
+{% for r in group if r.profile %}
+
+{{ r.name }} — [DNS-profiel](/profielen/{{ r.name }}.mobileconfig)
 {% endfor %}
+{% endfor %}
+
+## Telefoonprofielen
+
+Een telefoon wisselt van MAC-adres per netwerk, dus de reservering hierboven
+zegt AdGuard niet welke telefoon er vraagt. Het profiel wel: het laat het
+toestel DNS-over-HTTPS spreken met `https://dns.{{ caddy_domain }}/dns-query/<toestel>`,
+en dat laatste stuk is het client-ID waaronder AdGuard de vragen toont.
+Elk toestel van type {{ devices_profile_types | map('regex_replace', '^(.*)$', '`\\1`') | join(', ') }}
+krijgt er een; de links staan bij het toestel.
+
+Installeren, op de telefoon zelf:
+
+1. Open de link in Safari. iOS vraagt of het profiel gedownload mag worden.
+2. Instellingen → **Profiel gedownload** → **Installeer**.
+3. Controleer in AdGuard onder *Querylog* dat de vragen op de naam van het
+   toestel binnenkomen.
+
+{% if devices_profile_ssids | length > 0 %}
+Het profiel is alleen actief op {{ devices_profile_ssids | map('regex_replace', '^(.*)$', '`\\1`') | join(', ') }}.
+Elders gebruikt de telefoon de DNS van het netwerk waar hij op zit.
+{% else %}
+Het profiel staat altijd aan, ook buitenshuis. Dat werkt alleen zolang
+`dns.{{ caddy_domain }}` van daar bereikbaar is; iOS valt niet terug op gewone
+DNS als de versleutelde server niet antwoordt. Wie dat niet wil, zet de
+thuisnetwerken in `devices_profile_ssids`.
+{% endif %}
+
+Weghalen: Instellingen → Algemeen → VPN en apparaatbeheer → het profiel →
+**Verwijder profiel**.
+
+Gegenereerd uit dezelfde `devices`; het profiel zelf uit
+`playbooks/templates/profiles/dns.mobileconfig.j2`.

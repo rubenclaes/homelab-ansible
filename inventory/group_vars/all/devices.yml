@@ -13,6 +13,15 @@
 #
 # MACs are lowercase with colons. docs.yml asserts the form, so two spellings
 # cannot become two devices.
+#
+# The key does three things beyond naming the row, so it is lowercase letters,
+# digits and hyphens only (docs.yml asserts that too):
+#   - a device with an `ip` gets the DNS name <key>.home.arpa in AdGuard, set
+#     by roles/adguard over the API together with the inventory hosts;
+#   - a device whose `type` is in devices_profile_types gets a DNS profile at
+#     https://docs.<domain>/profielen/<key>.mobileconfig, in which <key> is
+#     the AdGuard client ID, so its queries are attributed to it by name;
+#   - playbooks/tailscale-key.yml mints a Tailscale key described with it.
 devices:
   iphone-ruben:
     owner: Ruben
@@ -31,3 +40,16 @@ devices:
     owner: gedeeld
     type: printer
     mac: "77:88:99:aa:bb:cc"
+
+# Which device types get a DNS-over-HTTPS profile. A profile is the only way
+# to have a phone use AdGuard by name: its MAC changes per network, so the
+# reservation cannot identify it, and the client ID in the profile's URL can.
+devices_profile_types: [phone]
+
+# Wi-Fi networks on which the profile is active. Empty means always, wherever
+# the phone is - which needs dns.<domain> to be reachable from there, or the
+# phone has no DNS at all: iOS does not fall back to plain DNS when the
+# encrypted resolver is unreachable. Name the home network(s) here to limit
+# the profile to them; away from home the phone then uses whatever the
+# network hands out.
+devices_profile_ssids: []

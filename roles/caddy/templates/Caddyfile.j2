@@ -106,7 +106,23 @@ docs.{{ caddy_domain }} {
 	@internal client_ip private_ranges 100.64.0.0/10
 	handle @internal {
 		root * /var/www/homelab-docs
+		# Without this iOS sees a text file instead of a profile to install.
+		@profile path *.mobileconfig
+		header @profile Content-Type application/x-apple-aspen-config
 		file_server
+	}
+	respond "Forbidden" 403
+}
+
+# DNS-over-HTTPS for the phone profiles. Only /dns-query is passed through:
+# AdGuard's admin UI lives on the same port and stays off the internet. No
+# client_ip restriction here on purpose - a phone away from home has whatever
+# address it has, and the profile is what makes the trip worth it.
+dns.{{ caddy_domain }} {
+	import common_headers
+	@doh path /dns-query /dns-query/*
+	handle @doh {
+		reverse_proxy {{ caddy_doh_upstream }}
 	}
 	respond "Forbidden" 403
 }

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+{#- One DNS-over-HTTPS profile per phone, the same payload AdGuard Home's own
+    generator emits (internal/home/mobileconfig.go), with two differences: the
+    UUIDs are derived from the device name, so a second run changes nothing,
+    and the profile can be limited to the home Wi-Fi.
+
+    The client ID in the path is the device's key in devices.yml. AdGuard reads
+    it from the URL, so the phone is recognised whatever address it has - iOS
+    rotates its MAC per network, which is why the ip reservation alone does not
+    identify a phone.
+
+    Written for Ansible's template module: trim_blocks eats the newline after a
+    block tag, hence the layout of the if/for blocks below. -#}
+{%- set name = item.key -%}
+{%- set dev = item.value -%}
+{%- set server = 'https://dns.' ~ caddy_domain ~ '/dns-query/' ~ name -%}
+{%- set title = 'DNS ' ~ caddy_domain ~ ' — ' ~ name -%}
+{%- set payload_uuid = (name ~ ':dns-payload') | to_uuid | upper -%}
+{%- set profile_uuid = (name ~ ':dns-profile') | to_uuid | upper -%}
+{%- set reverse_domain = caddy_domain.split('.') | reverse | join('.') -%}
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>DNSSettings</key>
+			<dict>
+				<key>DNSProtocol</key>
+				<string>HTTPS</string>
+				<key>ServerURL</key>
+				<string>{{ server | e }}</string>
+			</dict>
+			<key>OnDemandEnabled</key>
+			<integer>1</integer>
+			<key>OnDemandRules</key>
+			<array>
+{% if devices_profile_ssids | length > 0 %}
+				<dict>
+					<key>Action</key>
+					<string>Connect</string>
+					<key>InterfaceTypeMatch</key>
+					<string>WiFi</string>
+					<key>SSIDMatch</key>
+					<array>
+{% for ssid in devices_profile_ssids %}
+						<string>{{ ssid | e }}</string>
+{% endfor %}
+					</array>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<string>Disconnect</string>
+				</dict>
+{% else %}
+				<dict>
+					<key>Action</key>
+					<string>Connect</string>
+				</dict>
+{% endif %}
+			</array>
+			<key>PayloadDescription</key>
+			<string>{{ ('Versleutelde DNS via AdGuard Home voor ' ~ name ~ ' (' ~ dev.owner ~ ')') | e }}</string>
+			<key>PayloadDisplayName</key>
+			<string>{{ title | e }}</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.dnsSettings.managed.{{ payload_uuid }}</string>
+			<key>PayloadType</key>
+			<string>com.apple.dnsSettings.managed</string>
+			<key>PayloadUUID</key>
+			<string>{{ payload_uuid }}</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>{{ ('Laat dit toestel DNS opvragen bij AdGuard Home op dns.' ~ caddy_domain ~ ', versleuteld en herkenbaar als ' ~ name ~ '.') | e }}</string>
+	<key>PayloadDisplayName</key>
+	<string>{{ title | e }}</string>
+	<key>PayloadIdentifier</key>
+	<string>{{ reverse_domain }}.dns.{{ name }}</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>{{ profile_uuid }}</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

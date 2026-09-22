@@ -49,7 +49,16 @@ en valt hij uit de dynamische inventory.
 ### Servicerol toepassen
 
 `playbooks/caddy.yml`, `playbooks/semaphore.yml`, `playbooks/stacks.yml` — welke
-de host ook is.
+de host ook is. Twee hosts hebben een eigenaardigheid:
+
+- **`tailscale`** meldt zichzelf aan op de tailnet, met een eenmalige sleutel
+  die de rol via de API maakt — als de OAuth-client in zijn vault staat. Zo
+  niet, dan zegt de rol dat en doe je `tailscale up` met de hand.
+- **`adguard`** heeft na de installatie nog geen `AdGuardHome.yaml`; de
+  setup-wizard op poort 3000 maakt die. De rol stopt daar met een melding tot
+  de wizard doorlopen is, en zet daarna de `*.home.arpa`-namen terug via de
+  API. De rest van de configuratie komt uit de back-up van `/opt/AdGuardHome`,
+  niet uit deze repo.
 
 </Steps>
 
