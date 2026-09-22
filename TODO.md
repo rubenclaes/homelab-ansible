@@ -136,11 +136,24 @@ de API beschrijven.
             internet. Alle acht dienst-URL's getest na afloop.
             Backups staan als `.bak-22-09` naast elk gewijzigd bestand.
 
-      - [ ] Daarna pas de UniFi-DHCP 192.168.0.29 laten uitdelen.
-      - [ ] Daarna de AdGuard op de Mini uitzetten, of bewust als tweede
-            resolver laten staan - maar kies, want twee DNS-servers waarvan
-            er één stilletjes de echte is, is precies hoe je tijdens een
-            storing een uur kwijtraakt.
+      - [x] UniFi-DHCP deelt 192.168.0.29 uit (22-09), getest op de MacBook:
+            nieuwe lease, en `dig pve01.home.arpa` geeft antwoord - die naam
+            kent alleen de nieuwe AdGuard, dus daarmee is de hele keten
+            bewezen. Let op dat er een tweede nameserver naast staat; zonder
+            dat ligt het hele huis eruit als ct 107 stilstaat.
+      - [ ] **Nog te doen: de Mini.** Zijn AdGuard draait nog, en de Mini
+            wijst met de hand naar zichzelf (`192.168.0.26` op zowel
+            `Ethernet` als `USB 10/100/1G/2.5G LAN`, de actieve is en7).
+            Handmatig ingesteld, dus DHCP bereikt hem niet. Eerst omzetten,
+            controleren, en pas dán zijn AdGuard uit:
+
+              ssh macmini 'sudo networksetup -setdnsservers "USB 10/100/1G/2.5G LAN" 192.168.0.29 1.1.1.1'
+              ssh macmini 'sudo networksetup -setdnsservers "Ethernet" 192.168.0.29 1.1.1.1'
+              ssh macmini 'dig +short pve01.home.arpa'
+
+            Even laten staan als reserve mag, maar zet er een datum op: twee
+            DNS-servers waarvan er één stilletjes de echte is, is precies hoe
+            je tijdens een storing een uur kwijtraakt.
 
 - [ ] **De Mac mini: van beschreven naar beheerd.**
       `host_vars/macmini.yml` beschrijft hem nu wél — brew-formules, casks,
@@ -209,6 +222,13 @@ de API beschrijven.
 ---
 
 ## Klein, wanneer het uitkomt
+
+- [ ] **`docs.yml` draaien.** De site is sinds 22-09 niet gebouwd terwijl er
+      wel het een en ander veranderd is: de stacks-pagina dekt nu alle drie
+      de hosts in plaats van alleen `docker`, drie dode dienst-pagina's
+      (tinyauth, bazarr, jellyfin) moeten weg, en er staat een nieuw
+      DNS-hoofdstuk in de netwerk-runbook. Draaien vanuit iTerm, want hij
+      leest de Proxmox-inventory.
 
 - [ ] **VS Code mag het LAN niet op vanuit Python, iTerm wel.**
       De Local Network-toestemming van macOS 26 staat sinds 22-09 aan voor
