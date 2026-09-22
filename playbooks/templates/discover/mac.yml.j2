@@ -1,0 +1,67 @@
+---
+# Voorstel voor inventory/host_vars/{{ inventory_hostname }}.yml
+# Gelezen van de Mac zelf op {{ '%Y-%m-%d' | strftime }}. Geen inventory:
+# lees het na, snoei het, en zet wat blijft in het echte host_vars-bestand.
+
+# --- Homebrew -------------------------------------------------------------
+# `brew leaves`: alleen wat jij zelf gevraagd hebt, zonder de
+# afhankelijkheden eronder. Dat is de lijst die de macos-rol terugzet.
+macos_brew_packages_extra:
+{% for f in discover_brew.stdout_lines | sort %}
+  - {{ f }}
+{% endfor %}
+
+macos_casks:
+{% for c in discover_casks.stdout_lines | sort %}
+  - {{ c }}
+{% endfor %}
+{% if discover_casks.stdout_lines | length == 0 %}
+  []
+{% endif %}
+
+{% if discover_mac_projects.rc | default(1) == 0 %}
+{% set projects = discover_mac_projects.stdout | from_json %}
+# --- De stacks ------------------------------------------------------------
+# Deze Mac draait Docker. Om de rol hier te laten werken moeten de paden mee,
+# want macOS heeft geen /home en de groep heet `staff`:
+#
+#   docker_stacks_become: false
+#   docker_stacks_owner: {{ ansible_facts['user_id'] | default('rubenclaes') }}
+#   docker_stacks_group: staff
+#   docker_stacks_home: /Users/{{ ansible_facts['user_id'] | default('rubenclaes') }}
+#   docker_stacks_repo_dir: /Users/{{ ansible_facts['user_id'] | default('rubenclaes') }}/containers
+#   docker_stacks_root: /Users/{{ ansible_facts['user_id'] | default('rubenclaes') }}/containers/stacks
+#
+# En elke compose-file hieronder moet in de containers-repo staan voor de rol
+# hem kan uitrollen. Staat hij er niet in, dan beschrijft deze regel iets wat
+# niet terug te bouwen is.
+{% set root = '/Users/' ~ (ansible_facts['user_id'] | default('rubenclaes')) ~ '/containers/stacks' %}
+docker_stacks_list:
+{% for p in projects | sort(attribute='Name') %}
+{% set dir = p.ConfigFiles | default('') | split(',') | first | dirname %}
+  - { name: {{ p.Name }}, path: {{ dir[root | length + 1:] if dir.startswith(root) else dir }} }{{ '  # LET OP: staat buiten de stacks-map' if not dir.startswith(root) else '' }}
+{% endfor %}
+{% if projects | length == 0 %}
+  []  # docker compose ls gaf niets terug: draaien de containers los, zonder compose?
+{% endif %}
+{% else %}
+# --- Geen Docker ----------------------------------------------------------
+# `docker compose ls` werkte hier niet. Draait Docker Desktop wel, en staat
+# het commando niet in het PATH van een niet-interactieve SSH-sessie?
+{% endif %}
+
+{% if discover_mac_containers.rc | default(1) == 0 %}
+# --- Wat er nu luistert ---------------------------------------------------
+{% set containers = [] %}
+{% for line in discover_mac_containers.stdout_lines %}{% set _ = containers.append(line | from_json) %}{% endfor %}
+{% for c in containers | sort(attribute='Names') %}
+#   {{ '%-28s' | format(c.Names) }} {{ c.Ports | default('(geen gepubliceerde poort)') }}
+{% endfor %}
+{% endif %}
+
+# --- Wat hier NIET uit komt -----------------------------------------------
+# Plex draait als macOS-app, niet in Docker: die hoort als cask hierboven.
+# De NFS-export naar de docker-host (/Volumes/FastStore) staat in
+# /etc/exports en wordt door geen enkele rol beheerd. Kijk hem na met
+# `showmount -e localhost` en schrijf hem op; de stacks op de docker-host
+# monteren hem en vallen om zonder.

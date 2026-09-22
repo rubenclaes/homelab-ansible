@@ -1,0 +1,56 @@
+---
+# The parts of this role that only exist on a Debian host with systemd:
+# the apt-packaged Python libraries the docker modules import, the NFS
+# mounts the stacks read from, and the drop-in that stops Docker starting
+# before those mounts are there.
+#
+# Split out so the rest of the role - the deploy key, the repo checkout, the
+# .env files and `compose up` - can run on the Mac mini too, where Docker
+# Desktop provides the engine and there is no apt, no fstab and no systemd.
+# macOS mounts its own shares; the Mini is where the NFS export lives, not a
+# host that consumes one.
+- name: Ensure Python libraries for the Docker modules
+  ansible.builtin.apt:
+    name: [python3-yaml, python3-docker]
+    state: present
+
+- name: Mount the NFS shares the stacks need
+  ansible.posix.mount:
+    src: "{{ item.src }}"
+    path: "{{ item.path }}"
+    fstype: nfs
+    opts: "{{ item.opts | default('vers=3,hard,noresvport,proto=tcp,timeo=30,retrans=3,_netdev') }}"
+    state: mounted
+  loop: "{{ docker_stacks_nfs_mounts }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Verify mount units exist # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
+  loop: "{{ docker_stacks_wait_for_mounts }}"
+  register: docker_stacks_mount_state
+  changed_when: false
+  # Must run under --check too, otherwise stdout is undefined and failed_when
+  # blows up instead of reporting the real mount state.
+  check_mode: false
+  failed_when: docker_stacks_mount_state.stdout != 'loaded'
+
+- name: Ensure Docker drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: "0755"
+  when: docker_stacks_wait_for_mounts | length > 0
+
+- name: Let Docker wait for network mounts at boot
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/10-wait-for-mounts.conf
+    content: |
+      [Unit]
+      {% for m in docker_stacks_wait_for_mounts %}
+      Wants={{ m.strip('/') | replace('/', '-') }}.mount
+      After={{ m.strip('/') | replace('/', '-') }}.mount
+      {% endfor %}
+    mode: "0644"
+  when: docker_stacks_wait_for_mounts | length > 0
+  notify: Reload systemd

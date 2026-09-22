@@ -65,7 +65,8 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 - [ ] **Vier diensten draaien door zonder route** — `wizarr`, `dozzle`,
       `jackett` en `tautulli` op de Mac mini. Geen playbook zet ze stil, dus
       met de hand. Let op dat Sonarr of Radarr Jackett nog als indexer kunnen
-      hebben; Prowlarr doet dat werk al.
+      hebben; Prowlarr doet dat werk al. Doe dit vóór je de lijst van de Mini
+      vult, anders beschrijf je vier diensten die je toch weghaalt.
 
 - [ ] **`openbooks` draait zonder route**, alleen op `192.168.0.15:8080`.
       Geef hem een naam of zet hem uit, maar kies.
@@ -81,10 +82,32 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 - [ ] **Twee hosts draaien diensten die geen playbook kan terugbouwen.**
       De Mac mini heeft zeven routes en `docker-grafana-stack` twee, en van
       geen enkele staat de stack in deze repo. Gaat de Mini stuk, dan zet jij
-      Plex met de hand terug. Voor `docker-grafana-stack` is het klein werk:
-      het is een Debian-host die al in `docker_hosts` zit, dus één bestand met
-      zijn stacklijst. De Mini is groter en vraagt een keuze, want de
-      `docker_stacks`-rol is Linux-only.
+      Plex met de hand terug.
+
+      De weg ernaartoe ligt er nu wel. `stacks.yml` is niet langer aan de host
+      `docker` gebonden: elke host met een `docker_stacks_list` wordt beheerd,
+      ook een Mac, want de Debian-only stukken van de rol staan apart in
+      `roles/docker_stacks/tasks/linux.yml`. Beide hosts hebben een host_vars
+      met de volgorde erin, en `playbooks/discover.yml` haalt op wat er nu
+      echt draait.
+
+      Wat er nog te doen is, per host:
+
+      - [ ] `discover.yml --limit docker-grafana-stack`, compose-files naar de
+            containers-repo, `docker_stacks_list` vullen. Dit is de kleine.
+      - [ ] `discover.yml --limit macmini`, dan `brew leaves` en de casks
+            overnemen. Dat alleen al maakt de software van de Mini
+            herbouwbaar en kost niets.
+      - [ ] De containers van de Mini naar de containers-repo, lijst vullen,
+            de macOS-paden in zijn host_vars aanzetten.
+      - [ ] `docs.yml` rendert `stacks.mdx` alleen uit de host `docker`. Zodra
+            een tweede host een lijst heeft, is die pagina onvolledig. Eén
+            loop over `docker_hosts` in plaats van één hostvars-lookup.
+      - [ ] De NFS-export van de Mini (`/Volumes/FastStore`) opschrijven. Geen
+            rol beheert hem, de stacks op de docker-host monteren hem, en
+            zonder hem vallen die om. Nu staat hij alleen in `/etc/exports`
+            op een machine die je aan het beschrijven bent omdat je hem kunt
+            verliezen.
 
 - [ ] **Niets bewijst dat een back-up terugkomt.**
       `recovery-drill.yml` bewijst dat een container te herbouwen is, niet dat
@@ -107,4 +130,6 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       hosts samenvoegen.
 - [ ] **Dubbele docker / docker-desktop casks** op MBP en Mini.
 - [ ] **Mini: `brew leaves` → `host_vars/macmini.yml`**, het `_extra`-patroon.
+      `discover.yml --limit macmini` schrijft die lijst voor je. Het kleinste
+      stuk van het grote punt hierboven, en los te doen.
 - [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1.

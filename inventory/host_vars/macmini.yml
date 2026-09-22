@@ -1,8 +1,45 @@
 ---
+# De Mac mini. Draait Plex als macOS-app, een handvol containers in Docker
+# Desktop, en exporteert /Volumes/FastStore over NFS naar de docker-host.
+#
+# Van die drie beschrijft deze repo er nu één. Wat er nog moet gebeuren:
+#
+#   1. ansible-playbook playbooks/discover.yml --limit macmini
+#      Schrijft .discovered/macmini.yml: `brew leaves`, de casks, en de
+#      compose-projecten met hun paden en poorten.
+#   2. Neem de brew-lijst en de casks hieronder over. Dat maakt de Mini's
+#      software herbouwbaar, en dat is het goedkoopste deel.
+#   3. Zet de compose-files in de containers-repo, vul docker_stacks_list,
+#      en zet de macOS-paden aan die hieronder uitgecommentarieerd staan.
+#
+# De NFS-export komt hier niet uit en wordt door geen enkele rol beheerd.
+# Hij staat in /etc/exports op de Mini; `showmount -e localhost` toont hem.
+# De stacks op de docker-host monteren hem (docker_stacks_nfs_mounts in
+# host_vars/docker.yml) en vallen om zonder. Schrijf hem ergens op.
+
 macos_brew_packages_extra:
   - ffmpeg
   - gh
   - ripgrep
   - tailscale
   - ollama
-  # ...the rest of your brew leaves
+  # ...de rest van `brew leaves`, zie stap 1
+
+# Plex, Docker Desktop en wat er verder met de hand geïnstalleerd is. Leeg
+# tot stap 2: de macos-rol slaat de cask-taak over bij een lege lijst, dus
+# dit kost nu niets en gokken zou een cask installeren die je niet wilde.
+macos_casks: []
+
+# --- Docker Desktop op deze Mac -------------------------------------------
+# Aanzetten samen met docker_stacks_list, niet eerder. playbooks/stacks.yml
+# draait de rol op elke host met een niet-lege lijst, ook op de Macs; de
+# Debian-only stukken zitten in roles/docker_stacks/tasks/linux.yml en
+# worden hier overgeslagen.
+#
+# docker_stacks_become: false      # Ansible verbindt hier al als de eigenaar
+# docker_stacks_owner: rubenclaes
+# docker_stacks_group: staff       # macOS, niet een groep per gebruiker
+# docker_stacks_home: /Users/rubenclaes
+# docker_stacks_repo_dir: /Users/rubenclaes/containers
+# docker_stacks_root: /Users/rubenclaes/containers/stacks
+docker_stacks_list: []

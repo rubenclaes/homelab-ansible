@@ -1,0 +1,21 @@
+---
+# VM 102. Debian, zit in docker_hosts, krijgt dus de docker_engine-rol.
+# Serveert `monitoring` (Uptime Kuma, 3001) en `prometheus` (9090) via caddy.
+#
+# WAT HIER NOG MOET GEBEUREN, in deze volgorde:
+#
+#   1. ansible-playbook playbooks/discover.yml --limit docker-grafana-stack
+#      Schrijft .discovered/docker-grafana-stack.yml: de compose-projecten
+#      die er nu echt draaien, met hun paden en hun poorten.
+#   2. Zet die compose-files in de containers-repo. Dat is de stap die er
+#      werkelijk toe doet - docker_stacks kan alleen uitrollen wat daarin
+#      staat, dus een lijst hieronder zonder compose-file in die repo
+#      beschrijft iets wat niet terug te bouwen is.
+#   3. Vul docker_stacks_list. Vanaf dat moment pakt playbooks/stacks.yml
+#      deze host mee en is hij herbouwbaar.
+#
+# Leeg gelaten en niet gegokt: de rol slaat een host met een lege lijst
+# over, dus site.yml blijft groen. Een verzonnen lijst zou rood worden op
+# het eerste `compose up`, en dat is de verkeerde plek om te ontdekken dat
+# niemand wist wat hier draaide.
+docker_stacks_list: []

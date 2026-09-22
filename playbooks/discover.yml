@@ -1,0 +1,99 @@
+---
+# Leest van een draaiende host af wat deze repo nodig heeft om hem te kunnen
+# terugbouwen, en schrijft dat in de vorm van een host_vars-bestand.
+#
+#   ansible-playbook playbooks/discover.yml
+#   ansible-playbook playbooks/discover.yml --limit docker-grafana-stack
+#
+# Verandert niets, op geen enkele host. Het resultaat komt in
+# .discovered/<host>.yml en dat is géén inventory: het is een voorstel. Lees
+# het, gooi eruit wat er niet in hoort, en zet de rest in
+# inventory/host_vars/<host>.yml.
+#
+# Waarom dit bestaat: twee hosts draaien diensten die deze repo niet kan
+# terugbouwen - de Mac mini en docker-grafana-stack - en wat daar precies op
+# staat weet niemand nog uit het hoofd. Een lijst die je uit je geheugen
+# overtikt is een lijst die niet klopt. Dit haalt hem één keer op bij de
+# machine zelf, zodat hij daarna beschreven staat en het volgende antwoord
+# uit git komt in plaats van uit de host.
+#
+# Daarna is `docker_stacks_list` het enige dat de host beheerd maakt:
+# playbooks/stacks.yml pakt elke host op die er een heeft.
+
+- name: Wat draait er op de Docker-hosts
+  hosts: docker_hosts
+  gather_facts: true
+  tasks:
+    - name: Lees de compose-projecten
+      ansible.builtin.command: docker compose ls --all --format json
+      register: discover_projects
+      changed_when: false
+      check_mode: false
+
+    - name: Lees de draaiende containers en hun poorten
+      ansible.builtin.command: docker ps --all --format json
+      register: discover_containers
+      changed_when: false
+      check_mode: false
+
+    - name: Schrijf het voorstel
+      ansible.builtin.template:
+        src: discover/docker-host.yml.j2
+        dest: "{{ playbook_dir }}/../.discovered/{{ inventory_hostname }}.yml"
+        mode: "0644"
+      delegate_to: localhost
+      become: false
+
+- name: Wat draait er op de Macs
+  hosts: macs
+  gather_facts: true
+  tasks:
+    # `brew leaves` geeft alleen wat je zelf gevraagd hebt, niet de
+    # afhankelijkheden die eronder hangen. Dat is precies de lijst die in
+    # macos_brew_packages_extra hoort.
+    - name: Lees de Homebrew-formules die je zelf gevraagd hebt
+      ansible.builtin.command: "{{ macos_brew_path }}/brew leaves"
+      register: discover_brew
+      changed_when: false
+      check_mode: false
+
+    - name: Lees de casks
+      ansible.builtin.command: "{{ macos_brew_path }}/brew list --cask"
+      register: discover_casks
+      changed_when: false
+      check_mode: false
+
+    # Een Mac hoeft geen Docker te draaien, dus dit mag falen zonder de run
+    # mee te nemen. De Mini draait hem wel, de MacBook niet.
+    - name: Lees de compose-projecten, als er Docker draait
+      ansible.builtin.command: docker compose ls --all --format json
+      register: discover_mac_projects
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Lees de containers, als er Docker draait
+      ansible.builtin.command: docker ps --all --format json
+      register: discover_mac_containers
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Schrijf het voorstel
+      ansible.builtin.template:
+        src: discover/mac.yml.j2
+        dest: "{{ playbook_dir }}/../.discovered/{{ inventory_hostname }}.yml"
+        mode: "0644"
+      delegate_to: localhost
+      become: false
+
+- name: Waar het staat
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Zeg het
+      ansible.builtin.debug:
+        msg:
+          - "De voorstellen staan in .discovered/ (gitignored)."
+          - "Lees ze, snoei ze, en zet wat blijft in inventory/host_vars/<host>.yml."
+          - "Een host met een docker_stacks_list wordt vanaf dan door stacks.yml beheerd."

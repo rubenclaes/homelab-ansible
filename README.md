@@ -84,6 +84,11 @@ ansible-playbook playbooks/new-guest.yml -e guest=semaphore
 # de DHCP-reservering aan). Hun waarde is hun schijf, niet hun vorm: data komt
 # daarna uit PBS, zie use case "Een back-up terugzetten".
 #   100 pbs   101 haos   102 docker-grafana-stack   103 docker
+#
+# macmini en docker-grafana-stack draaien diensten die deze repo nog niet kan
+# terugbouwen. Voor die twee is PBS het herstelpad, niet dit playbook. Wat ze
+# draaien haal je op met playbooks/discover.yml; zie hun host_vars voor de
+# volgorde waarin dat dichtgetrokken wordt.
 
 # --- 6. Handwerk waar een rol op staat te wachten -------------------------
 # adguard   loop de setup-wizard af op http://192.168.0.29:3000, anders stopt
@@ -163,6 +168,16 @@ ansible-playbook playbooks/update.yml -e allow_reboot=true     # guests mogen he
 ansible-playbook playbooks/update.yml -e allow_reboot=true -e allow_hypervisor_reboot=true
 # Guests gaan eerst, één voor één, dan pas pve01: anders herstart de
 # hypervisor onder zijn eigen guests vandaan.
+
+
+# === Uitzoeken wat er op een host draait ==================================
+ansible-playbook playbooks/discover.yml --limit macmini
+# Leest de host uit en schrijft een voorstel in .discovered/<host>.yml:
+# compose-projecten met hun paden, gepubliceerde poorten, en op een Mac ook
+# `brew leaves` en de casks. Verandert niets, op geen enkele host.
+# Voor de hosts die nog niet beschreven staan. Wat je overneemt hoort in
+# inventory/host_vars/<host>.yml; een host met een docker_stacks_list wordt
+# vanaf dan door stacks.yml beheerd.
 
 
 # === Caddy upgraden =======================================================

@@ -1,6 +1,17 @@
 ---
 docker_stacks_root: /opt/containers/stacks
 docker_stacks_owner: ruben
+# The owner's home. A variable rather than a literal /home, because macOS
+# puts it under /Users and the deploy key, known_hosts and the checkout all
+# hang off it.
+docker_stacks_home: "/home/{{ docker_stacks_owner }}"
+# The owner's primary group. On Debian it matches the username; on macOS it
+# is `staff`, and a .env chowned to a group that does not exist fails.
+docker_stacks_group: "{{ docker_stacks_owner }}"
+# Whether to sudo to the owner. True on the Linux hosts, where Ansible
+# connects as `ansible`. False on a Mac, where it already connects as the
+# owner and a sudo would only ask for a password nobody is there to type.
+docker_stacks_become: true
 # Resolved from the role, not the playbook, so the role keeps working if a
 # playbook is ever added outside playbooks/.
 docker_stacks_env_dir: "{{ role_path }}/../../files/env"
@@ -8,7 +19,7 @@ docker_stacks_list: []
 docker_stacks_repo: git@github.com:rubenclaes/containers.git
 docker_stacks_repo_dir: /opt/containers
 docker_stacks_repo_version: master
-docker_stacks_deploy_key: "/home/{{ docker_stacks_owner }}/.ssh/containers_deploy"
+docker_stacks_deploy_key: "{{ docker_stacks_home }}/.ssh/containers_deploy"
 
 docker_stacks_wait_for_mounts: []
 docker_stacks_nfs_mounts: []

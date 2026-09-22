@@ -12,7 +12,7 @@
     path: "{{ docker_stacks_deploy_key }}"
     type: ed25519
     comment: "docker deploy key (read-only)"
-  become: true
+  become: "{{ docker_stacks_become }}"
   become_user: "{{ docker_stacks_owner }}"
   register: docker_stacks_keypair
   tags: deploy_key
@@ -24,10 +24,10 @@
 
 - name: Trust GitHub's SSH host key
   ansible.builtin.known_hosts:
-    path: "/home/{{ docker_stacks_owner }}/.ssh/known_hosts"
+    path: "{{ docker_stacks_home }}/.ssh/known_hosts"
     name: github.com
     key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
-  become: true
+  become: "{{ docker_stacks_become }}"
   become_user: "{{ docker_stacks_owner }}"
   tags: deploy_key
 
@@ -38,61 +38,19 @@
     version: "{{ docker_stacks_repo_version }}"
     key_file: "{{ docker_stacks_deploy_key }}"
     accept_hostkey: false
-  become: true
+  become: "{{ docker_stacks_become }}"
   become_user: "{{ docker_stacks_owner }}"
 
-- name: Ensure Python libraries for the Docker modules
-  ansible.builtin.apt:
-    name: [python3-yaml, python3-docker]
-    state: present
-
-- name: Mount the NFS shares the stacks need
-  ansible.posix.mount:
-    src: "{{ item.src }}"
-    path: "{{ item.path }}"
-    fstype: nfs
-    opts: "{{ item.opts | default('vers=3,hard,noresvport,proto=tcp,timeo=30,retrans=3,_netdev') }}"
-    state: mounted
-  loop: "{{ docker_stacks_nfs_mounts }}"
-  loop_control:
-    label: "{{ item.path }}"
-
-- name: Verify mount units exist # noqa: command-instead-of-module
-  ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
-  loop: "{{ docker_stacks_wait_for_mounts }}"
-  register: docker_stacks_mount_state
-  changed_when: false
-  # Must run under --check too, otherwise stdout is undefined and failed_when
-  # blows up instead of reporting the real mount state.
-  check_mode: false
-  failed_when: docker_stacks_mount_state.stdout != 'loaded'
-
-- name: Ensure Docker drop-in directory exists
-  ansible.builtin.file:
-    path: /etc/systemd/system/docker.service.d
-    state: directory
-    mode: "0755"
-  when: docker_stacks_wait_for_mounts | length > 0
-
-- name: Let Docker wait for network mounts at boot
-  ansible.builtin.copy:
-    dest: /etc/systemd/system/docker.service.d/10-wait-for-mounts.conf
-    content: |
-      [Unit]
-      {% for m in docker_stacks_wait_for_mounts %}
-      Wants={{ m.strip('/') | replace('/', '-') }}.mount
-      After={{ m.strip('/') | replace('/', '-') }}.mount
-      {% endfor %}
-    mode: "0644"
-  when: docker_stacks_wait_for_mounts | length > 0
-  notify: Reload systemd
+- name: Mounts, drop-in and apt packages (Debian hosts only)
+  ansible.builtin.import_tasks: linux.yml
+  when: ansible_facts['os_family'] != 'Darwin'
 
 - name: Deploy .env from Vault
   ansible.builtin.copy:
     src: "{{ docker_stacks_env_dir }}/{{ item.name }}.env"
     dest: "{{ docker_stacks_root }}/{{ item.path }}/.env"
     owner: "{{ docker_stacks_owner }}"
-    group: "{{ docker_stacks_owner }}"
+    group: "{{ docker_stacks_group }}"
     mode: "0600"
   loop: "{{ docker_stacks_list }}"
   loop_control:

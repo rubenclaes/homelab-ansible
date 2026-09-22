@@ -1,15 +1,27 @@
 ---
-# The engine, on every host that runs one; then the stacks, on the host whose
-# stacks this repo manages. docker-grafana-stack runs an engine but its stacks
-# are not yet described here.
+# De engine op elke host die er een van ons draait, en daarna de stacks op
+# elke host die er zelf een lijst voor heeft.
+#
+# Vroeger stond hier `hosts: docker`, de ene host waarvan de stacks beschreven
+# waren. Daardoor kon een tweede docker-host er niet bij zonder dit bestand te
+# wijzigen. Nu bepaalt de inventory het: zet `docker_stacks_list` in de
+# host_vars van een host en hij wordt beheerd, laat hem leeg en de rol raakt
+# hem niet aan. De guard staat op de lijst en niet op de hostnaam, want anders
+# maakt de rol alsnog een deploy-key en kloont hij de containers-repo op een
+# host waar niets te doen valt.
 - name: Docker engine
   hosts: docker_hosts
   roles:
     - docker_engine
   tags: [docker]
 
+# Ook de Macs, die niet in docker_hosts zitten: daar komt de engine van de
+# Docker Desktop-cask die de macos-rol installeert, niet uit een apt-repo.
+# Wat erboven draait is verder identiek, en roles/docker_stacks/tasks/linux.yml
+# houdt de Debian-only stukken bij elkaar.
 - name: Docker stacks
-  hosts: docker
+  hosts: docker_hosts:macs
   roles:
-    - docker_stacks
+    - role: docker_stacks
+      when: docker_stacks_list | default([]) | length > 0
   tags: [docker]
