@@ -96,14 +96,28 @@ de API beschrijven.
 
       De weg eruit, en hij is kort:
 
-      - [ ] Zet in de LXC-AdGuard met de hand een wildcard
-            `*.neodata.be -> 192.168.0.25` erbij. De rol raakt rewrites
-            buiten `home.arpa` niet aan, dus dat blijft staan.
-      - [ ] Laat de UniFi-DHCP 192.168.0.29 als DNS uitdelen in plaats van
-            192.168.0.26, en zet de vaste resolv.conf van de guests mee om.
-      - [ ] Controleer met `dig @192.168.0.29 books.neodata.be` én
-            `dig @192.168.0.29 pve01.home.arpa` dat beide werken vóór je
-            omschakelt, niet erna.
+      - [x] Wildcard `*.neodata.be -> 192.168.0.25` staat in de LXC-AdGuard
+            (22-09). De rol raakt rewrites buiten `home.arpa` niet aan, dus
+            hij blijft staan.
+      - [x] Gecontroleerd vóór het omschakelen: `.29` beantwoordt
+            dienst-namen (books, semaphore -> .25), interne namen
+            (pve01 -> .14, docker -> .15) én publieke namen (via Quad9 DoH).
+      - [x] Proefkonijn omgezet: de docker-host (192.168.0.15) wijst sinds
+            22-09 naar `192.168.0.29` met `1.1.1.1` als vangnet. Hij kon
+            `books.neodata.be` daarvóór helemaal niet opzoeken - hij vroeg
+            het aan de router - dus dat is winst, geen gelijkstand.
+
+            LET OP hoe: die host heeft GEEN los te bewerken
+            `/etc/resolv.conf`. Dat is een symlink naar systemd-resolved en
+            zegt "Do not edit"; een `sed` daarop is bij de volgende
+            netwerkwijziging weg. De echte plek is
+            `/etc/netplan/90-default.yaml` (statisch, `dhcp4: no`), daarna
+            `netplan apply`. Backup staat als `90-default.yaml.bak-22-09`.
+      - [ ] De rest van de hosts omzetten: pve01, en dan de containers met
+            `pct set <id> --nameserver 192.168.0.29` (104, 106, 108 - níét
+            107, dat is AdGuard zelf). Elke host kan een ander mechanisme
+            hebben; kijk eerst of `/etc/resolv.conf` een symlink is.
+      - [ ] Daarna pas de UniFi-DHCP 192.168.0.29 laten uitdelen.
       - [ ] Daarna de AdGuard op de Mini uitzetten, of bewust als tweede
             resolver laten staan - maar kies, want twee DNS-servers waarvan
             er één stilletjes de echte is, is precies hoe je tijdens een
