@@ -74,86 +74,28 @@ de API beschrijven.
 
 ## Grotere projecten
 
-- [ ] **AdGuard draait dubbel, en de verkeerde is de echte.**
-      Er draaien er twee. De LXC op 192.168.0.29 is degene die deze repo
-      beheert; daar staan sinds 22-09 de tien `home.arpa`-rewrites in, en hij
-      beantwoordt ze correct. Alleen: niemand vraagt het hem. Elke beheerde
-      host wijst in `/etc/resolv.conf` naar **192.168.0.26**, de Mac mini, en
-      daar draait een tweede AdGuard Home als macOS-app
-      (`/Applications/AdGuardHome/AdGuardHome`). Die doet het echte werk: een
-      wildcard `*.neodata.be -> 192.168.0.25` (nagekeken met een naam die niet
-      bestaat, die ook 192.168.0.25 teruggeeft). De LXC kent die namen juist
-      weer níét.
+- [ ] **De AdGuard op de Mac mini uitzetten.** Al het andere is af: sinds
+      22-09 loopt de hele estate via de LXC op `192.168.0.29`, die Ansible
+      beheert en PBS meeneemt - hosts, containers en DHCP. Het waarom staat
+      in de netwerk-runbook.
 
-      Gevolg nu: die tien rewrites doen praktisch niets. En erger, de DNS van
-      de hele estate hangt aan de Mac mini - dezelfde machine die de drie
-      NFS-shares exporteert en die deze backlog al aanwijst als het ding dat
-      je niet kunt terugbouwen. Valt hij om, dan valt naamresolutie voor elke
-      host om.
+      Wat rest is de Mini zelf. Zijn AdGuard draait nog en hij wijst met de
+      hand naar zichzelf, op zowel `Ethernet` als `USB 10/100/1G/2.5G LAN`
+      (en7 is de actieve). Handmatig ingesteld, dus DHCP bereikt hem niet.
+      `sudo` vraagt daar een wachtwoord, dus dit is handwerk:
 
-      De rol zegt in zijn eigen commentaar "this host is the network's DNS"
-      over de LXC. Dat is nu simpelweg niet waar.
+        ssh -t macmini 'sudo networksetup -setdnsservers "USB 10/100/1G/2.5G LAN" 192.168.0.29 1.1.1.1'
+        ssh -t macmini 'sudo networksetup -setdnsservers "Ethernet" 192.168.0.29 1.1.1.1'
+        ssh macmini 'dig +short pve01.home.arpa; dig +short books.neodata.be'
 
-      De weg eruit, en hij is kort:
+      Verwacht `192.168.0.14` en `192.168.0.25`. Klopt dat, pas dán:
 
-      - [x] Wildcard `*.neodata.be -> 192.168.0.25` staat in de LXC-AdGuard
-            (22-09). De rol raakt rewrites buiten `home.arpa` niet aan, dus
-            hij blijft staan.
-      - [x] Gecontroleerd vóór het omschakelen: `.29` beantwoordt
-            dienst-namen (books, semaphore -> .25), interne namen
-            (pve01 -> .14, docker -> .15) én publieke namen (via Quad9 DoH).
-      - [x] Proefkonijn omgezet: de docker-host (192.168.0.15) wijst sinds
-            22-09 naar `192.168.0.29` met `1.1.1.1` als vangnet. Hij kon
-            `books.neodata.be` daarvóór helemaal niet opzoeken - hij vroeg
-            het aan de router - dus dat is winst, geen gelijkstand.
+        ssh -t macmini 'sudo /Applications/AdGuardHome/AdGuardHome -s stop'
 
-            LET OP hoe: die host heeft GEEN los te bewerken
-            `/etc/resolv.conf`. Dat is een symlink naar systemd-resolved en
-            zegt "Do not edit"; een `sed` daarop is bij de volgende
-            netwerkwijziging weg. De echte plek is
-            `/etc/netplan/90-default.yaml` (statisch, `dhcp4: no`), daarna
-            `netplan apply`. Backup staat als `90-default.yaml.bak-22-09`.
-      - [x] pve01 omgezet (22-09): `192.168.0.29` met `1.1.1.1` erachter.
-            Daar is `/etc/resolv.conf` wél een gewoon bestand en beheert
-            niets het, dus rechtstreeks bewerken werkt. Backup staat als
-            `/etc/resolv.conf.bak-22-09`.
-      - [x] Alle Linux-hosts omgezet (22-09). Elke host had een ander
-            mechanisme, dus kijk altijd eerst:
-              * pve01, pbs, caddy, semaphore, adguard - gewoon bestand,
-                rechtstreeks bewerken.
-              * docker en grafana-stack - symlink naar systemd-resolved, dus
-                `/etc/netplan/90-default.yaml` + `netplan apply`.
-              * 104 en 106 ook in de container-config vastgelegd met
-                `pct set --nameserver --searchdomain`, zodat een herstart het
-                niet terugdraait. Searchdomain expliciet meegegeven: caddy
-                heeft `home.arpa`, semaphore `neodata.be`.
-              * 107 (adguard) wijst naar 127.0.0.1 met 1.1.1.1 erachter - hij
-                is zelf de resolver, maar moet nog kunnen apt-updaten als hij
-                stilstaat.
-              * 108 (tailscale) NIET aangeraakt: tailscaled beheert daar de
-                resolv.conf voor MagicDNS.
-            Overal gecontroleerd: intern (books.neodata.be -> .25) én
-            internet. Alle acht dienst-URL's getest na afloop.
-            Backups staan als `.bak-22-09` naast elk gewijzigd bestand.
-
-      - [x] UniFi-DHCP deelt 192.168.0.29 uit (22-09), getest op de MacBook:
-            nieuwe lease, en `dig pve01.home.arpa` geeft antwoord - die naam
-            kent alleen de nieuwe AdGuard, dus daarmee is de hele keten
-            bewezen. Let op dat er een tweede nameserver naast staat; zonder
-            dat ligt het hele huis eruit als ct 107 stilstaat.
-      - [ ] **Nog te doen: de Mini.** Zijn AdGuard draait nog, en de Mini
-            wijst met de hand naar zichzelf (`192.168.0.26` op zowel
-            `Ethernet` als `USB 10/100/1G/2.5G LAN`, de actieve is en7).
-            Handmatig ingesteld, dus DHCP bereikt hem niet. Eerst omzetten,
-            controleren, en pas dán zijn AdGuard uit:
-
-              ssh macmini 'sudo networksetup -setdnsservers "USB 10/100/1G/2.5G LAN" 192.168.0.29 1.1.1.1'
-              ssh macmini 'sudo networksetup -setdnsservers "Ethernet" 192.168.0.29 1.1.1.1'
-              ssh macmini 'dig +short pve01.home.arpa'
-
-            Even laten staan als reserve mag, maar zet er een datum op: twee
-            DNS-servers waarvan er één stilletjes de echte is, is precies hoe
-            je tijdens een storing een uur kwijtraakt.
+      Omkeerbaar met `-s start`. LET OP dat hij bij een herstart van de Mini
+      gewoon terugkomt - denk je dat hij uit is, dan heb je er stilletjes
+      weer twee. Definitief weg is `-s uninstall`, als je een paar dagen
+      zeker weet dat je hem niet mist.
 
 - [ ] **De Mac mini: van beschreven naar beheerd.**
       `host_vars/macmini.yml` beschrijft hem nu wél — brew-formules, casks,
@@ -222,22 +164,6 @@ de API beschrijven.
 ---
 
 ## Klein, wanneer het uitkomt
-
-- [ ] **De vier beheerroutes uitrollen.** `proxmox`, `backup`, `dns` en
-      `haos` staan sinds 22-09 in `caddy_sites`; de droogloop voegt alleen
-      die vier blokken toe en haalt niets weg. Nog niet toegepast, omdat dat
-      vanuit iTerm hoort te gebeuren met de echte inventory:
-      `ansible-playbook playbooks/caddy.yml`.
-      Daarna werkt `haos.neodata.be` pas als Home Assistant Caddy kent - zet
-      `192.168.0.25` in zijn `configuration.yaml` onder
-      `http.trusted_proxies`, anders geeft hij een 400 in plaats van de UI.
-
-- [ ] **`docs.yml` draaien.** De site is sinds 22-09 niet gebouwd terwijl er
-      wel het een en ander veranderd is: de stacks-pagina dekt nu alle drie
-      de hosts in plaats van alleen `docker`, drie dode dienst-pagina's
-      (tinyauth, bazarr, jellyfin) moeten weg, en er staat een nieuw
-      DNS-hoofdstuk in de netwerk-runbook. Draaien vanuit iTerm, want hij
-      leest de Proxmox-inventory.
 
 - [ ] **VS Code mag het LAN niet op vanuit Python, iTerm wel.**
       De Local Network-toestemming van macOS 26 staat sinds 22-09 aan voor
