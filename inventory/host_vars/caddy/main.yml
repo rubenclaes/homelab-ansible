@@ -36,6 +36,26 @@ caddy_sites:
   - { name: monitoring, host: docker-grafana-stack, port: 3001, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
   - { name: prometheus, host: docker-grafana-stack, port: 9090, desc: "Metrics-store die Grafana scrapet" }
 
+  # --- Beheer ---
+  # De vier webinterfaces van de infrastructuur zelf. Ze draaiden alleen op
+  # hun IP: 8006 en 8007 met een zelfondertekend certificaat, dus elke keer
+  # door een waarschuwing klikken, en AdGuard zelfs onversleuteld.
+  #
+  # `https: true` bij proxmox en backup omdat die zelf TLS doen met een eigen
+  # certificaat; het snippet https_upstream_insecure vangt dat af.
+  #
+  # LET OP dat je het IP blijft onthouden. Caddy draait als container op
+  # pve01, dus als er iets stuk is, is de interface waarmee je het repareert
+  # bereikbaar via het ding dat stuk is. https://192.168.0.14:8006 blijft
+  # gewoon werken - hou die in je bladwijzers, niet alleen de mooie naam.
+  - { name: proxmox, host: pve01, port: 8006, https: true, desc: "Proxmox VE — de hypervisor" }
+  - { name: backup, host: pbs, port: 8007, https: true, desc: "Proxmox Backup Server — de back-ups en hun verificatie" }
+  - { name: dns, host: adguard, port: 80, desc: "AdGuard Home — DNS voor de hele estate, en filtering" }
+  # Home Assistant weigert een reverse proxy die hij niet kent. Zet Caddy in
+  # zijn configuration.yaml onder http.trusted_proxies (192.168.0.25), anders
+  # krijg je een 400 en niet de UI. Dat is handwerk in HA zelf.
+  - { name: haos, host: haos, port: 8123, forwarded: true, desc: "Home Assistant — domotica" }
+
   # --- docker ---
   - { name: home, host: docker, port: 8085, desc: "Homepage — startpagina met alle diensten" }
   - { name: pairdrop, host: docker, port: 3000, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }

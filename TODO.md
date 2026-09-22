@@ -223,6 +223,15 @@ de API beschrijven.
 
 ## Klein, wanneer het uitkomt
 
+- [ ] **De vier beheerroutes uitrollen.** `proxmox`, `backup`, `dns` en
+      `haos` staan sinds 22-09 in `caddy_sites`; de droogloop voegt alleen
+      die vier blokken toe en haalt niets weg. Nog niet toegepast, omdat dat
+      vanuit iTerm hoort te gebeuren met de echte inventory:
+      `ansible-playbook playbooks/caddy.yml`.
+      Daarna werkt `haos.neodata.be` pas als Home Assistant Caddy kent - zet
+      `192.168.0.25` in zijn `configuration.yaml` onder
+      `http.trusted_proxies`, anders geeft hij een 400 in plaats van de UI.
+
 - [ ] **`docs.yml` draaien.** De site is sinds 22-09 niet gebouwd terwijl er
       wel het een en ander veranderd is: de stacks-pagina dekt nu alle drie
       de hosts in plaats van alleen `docker`, drie dode dienst-pagina's
