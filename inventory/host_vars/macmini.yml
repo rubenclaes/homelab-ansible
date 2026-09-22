@@ -1,21 +1,7 @@
 ---
-# De Mac mini. Draait Plex als macOS-app, een handvol containers in Docker
-# Desktop, en exporteert /Volumes/FastStore over NFS naar de docker-host.
-#
-# Van die drie beschrijft deze repo er nu één. Wat er nog moet gebeuren:
-#
-#   1. ansible-playbook playbooks/discover.yml --limit macmini
-#      Schrijft .discovered/macmini.yml: `brew leaves`, de casks, en de
-#      compose-projecten met hun paden en poorten.
-#   2. Neem de brew-lijst en de casks hieronder over. Dat maakt de Mini's
-#      software herbouwbaar, en dat is het goedkoopste deel.
-#   3. Zet de compose-files in de containers-repo, vul docker_stacks_list,
-#      en zet de macOS-paden aan die hieronder uitgecommentarieerd staan.
-#
-# De NFS-export komt hier niet uit en wordt door geen enkele rol beheerd.
-# Hij staat in /etc/exports op de Mini; `showmount -e localhost` toont hem.
-# De stacks op de docker-host monteren hem (docker_stacks_nfs_mounts in
-# host_vars/docker.yml) en vallen om zonder. Schrijf hem ergens op.
+# De Mac mini. Draait Plex als macOS-app, een reeks containers uit
+# github.com/rubenclaes/homelab, en exporteert /Volumes/FastStore over NFS
+# naar de docker-host.
 
 macos_brew_packages_extra:
   - ffmpeg
@@ -23,23 +9,78 @@ macos_brew_packages_extra:
   - ripgrep
   - tailscale
   - ollama
-  # ...de rest van `brew leaves`, zie stap 1
+  # ...de rest van `brew leaves`, zie discover.yml
 
 # Plex, Docker Desktop en wat er verder met de hand geïnstalleerd is. Leeg
-# tot stap 2: de macos-rol slaat de cask-taak over bij een lege lijst, dus
-# dit kost nu niets en gokken zou een cask installeren die je niet wilde.
+# tot `discover.yml --limit macmini` de echte lijst geeft: de macos-rol slaat
+# de cask-taak over bij een lege lijst, dus dit kost nu niets, en een gegokte
+# cask installeert software die je niet vroeg.
 macos_casks: []
 
-# --- Docker Desktop op deze Mac -------------------------------------------
-# Aanzetten samen met docker_stacks_list, niet eerder. playbooks/stacks.yml
-# draait de rol op elke host met een niet-lege lijst, ook op de Macs; de
-# Debian-only stukken zitten in roles/docker_stacks/tasks/linux.yml en
-# worden hier overgeslagen.
+# --- Docker op deze Mac ---------------------------------------------------
+# De stacks staan in github.com/rubenclaes/homelab. Die repo heeft GEEN
+# stacks/-map: één map per dienst in de wortel. Checkout en root zijn dus
+# hetzelfde pad, en `path` is de mapnaam.
+docker_stacks_repo: git@github.com:rubenclaes/homelab.git
+docker_stacks_repo_version: main
+docker_stacks_become: false      # Ansible verbindt hier al als de eigenaar
+docker_stacks_owner: rubenclaes
+docker_stacks_group: staff       # macOS, niet een groep per gebruiker
+docker_stacks_home: /Users/rubenclaes
+
+# NIET INGEVULD, EN DAT IS MET OPZET. De compose-files verwijzen naar
+# /Users/rubenclaes/Container/<Dienst>/config voor hun data, dus de repo is
+# vrijwel zeker gekloond op /Users/rubenclaes/Container - met de data
+# ertussenin, want `Duplicati/docker-compose.yml` is getrackt en
+# `Duplicati/config/` is gitignored in dezelfde map.
 #
-# docker_stacks_become: false      # Ansible verbindt hier al als de eigenaar
-# docker_stacks_owner: rubenclaes
-# docker_stacks_group: staff       # macOS, niet een groep per gebruiker
-# docker_stacks_home: /Users/rubenclaes
-# docker_stacks_repo_dir: /Users/rubenclaes/containers
-# docker_stacks_root: /Users/rubenclaes/containers/stacks
+# Dat is precies de situatie waarin de git-module pijn doet: hij doet een
+# harde checkout op `version`, en lokale wijzigingen aan een compose-file die
+# nog niet gepusht zijn, zijn dan weg. Kijk eerst:
+#
+#   ssh macmini 'cd /Users/rubenclaes/Container && git remote -v && git status'
+#
+# Klopt het, zet dan beide op dat pad. Klopt het niet, zoek de echte clone.
+# docker_stacks_repo_dir: /Users/rubenclaes/Container
+# docker_stacks_root: /Users/rubenclaes/Container
+
+# Leeg tot het bovenstaande vaststaat. De rol slaat een host met een lege
+# lijst over, dus site.yml blijft groen.
+#
+# De kandidaten, uit de README van die repo naast caddy_sites gelegd:
+#
+#   Draait hier en is hier gerouteerd -- deze horen in de lijst:
+#     Duplicati      8200   route `duplicati`   geen .env, alles staat hard
+#                                               in de compose (zie TODO)
+#     Grimmory       6061   route `books`       heeft .env: MEDIA_PREFIX,
+#                                               PUID/PGID, TZ, GRIMMORY_DB_*,
+#                                               GRIMMORY_PORT, _DATA_PATH,
+#                                               RESTART_POLICY
+#     pocketid       1411   route `auth`        heeft .env. Wordt uitgefaseerd
+#                                               ten gunste van `id` op docker,
+#                                               dus mogelijk niet beschrijven
+#                                               maar uitzetten.
+#
+#   Staat in die repo maar draait inmiddels op de docker-VM -- naar Archive/,
+#   niet in deze lijst, anders beschrijf je hem twee keer:
+#     Prowlarr 9696, Sonarr 8989, Radarr 7878, Seerr 5055,
+#     audiobookshelf 13378
+#
+#   Staat in die repo, heeft geen route -- eerst beslissen of ze blijven:
+#     recyclarr, Flareresolver, Shelfmark 8084, expenseowl,
+#     Portainer-agent 9001, Alloy
+#
+#   Is hier gerouteerd maar staat in GEEN repo -- dit is het echte gat:
+#     tinyauth  3000    plex  32400 (macOS-app, hoort als cask)
+#     jellyfin  8096    bazarr 6767
 docker_stacks_list: []
+
+# --- Wat hier buiten valt -------------------------------------------------
+# De NFS-export naar de docker-host wordt door geen enkele rol beheerd. Hij
+# staat in /etc/exports op de Mini; `showmount -e localhost` toont hem. De
+# stacks op de docker-host monteren hem (docker_stacks_nfs_mounts in
+# host_vars/docker.yml) en vallen om zonder. Schrijf hem op.
+#
+# Het netwerk `External` dat die compose-files delen wordt met de hand
+# aangemaakt (`docker network create External`, staat in de README van die
+# repo). De rol maakt geen netwerken.

@@ -68,6 +68,13 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       hebben; Prowlarr doet dat werk al. Doe dit vóór je de lijst van de Mini
       vult, anders beschrijf je vier diensten die je toch weghaalt.
 
+- [ ] **De route `monitoring` heet Uptime Kuma maar is waarschijnlijk
+      Grafana.** `caddy_sites` beschrijft poort 3001 op docker-grafana-stack
+      als Uptime Kuma; `monitoring-stack` zet daar Grafana neer, en Uptime
+      Kuma staat in geen van beide repo's. `discover.yml` zegt wat er echt
+      luistert. Een routebeschrijving die niet klopt is erger dan geen, want
+      je gelooft hem tijdens een storing.
+
 - [ ] **`openbooks` draait zonder route**, alleen op `192.168.0.15:8080`.
       Geef hem een naam of zet hem uit, maar kies.
 
@@ -84,22 +91,43 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       geen enkele staat de stack in deze repo. Gaat de Mini stuk, dan zet jij
       Plex met de hand terug.
 
-      De weg ernaartoe ligt er nu wel. `stacks.yml` is niet langer aan de host
-      `docker` gebonden: elke host met een `docker_stacks_list` wordt beheerd,
-      ook een Mac, want de Debian-only stukken van de rol staan apart in
-      `roles/docker_stacks/tasks/linux.yml`. Beide hosts hebben een host_vars
-      met de volgorde erin, en `playbooks/discover.yml` haalt op wat er nu
-      echt draait.
+      De weg ernaartoe ligt er nu wel, en hij is korter dan gedacht: de
+      compose-files bestáán, alleen in eigen repo's.
+      `rubenclaes/monitoring-stack` draagt de monitoring-stack,
+      `rubenclaes/homelab` die van de Mini. `stacks.yml` is niet langer aan de
+      host `docker` gebonden - elke host met een `docker_stacks_list` wordt
+      beheerd, ook een Mac, want de Debian-only stukken van de rol staan nu
+      apart in `roles/docker_stacks/tasks/linux.yml`. Beide host_vars wijzen
+      naar hun eigen repo.
 
-      Wat er nog te doen is, per host:
+      Wat er nog te doen is:
 
-      - [ ] `discover.yml --limit docker-grafana-stack`, compose-files naar de
-            containers-repo, `docker_stacks_list` vullen. Dit is de kleine.
+      - [ ] **`files/env/monitoring.env` aanmaken en vaulten onder `stacks`.**
+            Zeven variabelen, opgesomd in
+            `inventory/host_vars/docker-grafana-stack.yml`. Alleen
+            GRAFANA_PASSWORD heeft een fallback; een lege `DATA_PATH` zet de
+            volumes van vier containers in de wortel van de schijf. Daarna is
+            docker-grafana-stack af: de lijst staat er al.
+      - [ ] **Deploy-keys** voor beide repo's. De eerste run maakt er een aan
+            en print hem; zonder faalt de clone.
       - [ ] `discover.yml --limit macmini`, dan `brew leaves` en de casks
             overnemen. Dat alleen al maakt de software van de Mini
             herbouwbaar en kost niets.
-      - [ ] De containers van de Mini naar de containers-repo, lijst vullen,
-            de macOS-paden in zijn host_vars aanzetten.
+      - [ ] **Uitzoeken waar `rubenclaes/homelab` op de Mini gekloond staat.**
+            De compose-files wijzen naar `/Users/rubenclaes/Container/<Dienst>`
+            voor hun data, dus repo en data staan door elkaar in één map. De
+            git-module doet een harde checkout; niet-gepushte wijzigingen aan
+            een compose-file zijn dan weg. Pas daarna `docker_stacks_repo_dir`
+            en `_root` invullen.
+      - [ ] **De verhuisde diensten naar `Archive/`** in `rubenclaes/homelab`:
+            Prowlarr, Sonarr, Radarr, Seerr en audiobookshelf draaien
+            inmiddels op de docker-VM. Zolang ze in de wortel staan, beschrijf
+            je ze straks twee keer.
+      - [ ] **Vier gerouteerde diensten op de Mini staan in geen enkele
+            repo** - `tinyauth`, `jellyfin`, `bazarr`, en Plex zelf. Plex is
+            een macOS-app en hoort als cask; de andere drie hebben nergens een
+            compose-file. Dat is het echte gat in de Mini: voor die drie
+            bestaat geen herbouwpad, ook niet met de hand.
       - [ ] `docs.yml` rendert `stacks.mdx` alleen uit de host `docker`. Zodra
             een tweede host een lijst heeft, is die pagina onvolledig. Eén
             loop over `docker_hosts` in plaats van één hostvars-lookup.
@@ -108,6 +136,14 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
             zonder hem vallen die om. Nu staat hij alleen in `/etc/exports`
             op een machine die je aan het beschrijven bent omdat je hem kunt
             verliezen.
+
+- [ ] **Secrets staan hard in `Duplicati/docker-compose.yml`** in
+      `rubenclaes/homelab` - `SETTINGS_ENCRYPTION_KEY` en
+      `DUPLICATI__WEBSERVICE_PASSWORD`, beide `helipost`. De repo is privé,
+      dus dit is geen brand, maar ze staan in de historie en zijn niet te
+      roteren zonder de compose-file aan te raken. Naar een `.env`, en dan
+      naar `files/env/duplicati.env` onder de `stacks`-identiteit, zoals elke
+      andere stack hier.
 
 - [ ] **Niets bewijst dat een back-up terugkomt.**
       `recovery-drill.yml` bewijst dat een container te herbouwen is, niet dat

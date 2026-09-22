@@ -1,21 +1,53 @@
 ---
-# VM 102. Debian, zit in docker_hosts, krijgt dus de docker_engine-rol.
-# Serveert `monitoring` (Uptime Kuma, 3001) en `prometheus` (9090) via caddy.
+# VM 102. Debian, zit in docker_hosts en krijgt dus de docker_engine-rol.
 #
-# WAT HIER NOG MOET GEBEUREN, in deze volgorde:
+# Zijn stack staat in github.com/rubenclaes/monitoring-stack, niet in de
+# containers-repo. Vandaar de repo-variabelen hier: de defaults in
+# roles/docker_stacks/defaults/main.yml wijzen naar `containers` op branch
+# master, en deze repo heet anders en staat op main. De stacks/-indeling is
+# wel dezelfde, dus `path` blijft de mapnaam eronder.
+docker_stacks_repo: git@github.com:rubenclaes/monitoring-stack.git
+docker_stacks_repo_version: main
+docker_stacks_repo_dir: /opt/monitoring-stack
+docker_stacks_root: /opt/monitoring-stack/stacks
+
+docker_stacks_list:
+  - { name: monitoring, path: monitoring }
+
+# WAT ER NOG MOET GEBEUREN VOOR DIT DRAAIT
 #
-#   1. ansible-playbook playbooks/discover.yml --limit docker-grafana-stack
-#      Schrijft .discovered/docker-grafana-stack.yml: de compose-projecten
-#      die er nu echt draaien, met hun paden en hun poorten.
-#   2. Zet die compose-files in de containers-repo. Dat is de stap die er
-#      werkelijk toe doet - docker_stacks kan alleen uitrollen wat daarin
-#      staat, dus een lijst hieronder zonder compose-file in die repo
-#      beschrijft iets wat niet terug te bouwen is.
-#   3. Vul docker_stacks_list. Vanaf dat moment pakt playbooks/stacks.yml
-#      deze host mee en is hij herbouwbaar.
+# 1. files/env/monitoring.env aanmaken en vaulten onder `stacks`:
 #
-# Leeg gelaten en niet gegokt: de rol slaat een host met een lege lijst
-# over, dus site.yml blijft groen. Een verzonnen lijst zou rood worden op
-# het eerste `compose up`, en dat is de verkeerde plek om te ontdekken dat
-# niemand wist wat hier draaide.
-docker_stacks_list: []
+#      ansible-vault create --encrypt-vault-id stacks files/env/monitoring.env
+#
+#    De compose-file leest deze zeven. Alleen GRAFANA_PASSWORD heeft een
+#    fallback (`admin`); de rest heeft er geen, en een lege ${DATA_PATH} zet
+#    de volumes van grafana, prometheus, loki en alloy in de wortel van de
+#    schijf. Vul ze dus allemaal:
+#
+#      CONTAINER_PREFIX=   voorvoegsel voor de containernamen
+#      NETWORK_NAME=       het netwerk heet <deze waarde>_monitoring
+#      DATA_PATH=          waar de vier hun data neerzetten
+#      VM_IP=              adres waarop de poorten binden
+#      RESTART_POLICY=     unless-stopped
+#      TZ=                 Europe/Brussels
+#      GRAFANA_PASSWORD=   admin-wachtwoord
+#
+# 2. De deploy-key. De eerste run maakt er een en print de publieke helft;
+#    zet die in monitoring-stack -> Settings -> Deploy keys. Tot dan faalt
+#    de git-clone.
+#
+# 3. Eerst drooglopen, en wel hierom:
+#
+#      ansible-playbook playbooks/stacks.yml --limit docker-grafana-stack --check --diff
+#
+#    `remove_orphans` staat aan in de rol. Draaien deze vier containers nu
+#    onder een andere projectnaam dan `monitoring`, dan ruimt de eerste echte
+#    run ze op en bouwt ze opnieuw. Dat is te overleven - de data zit in
+#    ${DATA_PATH}, niet in de containers - maar je wil het weten voor het
+#    gebeurt en niet erna.
+#
+# LET OP, de route klopt waarschijnlijk niet. caddy_sites beschrijft
+# `monitoring` (poort 3001) als "Uptime Kuma", maar deze compose zet daar
+# Grafana neer. Uptime Kuma staat in geen van beide repo's. Wat er echt
+# luistert zegt `playbooks/discover.yml --limit docker-grafana-stack`.

@@ -95,9 +95,13 @@ ansible-playbook playbooks/new-guest.yml -e guest=semaphore
 #           de rol met precies die melding. Login daarna in
 #           inventory/host_vars/adguard/vault.yml, identiteit infra.
 # tailscale OAuth-client in inventory/host_vars/tailscale/vault.yml.
-# docker    de docker_stacks-rol maakt een deploy-key aan en print de publieke
-#           helft. Zet die in github.com/rubenclaes/containers -> Deploy keys.
-#           Tot dan faalt de git-clone en komt geen enkele stack omhoog.
+# docker    de docker_stacks-rol maakt per host een deploy-key aan en print
+#           de publieke helft. Zet die in de repo waar die host zijn stacks
+#           uit haalt, onder Settings -> Deploy keys. Tot dan faalt de clone
+#           en komt geen enkele stack omhoog. Drie repo's, drie sleutels:
+#             docker                 rubenclaes/containers
+#             docker-grafana-stack   rubenclaes/monitoring-stack
+#             macmini                rubenclaes/homelab
 
 # --- 7. Alles gelijktrekken -----------------------------------------------
 ansible-playbook playbooks/site.yml --check --diff
