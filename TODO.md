@@ -14,42 +14,9 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       Herstart Semaphore halverwege, dan is de job dood en weet je niet of de
       upgrade af is.
 
-- [ ] **Deze MacBook mag het LAN niet op vanuit Python.**
-      `curl`, `ssh` en `nc` komen bij 192.168.0.x, Python niet: elke poging
-      geeft `[Errno 65] No route to host`. Dat is de Local Network-toestemming
-      van macOS 26. Gevolg: de Proxmox-inventoryplugin werkt hier niet, dus
-      `site.yml`, `drift.yml` en `stacks.yml` vinden hun hosts niet,
-      `caddy-smoketest.yml` meldt álle sites stuk terwijl ze het doen (die
-      test draait `delegate_to: localhost`), en `restore-drill.yml` haalt
-      zijn vijf inventory-controles wél maar valt daarna om op "Lees de
-      guests die op de node bestaan" - ook een API-taak op localhost.
-
-      Twee dingen die het lastig maken om goed te zetten. Ten eerste heet de
-      app die je moet aanvinken **Visual Studio Code**, niet Terminal en niet
-      claude: de sessie draait als `Code Helper (Plugin)` onder
-      `/Applications/Visual Studio Code.app`, en macOS rekent de toestemming
-      toe aan het app-bundel. Ten tweede pakt een draaiend proces de nieuwe
-      toestemming niet op - VS Code moet helemaal afgesloten worden (cmd-Q,
-      niet alleen het venster dicht) en opnieuw open. Zolang dat niet gebeurd
-      is blijft elke poging `[Errno 65] No route to host` geven, ook al staat
-      het vinkje aan. Zet hem aan onder
-      Systeeminstellingen -> Privacy en beveiliging -> Lokaal netwerk, voor de
-      app die Claude Code draait. Tot dan is er van deze Mac uit alleen met de
-      hand een statische inventory te draaien.
-
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
-
-- [ ] **`adguard.yml` één keer echt draaien.** Het vault-bestand staat er
-      (22-09) en de inloggegevens zijn nagekeken tegen de API: login en
-      `/control/status` geven allebei 200, en de web-API luistert op poort 80,
-      niet op 3000. De droogloop is groen en wil negen rewrites onder
-      `home.arpa` toevoegen. Bewust nog niet toegepast: die adressen kwamen
-      uit een met de hand gemaakte inventory, en met de hand onderhouden
-      adressen in DNS zetten is precies wat de overstap naar de
-      Proxmox-inventory heeft weggehaald. Draai hem zodra de
-      Local Network-toestemming aan staat, dan komen ze uit de echte bron.
 
 - [ ] **Wat de node nu adverteert hoort in `tailscale_up_extra_args`.**
       Nu staat het alleen in de staat van die ene container.
@@ -151,13 +118,20 @@ de API beschrijven.
       er één bestand uit en sloopt hem. De paden die hij controleert staan per
       guest in `drill_probes` in `lxcs.yml`.
 
-      - [ ] **Nog nooit gedraaid.** Tot je hem één keer draait bewijst hij
-            precies evenveel als geen drill. De `--check` is op 22-09 wél
-            geprobeerd: de vijf controles vooraf komen door (guest bekend,
-            vmid 199 niet geclaimd), maar daarna heeft hij de Proxmox-API
-            nodig vanaf de controller. Vanaf deze Mac kan dat nu niet - zie
-            het Local Network-punt bovenaan. Draai hem dus vanuit Semaphore,
-            of nadat die toestemming aan staat. LXC-only, met opzet - een
+      - [ ] **Nog nooit echt gedraaid.** De droogloop is op 22-09 wél
+            helemaal doorgekomen, vanuit iTerm: `ok=11, changed=0,
+            failed=0`, alles wat schrijft netjes overgeslagen. Hij zou
+            `pbs:backup/ct/107/2026-09-22T00:34:14Z` van adguard terugzetten
+            op vmid 199 op `vm-hdd` en daar
+            `/opt/AdGuardHome/AdGuardHome.yaml` in zoeken; er staan vijf
+            back-ups van die guest klaar. Alles wat eraan vooraf gaat klopt
+            dus. Wat nog niet bewezen is, is het enige dat telt: dat die
+            back-up ook echt terugkomt. Draai hem één keer zonder `--check`:
+
+              ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
+
+            Een gefaalde drill laat het wrak staan, met opzet. Opruimen met
+            `pct destroy 199`. LXC-only, met opzet - een
             teruggezette VM op hetzelfde netwerk botst op MAC en IP met het
             origineel, en daar is geen veilige automatisering voor.
       - [ ] **Daarna op een schema in Semaphore.** Een drill die je alleen
@@ -177,6 +151,18 @@ de API beschrijven.
 ---
 
 ## Klein, wanneer het uitkomt
+
+- [ ] **VS Code mag het LAN niet op vanuit Python, iTerm wel.**
+      De Local Network-toestemming van macOS 26 staat sinds 22-09 aan voor
+      iTerm, en daar werkt alles: de Proxmox-inventory laadt, `adguard.yml`
+      draaide, `caddy-smoketest.yml` geeft "All 26 sites respond". Onder
+      VS Code niet: die sessie draait als `Code Helper (Plugin)` onder
+      `/Applications/Visual Studio Code.app` en dat bundel heeft de
+      toestemming niet, dus daar geeft Python nog steeds `[Errno 65]`.
+      Niet dringend - playbooks draai je in iTerm - maar het is wel de reden
+      dat een agent in VS Code de dynamische inventory niet kan lezen. Wil je
+      het gelijktrekken: vinkje aan voor Visual Studio Code, en dan cmd-Q en
+      opnieuw open, want een draaiend proces pakt het niet op.
 
 - [ ] **Vault-wachtwoorden roteren.** Tijdens het opzetten zijn de eerste
       tekens van beide in een sessielog terechtgekomen.
