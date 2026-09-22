@@ -150,10 +150,10 @@ ansible-playbook playbooks/caddy.yml
 
 # === Een route toevoegen of wijzigen ======================================
 $EDITOR inventory/host_vars/caddy/main.yml        # caddy_sites
-$EDITOR inventory/host_vars/caddy/directory.yml   # optioneel: een tegel op de dienstenpagina
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/caddy-smoketest.yml    # vraagt elke site op, faalt op een dode route
-ansible-playbook playbooks/docs.yml               # de dienstenpagina volgt caddy_sites
+ansible-playbook playbooks/docs.yml               # servicepagina's volgen caddy_sites
+# Wie hier woont vindt de dienst via NeoGate, niet via deze site.
 
 
 # === Pakketten updaten ====================================================
@@ -193,8 +193,9 @@ ansible-playbook playbooks/proxmox-info.yml   # welke guests draaien er nu echt
 
 # === De documentatiesite bijwerken ========================================
 ansible-playbook playbooks/docs.yml
-# Genereert hosts/containers/stacks/diensten uit de inventory en publiceert.
-# Faalt bewust als directory.yml een dienst noemt die geen route meer heeft.
+# Genereert hosts, containers, stacks en één pagina per service uit de
+# inventory, en publiceert naar docs.neodata.be. De servicepagina's worden
+# gewist en opnieuw gebouwd, dus een geschrapte route laat geen pagina achter.
 
 
 # === Een back-up terugzetten ==============================================

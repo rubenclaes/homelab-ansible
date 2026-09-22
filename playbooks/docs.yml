@@ -15,41 +15,17 @@
     # that is what broke docs.yml and report.yml before.
     caddy_domain: "{{ hostvars['caddy'].caddy_domain }}"
     caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
-    directory_categories: "{{ hostvars['caddy'].directory_categories }}"
-    directory_services: "{{ hostvars['caddy'].directory_services }}"
     pve_lxcs: "{{ hostvars['pve01'].pve_lxcs }}"
     pve_lxc_defaults: "{{ hostvars['pve01'].pve_lxc_defaults }}"
     docker_stacks_list: "{{ hostvars['docker'].docker_stacks_list }}"
     docker_stacks_wait_for_mounts: "{{ hostvars['docker'].docker_stacks_wait_for_mounts }}"
   tasks:
-    # A tile that points at a service which no longer exists is worse than no
-    # tile: it looks live and 404s. Fail the run instead of rendering it.
-    - name: Check the directory against the routes it claims
-      ansible.builtin.assert:
-        that:
-          - directory_services.keys() | list | difference(caddy_sites | map(attribute='name') | list) | length == 0
-          - directory_services.values() | list | map(attribute='category') | unique
-            | difference(directory_categories.keys() | list) | length == 0
-        fail_msg: >-
-          directory.yml is out of step with caddy_sites.
-          Unknown services: {{ directory_services.keys() | list
-            | difference(caddy_sites | map(attribute='name') | list) | join(', ') | default('none', true) }}.
-          Unknown categories: {{ directory_services.values() | list | map(attribute='category') | unique
-            | difference(directory_categories.keys() | list) | join(', ') | default('none', true) }}.
-        success_msg: "{{ directory_services | length }} tiles, all routed."
-
     - name: Render the generated reference pages
       ansible.builtin.template:
         src: "docs/{{ item }}.md.j2"
         dest: "{{ docs_site }}/content/technisch/{{ item }}.mdx"
         mode: "0644"
       loop: "{{ docs_pages }}"
-
-    - name: Render the family-facing directory
-      ansible.builtin.template:
-        src: docs/diensten.md.j2
-        dest: "{{ docs_site }}/content/diensten.mdx"
-        mode: "0644"
 
     # Wiped and rebuilt rather than overwritten: a service deleted from
     # caddy_sites must not leave its page behind, and a stale page looks live.
