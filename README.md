@@ -53,6 +53,7 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `proxmox-datacenter.yml` | `pve01` | Storage-definities en backup-jobs uit `pve_storages`/`pve_backup_jobs`. |
 | `proxmox-network.yml` | `pve01` | Bridge-configuratie; alleen staging tenzij `-e proxmox_network_apply=true`. **Kan de host onbereikbaar maken — lees de kop van het playbook eerst.** |
 | `recovery-drill.yml` | `pve01` | Bouwt, bootstrapt en vernietigt een wegwerp-LXC om het herstelpad te bewijzen. **Vernietigt een guest — alleen met `-e drill_confirm=true`.** |
+| `tailscale-key.yml` | localhost | Maakt één eenmalige Tailscale-sleutel voor een toestel uit `devices.yml` en toont hem. **Zie onder.** |
 
 ```bash
 ansible-playbook playbooks/site.yml
@@ -71,7 +72,7 @@ Twee identiteiten, gesplitst op blast radius — elke helft roteert los.
 
 | Identiteit | Dekt | Lek betekent |
 |---|---|---|
-| `infra` | `inventory/**/vault.yml`, `roles/semaphore/files/config.json` | Proxmox-, Cloudflare- en PBS-tokens roteren |
+| `infra` | `inventory/**/vault.yml`, `roles/semaphore/files/config.json` | Proxmox-, Cloudflare- en PBS-tokens, de AdGuard-login en de Tailscale OAuth-client roteren |
 | `stacks` | `files/env/*.env` | applicatielogins in de stacks roteren |
 
 Beide gaan via `bin/vault-pass-client` — Ansible geeft `--vault-id` door aan elk
@@ -199,6 +200,63 @@ extra vars:
 | Cleanup (apply) | `cleanup_apply: true` | zaterdag 03:00 |
 
 Niet zondag 04:00: daar zitten de updates en de PBS-backup al.
+
+## Toestellen, DNS-namen en profielen
+
+Wat geen SSH heeft — telefoons, TV, printer — staat in
+`inventory/group_vars/all/devices.yml`, met het MAC-adres als sleutel en het
+gereserveerde adres als aantekening. Drie dingen leunen op die lijst:
+
+| Wat | Uit | Door |
+|---|---|---|
+| `<host>.home.arpa` en `<toestel>.home.arpa` in AdGuard | `ansible_host` van elke host, `ip` van elk toestel | `roles/adguard`, via de REST API |
+| `docs.<domain>/profielen/<toestel>.mobileconfig` | elk toestel van type `phone` | `docs.yml`, uit `templates/profiles/dns.mobileconfig.j2` |
+| een eenmalige Tailscale-sleutel | `-e device=<toestel>` | `tailscale-key.yml` |
+
+- **De AdGuard-rol bezit alleen de rewrite-lijst, en daarin alleen `*.home.arpa`.**
+  Een rewrite die met de hand in het scherm staat blijft staan; een naam
+  onder de zone die niemand meer vraagt gaat weg. `AdGuardHome.yaml` wordt
+  één keer gelezen (voor de poort) en nooit geschreven — het scherm blijft
+  eigenaar. Login in `inventory/host_vars/adguard/vault.yml` als
+  `vault_adguard_api_user` / `vault_adguard_api_password`; zonder dat bestand
+  faalt de rol met een melding, want een lijst die stil niet meer wordt
+  toegepast is erger dan een rode run.
+- **`home.arpa`, niet `neodata.be`:** `semaphore` is zowel een host als een
+  route. Een eigen zone kan niet botsen, en RFC 8375 reserveert deze precies
+  hiervoor.
+- **Het profiel** laat een telefoon DNS-over-HTTPS spreken met
+  `https://dns.<domain>/dns-query/<toestel>`; dat laatste stuk is het
+  client-ID waaronder AdGuard de vragen toont, wat het MAC-adres van de
+  telefoon ook is. Caddy laat op `dns.<domain>` alleen `/dns-query` door, zodat
+  AdGuards beheerscherm nooit een route wordt. Eén schakelaar in AdGuard zelf:
+  *Encryptie → Sta onversleutelde DNS-over-HTTPS toe*. Het profiel staat
+  standaard altijd aan; `devices_profile_ssids` beperkt het tot de thuis-wifi.
+- Installatie en verwijderen staan op de toestellenpagina van de
+  documentatiesite, naast de link per toestel.
+
+## Tailnet
+
+`roles/tailscale` meldt een node die niet op de tailnet staat zelf aan, als
+de host een OAuth-client heeft (`inventory/host_vars/tailscale/vault.yml`,
+`vault_tailscale_oauth_client_id` / `vault_tailscale_oauth_client_secret`,
+scope `auth_keys`, tag `tag:homelab`). De rol maakt dan één eenmalige,
+vooraf geautoriseerde sleutel via de API, draait `tailscale up` ermee en eist
+daarna `Running`. Een node die al draait wordt nooit aangeraakt; zonder client
+rapporteert de rol alleen, zoals voorheen.
+
+```bash
+# Een sleutel voor iets met een commandoregel: de pc van de ouders, een NAS.
+ansible-playbook playbooks/tailscale-key.yml -e device=pc-ouders
+```
+
+- De sleutel wordt één keer getoond en nergens bewaard; de beschrijving
+  (`ansible-<host>`, `device-<toestel>`) is het enige spoor in de console.
+  Draai dit vanaf het werkstation, niet uit Semaphore — een takenlog bewaart
+  de uitvoer.
+- Niet voor telefoons: de apps melden aan via een browser en hebben geen plek
+  voor een sleutel.
+- Een node die al prefs had (`--advertise-routes`) weigert een kale
+  `tailscale up`; zet wat hij adverteerde in `tailscale_up_extra_args`.
 
 ## Nieuwe host
 

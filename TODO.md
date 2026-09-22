@@ -30,6 +30,33 @@ backlog na drie maanden niet meer te lezen.
 
 ---
 
+## Inrichten — de code staat er, deze handelingen niet
+
+- [ ] **AdGuard: `inventory/host_vars/adguard/vault.yml` aanmaken**
+      `vault_adguard_api_user` en `vault_adguard_api_password`, identiteit
+      `infra`. *Waarom:* tot dan faalt `site.yml` op `adguard` met een assert
+      die dit zegt — bewust, zie de spec. Controleer daarna de eerste run met
+      `--check`: het rapport toont welke `*.home.arpa`-namen erbij komen.
+
+- [ ] **AdGuard: *Sta onversleutelde DNS-over-HTTPS toe* aanzetten, en de
+      webpoort in `caddy_doh_upstream` nakijken**
+      Het staat op `:80`, wat AdGuards gebruikelijke keuze na de wizard is,
+      maar niet gecontroleerd. *Waarom:* zonder de schakelaar geeft
+      `dns.neodata.be/dns-query` een 404 en heeft een telefoon met het profiel
+      geen DNS.
+
+- [ ] **Tailscale: OAuth-client maken en in `inventory/host_vars/tailscale/vault.yml` zetten**
+      Scope `auth_keys`, tag `tag:homelab`; die tag moet in de policy onder
+      `tagOwners` staan. *Waarom:* zonder client blijft aanmelden na een
+      herbouw handwerk. Wat de node nu adverteert (subnet-routes?) hoort in
+      `tailscale_up_extra_args`, anders weigert `tailscale up`.
+
+- [ ] **`devices.yml` vullen met echte toestellen**
+      De drie regels zijn voorbeelden met verzonnen MAC-adressen. *Waarom:*
+      elk voorbeeld met een `ip` staat nu ook als `*.home.arpa` in AdGuard.
+
+---
+
 ## Opruimen in de estate
 
 - [ ] **PBS: twee verweesde groepen** — `ct/109` en `vm/110`
@@ -109,6 +136,9 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] `*.home.arpa`-namen voor hosts en toestellen in AdGuard, via de API; het scherm blijft eigenaar van `AdGuardHome.yaml`
+- [x] `roles/tailscale` meldt een node zelf aan met een eenmalige sleutel; `tailscale-key.yml` maakt er een per toestel
+- [x] DNS-profiel per telefoon op `docs.<domain>/profielen/`, met de toestelnaam als AdGuard-client-ID
 - [x] Media-stack onder Ansible: `media` staat in `docker_stacks_list` als project `media-stack`
 - [x] PBS back-upt ook LXC 104 (semaphore) — de job draait 101,102,103,104,106,107,108
 - [x] `torrent`-route leeft weer: qbittorrent kwam mee met de media-stack, precies zoals het item voorspelde
