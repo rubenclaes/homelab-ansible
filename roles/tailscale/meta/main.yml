@@ -3,7 +3,8 @@ galaxy_info:
   role_name: tailscale
   author: rubenclaes
   description: >-
-    Installs the Tailscale client. Joining the tailnet stays a manual step.
+    Installs the Tailscale client. Joins the tailnet with a single-use key
+    when the host has an OAuth client; otherwise the join stays manual.
   license: MIT
   min_ansible_version: "2.17"
   platforms:

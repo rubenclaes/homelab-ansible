@@ -1,0 +1,59 @@
+---
+# Mints one single-use, pre-authorised auth key over the Tailscale API and
+# leaves it in tailscale_minted_key. The API shows the key exactly once, so it
+# is never written anywhere; the description is the only trace it leaves, in
+# the admin console's key list.
+#
+# Expects: tailscale_key_description (str), tailscale_key_tags (list).
+- name: Require a Tailscale OAuth client
+  ansible.builtin.assert:
+    that:
+      - tailscale_oauth_client_id is defined
+      - tailscale_oauth_client_secret is defined
+    fail_msg: >-
+      tailscale_oauth_client_id / tailscale_oauth_client_secret are not set.
+      Make an OAuth client in the Tailscale admin console (scope auth_keys, tag
+      {{ tailscale_tags | join(', ') }}) and put it in
+      inventory/host_vars/tailscale/vault.yml as vault_tailscale_oauth_client_id
+      and vault_tailscale_oauth_client_secret.
+    quiet: true
+
+- name: Exchange the OAuth client for an API token
+  ansible.builtin.uri:
+    url: "{{ tailscale_api_url }}/oauth/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: "{{ tailscale_oauth_client_id }}"
+      client_secret: "{{ tailscale_oauth_client_secret }}"
+    return_content: true
+  register: tailscale_oauth_token
+  no_log: true
+
+- name: Mint a single-use pre-authorised key
+  ansible.builtin.uri:
+    url: "{{ tailscale_api_url }}/tailnet/{{ tailscale_tailnet }}/keys"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ tailscale_oauth_token.json.access_token }}"
+    body_format: json
+    body:
+      description: "{{ tailscale_key_description }}"
+      expirySeconds: "{{ tailscale_key_expiry_seconds | int }}"
+      capabilities:
+        devices:
+          create:
+            reusable: false
+            ephemeral: false
+            preauthorized: true
+            tags: "{{ tailscale_key_tags }}"
+    return_content: true
+  register: tailscale_key_response
+  changed_when: true
+  no_log: true
+
+- name: Keep the key for the caller
+  ansible.builtin.set_fact:
+    tailscale_minted_key: "{{ tailscale_key_response.json.key }}"
+    tailscale_minted_key_id: "{{ tailscale_key_response.json.id }}"
+  no_log: true
