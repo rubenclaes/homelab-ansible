@@ -5,6 +5,10 @@ on:
   push:
     branches: [master]
   pull_request:
+  # Handmatig te starten op elke branch. Zonder dit draait CI alleen op master
+  # en op een PR, dus een feature-branch werd nooit gecontroleerd voordat hij
+  # samengevoegd werd.
+  workflow_dispatch:
 
 # A push to a PR branch used to trigger this twice (once for `push`, once for
 # `pull_request`). Limiting `push` to master fixes that; this cancels any run
