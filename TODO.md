@@ -9,13 +9,6 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Nu — hier kan iets misgaan
 
-- [ ] **De PBS-encryptiesleutel staat nergens buiten pve01.**
-      Hij staat op `/etc/pve/priv/storage/pbs.enc` (gecontroleerd 22-09).
-      `proxmox-backup-client key paperkey` geeft er een uitprintbare versie
-      van. Uitprinten, buiten het huis leggen. Ben je pve01 én de sleutel
-      kwijt, dan is elke back-up die je ooit maakte onleesbaar. Vijf minuten
-      werk, en alles hangt ervan af.
-
 - [ ] **De Semaphore-template "Update guests" patcht Semaphore zelf.**
       Zet de limit op `guests:!semaphore`; die machine patch je met de hand.
       Herstart Semaphore halverwege, dan is de job dood en weet je niet of de
@@ -29,7 +22,17 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       `caddy-smoketest.yml` meldt álle sites stuk terwijl ze het doen (die
       test draait `delegate_to: localhost`), en `restore-drill.yml` haalt
       zijn vijf inventory-controles wél maar valt daarna om op "Lees de
-      guests die op de node bestaan" - ook een API-taak op localhost. Zet hem aan onder
+      guests die op de node bestaan" - ook een API-taak op localhost.
+
+      Twee dingen die het lastig maken om goed te zetten. Ten eerste heet de
+      app die je moet aanvinken **Visual Studio Code**, niet Terminal en niet
+      claude: de sessie draait als `Code Helper (Plugin)` onder
+      `/Applications/Visual Studio Code.app`, en macOS rekent de toestemming
+      toe aan het app-bundel. Ten tweede pakt een draaiend proces de nieuwe
+      toestemming niet op - VS Code moet helemaal afgesloten worden (cmd-Q,
+      niet alleen het venster dicht) en opnieuw open. Zolang dat niet gebeurd
+      is blijft elke poging `[Errno 65] No route to host` geven, ook al staat
+      het vinkje aan. Zet hem aan onder
       Systeeminstellingen -> Privacy en beveiliging -> Lokaal netwerk, voor de
       app die Claude Code draait. Tot dan is er van deze Mac uit alleen met de
       hand een statische inventory te draaien.
@@ -78,15 +81,6 @@ de API beschrijven.
 ---
 
 ## Opruimen in de estate
-
-- [ ] **Twee verweesde PBS-groepen** — `ct/109` en `vm/110`, van guests die
-      niet meer bestaan. Elk één snapshot van 18-09, samen ~57 GB. Ze staan er
-      nog: `pve@pbs` heeft alleen `DatastoreBackup` en mag niet verwijderen,
-      dus `pvesm free` geeft "missing Datastore.Modify|Datastore.Prune".
-      Weghalen doe je in de PBS-UI (Datastore -> store1 -> Content -> groep ->
-      Forget), of door `pve@pbs` tijdelijk `DatastorePowerUser` op
-      `/datastore/store1` te geven. Een back-uplijst met groepen die nergens
-      bij horen lees je na een half jaar niet meer met vertrouwen.
 
 - [ ] **`openbooks` draait zonder route**, alleen op `192.168.0.15:8080`.
       Geef hem een naam of zet hem uit, maar kies.
