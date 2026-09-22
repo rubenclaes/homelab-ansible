@@ -74,6 +74,41 @@ de API beschrijven.
 
 ## Grotere projecten
 
+- [ ] **AdGuard draait dubbel, en de verkeerde is de echte.**
+      Er draaien er twee. De LXC op 192.168.0.29 is degene die deze repo
+      beheert; daar staan sinds 22-09 de tien `home.arpa`-rewrites in, en hij
+      beantwoordt ze correct. Alleen: niemand vraagt het hem. Elke beheerde
+      host wijst in `/etc/resolv.conf` naar **192.168.0.26**, de Mac mini, en
+      daar draait een tweede AdGuard Home als macOS-app
+      (`/Applications/AdGuardHome/AdGuardHome`). Die doet het echte werk: een
+      wildcard `*.neodata.be -> 192.168.0.25` (nagekeken met een naam die niet
+      bestaat, die ook 192.168.0.25 teruggeeft). De LXC kent die namen juist
+      weer níét.
+
+      Gevolg nu: die tien rewrites doen praktisch niets. En erger, de DNS van
+      de hele estate hangt aan de Mac mini - dezelfde machine die de drie
+      NFS-shares exporteert en die deze backlog al aanwijst als het ding dat
+      je niet kunt terugbouwen. Valt hij om, dan valt naamresolutie voor elke
+      host om.
+
+      De rol zegt in zijn eigen commentaar "this host is the network's DNS"
+      over de LXC. Dat is nu simpelweg niet waar.
+
+      De weg eruit, en hij is kort:
+
+      - [ ] Zet in de LXC-AdGuard met de hand een wildcard
+            `*.neodata.be -> 192.168.0.25` erbij. De rol raakt rewrites
+            buiten `home.arpa` niet aan, dus dat blijft staan.
+      - [ ] Laat de UniFi-DHCP 192.168.0.29 als DNS uitdelen in plaats van
+            192.168.0.26, en zet de vaste resolv.conf van de guests mee om.
+      - [ ] Controleer met `dig @192.168.0.29 books.neodata.be` én
+            `dig @192.168.0.29 pve01.home.arpa` dat beide werken vóór je
+            omschakelt, niet erna.
+      - [ ] Daarna de AdGuard op de Mini uitzetten, of bewust als tweede
+            resolver laten staan - maar kies, want twee DNS-servers waarvan
+            er één stilletjes de echte is, is precies hoe je tijdens een
+            storing een uur kwijtraakt.
+
 - [ ] **De Mac mini: van beschreven naar beheerd.**
       `host_vars/macmini.yml` beschrijft hem nu wél — brew-formules, casks,
       de zes compose-projecten die er draaien én in de repo staan, het pad van
