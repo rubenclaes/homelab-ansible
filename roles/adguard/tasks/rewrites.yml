@@ -1,11 +1,15 @@
 ---
 # Syncs the DNS rewrite list over the REST API.
 #
-# Desired state is every inventory host with an ansible_host, plus every
-# device in devices.yml with an ip, each as <name>.<adguard_rewrite_domain>.
-# The role owns that zone and nothing else: a name under it that the
-# inventory does not ask for is removed, a rewrite outside it is left alone.
-# AdGuardHome.yaml is read once, for the web port, and never written.
+# Desired state is every inventory host with an ansible_host, as
+# <name>.<adguard_rewrite_domain>. The role owns that zone and nothing else: a
+# name under it that the inventory does not ask for is removed, a rewrite
+# outside it is left alone. AdGuardHome.yaml is read once, for the web port,
+# and never written.
+#
+# Only hosts. Everything without SSH - phones, the TV, the printer - already
+# lives in the UniFi gateway, and a second copy here would be a list to keep
+# in step with one that is always right.
 
 - name: Find the AdGuard API
   ansible.builtin.import_tasks: api.yml
@@ -16,8 +20,7 @@
 - name: Collect the names the inventory asks for
   ansible.builtin.set_fact:
     adguard_rewrites_wanted: >-
-      {{ (adguard_host_names | zip(adguard_host_addrs) + adguard_device_names | zip(adguard_device_addrs))
-         | map('join', ' ') | sort }}
+      {{ adguard_host_names | zip(adguard_host_addrs) | map('join', ' ') | sort }}
   vars:
     adguard_hosts_with_addr: >-
       {{ groups['all'] | sort | map('extract', hostvars) | selectattr('ansible_host', 'defined') | list }}
@@ -25,12 +28,6 @@
       {{ adguard_hosts_with_addr | map(attribute='inventory_hostname')
          | map('regex_replace', '$', '.' ~ adguard_rewrite_domain) | list }}
     adguard_host_addrs: "{{ adguard_hosts_with_addr | map(attribute='ansible_host') | list }}"
-    adguard_devices_with_addr: >-
-      {{ devices | default({}) | dict2items | selectattr('value.ip', 'defined') | sort(attribute='key') | list }}
-    adguard_device_names: >-
-      {{ adguard_devices_with_addr | map(attribute='key')
-         | map('regex_replace', '$', '.' ~ adguard_rewrite_domain) | list }}
-    adguard_device_addrs: "{{ adguard_devices_with_addr | map(attribute='value.ip') | list }}"
 
 # The API lowercases domains and rejects bad ones with a 400 that names
 # nothing. Check here, where the message can say which name is wrong.

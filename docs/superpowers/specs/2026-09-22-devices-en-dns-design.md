@@ -1,98 +1,91 @@
-# Toestellen en DNS: wat de repo beheert, en wat niet
+# DNS-namen in AdGuard, en waarom de toestellenlijst weer weg is
 
 Datum: 2026-09-22
-Vervangt: de vier losse specs van deze branch, en de rol die `devices.yml`
-kreeg in de toestellenspec van 21-09.
+Vervangt: de toestellenspec van 21-09 en de vier losse specs die daarop volgden.
 
-## Probleem
-
-Twee dingen die bij elkaar horen. De inventory kende alleen machines met SSH,
-dus telefoons, de TV en de printer bestonden nergens. En AdGuard werd helemaal
-niet beheerd: `roles/adguard` installeerde de binary en liet de rest met opzet
-aan het webscherm, omdat `AdGuardHome.yaml` het adminwachtwoord, de upstreams
-en alle filterregels bevat.
-
-De eerste poging maakte er een lijst van. Die lijst deed niets, en een lijst
-die niets doet is werk dat je erin stopt en er niet uit krijgt.
-
-## Wat de repo nu beheert
+## Wat de repo beheert
 
 | Wat | Waaruit | Hoe |
 | --- | --- | --- |
 | `<host>.home.arpa` | `ansible_host` uit de inventory | AdGuard REST API |
-| `<toestel>.home.arpa` | `ip` uit `devices.yml` | AdGuard REST API |
-| Filterbeleid per toestel | het `dns`-blok | AdGuard REST API |
 | Aanmelden op de tailnet | eenmalige sleutel via de Tailscale-API | `roles/tailscale` |
 
-`AdGuardHome.yaml` wordt één keer gelezen, voor de webpoort, en nooit
-geschreven. Het scherm blijft eigenaar van alles wat hier niet staat.
+Meer niet. `AdGuardHome.yaml` wordt één keer gelezen, voor de webpoort, en
+nooit geschreven: het bevat het adminwachtwoord, de upstreams en alle
+filterregels, en het webscherm blijft daar eigenaar van.
 
-## Beslissingen
+**`home.arpa` en niet `neodata.be`,** omdat `semaphore` zowel een host als een
+Caddy-route is. Een rewrite in het publieke domein zou die route omleiden naar
+de achterkant. RFC 8375 reserveert `home.arpa` hiervoor: het lost nooit op het
+internet op, dus een query die lekt is onschuldig.
 
-**`home.arpa`, niet `neodata.be`.** `semaphore` is zowel een host als een
-Caddy-route. Een rewrite in het publieke domein zou die route omleiden naar de
-achterkant. RFC 8375 reserveert `home.arpa` precies hiervoor: het lost nooit op
-het internet op, dus een query die lekt is onschuldig.
+**De rol bezit die hele zone.** Een naam erbinnen die de inventory niet vraagt
+wordt verwijderd, een rewrite erbuiten blijft staan. Dat kan alleen omdat de
+zone van de rol is; bij iets waar een mens ook aan zit, zou verwijderen op
+afwezigheid vroeg of laat handwerk weggooien.
 
-**De rewrites verwijderen wel, de clients niet.** Bij de rewrites bezit de rol
-een hele zone, dus een naam daarbinnen die niemand vraagt hoort er niet. Een
-client draagt instellingen die een mens in het scherm kan hebben aangeraakt en
-er is geen veld dat zegt "Ansible heeft dit gemaakt". Daarom noemt elke run de
-clients die hij níét beheert, in plaats van ze weg te gooien.
-
-**`dns.allowed` is een toestemming, geen verbod.** AdGuard bewaart een schema
-van *inactiviteit*: de vensters waarin de geblokkeerde diensten niet
-geblokkeerd zijn. De veldnaam volgt die betekenis in plaats van hem te
-verbergen. Een dag die ontbreekt is de hele dag dicht, en een venster loopt
-niet door middernacht; `21:00` tot `07:00` zou leeg zijn en dus een verbod van
-vierentwintig uur. Daar staat een assert op, want AdGuard accepteert het
-zonder klagen. Intern zijn de grenzen milliseconden sinds middernacht, een
-API-detail dat niet hoort in een bestand dat een mens bewerkt.
-
-**Tailscale meldt zichzelf aan, met een sleutel die daarna op is.** In de repo
-staat alleen een OAuth-client met scope `auth_keys`. Lekt die, dan kan iemand
+**Tailscale meldt zichzelf aan** met een sleutel die daarna op is. In de repo
+staat alleen een OAuth-client met scope `auth_keys`; lekt die, dan kan iemand
 getagde nodes toevoegen en verder niets. Een node die al `Running` is wordt
-nooit aangeraakt; zijn identiteit leeft in `/var/lib/tailscale` en die maakt een
-converge-run niet opnieuw.
+nooit aangeraakt: zijn identiteit leeft in `/var/lib/tailscale` en die maakt
+een converge-run niet opnieuw.
 
 ## Wat er gebouwd is en weer weggehaald
 
-**De UniFi-rol.** Hij maakte client-records op de gateway aan, zette namen en
-bandbreedtegroepen, en reserveerde vaste adressen. Hij werkte en was
-idempotent. Hij is verwijderd.
+Drie keer hetzelfde patroon, en het is de moeite waard dat op te schrijven
+zodat het geen vierde keer gebeurt.
 
-De rekensom klopte niet. Een vast adres toekennen in het scherm kost twintig
-seconden en gebeurt één keer per toestel. Daartegenover stonden een apart
-lokaal account, een vault-bestand, een gateway in de inventory, en het
-onderhoud van een API die Ubiquiti bezit en zonder aankondiging kan wijzigen.
+**Een UniFi-rol** die client-records aanmaakte, namen zette,
+bandbreedtegroepen toewees en vaste adressen reserveerde. Werkte, was
+idempotent. Een vast adres toekennen kost twintig seconden klikken en gebeurt
+één keer per toestel; daartegenover stonden een apart account, een
+vault-bestand en het onderhoud van een API die Ubiquiti bezit.
 
-**De telefoonprofielen.** Een `.mobileconfig` per telefoon, met de toestelnaam
-als AdGuard-client-ID, zodat het querylog de telefoon bij naam kent wat zijn
-MAC ook is. Ook gebouwd, ook weer weg. Het genereerde een bestand dat je
-vervolgens met de hand op het toestel aantikt, dus de automatisering hield op
-vóór het apparaat. En het sleepte een publiek bereikbare `dns.<domein>` mee,
-plus een schakelaar in AdGuard, voor iets wat nog nooit gebruikt was.
+**Telefoonprofielen**, een `.mobileconfig` per toestel met de naam als
+AdGuard-client-ID. Het genereerde een bestand dat je daarna met de hand op het
+toestel aantikt, dus de automatisering hield op vóór het apparaat. En het
+sleepte een publiek bereikbare `dns.<domein>` mee voor iets dat nog nooit
+gebruikt was.
 
-De regel die beide had moeten voorkomen, en die vanaf nu geldt: **automatiseer
-wat je drie keer met de hand hebt gedaan en waar je drie keer chagrijnig van
-werd.** Het AdGuard-beleid haalt die lat wel, want het komt langs dezelfde API
-met dezelfde login, het is priegelig genoeg om fouten in te maken, en het
-drift zodra iemand in het scherm iets omzet. Een reservering en een profiel
-halen hem niet.
+**De toestellenlijst zelf**, `devices.yml`, met een filterbeleid per toestel in
+AdGuard. Dit was de laatste en de leerzaamste. De lijst was een tweede kopie
+van wat de UniFi-gateway al weet: elk toestel in huis staat daar met zijn
+MAC-adres, zijn naam en zijn reservering. Een tweede lijst bijhouden naast een
+lijst die altijd klopt, levert alleen een kans op dat ze uit elkaar lopen.
+
+Wat ermee meeging: `roles/adguard/tasks/clients.yml`,
+`playbooks/tasks/check_devices.yml`, het toestellensjabloon en zijn pagina.
+Samen ongeveer 370 regels die niets deden zolang de lijst leeg was.
+
+Filterbeleid per toestel is daarmee geen repo-ding meer. Wil je het, dan klik
+je het in AdGuard, net zoals een reservering in UniFi. Komt de behoefte er
+echt, dan staat `clients.yml` in de git-geschiedenis.
+
+## De regel die hieruit volgt
+
+**Automatiseer wat je drie keer met de hand hebt gedaan en waar je drie keer
+chagrijnig van werd.**
+
+Geen van de drie haalde die lat. De namen voor de hosts wel, en die kosten
+niets extra: ze komen uit de inventory die er toch al is. Dat is het verschil
+waar het op aankomt. Automatisering die leunt op gegevens die je al hebt is
+gratis; automatisering die om een nieuwe lijst vraagt, betaalt die lijst voor
+altijd terug in onderhoud.
 
 ## Buiten scope, en dat blijft zo
 
-De router. Gastvouchers, een toestel blokkeren, VLAN- en firewalltoewijzing.
-De API kan het allemaal; geen ervan haalt de lat hierboven.
+De router, en alles wat daarin staat. Gastvouchers, toestellen blokkeren,
+VLAN- en firewalltoewijzing. Filterbeleid per toestel.
 
 ## Verificatie
 
-Tegen een nagemaakte AdGuard en een nagemaakte Tailscale-API: eerste run maakt
-aan, tweede run `changed=0`, drift die in het scherm is aangebracht wordt per
-veldnaam herkend en teruggezet, een met de hand gemaakte client wordt gemeld
-en niet aangeraakt. Een omgekeerd venster, een MAC met hoofdletters en een
-sleutel met een underscore stoppen de run voordat er iets geschreven wordt.
-`--check` schrijft niets en meldt wel wat het zou doen.
+Tegen een nagemaakte AdGuard: eerste run zet de namen van de hosts met een
+`ansible_host`, verwijdert een verouderde naam en een uitgeschakelde binnen de
+zone, en laat een `*.neodata.be`-rewrite onaangeroerd. Tweede run
+`changed=0`. `--check` schrijft niets en meldt wel wat het zou doen.
+
+Tegen een nagemaakte Tailscale-API: een ontbrekend of ongeldig label stopt de
+run, een geldig label levert één eenmalige sleutel met de juiste tag.
 
 Niet geverifieerd: de echte apparatuur. De eerste run daar hoort met
 `--check --diff`.

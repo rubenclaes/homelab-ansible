@@ -51,9 +51,8 @@ ansible-playbook playbooks/bootstrap.yml --limit <host> -u root -k
 | Iets herstellen of een back-up terugzetten | [Runbook: Herstellen](https://docs.neodata.be/technisch/runbooks/disaster-recovery/)             |
 | Pakketten updaten                          | [Runbook: Updates](https://docs.neodata.be/technisch/runbooks/updates/)                          |
 | Schijfruimte vrijmaken                     | `ansible-playbook playbooks/cleanup.yml` (rapporteert; ruimt pas op met `-e cleanup_apply=true`) |
-| Een toestel of filterbeleid wijzigen       | `inventory/group_vars/all/devices.yml`, dan `site.yml --tags dns`                                |
 | Een route toevoegen                        | `caddy_sites` in `inventory/host_vars/caddy/main.yml`, dan `playbooks/caddy.yml`                 |
-| Een Tailscale-sleutel voor een pc of NAS   | `ansible-playbook playbooks/tailscale-key.yml -e device=<naam>`                                  |
+| Een Tailscale-sleutel voor een pc of NAS   | `ansible-playbook playbooks/tailscale-key.yml -e label=<naam>`                                  |
 | Zien of alles gezond is                    | `ansible-playbook playbooks/report.yml`, dan `https://report.neodata.be`                         |
 | De documentatiesite bijwerken              | `ansible-playbook playbooks/docs.yml`                                                            |
 
