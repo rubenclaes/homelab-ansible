@@ -113,10 +113,23 @@ de API beschrijven.
             netwerkwijziging weg. De echte plek is
             `/etc/netplan/90-default.yaml` (statisch, `dhcp4: no`), daarna
             `netplan apply`. Backup staat als `90-default.yaml.bak-22-09`.
-      - [ ] De rest van de hosts omzetten: pve01, en dan de containers met
-            `pct set <id> --nameserver 192.168.0.29` (104, 106, 108 - níét
-            107, dat is AdGuard zelf). Elke host kan een ander mechanisme
-            hebben; kijk eerst of `/etc/resolv.conf` een symlink is.
+      - [x] pve01 omgezet (22-09): `192.168.0.29` met `1.1.1.1` erachter.
+            Daar is `/etc/resolv.conf` wél een gewoon bestand en beheert
+            niets het, dus rechtstreeks bewerken werkt. Backup staat als
+            `/etc/resolv.conf.bak-22-09`.
+      - [ ] De containers 104 (semaphore) en 106 (caddy) omzetten. ALLEEN
+            die twee:
+              * 107 is AdGuard zelf - die moet niet zichzelf gaan vragen.
+              * 108 is tailscale, en daar beheert tailscaled de resolv.conf
+                (MagicDNS, `100.100.100.100`, search `brill-atlas.ts.net`).
+                Die overschrijven breekt je tailnet-namen.
+            Zet `--searchdomain` er expliciet bij, want die verschilt per
+            container (caddy heeft `home.arpa`, semaphore `neodata.be`) en
+            een herstart zou hem anders stil gelijktrekken:
+              pct set 104 --nameserver 192.168.0.29 --searchdomain neodata.be
+              pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa
+            Dat geldt pas na een herstart, dus pas daarnaast ook
+            `/etc/resolv.conf` in de container zelf aan als je het meteen wil.
       - [ ] Daarna pas de UniFi-DHCP 192.168.0.29 laten uitdelen.
       - [ ] Daarna de AdGuard op de Mini uitzetten, of bewust als tweede
             resolver laten staan - maar kies, want twee DNS-servers waarvan
@@ -206,6 +219,4 @@ de API beschrijven.
 - [ ] **Vault-wachtwoorden roteren.** Tijdens het opzetten zijn de eerste
       tekens van beide in een sessielog terechtgekomen.
       `ansible-vault rekey --new-vault-id infra@<bestand>`.
-- [ ] **`~/.ssh/config` opruimen** — pv01-typo, `pve01-unifi-os` weg, nieuwe
-      hosts samenvoegen. (De rechten zijn al goed: `0600`, gecontroleerd 22-09.)
 - [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1.
