@@ -25,9 +25,11 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
       `curl`, `ssh` en `nc` komen bij 192.168.0.x, Python niet: elke poging
       geeft `[Errno 65] No route to host`. Dat is de Local Network-toestemming
       van macOS 26. Gevolg: de Proxmox-inventoryplugin werkt hier niet, dus
-      `site.yml`, `drift.yml` en `stacks.yml` vinden hun hosts niet, en
+      `site.yml`, `drift.yml` en `stacks.yml` vinden hun hosts niet,
       `caddy-smoketest.yml` meldt álle sites stuk terwijl ze het doen (die
-      test draait `delegate_to: localhost`). Zet hem aan onder
+      test draait `delegate_to: localhost`), en `restore-drill.yml` haalt
+      zijn vijf inventory-controles wél maar valt daarna om op "Lees de
+      guests die op de node bestaan" - ook een API-taak op localhost. Zet hem aan onder
       Systeeminstellingen -> Privacy en beveiliging -> Lokaal netwerk, voor de
       app die Claude Code draait. Tot dan is er van deze Mac uit alleen met de
       hand een statische inventory te draaien.
@@ -162,8 +164,12 @@ de API beschrijven.
       guest in `drill_probes` in `lxcs.yml`.
 
       - [ ] **Nog nooit gedraaid.** Tot je hem één keer draait bewijst hij
-            precies evenveel als geen drill. Eerst met `--check`: dan zegt hij
-            alleen welke back-up hij zou pakken. LXC-only, met opzet - een
+            precies evenveel als geen drill. De `--check` is op 22-09 wél
+            geprobeerd: de vijf controles vooraf komen door (guest bekend,
+            vmid 199 niet geclaimd), maar daarna heeft hij de Proxmox-API
+            nodig vanaf de controller. Vanaf deze Mac kan dat nu niet - zie
+            het Local Network-punt bovenaan. Draai hem dus vanuit Semaphore,
+            of nadat die toestemming aan staat. LXC-only, met opzet - een
             teruggezette VM op hetzelfde netwerk botst op MAC en IP met het
             origineel, en daar is geen veilige automatisering voor.
       - [ ] **Daarna op een schema in Semaphore.** Een drill die je alleen
