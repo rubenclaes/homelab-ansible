@@ -32,6 +32,12 @@ backlog na drie maanden niet meer te lezen.
 
 ## Inrichten — de code staat er, deze handelingen niet
 
+- [ ] **UniFi: lokaal account maken en in `inventory/host_vars/unifi/vault.yml` zetten**
+      Settings → Admins → een *lokale* admin met Site Admin-rechten.
+      *Waarom:* zonder dat account doet `devices.yml` niets aan de gateway. De
+      cloudlogin werkt niet, die vraagt een tweede factor. Controleer ook of
+      het adres van de gateway in `00-static.yml` klopt (nu `192.168.0.1`).
+
 - [ ] **AdGuard: `inventory/host_vars/adguard/vault.yml` aanmaken**
       `vault_adguard_api_user` en `vault_adguard_api_password`, identiteit
       `infra`. *Waarom:* tot dan faalt `site.yml` op `adguard` met een assert
@@ -52,8 +58,10 @@ backlog na drie maanden niet meer te lezen.
       `tailscale_up_extra_args`, anders weigert `tailscale up`.
 
 - [ ] **`devices.yml` vullen met echte toestellen**
-      De drie regels zijn voorbeelden met verzonnen MAC-adressen. *Waarom:*
-      elk voorbeeld met een `ip` staat nu ook als `*.home.arpa` in AdGuard.
+      De vier regels zijn voorbeelden met verzonnen MAC-adressen. *Waarom:*
+      elk voorbeeld met een `ip` krijgt nu een reservering op de gateway én een
+      `*.home.arpa`-naam. Draai de eerste keer met `--check --diff`.
+      De MAC-adressen haal je uit UniFi, onder Clients.
 
 ---
 
@@ -136,6 +144,7 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
+- [x] Toestellen worden geprovisioneerd in plaats van opgeschreven: reservering en naam op de UniFi-gateway, client met filterbeleid in AdGuard, allebei uit `devices.yml`
 - [x] `*.home.arpa`-namen voor hosts en toestellen in AdGuard, via de API; het scherm blijft eigenaar van `AdGuardHome.yaml`
 - [x] `roles/tailscale` meldt een node zelf aan met een eenmalige sleutel; `tailscale-key.yml` maakt er een per toestel
 - [x] DNS-profiel per telefoon op `docs.<domain>/profielen/`, met de toestelnaam als AdGuard-client-ID
