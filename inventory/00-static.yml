@@ -31,13 +31,8 @@ all:
     # Hosts that are not Debian and cannot take the baseline role.
     # Declared here so site.yml can reason about the group even when the
     # dynamic inventory contributes every member.
-    #
-    # `unifi` is the gateway. Nothing ever connects to it: playbooks/devices.yml
-    # sets ansible_connection: local and talks to its HTTPS API. The entry is
-    # here to carry its address and, through host_vars, its credentials.
     appliances:
-      hosts:
-        unifi: { ansible_host: 192.168.0.1 }
+      hosts: {}
 
     macs:
       hosts:

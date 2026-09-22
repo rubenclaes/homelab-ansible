@@ -32,12 +32,6 @@ backlog na drie maanden niet meer te lezen.
 
 ## Inrichten — de code staat er, deze handelingen niet
 
-- [ ] **UniFi: lokaal account maken en in `inventory/host_vars/unifi/vault.yml` zetten**
-      Settings → Admins → een *lokale* admin met Site Admin-rechten.
-      *Waarom:* zonder dat account doet `devices.yml` niets aan de gateway. De
-      cloudlogin werkt niet, die vraagt een tweede factor. Controleer ook of
-      het adres van de gateway in `00-static.yml` klopt (nu `192.168.0.1`).
-
 - [ ] **AdGuard: `inventory/host_vars/adguard/vault.yml` aanmaken**
       `vault_adguard_api_user` en `vault_adguard_api_password`, identiteit
       `infra`. *Waarom:* tot dan faalt `site.yml` op `adguard` met een assert
@@ -59,9 +53,9 @@ backlog na drie maanden niet meer te lezen.
 
 - [ ] **`devices.yml` vullen met echte toestellen**
       De vier regels zijn voorbeelden met verzonnen MAC-adressen. *Waarom:*
-      elk voorbeeld met een `ip` krijgt nu een reservering op de gateway én een
-      `*.home.arpa`-naam. Draai de eerste keer met `--check --diff`.
-      De MAC-adressen haal je uit UniFi, onder Clients.
+      elk voorbeeld met een `ip` krijgt een `*.home.arpa`-naam in AdGuard.
+      De MAC-adressen en de vaste adressen haal je uit UniFi, onder Clients;
+      de reservering zelf zet je daar met de hand.
 
 ---
 
@@ -144,7 +138,8 @@ backlog na drie maanden niet meer te lezen.
 ---
 
 ## Done
-- [x] Toestellen worden geprovisioneerd in plaats van opgeschreven: reservering en naam op de UniFi-gateway, client met filterbeleid in AdGuard, allebei uit `devices.yml`
+- [x] Toestellen krijgen hun filterbeleid uit `devices.yml`: een client per toestel in AdGuard, met safe search, geblokkeerde diensten en een schema
+- [x] De UniFi-rol weer verwijderd: een reservering zetten is twintig seconden klikken en woog niet op tegen een account, een vault en andermans API onderhouden
 - [x] `*.home.arpa`-namen voor hosts en toestellen in AdGuard, via de API; het scherm blijft eigenaar van `AdGuardHome.yaml`
 - [x] `roles/tailscale` meldt een node zelf aan met een eenmalige sleutel; `tailscale-key.yml` maakt er een per toestel
 - [x] DNS-profiel per telefoon op `docs.<domain>/profielen/`, met de toestelnaam als AdGuard-client-ID

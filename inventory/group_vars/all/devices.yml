@@ -3,20 +3,23 @@
 # TV, the printer, the parents' PC. Machines with SSH live in the inventory
 # and stay there - one fact, one place.
 #
-# This is NOT a register. It is the desired state of a device, and
-# playbooks/devices.yml pushes it to the two systems that can actually
-# configure something without logging in:
+# What this file is for is what AdGuard needs to know about a device. The
+# `adguard` role reads it and does two things over the API:
 #
-#   UniFi    creates the client on its MAC and reserves `ip` for it. It does
-#            this for a device that has never connected, so a new phone is
-#            fully prepared before it is unboxed.
-#   AdGuard  gives it a named client, so the query log says "ipad-kinderen"
-#            instead of an address, and applies the `dns` policy below.
+#   a DNS name      <device>.home.arpa, from `ip`
+#   a client        so the query log says "ipad-kinderen" instead of an
+#                   address, with the filtering policy from the `dns` block
 #
-# The MAC is the identifier, not the IP. A new MAC means a new device. `ip` is
-# the reservation UniFi hands out, and unlike before it is now enforced rather
-# than written down: a device with no `ip` simply gets no reservation, which
-# is normal for a guest's phone.
+# What this file is NOT for is the router. Reserving an address there is
+# twenty seconds of clicking, once per device, and a role that did it for you
+# would cost more in upkeep than it saves - Ubiquiti owns that API and can
+# change it. So `ip` is a record of the reservation you set by hand, the way
+# it was always meant to be. Getting it wrong is caught by docs.yml, which
+# refuses an address that a managed host already uses.
+#
+# The MAC is the identifier, not the IP: a new MAC means a new device. A
+# device with no reservation simply has no `ip`, which is normal for a guest's
+# phone.
 #
 # MACs are lowercase with colons; the key is lowercase letters, digits and
 # hyphens. docs.yml asserts both, because the key becomes a DNS name, a file
@@ -37,6 +40,10 @@
 #                             *inactivity*, so this is an allowance, not a
 #                             ban. A day that is missing is blocked all day.
 #   upstreams: [...]          send this device's queries somewhere else
+#
+# This block is the one part that earns a playbook. It is fiddly to enter by
+# hand, it drifts when someone changes it in the UI, and a schedule you argue
+# about is worth having in Git with a history.
 devices:
   iphone-ruben:
     owner: Ruben

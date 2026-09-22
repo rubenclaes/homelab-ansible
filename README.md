@@ -54,7 +54,6 @@ SSH-key: `~/.ssh/ansible_ed25519` (in `ansible.cfg`), geautoriseerd voor het
 | `proxmox-network.yml` | `pve01` | Bridge-configuratie; alleen staging tenzij `-e proxmox_network_apply=true`. **Kan de host onbereikbaar maken — lees de kop van het playbook eerst.** |
 | `recovery-drill.yml` | `pve01` | Bouwt, bootstrapt en vernietigt een wegwerp-LXC om het herstelpad te bewijzen. **Vernietigt een guest — alleen met `-e drill_confirm=true`.** |
 | `tailscale-key.yml` | localhost | Maakt één eenmalige Tailscale-sleutel voor een toestel uit `devices.yml` en toont hem. **Zie onder.** |
-| `devices.yml` | `unifi` + `adguard` | Richt de toestellen zonder SSH in: reservering op de gateway, naam en filterbeleid in AdGuard. **Zie onder.** |
 
 ```bash
 ansible-playbook playbooks/site.yml
@@ -204,53 +203,48 @@ Niet zondag 04:00: daar zitten de updates en de PBS-backup al.
 
 ## Toestellen zonder SSH
 
-`inventory/group_vars/all/devices.yml` is geen register maar de gewenste
-toestand van elk toestel dat geen SSH heeft. `playbooks/devices.yml` zet het
-door naar de twee systemen die zo'n toestel wél kunnen configureren.
+`inventory/group_vars/all/devices.yml` beschrijft wat AdGuard over een toestel
+moet weten. De `adguard`-rol zet dat door, dus een wijziging draai je met de
+tag die er al was:
 
 ```bash
-# Nieuw toestel: één regel in devices.yml, dan dit.
-ansible-playbook playbooks/devices.yml
-ansible-playbook playbooks/devices.yml --check --diff     # eerst kijken
+ansible-playbook playbooks/site.yml --tags dns --check --diff   # eerst kijken
+ansible-playbook playbooks/site.yml --tags dns
+ansible-playbook playbooks/docs.yml                             # profiel publiceren
 ```
 
-| Wat | Waar | Uit |
-|---|---|---|
-| Client-record op MAC, naam, bandbreedtegroep, vaste reservering | UniFi-gateway | `mac`, `ip`, `group` |
-| `<toestel>.home.arpa` en `<host>.home.arpa` | AdGuard | `ip` en `ansible_host` |
-| Client met filterbeleid | AdGuard | het `dns`-blok |
-| `docs.<domain>/profielen/<toestel>.mobileconfig` | docs-site | `devices_profile_types` |
-| Eenmalige Tailscale-sleutel | Tailscale | `tailscale-key.yml -e device=<naam>` |
+| Wat | Uit |
+|---|---|
+| `<toestel>.home.arpa` en `<host>.home.arpa` | `ip`, en `ansible_host` uit de inventory |
+| Client met filterbeleid, en een leesbaar querylog | het `dns`-blok |
+| `docs.<domain>/profielen/<toestel>.mobileconfig` | `devices_profile_types` |
+| Eenmalige Tailscale-sleutel | `tailscale-key.yml -e device=<naam>` |
 
-- **Een toestel hoeft nog niet te bestaan.** De gateway maakt een client aan op
-  een MAC-adres dat nooit verbonden heeft. Schrijf het nieuwe toestel op, draai
-  het playbook, en naam, adres, limiet, DNS-naam en filterbeleid gelden zodra
-  het voor het eerst op de wifi komt.
-- **Niet in `site.yml`.** Dit schrijft DHCP-reserveringen, en dat is
-  provisioning. De AdGuard-helft zit wél in de `adguard`-rol, zodat `site.yml`
-  beleidsdrift terugdraait.
-- **Geen van beide rollen verwijdert.** Haal je een toestel uit de lijst, dan
-  blijven zijn client-records staan; de run noemt bij elke keer welke AdGuard-
-  clients hij niet beheert. Vergeten doe je met de hand, in het scherm.
+- **De router blijft handwerk.** Een vast adres toekennen is twintig seconden
+  klikken, één keer per toestel. Een rol daarvoor heeft hier bestaan en is
+  weer verwijderd: hij kostte een apart account, een vault-bestand en het
+  onderhoud van een API die Ubiquiti bezit, en dat betaalt zich bij een
+  handvol toestellen nooit terug. `ip` is dus een aantekening van wat je daar
+  zette. `docs.yml` weigert wel een adres dat een beheerde host al gebruikt.
+- **Het `dns`-blok verdient wél een rol.** Het komt langs dezelfde API als de
+  namen, dus er komt niets bij. De instellingen zijn priegelig, ze driften als
+  iemand in het scherm iets omzet, en een run zet ze terug en noemt het veld.
+  Dat terugzetten is waar Ansible voor is.
 - **`dns.allowed` is een toestemming.** AdGuard bewaart een schema van
   ináctiviteit, dus het venster dat je opschrijft is precies het venster waarin
   de geblokkeerde diensten wél mogen. Een dag die ontbreekt is de hele dag
   dicht, en een venster loopt niet door middernacht. Daar staat een assert op.
-- **Lokaal UniFi-account**, gemaakt in het scherm onder Settings, Admins. De
-  Ubiquiti-cloudlogin vraagt een tweede factor en kan niet geautomatiseerd
-  worden. In `inventory/host_vars/unifi/vault.yml` als `vault_unifi_user` en
-  `vault_unifi_password`.
-- **De AdGuard-rol bezit alleen de rewrite-lijst en de clients van toestellen
-  uit de lijst.** `AdGuardHome.yaml` wordt één keer gelezen, voor de poort, en
-  nooit geschreven; het scherm blijft eigenaar van al het andere.
+- **De rol verwijdert geen clients.** Haal je een toestel uit de lijst, dan
+  blijft zijn client staan; elke run noemt welke clients hij niet beheert.
+  Vergeten doe je in het scherm.
+- **De AdGuard-rol bezit alleen de rewrite-lijst en de clients uit de lijst.**
+  `AdGuardHome.yaml` wordt één keer gelezen, voor de poort, en nooit
+  geschreven. Login in `inventory/host_vars/adguard/vault.yml`.
 - **Het telefoonprofiel** laat een toestel DNS-over-HTTPS spreken met
   `https://dns.<domain>/dns-query/<toestel>`. Dat laatste stuk is het client-ID,
   zodat AdGuard de telefoon bij naam kent wat zijn MAC-adres ook is. Caddy laat
   op `dns.<domain>` alleen `/dns-query` door. Eén schakelaar in AdGuard zelf:
   *Encryptie → Sta onversleutelde DNS-over-HTTPS toe*.
-
-De gateway zelf wordt niet geconfigureerd. Netwerken, wifi en firewall blijven
-handwerk in het scherm; dit raakt uitsluitend client-records.
 
 ## Tailnet
 

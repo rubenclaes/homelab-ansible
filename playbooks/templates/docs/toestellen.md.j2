@@ -20,8 +20,7 @@ import { Callout } from 'nextra/components'
      'ip': d.ip | default(''),
      'note': d.note | default(''),
      'profile': d.type in devices_profile_types,
-     'dns': d.dns | default({}),
-     'group': d.group | default('')
+     'dns': d.dns | default({})
    }) -%}
 {% endfor %}
 
@@ -33,15 +32,15 @@ Machines mét SSH staan onder [Hosts](/technisch/hosts/) — die komen uit de
 inventory, niet uit deze lijst.
 </Callout>
 
-Deze pagina beschrijft niet wat er is, maar wat er hoort te gelden.
-`playbooks/devices.yml` zet het door naar de twee systemen die een toestel
-zonder SSH kunnen configureren: de UniFi-gateway reserveert het adres en zet de
-naam, AdGuard maakt de DNS-naam `<toestel>.{{ adguard_rewrite_domain }}` en past
-het filterbeleid toe. Een toestel dat hier staat maar nog nooit verbonden heeft,
-is dus al ingericht vóór je het uitpakt.
+Het adres is een reservering die jij in de router zet, niet iets dat hier wordt
+afgedwongen. Wat hier wél wordt afgedwongen is alles wat AdGuard erover moet
+weten: `roles/adguard` maakt de naam `<toestel>.{{ adguard_rewrite_domain }}` en
+zet het filterbeleid uit het `dns`-blok. Elke host uit de inventory krijgt langs
+dezelfde weg `<host>.{{ adguard_rewrite_domain }}`.
 
-Elke host uit de inventory krijgt langs dezelfde weg
-`<host>.{{ adguard_rewrite_domain }}`.
+De router blijft handwerk. Een vast adres toekennen is twintig seconden klikken
+en gebeurt één keer per toestel; daar is een playbook voor duurder dan het
+oplevert.
 
 {# The blank lines inside the loops are deliberate. Ansible renders with
    trim_blocks on, so the newline after a block tag is eaten; without these a
@@ -64,7 +63,7 @@ Elke host uit de inventory krijgt langs dezelfde weg
 
 {{ r.name }} — [DNS-profiel](/profielen/{{ r.name }}.mobileconfig)
 {% endfor %}
-{% for r in group if r.dns or r.group %}
+{% for r in group if r.dns %}
 
 {{ r.name }} — {{ (
      (['geen filtering'] if r.dns.filtering is defined and not r.dns.filtering else [])
@@ -74,7 +73,6 @@ Elke host uit de inventory krijgt langs dezelfde weg
    + (['geblokkeerd: ' ~ (r.dns.blocked_services | join(', '))] if r.dns.blocked_services | default([]) else [])
    + (['toegestaan ' ~ (dagen | select('in', r.dns.allowed) | map('extract', dagnaam) | zip(dagen | select('in', r.dns.allowed) | map('extract', r.dns.allowed) | map(attribute='from')) | map('join', ' ') | zip(dagen | select('in', r.dns.allowed) | map('extract', r.dns.allowed) | map(attribute='to')) | map('join', '-') | join(', '))] if r.dns.allowed | default({}) else [])
    + (['eigen upstream'] if r.dns.upstreams | default([]) else [])
-   + (['bandbreedtegroep ' ~ r.group] if r.group else [])
  ) | join(' · ') }}
 {% endfor %}
 {% endfor %}

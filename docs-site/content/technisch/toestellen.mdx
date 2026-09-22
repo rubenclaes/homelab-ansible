@@ -13,15 +13,15 @@ Machines mét SSH staan onder [Hosts](/technisch/hosts/) — die komen uit de
 inventory, niet uit deze lijst.
 </Callout>
 
-Deze pagina beschrijft niet wat er is, maar wat er hoort te gelden.
-`playbooks/devices.yml` zet het door naar de twee systemen die een toestel
-zonder SSH kunnen configureren: de UniFi-gateway reserveert het adres en zet de
-naam, AdGuard maakt de DNS-naam `<toestel>.home.arpa` en past
-het filterbeleid toe. Een toestel dat hier staat maar nog nooit verbonden heeft,
-is dus al ingericht vóór je het uitpakt.
+Het adres is een reservering die jij in de router zet, niet iets dat hier wordt
+afgedwongen. Wat hier wél wordt afgedwongen is alles wat AdGuard erover moet
+weten: `roles/adguard` maakt de naam `<toestel>.home.arpa` en
+zet het filterbeleid uit het `dns`-blok. Elke host uit de inventory krijgt langs
+dezelfde weg `<host>.home.arpa`.
 
-Elke host uit de inventory krijgt langs dezelfde weg
-`<host>.home.arpa`.
+De router blijft handwerk. Een vast adres toekennen is twintig seconden klikken
+en gebeurt één keer per toestel; daar is een playbook voor duurder dan het
+oplevert.
 
 
 ## phone
