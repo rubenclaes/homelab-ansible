@@ -1,86 +1,217 @@
 ---
-title: Disaster recovery
+title: Herstellen
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Disaster recovery
+# Herstellen
 
-Een verloren guest terugbouwen is vier playbooks. De data komt van Proxmox
-Backup Server, de rest staat in Git.
+Er is iets stuk. Begin hier, en kies daarna het stuk dat op jouw situatie
+slaat.
+
+<Callout type="error">
+**Lees dit eerst, nu het nog rustig is.** De back-ups op de PBS-opslag zijn
+versleuteld. Zonder de sleutel is er niets terug te zetten, en die sleutel
+staat niet in deze repo en hoort daar ook niet.
+
+```bash
+proxmox-backup-client key show
+```
+
+Draai dat één keer, print het resultaat, en leg het ergens buiten het huis.
+Ben je pve01 én de sleutel kwijt, dan zijn je back-ups onleesbaar en stopt dit
+document hier.
+</Callout>
+
+## Wat ben je kwijt?
+
+| Situatie | Ga naar |
+| --- | --- |
+| Een container is stuk, de data is niet belangrijk | [Opnieuw opbouwen](#opnieuw-opbouwen) |
+| Een container of VM is stuk, de data moet terug | [Back-up terugzetten](#back-up-terugzetten) |
+| pve01 zelf is weg | [De hele node](#de-hele-node) |
+
+## Opnieuw opbouwen
+
+Voor iets dat zijn waarde niet op zijn schijf heeft staan: caddy, adguard,
+tailscale. Die bouw je sneller opnieuw dan je een back-up terugzet, en het
+resultaat is schoner.
 
 <Steps>
 
-### Container opnieuw aanmaken
+### Bouw de container opnieuw
 
 ```bash
-ansible-playbook playbooks/proxmox-lxcs.yml
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ```
 
-De rol vergelijkt `pve_lxcs` met wat Proxmox werkelijk heeft en maakt alleen aan
-wat ontbreekt. Bestaande containers worden nooit aangepast, dus dit mag altijd
-draaien.
+Bestaat de oude container nog half, gooi hem dan eerst weg in het
+Proxmox-scherm. Het playbook maakt alleen wat ontbreekt.
 
-Het adres van een container staat letterlijk in `pve_lxcs` en wordt daar niet
-afgeleid uit de inventory: een container die nog niet bestaat, staat ook niet in
-de Proxmox-inventory. Dit bestand is de bron van het adres tot Proxmox de
-container kent — daarna neemt de inventory het over.
-
-### Serviceaccount aanmaken
+### Zet de dienst terug
 
 ```bash
-ansible-playbook playbooks/bootstrap.yml --limit <host> \
-  -e ansible_user=root -e ansible_become=false
+ansible-playbook playbooks/site.yml --limit caddy
 ```
 
-Een net aangemaakte container draagt de Ansible-publieke sleutel al, dus dit is
-de enige stap die als root praat. Een host die de sleutel níét heeft (geen
-Proxmox-guest, bijvoorbeeld) gaat met `-u root -k` en een wachtwoord.
+Dat is het. De rol installeert de dienst en zet zijn configuratie.
 
-### Baseline toepassen
+</Steps>
+
+## Back-up terugzetten
+
+Voor alles waarvan de schijf het punt is: de Docker-host, Immich, je foto's.
+
+<Steps>
+
+### Kijk wat er is
+
+Op pve01:
 
 ```bash
-ansible-playbook playbooks/baseline.yml --limit <host>
+pvesm list pbs
 ```
 
-Dit zet ook `qemu-guest-agent` op VM's. Zonder die agent meldt een VM geen adres
-en valt hij uit de dynamische inventory.
+Dat toont elke back-up met zijn volledige naam, bijvoorbeeld
+`pbs:backup/ct/107/2026-09-20T01:00:00Z`. Die hele string heb je zo nodig.
+Kies de nieuwste die van vóór de storing is.
 
-### Servicerol toepassen
+### Zet hem terug
 
-`playbooks/caddy.yml`, `playbooks/semaphore.yml`, `playbooks/stacks.yml` — welke
-de host ook is.
+**Een container:**
+
+```bash
+pct restore 107 pbs:backup/ct/107/2026-09-20T01:00:00Z --storage vm-hdd
+```
+
+**Een virtuele machine:**
+
+```bash
+qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd
+```
+
+<Callout type="warning">
+De volgorde van de argumenten is bij die twee omgedraaid. Bij `pct restore`
+komt het nummer eerst, bij `qmrestore` de back-up. Dat is geen typefout in dit
+document, het is echt zo.
+</Callout>
+
+Bestaat er nog iets op dat nummer, dan weigert het commando. Zet er
+`--force` achter om het te overschrijven, maar kijk eerst of je wel het goede
+nummer hebt.
+
+### Twijfel je? Zet hem ernaast
+
+Je hoeft het origineel niet te overschrijven om te kijken of een back-up
+deugt. Zet hem terug op een vrij nummer en start hem niet op het netwerk:
+
+```bash
+pct restore 199 pbs:backup/ct/107/2026-09-20T01:00:00Z --storage vm-hdd
+pct start 199
+pct exec 199 -- ls /var/lib/wat-je-zoekt
+pct destroy 199
+```
+
+Dit is ook de manier om af en toe te controleren dat je back-ups echt werken,
+zonder iets te riskeren.
+
+### Start hem en trek hem gelijk
+
+```bash
+pct start 107
+ansible-playbook playbooks/site.yml --limit adguard
+```
+
+De teruggezette machine draait de configuratie van het moment van de back-up.
+De playbook-run brengt hem terug naar wat de repo zegt.
 
 </Steps>
 
 <Callout type="warning">
-Een herbouwde host heeft een **nieuwe SSH-hostkey**. Je werkstation weigert te
-verbinden tot je `ssh-keygen -R <adres>` draait. Semaphore repareert zichzelf bij
-de volgende run van `playbooks/semaphore.yml`, die hostkeys uit facts verzamelt.
+Een teruggezette machine heeft een **nieuwe SSH-hostkey**. Je werkstation
+weigert te verbinden tot je `ssh-keygen -R <adres>` draait. Semaphore
+repareert zichzelf bij de volgende run van `playbooks/semaphore.yml`.
 </Callout>
 
-## De hele node kwijt
+## De hele node
 
-Na het herinstalleren van Proxmox zelf heeft het API-token nog geen rechten. De
-dynamische inventory is dan leeg, want die haalt guests via dat token op:
+pve01 opnieuw geïnstalleerd. Dit is de lange weg, en de volgorde doet ertoe.
+
+<Steps>
+
+### Installeer Proxmox en zet het netwerk goed
+
+Met de hand, vanaf een USB-stick. Zorg dat de node weer op `192.168.0.14`
+zit, want de hele inventory verwijst daarnaar.
+
+### Geef het API-token zijn rechten terug
 
 ```bash
 ansible-playbook playbooks/proxmox-access.yml
 ```
 
-Die zet de rechten van de rol `AnsibleAutomation` terug, inclusief
-`VM.GuestAgent.Audit` — zonder dat geeft het guest-agent-endpoint 403 en krijgen
-de QEMU-guests geen adres.
+Doe dit als eerste. De dynamische inventory haalt de guests via dat token op,
+dus zonder deze stap ziet Ansible een leeg huis.
 
-## Testen
+### Koppel de PBS-opslag
 
-Het herstelpad is pas echt als het gedraaid heeft. Zet een wegwerp-entry in
-`pve_lxcs`, laat de rol hem bouwen, gooi hem weg met `pct destroy` en draai de
-rol opnieuw.
+Met de hand, in het Proxmox-scherm, onder Datacenter → Storage. Je hebt de
+encryptiesleutel nodig en het wachtwoord van `pve@pbs`, dat alleen in het
+PBS-scherm staat.
 
-Controleer daarna dat de inventory klopt:
+Deze stap staat met opzet niet in een playbook: de opslagdefinitie draagt de
+encryptiesleutel, en die hoort niet in Git.
+
+### Zet de overige opslag en de back-upjobs terug
 
 ```bash
-ansible-inventory --graph
-ansible all -m ping
+ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
 ```
+
+De vlag staat er met opzet niet standaard op. Ontbrekende opslag betekent op
+een gezonde node "je transcriptie klopt niet", en op een herbouwde node "dit
+bestand is de waarheid". Alleen jij weet welke van de twee.
+
+### Bouw de containers
+
+```bash
+ansible-playbook playbooks/proxmox-lxcs.yml
+```
+
+Dit maakt alles uit `pve_lxcs` dat ontbreekt. Daarna per container
+bootstrappen en baselinen, of in één keer met `new-guest.yml` per stuk.
+
+### Maak de virtuele machines
+
+Met de hand, in het scherm. `inventory/group_vars/proxmox/vms.yml` noteert per
+VM het aantal cores, het geheugen, de schijfgrootte en het MAC-adres, zodat je
+ze in de juiste vorm terugbouwt zonder te gokken. Hun data komt daarna uit
+PBS, zie [Back-up terugzetten](#back-up-terugzetten).
+
+Het MAC-adres overnemen is belangrijk: daar hangt de DHCP-reservering aan.
+
+### Trek alles gelijk
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff
+ansible-playbook playbooks/site.yml
+```
+
+</Steps>
+
+## Controleer dat je herstelpad werkt
+
+Een herstelpad dat nooit gedraaid heeft, is een aanname.
+
+```bash
+ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
+```
+
+Dit bouwt een wegwerpcontainer, bootstrapt hem, baselinet hem, controleert of
+hij bruikbaar is en sloopt hem weer. Faalt het onderweg, dan blijft de
+container staan zodat je kunt kijken wat er misging.
+
+Draai dit na elke wijziging aan `proxmox_lxc`, `bootstrap.yml`, de
+baseline-rol of `new-guest.yml`. En zet af en toe een echte back-up terug op
+een vrij nummer, zoals hierboven beschreven; dat is het enige wat bewijst dat
+je back-ups meer zijn dan een groen vinkje.

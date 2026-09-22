@@ -1,0 +1,120 @@
+---
+# Syncs the DNS rewrite list over the REST API.
+#
+# Desired state is every inventory host with an ansible_host, plus every
+# device in devices.yml with an ip, each as <name>.<adguard_rewrite_domain>.
+# The role owns that zone and nothing else: a name under it that the
+# inventory does not ask for is removed, a rewrite outside it is left alone.
+# AdGuardHome.yaml is read once, for the web port, and never written.
+
+- name: Find the AdGuard API
+  ansible.builtin.import_tasks: api.yml
+  when: adguard_http_port is not defined
+
+# "name answer" strings rather than dicts, so the lists can be compared with
+# difference and union: a dict is not hashable, a string is.
+- name: Collect the names the inventory asks for
+  ansible.builtin.set_fact:
+    adguard_rewrites_wanted: >-
+      {{ (adguard_host_names | zip(adguard_host_addrs) + adguard_device_names | zip(adguard_device_addrs))
+         | map('join', ' ') | sort }}
+  vars:
+    adguard_hosts_with_addr: >-
+      {{ groups['all'] | sort | map('extract', hostvars) | selectattr('ansible_host', 'defined') | list }}
+    adguard_host_names: >-
+      {{ adguard_hosts_with_addr | map(attribute='inventory_hostname')
+         | map('regex_replace', '$', '.' ~ adguard_rewrite_domain) | list }}
+    adguard_host_addrs: "{{ adguard_hosts_with_addr | map(attribute='ansible_host') | list }}"
+    adguard_devices_with_addr: >-
+      {{ devices | default({}) | dict2items | selectattr('value.ip', 'defined') | sort(attribute='key') | list }}
+    adguard_device_names: >-
+      {{ adguard_devices_with_addr | map(attribute='key')
+         | map('regex_replace', '$', '.' ~ adguard_rewrite_domain) | list }}
+    adguard_device_addrs: "{{ adguard_devices_with_addr | map(attribute='value.ip') | list }}"
+
+# The API lowercases domains and rejects bad ones with a 400 that names
+# nothing. Check here, where the message can say which name is wrong.
+- name: Require names that are valid DNS names
+  ansible.builtin.assert:
+    that: adguard_rewrites_bad | length == 0
+    fail_msg: >-
+      Not a valid DNS name (lowercase letters, digits and hyphens only):
+      {{ adguard_rewrites_bad | join(', ') }}.
+    success_msg: "{{ adguard_rewrites_wanted | length }} names wanted under {{ adguard_rewrite_domain }}."
+  vars:
+    adguard_rewrites_bad: >-
+      {{ adguard_rewrites_wanted | map('regex_replace', ' .*$', '')
+         | reject('match', '^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$') | list }}
+
+- name: Read the current rewrite list
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/rewrite/list"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+    return_content: true
+  register: adguard_rewrite_list
+  check_mode: false
+  no_log: true
+
+# A disabled entry is counted as absent: it is removed and, if still wanted,
+# added back enabled. Removal goes first because the API appends on add and
+# matches on domain+answer on delete, so the other order would delete both.
+- name: Work out what differs
+  ansible.builtin.set_fact:
+    adguard_rewrites_remove: "{{ adguard_rewrites_owned | difference(adguard_rewrites_wanted) | union(adguard_rewrites_disabled) | sort }}"
+    adguard_rewrites_add: "{{ adguard_rewrites_wanted | difference(adguard_rewrites_owned | difference(adguard_rewrites_disabled)) | sort }}"
+  vars:
+    adguard_owned_entries: >-
+      {{ adguard_rewrite_list.json
+         | selectattr('domain', 'search', '\.' ~ (adguard_rewrite_domain | regex_escape) ~ '$') | list }}
+    adguard_disabled_entries: >-
+      {{ adguard_owned_entries | selectattr('enabled', 'defined') | rejectattr('enabled') | list }}
+    adguard_rewrites_owned: >-
+      {{ adguard_owned_entries | map(attribute='domain') | zip(adguard_owned_entries | map(attribute='answer'))
+         | map('join', ' ') | list }}
+    adguard_rewrites_disabled: >-
+      {{ adguard_disabled_entries | map(attribute='domain') | zip(adguard_disabled_entries | map(attribute='answer'))
+         | map('join', ' ') | list }}
+
+# The API tasks below run with no_log because they carry the password, so
+# this is the only place the run shows what changes. It also reports the
+# change under --check, where the API calls are skipped.
+- name: Report the rewrites that will change
+  ansible.builtin.debug:
+    msg:
+      remove: "{{ adguard_rewrites_remove }}"
+      add: "{{ adguard_rewrites_add }}"
+  changed_when: true
+  when: adguard_rewrites_remove | length > 0 or adguard_rewrites_add | length > 0
+
+- name: Remove rewrites the inventory no longer asks for
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/rewrite/delete"
+    method: POST
+    body_format: json
+    body:
+      domain: "{{ item.split(' ') | first }}"
+      answer: "{{ item.split(' ') | last }}"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ adguard_rewrites_remove }}"
+  changed_when: true
+  no_log: true
+
+- name: Add the rewrites that are missing
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/rewrite/add"
+    method: POST
+    body_format: json
+    body:
+      domain: "{{ item.split(' ') | first }}"
+      answer: "{{ item.split(' ') | last }}"
+      enabled: true
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ adguard_rewrites_add }}"
+  changed_when: true
+  no_log: true

@@ -1,4 +1,5 @@
 export default {
-  'disaster-recovery': 'Disaster recovery',
+  'nieuwe-guest': 'Nieuwe machine',
+  'disaster-recovery': 'Herstellen',
   updates: 'Updates'
 }

@@ -4,10 +4,12 @@ title: Toestellen
 
 import { Callout } from 'nextra/components'
 
-{# Flattened to a list of rows first, so groupby has a plain attribute to work
-   on and the table loop does not need to know that `devices` is a mapping.
-   dictsort makes the order within a type deterministic; groupby sorts the
-   types themselves, so a second run produces no diff. -#}
+{# Eerst platgeslagen tot een lijst met rijen, zodat groupby een gewoon
+   attribuut heeft en de tabellus niet hoeft te weten dat `devices` een
+   mapping is. dictsort maakt de volgorde binnen een type vast; groupby
+   sorteert de types zelf, dus een tweede run geeft geen diff. -#}
+{% set dagen = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] -%}
+{% set dagnaam = {'mon': 'ma', 'tue': 'di', 'wed': 'wo', 'thu': 'do', 'fri': 'vr', 'sat': 'za', 'sun': 'zo'} -%}
 {% set rows = [] -%}
 {% for name, d in devices | dictsort -%}
 {% set _ = rows.append({
@@ -16,7 +18,8 @@ import { Callout } from 'nextra/components'
      'type': d.type,
      'mac': d.mac,
      'ip': d.ip | default(''),
-     'note': d.note | default('')
+     'note': d.note | default(''),
+     'dns': d.dns | default({})
    }) -%}
 {% endfor %}
 
@@ -28,13 +31,23 @@ Machines mét SSH staan onder [Hosts](/technisch/hosts/) — die komen uit de
 inventory, niet uit deze lijst.
 </Callout>
 
-Adressen zijn reserveringen in de router, geen metingen. De lijst legt vast wat
-er hoort te staan; niets hier dwingt het af.
+Het adres is een reservering die jij in de router zet, niet iets dat hier wordt
+afgedwongen. Wat hier wél wordt afgedwongen is alles wat AdGuard erover moet
+weten: `roles/adguard` maakt de naam `<toestel>.{{ adguard_rewrite_domain }}` en
+zet het filterbeleid uit het `dns`-blok. Elke host uit de inventory krijgt langs
+dezelfde weg `<host>.{{ adguard_rewrite_domain }}`.
 
-{# The blank lines inside the loops are deliberate. Ansible renders with
-   trim_blocks on, so the newline after a block tag is eaten; without these a
-   table runs straight into the next heading and Markdown stops seeing it as
-   one. -#}
+Doorvoeren na een wijziging: `ansible-playbook playbooks/site.yml --tags dns`.
+
+{% if rows | length == 0 %}
+Er staan nog geen toestellen in de lijst. Voeg er een toe in
+`inventory/group_vars/all/devices.yml`; het bestand bevat voorbeelden om te
+kopiëren.
+{% endif %}
+{# De lege regels in de lussen staan er met opzet. Ansible rendert met
+   trim_blocks aan, dus de newline na een blok-tag verdwijnt; zonder die
+   regels loopt een tabel rechtstreeks door in de volgende kop en ziet
+   Markdown het niet meer als tabel. -#}
 {% for type, group in rows | groupby('type') %}
 
 ## {{ type }}
@@ -47,5 +60,17 @@ er hoort te staan; niets hier dwingt het af.
 {% for r in group if r.note %}
 
 {{ r.name }} — {{ r.note }}
+{% endfor %}
+{% for r in group if r.dns %}
+
+{{ r.name }} — {{ (
+     (['geen filtering'] if r.dns.filtering is defined and not r.dns.filtering else [])
+   + (['safe search'] if r.dns.safe_search | default(false) else [])
+   + (['parental control'] if r.dns.parental | default(false) else [])
+   + (['safe browsing'] if r.dns.safebrowsing | default(false) else [])
+   + (['geblokkeerd: ' ~ (r.dns.blocked_services | join(', '))] if r.dns.blocked_services | default([]) else [])
+   + (['toegestaan ' ~ (dagen | select('in', r.dns.allowed) | map('extract', dagnaam) | zip(dagen | select('in', r.dns.allowed) | map('extract', r.dns.allowed) | map(attribute='from')) | map('join', ' ') | zip(dagen | select('in', r.dns.allowed) | map('extract', r.dns.allowed) | map(attribute='to')) | map('join', '-') | join(', '))] if r.dns.allowed | default({}) else [])
+   + (['eigen upstream'] if r.dns.upstreams | default([]) else [])
+ ) | join(' · ') }}
 {% endfor %}
 {% endfor %}

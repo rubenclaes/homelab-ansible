@@ -5,3 +5,29 @@ tailscale_repo_uri: https://pkgs.tailscale.com/stable/debian
 # Follows the host's own release rather than a literal suite, so a container
 # rebuilt from the Debian 13 template gets the right one.
 tailscale_repo_suite: "{{ ansible_facts['distribution_release'] }}"
+
+# --- Joining the tailnet ----------------------------------------------------
+# Optional. When tailscale_oauth_client_id and tailscale_oauth_client_secret
+# are set (inventory/host_vars/tailscale/, from its vault.yml), a node that is
+# not on the tailnet mints itself a single-use, pre-authorised auth key over
+# the API and joins. Nothing about the node's identity is stored in the repo:
+# the key is used once and the OAuth client can only make keys. Without the
+# client the role reports, as before, and the join stays a manual step.
+tailscale_api_url: https://api.tailscale.com/api/v2
+
+# "-" is the tailnet the credentials belong to, so its name never has to be
+# spelled out here.
+tailscale_tailnet: "-"
+
+# Every node joined this way carries these tags. A key made by an OAuth
+# client must be tagged, and the tag must exist in the tailnet policy
+# (tagOwners) with the OAuth client allowed to assign it.
+tailscale_tags: [tag:homelab]
+
+# The minted key only has to survive until `tailscale up` uses it.
+tailscale_key_expiry_seconds: 600
+
+# Per-host extras for `tailscale up`: --advertise-routes=..., --ssh, and so
+# on. A node that already holds such prefs refuses a bare `tailscale up`, so
+# what it advertised before has to be repeated here.
+tailscale_up_extra_args: []

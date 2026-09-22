@@ -1,10 +1,12 @@
 ---
-# Installs the AdGuard Home binary and its unit.
+# Installs the AdGuard Home binary and its unit, then syncs the DNS rewrite
+# list and the per-device client policy over the REST API.
 #
 # It does NOT manage AdGuardHome.yaml or data/. That file holds the admin
 # password hash, the upstream resolvers and every filter rule, it is edited
 # through the web UI, and it is genuine runtime state. Templating it would
-# mean this role fights the UI for ownership.
+# mean this role fights the UI for ownership. The rewrites go through the API
+# for the same reason: the UI keeps the file, the inventory keeps the names.
 - name: Read the installed AdGuard Home version
   ansible.builtin.command: "{{ adguard_dir }}/AdGuardHome --version"
   register: adguard_installed
@@ -68,3 +70,9 @@
     name: AdGuardHome
     enabled: true
     state: started
+
+- name: Sync the DNS rewrites
+  ansible.builtin.import_tasks: rewrites.yml
+
+- name: Sync the per-device client policy
+  ansible.builtin.import_tasks: clients.yml

@@ -10,3 +10,29 @@ adguard_checksum: sha256:b4b01a5da971a67bc2458ba0fc075de1b356cf6a37843e900177f32
 adguard_dir: /opt/AdGuardHome
 adguard_url: >-
   https://github.com/AdguardTeam/AdGuardHome/releases/download/{{ adguard_version }}/AdGuardHome_linux_amd64.tar.gz
+
+# --- DNS rewrites ---------------------------------------------------------
+# The one part of AdGuard's configuration this role does own: the rewrite
+# list, and within it only the names under adguard_rewrite_domain. They are
+# set through the REST API, so AdGuardHome.yaml is never written and the web
+# UI keeps every other setting. A rewrite outside this zone - one made by
+# hand in the UI - is never touched.
+#
+# home.arpa is the zone RFC 8375 reserves for exactly this. It never resolves
+# on the public internet, so a query that leaks is harmless, and it cannot
+# collide with the *.neodata.be names Caddy serves: `semaphore` is both a
+# host and a route, and only one of them may own semaphore.neodata.be.
+#
+# Also set, as a plain value, in inventory/host_vars/adguard/main.yml, so
+# docs.yml can read it through hostvars.
+adguard_rewrite_domain: home.arpa
+
+# adguard_api_user and adguard_api_password have no default on purpose. They
+# are the web UI login, and come from inventory/host_vars/adguard/vault.yml.
+# The role fails without them rather than skipping the sync silently: a
+# rewrite list that quietly stops being applied is worse than a red run.
+
+# Where the web API listens. The port is read from AdGuardHome.yaml
+# (http.address) at run time, so the role follows whatever the setup wizard
+# chose; override this only if the API is not on the host itself.
+adguard_api_url: "http://127.0.0.1:{{ adguard_http_port }}"

@@ -1,0 +1,128 @@
+---
+# Eén nieuwe LXC-container op pve01, van niets tot een machine waar de rollen
+# op kunnen draaien.
+#
+#   ansible-playbook playbooks/new-guest.yml -e guest=<hostname>
+#
+# Vooraf: zet de container in `pve_lxcs`, in
+# inventory/group_vars/proxmox/lxcs.yml. Dat bestand is de bron van zijn adres
+# tot Proxmox hem kent; daarna neemt de dynamische inventory het over.
+#
+# Wat dit doet: de container aanmaken, wachten tot hij luistert, zijn SSH-
+# hostkey vertrouwen, het `ansible`-serviceaccount aanmaken en de baseline
+# toepassen. Daarna is het een gewone host en mag site.yml erop.
+#
+# Wat dit NIET doet: de dienst installeren. Dat is per dienst een rol, of voor
+# een Docker-dienst playbooks/new-service.yml.
+#
+# Dit loopt hetzelfde pad als recovery-drill.yml, dat het bewijst door er een
+# wegwerpcontainer mee te bouwen en weer te slopen. Wijzig je hier iets,
+# draai dan die drill.
+#
+# Let op: de proxmox_lxc-rol is lijstgestuurd en maakt élke container uit
+# pve_lxcs die nog niet bestaat, niet alleen degene die je noemt. Bootstrappen
+# en baselinen gebeurt wél alleen op de genoemde. Dat is hetzelfde gedrag als
+# proxmox-lxcs.yml, alleen nu met de vervolgstappen eraan vast.
+- name: Create the container and make it reachable
+  hosts: pve01
+  gather_facts: true
+  tasks:
+    - name: Require a guest that the inventory describes
+      ansible.builtin.assert:
+        that:
+          - guest is defined
+          - guest in (pve_lxcs | map(attribute='hostname') | list)
+        fail_msg: >-
+          Pass -e guest=<hostname>, one of:
+          {{ pve_lxcs | map(attribute='hostname') | sort | join(', ') }}.
+          A container that is not in pve_lxcs cannot be created; describe it
+          there first, in inventory/group_vars/proxmox/lxcs.yml.
+        success_msg: "Building {{ guest | default('?') }}"
+
+    - name: Remember what the inventory says about it
+      ansible.builtin.set_fact:
+        new_guest_entry: "{{ pve_lxcs | selectattr('hostname', 'eq', guest) | first }}"
+
+    - name: Create any container the list describes but the node lacks
+      ansible.builtin.include_role:
+        name: proxmox_lxc
+
+    - name: Wait for SSH on {{ guest }}
+      ansible.builtin.wait_for:
+        host: "{{ new_guest_entry.ip | split('/') | first }}"
+        port: 22
+        timeout: 180
+      delegate_to: localhost
+      become: false
+
+    # A container this new presents a host key nobody has seen, and Ansible
+    # cannot accept an unknown key non-interactively. `pct exec` reads it
+    # through the hypervisor rather than over the network, so this trusts a
+    # key taken from the machine's own disk instead of whatever answers on
+    # that address.
+    - name: Read its SSH host key through the hypervisor
+      ansible.builtin.command: pct exec {{ new_guest_entry.vmid }} -- cat /etc/ssh/ssh_host_ed25519_key.pub
+      register: new_guest_host_key
+      changed_when: false
+
+    - name: Trust that key on the controller
+      ansible.builtin.known_hosts:
+        name: "{{ new_guest_entry.ip | split('/') | first }}"
+        key: >-
+          {{ new_guest_entry.ip | split('/') | first }}
+          {{ new_guest_host_key.stdout.split()[0] }}
+          {{ new_guest_host_key.stdout.split()[1] }}
+        state: present
+      delegate_to: localhost
+      become: false
+
+    # The dynamic inventory was read before this container existed, so it is
+    # not in it yet. This makes the plays below able to reach it now; the next
+    # run picks it up from Proxmox like any other guest.
+    - name: Add it to this run's inventory
+      ansible.builtin.add_host:
+        name: "{{ guest }}"
+        ansible_host: "{{ new_guest_entry.ip | split('/') | first }}"
+        groups: new_guest
+
+# Root with a key, because pve_lxc_defaults.pubkey was injected at creation.
+# A container that did NOT get that key needs `-u root -k` and a password; see
+# playbooks/bootstrap.yml.
+- name: Create the ansible service account
+  hosts: new_guest
+  gather_facts: true
+  remote_user: root
+  vars:
+    svc_user: ansible
+    svc_pubkey: "{{ lookup('file', '~/.ssh/ansible_ed25519.pub') }}"
+  tasks:
+    - name: Provision the service account
+      ansible.builtin.import_tasks: tasks/bootstrap_host.yml
+
+- name: Apply the baseline
+  hosts: new_guest
+  gather_facts: true
+  vars:
+    ansible_user: ansible
+    ansible_become: true
+  roles:
+    - baseline
+
+- name: What happens next
+  hosts: new_guest
+  gather_facts: false
+  vars:
+    ansible_user: ansible
+    ansible_become: true
+  tasks:
+    - name: Say it
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }} draait en is gebaselined."
+          - ""
+          - "1. Installeer de dienst. Een eigen rol, of voor een Docker-dienst:"
+          - "   ansible-playbook playbooks/new-service.yml -e svc_name=... -e svc_port=... -e svc_image=..."
+          - "2. Wil je hem op een naam bereiken, zet hem in caddy_sites"
+          - "   (inventory/host_vars/caddy/main.yml) en draai playbooks/caddy.yml."
+          - "3. Commit pve_lxcs en de rest, anders bestaat deze machine alleen bij jou."
+          - "4. ansible-playbook playbooks/site.yml --check --diff, om te zien dat alles klopt."

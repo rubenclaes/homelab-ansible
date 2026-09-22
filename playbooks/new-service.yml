@@ -117,6 +117,9 @@
       register: vault_header
       failed_when: vault_header is changed
 
+    # A single brace is not a Jinja delimiter, so these lines need no escaping
+    # and are written as they will appear in the file.
+    #
     # Both entries go directly under their list header rather than at the end:
     # order is irrelevant to Ansible, and anchoring to a header is the one
     # position that cannot land inside a comment block or another variable.
@@ -124,15 +127,13 @@
       ansible.builtin.lineinfile:
         path: "{{ docker_vars }}"
         insertafter: '^docker_stacks_list:'
-        line: "  - {{ '{' }} name: {{ svc_name }}, path: {{ svc_name }} {{ '}' }}"
+        line: '  - { name: {{ svc_name }}, path: {{ svc_name }} }'
 
     - name: Register the route
       ansible.builtin.lineinfile:
         path: "{{ caddy_vars }}"
         insertafter: '^caddy_sites:'
-        line: >-
-          {{ '  - {' }} name: {{ svc_subdomain }}, host: {{ svc_host }},
-          port: {{ svc_port }}, desc: "{{ svc_desc }}" {{ '}' }}
+        line: '  - { name: {{ svc_subdomain }}, host: {{ svc_host }}, port: {{ svc_port }}, desc: "{{ svc_desc }}" }'
 
     - name: What happens next
       ansible.builtin.debug:

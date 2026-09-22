@@ -3,31 +3,86 @@
 # TV, the printer, the parents' PC. Machines with SSH live in the inventory
 # and stay there - one fact, one place.
 #
-# The MAC is the identifier, not the IP. Same reason pve_vms records them: a
-# new MAC means a new DHCP lease. The router at 192.168.0.1 hands out the
-# addresses; `ip` here is the reservation set there, written down so a rebuilt
-# router can be put back the way it was. Nothing in this repo enforces it.
+# What this file is for is what AdGuard needs to know about a device. The
+# `adguard` role reads it and does two things over the API:
 #
-# A device with no reservation simply has no `ip`. That is normal for a guest's
-# phone and is not a gap.
+#   a DNS name      <device>.home.arpa, from `ip`
+#   a client        so AdGuard knows this device by name rather than by
+#                   address, with the filtering policy from the `dns` block
 #
-# MACs are lowercase with colons. docs.yml asserts the form, so two spellings
-# cannot become two devices.
-devices:
-  iphone-ruben:
-    owner: Ruben
-    type: phone
-    mac: "aa:bb:cc:dd:ee:ff"
-    ip: 192.168.0.60
+# What this file is NOT for is the router. Reserving an address there is
+# twenty seconds of clicking, once per device, and a role that did it for you
+# would cost more in upkeep than it saves - Ubiquiti owns that API and can
+# change it. So `ip` is a record of the reservation you set by hand, the way
+# it was always meant to be. Getting it wrong is caught by docs.yml, which
+# refuses an address that a managed host already uses.
+#
+# The MAC is the identifier, not the IP: a new MAC means a new device. A
+# device with no reservation simply has no `ip`, which is normal for a guest's
+# phone.
+#
+# MACs are lowercase with colons; the key is lowercase letters, digits and
+# hyphens. docs.yml asserts both, because the key becomes a DNS name and the
+# AdGuard client ID.
+#
+# --- The `dns` block ------------------------------------------------------
+# Optional. Leave it out and the device uses AdGuard's global settings; it
+# still gets a named client, which is the point of naming it at all.
+#
+#   filtering: false          turn ad blocking off for this device
+#   safebrowsing / parental   AdGuard's own toggles, same meaning as the UI
+#   safe_search: true         force safe search on the big search engines
+#   blocked_services: [...]   service IDs as AdGuard spells them; the exact
+#                             list your version knows is at
+#                             `GET /control/blocked_services/all`
+#   allowed: {mon: {...}}     the window in which blocked_services are NOT
+#                             blocked. AdGuard stores a schedule of
+#                             *inactivity*, so this is an allowance, not a
+#                             ban. A day that is missing is blocked all day.
+#   upstreams: [...]          send this device's queries somewhere else
+#
+# This block is the one part that earns a playbook. It is fiddly to enter by
+# hand, it drifts when someone changes it in the UI, and a schedule you argue
+# about is worth having in Git with a history.
+# Leeg tot je echte toestellen invult. Zolang hier niets staat maakt de
+# adguard-rol alleen namen voor de hosts uit de inventory, en dat is precies
+# goed: een verzonnen MAC-adres levert een DNS-naam op die nergens bij hoort.
+#
+# Kopieer een van deze blokken naar binnen en vul je eigen gegevens in. Het
+# MAC-adres en het vaste adres vind je in UniFi, onder Clients.
+#
+#   iphone-ruben:
+#     owner: Ruben
+#     type: phone
+#     mac: "aa:bb:cc:dd:ee:ff"
+#     ip: 192.168.0.60
+#
+#   printer:
+#     owner: gedeeld
+#     type: printer
+#     mac: "77:88:99:aa:bb:cc"
+#     ip: 192.168.0.71
+#     dns:
+#       # Een printer die zijn fabrikant niet kan bereiken, gaat zeuren over
+#       # cartridges. Er browst niets op, dus filteren levert niets op.
+#       filtering: false
+#
+#   ipad-kinderen:
+#     owner: kinderen
+#     type: tablet
+#     mac: "aa:bb:cc:dd:ee:01"
+#     ip: 192.168.0.62
+#     dns:
+#       safe_search: true
+#       parental: true
+#       blocked_services: [tiktok, youtube]
+#       # Kijken mag na school en in het weekend. Buiten deze vensters staan
+#       # de diensten hierboven dicht.
+#       allowed:
+#         mon: { from: "16:00", to: "20:00" }
+#         sat: { from: "09:00", to: "21:00" }
+devices: {}
 
-  tv-woonkamer:
-    owner: gedeeld
-    type: tv
-    mac: "11:22:33:44:55:66"
-    ip: 192.168.0.70
-    note: "Chromecast ingebouwd; praat met Plex"
-
-  printer:
-    owner: gedeeld
-    type: printer
-    mac: "77:88:99:aa:bb:cc"
+# Time zone for every `allowed` schedule. AdGuard stores one per client; this
+# keeps them from drifting apart.
+devices_dns_timezone: Europe/Brussels

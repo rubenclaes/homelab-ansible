@@ -5,17 +5,25 @@ on:
   push:
     branches: [master]
   pull_request:
+  # Handmatig startbaar, zodat een feature-branch ook gecontroleerd kan worden
+  # zonder dat er al een pull request voor open staat.
+  workflow_dispatch:
 
-# A push to a PR branch used to trigger this twice (once for `push`, once for
-# `pull_request`). Limiting `push` to master fixes that; this cancels any run
-# still in flight when new commits land.
+# Een push naar een PR-branch triggerde dit twee keer. `push` beperken tot
+# master lost dat op; dit annuleert een run die nog loopt als er nieuwe
+# commits binnenkomen.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Deze workflow leest alleen. Zonder dit blok krijgt de token de standaard
+# rechten van de repo, en die zijn ruimer dan nodig.
+permissions:
+  contents: read
+
 env:
-  # Pinned so CI cannot drift away from the workstation toolchain.
-  # Bump deliberately, together with collections/requirements.yml.
+  # Gepind zodat CI niet uit de pas loopt met het werkstation.
+  # Bump samen met requirements.txt en collections/requirements.yml.
   ANSIBLE_CORE_VERSION: "2.21.4"
   ANSIBLE_LINT_VERSION: "26.8.0"
 
@@ -25,15 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      # Cheapest check, and the one with the worst failure mode, so run it
-      # before anything else has a chance to time out.
+      # Goedkoopste controle met de vervelendste gevolgen, dus als eerste.
       - name: Verify no secret is committed in plaintext
         run: bin/check-vaulted
 
@@ -45,7 +52,7 @@ jobs:
             "ansible-lint==${ANSIBLE_LINT_VERSION}"
 
       - name: Cache Galaxy collections
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.ansible/collections
           key: collections-${{ hashFiles('collections/requirements.yml') }}
@@ -53,8 +60,8 @@ jobs:
       - name: Install collections
         run: ansible-galaxy collection install -r collections/requirements.yml
 
-      # bin/vault-pass emits a placeholder when no secret is available, so
-      # these steps run in a clone with no vault password at all.
+      # bin/vault-pass-client geeft een placeholder als er geen wachtwoord is,
+      # dus deze stappen draaien in een clone zonder secrets.
       - name: Run ansible-lint
         run: ansible-lint
 

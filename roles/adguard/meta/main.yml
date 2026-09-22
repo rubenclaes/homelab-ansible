@@ -3,8 +3,8 @@ galaxy_info:
   role_name: adguard
   author: rubenclaes
   description: >-
-    Installs the AdGuard Home binary and unit. Its configuration stays owned
-    by the web UI.
+    Installs the AdGuard Home binary and unit, and syncs the DNS rewrite list
+    over the API. Every other setting stays owned by the web UI.
   license: MIT
   min_ansible_version: "2.17"
   platforms:

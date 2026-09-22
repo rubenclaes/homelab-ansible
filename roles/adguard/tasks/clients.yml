@@ -1,0 +1,151 @@
+---
+# Gives every device in devices.yml a named client in AdGuard, and applies the
+# `dns` policy it declares.
+#
+# Two reasons a client exists at all. First, the query log then says
+# "ipad-kinderen" instead of an address. Second, AdGuard's per-client settings
+# are the only filtering knobs that can be aimed at one device, and those are
+# exactly what a phone or a printer needs to differ in.
+#
+# Ownership is by name: a client whose name is a key in `devices` belongs to
+# this role, anything else is left alone. It never deletes. A client also
+# holds settings a person may have touched in the UI, and there is no marker
+# that says "Ansible made this", so deleting on absence would eventually
+# delete something made by hand under the same name. Removing a device from
+# the list therefore leaves its client behind; the report at the end names
+# every client this role is not managing, so it stays visible.
+- name: Find the AdGuard API
+  ansible.builtin.import_tasks: api.yml
+  when: adguard_http_port is not defined
+
+- name: Read the current clients
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/clients"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+    return_content: true
+  register: adguard_client_list
+  check_mode: false
+  no_log: true
+
+# Built in one pass so the desired state is a single value to compare against,
+# the way proxmox_datacenter compares a backup job field by field.
+#
+# `ids` carries the MAC, the reserved address and the key. AdGuard matches a
+# client by whichever one it can see: the ClientID for an encrypted query from
+# a phone, the address for plain DNS from the printer, the MAC only when it
+# can resolve one. Listing all three costs nothing and means the match works
+# whichever way the device happens to ask.
+#
+# Every field is always sent, including the ones AdGuard ignores while
+# use_global_settings is true. Leaving one out makes AdGuard keep its previous
+# value, which would make this comparison drift forever.
+- name: Work out the client each device should have
+  ansible.builtin.set_fact:
+    adguard_clients_wanted: >-
+      {%- set out = [] -%}
+      {%- for name, d in devices | dictsort -%}
+      {%-   set p = d.dns | default({}) -%}
+      {%-   set sched = {'time_zone': devices_dns_timezone} -%}
+      {%-   for day, w in (p.allowed | default({})).items() -%}
+      {%-     set _ = sched.update({day: {
+                'start': (w['from'].split(':')[0] | int * 60 + w['from'].split(':')[1] | int) * 60000,
+                'end': (w['to'].split(':')[0] | int * 60 + w['to'].split(':')[1] | int) * 60000}}) -%}
+      {%-   endfor -%}
+      {%-   set ss = p.safe_search | default(false) | bool -%}
+      {%-   set _ = out.append({
+              'name': name,
+              'ids': ([d.mac, name] + ([d.ip] if d.ip is defined else [])) | sort,
+              'use_global_settings': p | length == 0,
+              'filtering_enabled': p.filtering | default(true) | bool,
+              'safebrowsing_enabled': p.safebrowsing | default(false) | bool,
+              'parental_enabled': p.parental | default(false) | bool,
+              'safe_search': {'enabled': ss, 'bing': ss, 'duckduckgo': ss, 'ecosia': ss,
+                              'google': ss, 'pixabay': ss, 'yandex': ss, 'youtube': ss},
+              'use_global_blocked_services': p.blocked_services is not defined,
+              'blocked_services': p.blocked_services | default([]) | sort,
+              'blocked_services_schedule': sched,
+              'upstreams': p.upstreams | default([]),
+              'tags': ['device_' ~ d.type] | intersect(adguard_supported_tags),
+              'ignore_querylog': false,
+              'ignore_statistics': false}) -%}
+      {%- endfor -%}
+      {{ out }}
+  vars:
+    adguard_supported_tags: "{{ adguard_client_list.json.supported_tags | default([]) }}"
+
+# Only the fields above are compared. AdGuard returns others - cache settings,
+# the deprecated safesearch_enabled - that this role does not set, and
+# comparing whole objects would report drift on every run because of them.
+- name: Work out which clients are missing or differ
+  ansible.builtin.set_fact:
+    adguard_clients_add: >-
+      {{ adguard_clients_wanted | rejectattr('name', 'in', adguard_clients_live | map(attribute='name') | list) | list }}
+    adguard_clients_update: >-
+      {%- set out = [] -%}
+      {%- for want in adguard_clients_wanted -%}
+      {%-   set live = adguard_clients_live | selectattr('name', 'eq', want.name) | list | first | default(none) -%}
+      {%-   if live is not none -%}
+      {%-     set diff = [] -%}
+      {%-     for k, v in want.items() -%}
+      {%-       set have = live[k] | default(none) -%}
+      {%-       if (have | default([], true) | sort if k in ['ids', 'blocked_services'] else have) != v -%}
+      {%-         set _ = diff.append(k) -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-     if diff | length > 0 -%}
+      {%-       set _ = out.append({'name': want.name, 'fields': diff | sort, 'data': want}) -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ out }}
+    adguard_clients_unmanaged: >-
+      {{ adguard_clients_live | map(attribute='name') | reject('in', devices.keys() | list) | list | sort }}
+  vars:
+    adguard_clients_live: "{{ adguard_client_list.json.clients | default([]) }}"
+
+# The API tasks below run with no_log because they carry the password, so this
+# is the only place a run shows what changed. It also reports under --check,
+# where the uri tasks are skipped.
+- name: Report the client changes
+  ansible.builtin.debug:
+    msg:
+      add: "{{ adguard_clients_add | map(attribute='name') | list }}"
+      update: "{{ adguard_clients_update | map(attribute='name') | zip(adguard_clients_update | map(attribute='fields')) | list }}"
+      not_managed_by_ansible: "{{ adguard_clients_unmanaged }}"
+  changed_when: adguard_clients_add | length > 0 or adguard_clients_update | length > 0
+
+- name: Add the clients that are missing
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/clients/add"
+    method: POST
+    body_format: json
+    body: "{{ item }}"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ adguard_clients_add }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+  no_log: true
+
+# The name in the envelope says which client to change; the name inside `data`
+# is what it becomes. They are equal here because this role never renames.
+- name: Apply the declared settings to the clients that differ
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/clients/update"
+    method: POST
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      data: "{{ item.data }}"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ adguard_clients_update }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.fields | join(', ') }})"
+  changed_when: true
+  no_log: true
