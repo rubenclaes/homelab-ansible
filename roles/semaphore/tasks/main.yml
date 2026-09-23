@@ -33,6 +33,7 @@
     - "{{ semaphore_config_dir }}"
     - "{{ semaphore_home }}/tmp"
     - "{{ semaphore_npm_cache }}"
+    - "{{ semaphore_home }}/.ansible"
 
 - name: Deploy Semaphore config from Vault
   ansible.builtin.copy:
@@ -43,6 +44,33 @@
     mode: "0600"
   diff: false
   notify: Restart semaphore
+
+# Van de controller naar Semaphore. `lookup` leest op de machine die de
+# playbook start, dus dit pakt de bestanden van wie er draait - en als
+# Semaphore zichzelf beheert, zijn eigen kopie. Wat er niet staat wordt
+# overgeslagen: dan faalt een job later met een leesbare fout, in plaats van
+# deze rol nu met een onleesbare.
+- name: Find which vault passwords this controller has
+  ansible.builtin.stat:
+    path: "{{ lookup('env', 'HOME') }}/.ansible/vault_pass_{{ item }}"
+  loop: "{{ semaphore_vault_ids }}"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  register: semaphore_vault_found
+
+- name: Give Semaphore the vault passwords
+  ansible.builtin.copy:
+    content: "{{ lookup('file', item.stat.path) }}\n"
+    dest: "{{ semaphore_home }}/.ansible/vault_pass_{{ item.item }}"
+    owner: "{{ semaphore_user }}"
+    group: "{{ semaphore_user }}"
+    mode: "0600"
+  loop: "{{ semaphore_vault_found.results | selectattr('stat.exists') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true
 
 - name: Install systemd unit
   ansible.builtin.copy:

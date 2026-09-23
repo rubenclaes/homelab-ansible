@@ -49,6 +49,25 @@ semaphore_npm_cache: "{{ semaphore_home }}/.npm"
 # lezen is een instelling die niemand nakijkt.
 semaphore_schedule_timezone: Europe/Brussels
 
+# De vault-identiteiten die Semaphore moet kunnen ontsleutelen. Zonder deze
+# komt hij niet eens door het lezen van de inventory:
+# inventory/homelab.proxmox.yml is gevault onder `infra`, dus elke job strandt
+# al op het parsen, met "Decryption failed (no vault secrets were found)".
+#
+# De wachtwoorden komen van de machine die deze rol draait - uit
+# ~/.ansible/vault_pass_<id>, dezelfde bestanden die bin/vault-pass-client
+# leest - en landen als bestand met mode 0600 in de home van de
+# semaphore-gebruiker. Ze staan dus niet in deze repo, en ze kunnen er ook niet
+# in: een vault-wachtwoord in een vault is een cirkel.
+#
+# Waarom een bestand en geen `Environment=` in de unit. Dat wás de opzet, met
+# de hand toegevoegd, en op 23-09 sneuvelde die stilletjes toen deze rol de
+# unit opnieuw uitschreef. Een bestand overleeft dat. Het scheelt bovendien dat
+# het wachtwoord niet meer voor elke gebruiker leesbaar is via `systemctl show`.
+semaphore_vault_ids:
+  - infra
+  - stacks
+
 # Hosts whose SSH host key Semaphore must trust before it can reach them.
 # Each one needs gathered facts (ssh_host_key_ed25519_public); the first play
 # in playbooks/semaphore.yml collects them. See the assert in tasks/main.yml.
