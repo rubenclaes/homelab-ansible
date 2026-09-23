@@ -1,0 +1,68 @@
+---
+title: Iemand diensten geven
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Iemand diensten geven
+
+Voorbeeld: je zus wil foto's in Immich en films in Plex.
+
+<Callout type="info">
+Dit gaat **altijd via NeoGate**, nooit met de hand in de app zelf. NeoGate
+maakt de accounts, en kan ze later ook weer weghalen. Een account dat je met de
+hand maakt, kent NeoGate niet.
+</Callout>
+
+<Steps>
+
+### Open NeoGate
+
+[neogate.neodata.be](https://neogate.neodata.be) → **Gezin**. Die pagina zie
+je alleen als eigenaar.
+
+### Nodig de persoon uit
+
+Klik **Uitnodigen**. Heeft de persoon al accounts in de diensten (van vroeger)?
+Gebruik dan niet Uitnodigen maar **Importeren** (de knop ernaast): dan koppelt
+NeoGate die accounts in plaats van nieuwe te maken.
+
+### Vink de diensten aan
+
+In het toegangsraster. Wat NeoGate kan aanmaken:
+
+| Dienst | Wat de persoon krijgt |
+| --- | --- |
+| Plex | een managed gebruiker met toegang tot de bibliotheken |
+| Jellyfin | een account |
+| Immich | een account |
+| Seerr | een account om films en series aan te vragen |
+| Grimmory | een account |
+| Tailscale ("netwerk") | een uitnodiging per e-mail voor de tailnet |
+
+### Stuur de uitnodiging door
+
+`⋯` bij de persoon → **Uitnodiging kopiëren**, en stuur de link via bv.
+WhatsApp.
+
+### Controleer
+
+De persoon staat in **Gezin**, met de diensten die je aanvinkte.
+
+</Steps>
+
+Later iets bijgeven of afnemen: open de persoon in **Gezin** en vink een dienst
+aan of uit.
+
+<Callout type="warning">
+Tailscale geeft de persoon toegang tot de **tailnet**, niet tot het hele
+thuisnetwerk. Met de standaardregels van Tailscale ziet hij elke machine
+op de tailnet, ook pve01 en ct 107 (op hun `100.x`-adres). Kijk de regels
+(ACL's) in de Tailscale-console na als dat niet de bedoeling is. Wil je iemand het hele LAN geven, zie
+[Iemand VPN geven](/homelab/toegang/vpn-geven/).
+</Callout>
+
+<Callout type="info">
+De knoppen hier zijn uit de documentatie en de code gehaald, niet in het
+scherm nagelopen. Heet een knop anders, zoek hem in hetzelfde menu.
+</Callout>

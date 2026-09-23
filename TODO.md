@@ -107,6 +107,19 @@ runbook *Onderhoud*.
 
 - [ ] **Action1 voor de pc van de ouders**, en voor de Macs.
 
+- [ ] **Apple MDM.** Komt eraan. Daarna een Homelab-pagina "Mac of iPhone
+      klaarzetten" op de docs-site; tot dan is er geen vaste werkwijze om te
+      beschrijven.
+
+- [ ] **Een apart gastennetwerk in UniFi.** Nu komt een gast op het gewone
+      wifi, naast pve01, de Macs en alle diensten. Staat zo op de
+      Homelab-pagina "Gast op bezoek".
+
+- [ ] **NeoGate haalt een Tailscale-lid niet weg.** Bij intrekken trekt de
+      plugin alleen de uitnodiging in; wie ze al aanvaardde blijft op de
+      tailnet. Nu een handstap in de Tailscale-console (Homelab-pagina
+      "Toegang afnemen"). Beter: de Cleaner verwijdert de gebruiker via de API.
+
 ---
 
 ## Klein, wanneer het uitkomt

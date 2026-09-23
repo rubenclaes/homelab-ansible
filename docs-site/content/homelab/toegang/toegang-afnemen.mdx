@@ -1,0 +1,59 @@
+---
+title: Toegang afnemen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Iemand zijn toegang afnemen
+
+Iemand hoeft er niet meer bij. Je sluit drie plekken af: NeoGate, Tailscale en
+WireGuard.
+
+Alleen een toestel kwijt, niet de persoon? Zie
+[Toestel kwijt](/homelab/toestellen/toestel-kwijt/).
+
+<Steps>
+
+### NeoGate
+
+[neogate.neodata.be](https://neogate.neodata.be) → **Gezin** → `⋯` bij de
+persoon (of lang drukken) →
+
+| Kies | Doet |
+| --- | --- |
+| **Toegang intrekken** | haalt al zijn accounts weg, de persoon blijft in de lijst |
+| **Verwijderen** | hetzelfde, en haalt hem uit de lijst |
+| één dienst uitvinken | alleen die ene dienst weg |
+
+Loopt een dienst mis (foutmelding), probeer dan die dienst opnieuw uit te
+vinken.
+
+### Tailscale-console
+
+<Callout type="warning">
+NeoGate trekt bij Tailscale alleen de **uitnodiging** in. Had de persoon die al
+aanvaard, dan blijft hij lid van de tailnet. Deze stap is dus niet optioneel.
+</Callout>
+
+| Scherm | Wat |
+| --- | --- |
+| [Tailscale admin console](https://login.tailscale.com/admin/users) → **Users** | de persoon → `⋯` → **Remove user** |
+| **Machines** | kijk of er nog toestellen van hem staan → **Remove** |
+
+### WireGuard
+
+| Scherm | Wat |
+| --- | --- |
+| UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** | elk clientprofiel van die persoon → verwijderen |
+
+### Controleer
+
+De persoon staat niet meer in NeoGate **Gezin**, niet meer onder **Users** in
+Tailscale, en heeft geen profiel meer in UniFi.
+
+</Steps>
+
+<Callout type="info">
+De knoppen hier zijn uit de documentatie en de code gehaald, niet in het
+scherm nagelopen. Heet een knop anders, zoek hem in hetzelfde menu.
+</Callout>

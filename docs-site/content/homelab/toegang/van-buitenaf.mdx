@@ -1,0 +1,57 @@
+---
+title: Zelf van buitenaf binnen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Zelf van buitenaf binnen
+
+Je bent niet thuis en wil aan het homelab. Er zijn twee wegen: WireGuard en
+Tailscale.
+
+| Je wil… | Neem | Waarom |
+| --- | --- | --- |
+| `*.neodata.be`, `*.home.arpa` of een `192.168.0.x`-adres | **WireGuard** "Neodata VPN" | Tailscale komt nu niet op het LAN |
+| een machine op de tailnet, via zijn `100.x`-adres | **Tailscale** | |
+| erbij terwijl WireGuard niet werkt (bv. WAN-adres gewijzigd) | **Tailscale** | hangt niet af van `vpn.neodata.be`. Je komt dan alleen op `100.x`-adressen, bv. SSH naar pve01 om te kijken wat er mis is, niet op de diensten |
+
+In de praktijk: **WireGuard**, tenzij die niet werkt.
+
+<Steps>
+
+### Zet WireGuard aan
+
+Op je iPhone: WireGuard-app → **Neodata VPN** aan.
+
+### Test
+
+Zet wifi uit en open `pve01.home.arpa` of een dienst, bv.
+[photos.neodata.be](https://photos.neodata.be). Werkt die naam, dan werken de
+VPN, de route en de DNS.
+
+### Werkt het niet?
+
+Volg [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/#geval-5--de-vpn-nakijken).
+Meestal is je WAN-adres veranderd.
+
+</Steps>
+
+<Callout type="warning">
+De VPN breekt stil als je provider je een ander WAN-adres geeft. Dat staat op
+de TODO. Tot dan: werkt WireGuard onderweg ineens niet meer, neem Tailscale en
+kijk thuis het adres na.
+</Callout>
+
+## Goed om te weten
+
+### Waarom twee wegen
+
+WireGuard draait op de UniFi-gateway, Tailscale op pve01. Ligt pve01 eruit,
+precies wanneer je erbij wil, dan werkt WireGuard nog. Breekt WireGuard (meestal
+het WAN-adres), dan werkt Tailscale nog. Meer in
+[Netwerk → Twee wegen naar binnen](/technisch/runbooks/netwerk/#twee-wegen-naar-binnen).
+
+### Waarom Tailscale niet op het LAN komt
+
+ct 108 biedt `192.168.0.0/24` aan, maar `--accept-routes` staat uit op de
+machines. Zie [Netwerk](/technisch/runbooks/netwerk/#de-tailscale-weg-komt-nu-niet-op-het-lan).

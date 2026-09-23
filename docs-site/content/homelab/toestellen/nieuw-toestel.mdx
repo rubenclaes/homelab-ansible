@@ -1,0 +1,65 @@
+---
+title: Nieuw toestel op het netwerk
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Een nieuw toestel op het netwerk
+
+Voorbeeld: een nieuwe printer of TV. Alles gebeurt in UniFi, met de hand.
+
+<Steps>
+
+### Verbind het toestel met het wifi
+
+Gewoon het wifi van thuis. Er is geen apart gastennetwerk.
+
+### Zoek het in UniFi
+
+| Scherm | Wat | Waarom |
+| --- | --- | --- |
+| UniFi Network → **Client Devices** | sorteer op **Connected** of zoek op de fabrikant | een nieuw toestel heeft nog geen naam, alleen een fabrikant of MAC-adres |
+
+### Geef het een naam
+
+Open het toestel → **Settings** → vul een **Alias** in, bv. `printer-bureau`.
+
+Zo herken je het later in UniFi en in de Query Log van AdGuard, in plaats van
+een MAC-adres.
+
+### Zet het adres vast, als iets het bij adres moet vinden
+
+Open het toestel → **Settings** → **Fixed IP** aan, op het adres dat
+het nu heeft.
+
+| Wel | Niet |
+| --- | --- |
+| printers, NAS'en, alles met een Caddy-route | telefoons, laptops, TV's die alleen zelf naar buiten gaan |
+
+### Wil je het op een mooi adres (optioneel)?
+
+Bv. `printer.neodata.be` voor de webpagina van de printer. Dat is een route
+met `upstream:`, zie
+[Dienst toevoegen → Alleen een adres](/technisch/runbooks/dienst-toevoegen/adres/).
+
+</Steps>
+
+<Callout type="info">
+De knoppen hier zijn uit de documentatie en de code gehaald, niet in het
+scherm nagelopen. Heet een knop anders, zoek hem in hetzelfde menu.
+</Callout>
+
+## Goed om te weten
+
+### Waarom geen `home.arpa`-naam
+
+`<naam>.home.arpa` bestaat alleen voor machines in de Ansible-inventory
+(pve01, de guests, de Macs). Een printer of TV staat daar niet in en krijgt
+dus geen naam in AdGuard. Voor een mooi adres gebruik je een Caddy-route.
+
+### Waarom UniFi met de hand
+
+Er was een Ansible-rol die namen en vaste adressen in UniFi zette. Die werkte,
+maar is bewust weggehaald: een vast adres kost twintig seconden klikken, één
+keer per toestel. Daartegenover stonden een apart account, een vault-bestand en
+onderhoud aan een API die Ubiquiti bezit.

@@ -1,5 +1,5 @@
 export default {
-  index: 'Welk geval?',
+  index: 'Start hier',
   'docker-app': 'Nieuwe Docker-app',
   adres: 'Alleen een adres',
   'eigen-rol': 'Eigen rol',

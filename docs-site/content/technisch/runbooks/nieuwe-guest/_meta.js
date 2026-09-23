@@ -1,5 +1,5 @@
 export default {
-  index: 'Welk geval?',
+  index: 'Start hier',
   container: 'Nieuwe container',
   'container-herbouwen': 'Container herbouwen',
   vm: 'Virtuele machine',
