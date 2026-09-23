@@ -17,7 +17,6 @@ macos_brew_packages_extra:
   - jq
   - kubectx
   - node
-  - ollama
   - pass
   - ripgrep
   - ssh-copy-id
@@ -54,7 +53,6 @@ macos_brew_packages_extra:
 macos_casks:
   - chromium
   - iterm2
-  - multipass
   - spotify
 
 # Wat hier weg MOET, niet alleen "wat hier niet meer staat". De macos-rol
@@ -98,6 +96,7 @@ macos_brew_packages_absent:
   - k9s
   - kubernetes-cli
   - minikube
+  - ollama
 
 # De twee dode cask-registraties uit de Caskroom. Ze uit macos_casks halen is
 # niet genoeg: dan blijven ze staan en blijft `brew upgrade --cask` proberen
@@ -105,6 +104,7 @@ macos_brew_packages_absent:
 macos_casks_absent:
   - docker
   - docker-desktop
+  - multipass
 
 # --- Docker op deze Mac ---------------------------------------------------
 # De stacks staan in github.com/rubenclaes/homelab. Die repo heeft GEEN
@@ -167,6 +167,12 @@ docker_stacks_list:
 # achter, dus het bestand staat er lokaal nog. De eerste beheerde run haalt
 # die commit binnen en dan is het weg. Beslis eerst: terugzetten in de repo,
 # of de dienst uitzetten.
+
+# Routes waarvan de backend geen container is. Plex draait hier als
+# macOS-app (/Applications/Plex Media Server.app) en verschijnt dus nooit in
+# `docker ps`. Zonder deze regel meldt report.yml hem elke run als dode route.
+docker_routes_without_container:
+  - { port: 32400, why: "Plex is een macOS-app, geen container" }
 
 # Poorten die hier luisteren en bewust geen route hebben.
 docker_ports_without_route:

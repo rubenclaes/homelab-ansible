@@ -203,7 +203,9 @@
 {% set host_routes = hostvars['caddy'].caddy_sites | selectattr('host', 'defined')
                      | selectattr('host', 'eq', ch) | list %}
 {% set live_ports = published | map(attribute='port') | unique | list %}
-{% set dead_routes = host_routes | rejectattr('port', 'in', live_ports) | list %}
+{% set no_container = hostvars[ch].docker_routes_without_container | default([]) | map(attribute='port') | list %}
+{% set dead_routes = host_routes | rejectattr('port', 'in', live_ports)
+                     | rejectattr('port', 'in', no_container) | list %}
 {% set unrouted = published | rejectattr('port', 'in', host_routes | map(attribute='port') | list)
                   | rejectattr('port', 'in', ignored) | list %}
   <div class="card">
@@ -233,7 +235,14 @@
     </table>
   </div>
 
-{% set managed = hostvars[ch].docker_stacks_list | default([]) | map(attribute='name') | list %}
+{# Een stack mag een compose-project hebben dat anders heet dan de stack zelf:
+   `{ name: media, path: media, project: media-stack }`. Docker labelt de
+   containers met het project, dus daarop moet je vergelijken. Op `name`
+   vergelijken meldde media-stack elke run als onbeheerd terwijl hij netjes
+   in docker_stacks_list staat. #}
+{% set stacks = hostvars[ch].docker_stacks_list | default([]) %}
+{% set managed = (stacks | map(attribute='name') | list)
+                 + (stacks | selectattr('project', 'defined') | map(attribute='project') | list) %}
 {% set unmanaged = published | map(attribute='project') | unique
                    | reject('in', managed) | reject('eq', '(none)') | list %}
 {% if unmanaged %}
@@ -296,7 +305,9 @@
         <td>{{ g.vmid }}</td>
         <td><strong>{{ g.name }}</strong></td>
         <td>{{ g.type }}</td>
-{% if last is none %}
+{% if last is none and g.vmid in (report_backup_exclude | default([])) %}
+        <td class="ok" colspan="2">met opzet uitgesloten van de back-up</td>
+{% elif last is none %}
         <td class="bad" colspan="2">never backed up</td>
 {% else %}
 {% set age_h = ((now().timestamp() - last) / 3600) | round(0) | int %}

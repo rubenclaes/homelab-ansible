@@ -52,6 +52,25 @@ werkelijkheid.
 | `wait_for_mounts` → `nfs_mounts` | een herbouwde host blijft bij het opstarten hangen op een mount die nooit komt |
 | back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat, die ruimte kost en de lijst onleesbaar maakt |
 
+### Twee dempers, en waarom ze er zijn
+
+Een rapport dat onterecht rood staat, leer je negeren. Daarom twee lijsten in
+de host_vars, die elkaars spiegelbeeld zijn:
+
+| Var | Voor |
+| --- | --- |
+| `docker_ports_without_route` | een gepubliceerde poort die bewust geen route heeft |
+| `docker_routes_without_container` | een route waarvan de backend géén containerpoort is |
+
+Die tweede is nodig omdat `docker ps` niet alles ziet. `qbittorrent` draait met
+`network_mode: host` en heeft dan geen poortmapping, terwijl hij wél op 8089
+luistert en `torrent.neodata.be` gewoon 200 geeft. Plex op de Mac mini is
+helemaal geen container maar een macOS-app. Zonder die lijst meldt het rapport
+allebei elke run als kapot.
+
+Zet er altijd een `why:` bij. Een gedempte melding zonder reden is over een
+half jaar niet te onderscheiden van een vergissing.
+
 <Callout type="warning">
 Deze vergelijkingen lopen over **elke** host die containers draait — `docker`,
 `docker-grafana-stack` en de Mac mini. Tot 22-09 keken ze alleen naar `docker`,

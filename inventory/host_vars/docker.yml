@@ -41,6 +41,15 @@ docker_stacks_wait_for_mounts:
 # Published ports that deliberately have no Caddy route, so the drift table in
 # report.yml stays signal rather than noise. Anything not listed here and not
 # proxied shows up as "geen route".
+# De andere kant op: routes waarvan de backend geen gepubliceerde
+# containerpoort is, en die dus niet als "dode route" gemeld moeten worden.
+# qbittorrent draait met `network_mode: host`, en dan toont `docker ps` geen
+# poortmapping - terwijl qbittorrent-nox wel degelijk op 8089 luistert en
+# torrent.neodata.be netjes 200 geeft. Zonder deze lijst meldt report.yml hem
+# elke run als kapot, en dat is precies hoe je een rapport leert negeren.
+docker_routes_without_container:
+  - { port: 8089, why: "qbittorrent draait met host-netwerk, geen poortmapping" }
+
 docker_ports_without_route:
   - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
   - { port: 21116, why: "rustdesk hbbs - raw TCP, not HTTP" }

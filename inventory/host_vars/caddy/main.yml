@@ -65,6 +65,7 @@ caddy_sites:
   - { name: pdf, host: docker, port: 8084, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
   - { name: termix, host: docker, port: 8086, desc: "SSH in de browser" }
   - { name: torrent, host: docker, port: 8089, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
+  - { name: openbooks, host: docker, port: 8080, desc: "OpenBooks — e-books zoeken en downloaden via IRC" }
   - { name: neogate, host: docker, port: 4000, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }
   - { name: photos, host: docker, port: 2283, desc: "Immich — foto- en videobibliotheek" }
   - { name: id, host: docker, port: 1411, desc: "Pocket ID — OIDC-provider (huidige instantie)" }

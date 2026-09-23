@@ -14,3 +14,9 @@ report_pbs_token_id: "ansible@pbs!report"
 # Where the rendered HTML is served from on the caddy host.
 # Must match the `root` in the report.{{ domain }} block of Caddyfile.j2.
 report_publish_dir: /var/www/homelab-report
+
+# Guests die met opzet niet in de back-up zitten, zodat het rapport ze niet
+# elke run rood meldt. vmid 100 is PBS zelf: die staat als `exclude 100` in de
+# dagelijkse vzdump-job, want een back-upserver die zichzelf naar zijn eigen
+# datastore schrijft heeft niets aan die back-up als de datastore weg is.
+report_backup_exclude: [100]
