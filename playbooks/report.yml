@@ -197,51 +197,74 @@
           ansible.builtin.debug:
             var: report_row
 
+# Elke host die containers draait, niet alleen `docker`. Dat stond hier
+# eerder wel zo, en daardoor keek de route-drift-tabel verderop naar één van
+# de drie hosts. Tinyauth, bazarr, jellyfin en expenseowl stonden allemaal op
+# de Mac mini, en zijn daarom nooit gemeld.
+#
+# Via de CLI en niet via community.docker.docker_host_info: die module heeft
+# de Python-SDK op de doelhost nodig. Op Debian zet de docker_stacks-rol die
+# neer, op macOS is er geen apt en ontbreekt zelfs `requests` in de
+# systeem-Python. `docker ps --format json` werkt overal, en discover.yml
+# doet het al zo.
 - name: Collect Docker status
-  hosts: docker
+  hosts: docker_hosts:macs
   gather_facts: false
   tasks:
     - name: Read all containers
-      community.docker.docker_host_info:
-        containers: true
-        containers_all: true
-        verbose_output: true
+      ansible.builtin.command: "{{ docker_stacks_docker_cli | default('docker') }} ps --all --format json"
       register: report_docker
+      changed_when: false
+      check_mode: false
+      # Een Mac hoeft geen Docker te draaien. De MacBook hoort hier leeg te
+      # blijven, en dat is geen fout.
+      failed_when: false
+
+    - name: Parse the container rows
+      ansible.builtin.set_fact:
+        report_rows: "{{ report_docker.stdout_lines | default([]) | map('from_json') | list }}"
 
     - name: Simplify to project / name / state / status
       ansible.builtin.set_fact:
         report_containers: >-
           {{ report_containers | default([]) + [{
-               'project': item.Labels['com.docker.compose.project'] | default('(none)'),
-               'name': item.Names[0] | regex_replace('^/', ''),
+               'project': (item.Labels | default('')
+                           | regex_search('com\.docker\.compose\.project=([^,]+)', '\1')
+                           | default(['(none)'], true) | first),
+               'name': item.Names,
                'state': item.State,
                'status': item.Status
              }] }}
-      loop: "{{ report_docker.containers }}"
+      loop: "{{ report_rows }}"
       loop_control:
-        label: "{{ item.Names[0] }}"
+        label: "{{ item.Names }}"
 
     # Published ports, for the route-drift table in the report. A container
     # that publishes a port nobody proxies is reachable only as host:port,
     # and a route pointing at a port nothing publishes is a dead name - the
     # smoke test cannot see the first case at all, because it only tests
     # routes that already exist.
+    #
+    # `Ports` is hier een string als "192.168.0.15:8081->8081/tcp, [::]:8081->8081/tcp",
+    # dus de gepubliceerde poort is wat er vóór de pijl staat. Dubbel door
+    # IPv4 en IPv6, vandaar unique.
     - name: Collect published ports per container
       ansible.builtin.set_fact:
         report_published: >-
           {{ report_published | default([]) + (
-               item.Ports | default([]) | selectattr('PublicPort', 'defined')
-               | map(attribute='PublicPort') | unique | sort
+               item.Ports | default('') | regex_findall(':(\d+)->') | unique | map('int') | sort
                | map('community.general.dict_kv', 'port') | list
                | map('combine', {
-                   'project': item.Labels['com.docker.compose.project'] | default('(none)'),
-                   'name': item.Names[0] | regex_replace('^/', '')
+                   'project': (item.Labels | default('')
+                               | regex_search('com\.docker\.compose\.project=([^,]+)', '\1')
+                               | default(['(none)'], true) | first),
+                   'name': item.Names
                  }) | list
              ) }}
-      loop: "{{ report_docker.containers }}"
+      loop: "{{ report_rows }}"
       loop_control:
-        label: "{{ item.Names[0] }}"
-      when: item.Ports | default([]) | selectattr('PublicPort', 'defined') | list | length > 0
+        label: "{{ item.Names }}"
+      when: item.Ports | default('') | length > 0
 
 - name: Collect storage health
   hosts: pve01

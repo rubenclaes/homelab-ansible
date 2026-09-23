@@ -35,8 +35,31 @@ gepubliceerde Docker-poorten géén route hebben.
 
 Die laatste is de nuttigste: een poort zonder route is meestal een dienst die
 je vergeten bent af te maken. Wat bewust geen route heeft, demp je met
-`docker_ports_without_route` in de host_vars van `docker` — dan verdwijnt het
+`docker_ports_without_route` in de host_vars van die host — dan verdwijnt het
 uit de lijst in plaats van dat je eroverheen leert kijken.
+
+### Wat hij tegenover elkaar zet
+
+Dit is het deel dat drift vindt die geen enkel playbook repareert, omdat het
+geen drift ís: het is je beschrijving die niet meer klopt met de
+werkelijkheid.
+
+| Vergelijking | Wat het betekent als er iets staat |
+| --- | --- |
+| route → draaiende container | een naam die nergens heen wijst; tijdens een storing kost hij je tien minuten |
+| container → route | een dienst die je niet hebt afgemaakt, alleen bereikbaar als `host:poort` |
+| draaiend project → `docker_stacks_list` | draait wel, maar niets kan hem terugzetten |
+| `wait_for_mounts` → `nfs_mounts` | een herbouwde host blijft bij het opstarten hangen op een mount die nooit komt |
+| back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat, die ruimte kost en de lijst onleesbaar maakt |
+
+<Callout type="warning">
+Deze vergelijkingen lopen over **elke** host die containers draait — `docker`,
+`docker-grafana-stack` en de Mac mini. Tot 22-09 keken ze alleen naar `docker`,
+en daardoor zijn drie dode routes en een dienst zonder compose-bestand op de
+Mini maandenlang niet gemeld. Staat er ooit een vierde host bij, dan komt hij
+er vanzelf bij: de lijst komt uit `docker_hosts` plus `macs`, dezelfde regel
+die `stacks.yml` gebruikt.
+</Callout>
 
 <Callout type="info">
 Draai hem zonder `--limit`, of neem `localhost` er expliciet in mee. De HTML

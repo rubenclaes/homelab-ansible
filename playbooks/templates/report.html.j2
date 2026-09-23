@@ -140,12 +140,15 @@
   </div>
 
 
-  {% if hostvars['docker'].report_containers is defined %}
+{% set container_hosts = ((groups['docker_hosts'] | default([])) + (groups['macs'] | default([])))
+                         | unique | sort | list %}
+{% for ch in container_hosts %}
+  {% if hostvars[ch].report_containers | default([]) %}
   <div class="card">
-    <strong>Docker on docker</strong>
+    <strong>Docker on {{ ch }}</strong>
     <table>
       <tr><th>Stack</th><th>Running</th><th>Problems</th></tr>
-{% for project, items in hostvars['docker'].report_containers | groupby('project') %}
+{% for project, items in hostvars[ch].report_containers | groupby('project') %}
 {% set running = items | selectattr('state', 'equalto', 'running') | list %}
 {% set problems = (items | rejectattr('state', 'equalto', 'running') | list)
                 + (items | selectattr('status', 'search', 'unhealthy') | list) %}
@@ -157,7 +160,8 @@
 {% endfor %}
     </table>
   </div>
-{% endif %}
+  {% endif %}
+{% endfor %}
 
 {# ---------------------------------------------------------------------------
    Homebrew drift. The Updates column and the Updates tab both fold brew in
@@ -192,17 +196,18 @@
    publishing a port nobody proxies is invisible to it, because there is no
    route to request.
    --------------------------------------------------------------------------- #}
-{% if hostvars['docker'].report_published is defined %}
-{% set published = hostvars['docker'].report_published %}
-{% set ignored = hostvars['docker'].docker_ports_without_route | default([]) | map(attribute='port') | list %}
-{% set docker_routes = hostvars['caddy'].caddy_sites | selectattr('host', 'defined')
-                       | selectattr('host', 'eq', 'docker') | list %}
+{% for ch in container_hosts %}
+{% if hostvars[ch].report_published | default([]) %}
+{% set published = hostvars[ch].report_published %}
+{% set ignored = hostvars[ch].docker_ports_without_route | default([]) | map(attribute='port') | list %}
+{% set host_routes = hostvars['caddy'].caddy_sites | selectattr('host', 'defined')
+                     | selectattr('host', 'eq', ch) | list %}
 {% set live_ports = published | map(attribute='port') | unique | list %}
-{% set dead_routes = docker_routes | rejectattr('port', 'in', live_ports) | list %}
-{% set unrouted = published | rejectattr('port', 'in', docker_routes | map(attribute='port') | list)
+{% set dead_routes = host_routes | rejectattr('port', 'in', live_ports) | list %}
+{% set unrouted = published | rejectattr('port', 'in', host_routes | map(attribute='port') | list)
                   | rejectattr('port', 'in', ignored) | list %}
   <div class="card">
-    <strong>Route-drift op docker</strong>
+    <strong>Route-drift op {{ ch }}</strong>
     <div class="sub">Caddy-routes tegenover wat er draait</div>
     <table>
       <tr><th>Soort</th><th>Naam</th><th>Poort</th><th>Betekenis</th></tr>
@@ -219,7 +224,7 @@
         <td class="warn">container zonder route</td>
         <td><strong>{{ u.name }}</strong></td>
         <td>{{ u.port }}</td>
-        <td>alleen bereikbaar als {{ hostvars['docker'].ansible_host }}:{{ u.port }}</td>
+        <td>alleen bereikbaar als {{ hostvars[ch].ansible_host | default(ch) }}:{{ u.port }}</td>
       </tr>
 {% endfor %}
 {% if not dead_routes and not unrouted %}
@@ -228,13 +233,13 @@
     </table>
   </div>
 
-{% set managed = hostvars['docker'].docker_stacks_list | map(attribute='name') | list %}
+{% set managed = hostvars[ch].docker_stacks_list | default([]) | map(attribute='name') | list %}
 {% set unmanaged = published | map(attribute='project') | unique
                    | reject('in', managed) | reject('eq', '(none)') | list %}
 {% if unmanaged %}
   <div class="card">
-    <strong>Stacks buiten Ansible</strong>
-    <div class="sub">draaien op docker maar staan niet in docker_stacks_list</div>
+    <strong>Stacks buiten Ansible op {{ ch }}</strong>
+    <div class="sub">draaien wel, maar staan niet in docker_stacks_list</div>
     <table>
       <tr><th>Project</th><th>Containers</th></tr>
 {% for proj in unmanaged | sort %}
@@ -247,37 +252,33 @@
   </div>
 {% endif %}
 {% endif %}
-
-{% set pve = hostvars['pve01'] %}
-{% if pve.report_pools is defined %}
-  <div class="card">
-    <strong>ZFS pools on pve01</strong>
-    <table>
-      <tr><th>Pool</th><th>Size</th><th>Used</th><th>Free</th><th>Usage</th><th>Health</th></tr>
-{% for p in pve.report_pools %}
-{% set cap = p.cap | replace('%', '') | int %}
-      <tr>
-        <td><strong>{{ p.name }}</strong></td>
-        <td>{{ p.size }}</td><td>{{ p.alloc }}</td><td>{{ p.free }}</td>
-        <td class="{{ 'bad' if cap >= 85 else 'warn' if cap >= 70 else 'ok' }}">{{ p.cap }}</td>
-        <td class="{{ 'ok' if p.health == 'ONLINE' else 'bad' }}">{{ p.health }}</td>
-      </tr>
 {% endfor %}
-    </table>
-  </div>
-{% endif %}
 
-{% if pve.report_disks is defined %}
+{# ---------------------------------------------------------------------------
+   Mounts waar Docker op wacht maar die niemand aanmaakt. wait_for_mounts zet
+   de systemd-afhankelijkheid, nfs_mounts zet de mount zelf. Staat er iets in
+   de eerste en niet in de tweede, dan wacht een herbouwde host bij het
+   opstarten op een mount die nooit komt. Dat was op 22-09 het geval voor twee
+   van de drie shares van de Mac mini.
+   --------------------------------------------------------------------------- #}
+{% set mount_gaps = [] %}
+{% for ch in container_hosts %}
+{% set declared = hostvars[ch].docker_stacks_nfs_mounts | default([]) | map(attribute='path') | list %}
+{% for m in hostvars[ch].docker_stacks_wait_for_mounts | default([]) %}
+{% if m not in declared %}{% set _ = mount_gaps.append({'host': ch, 'path': m}) %}{% endif %}
+{% endfor %}
+{% endfor %}
+{% if mount_gaps %}
   <div class="card">
-    <strong>Disks on pve01 (SMART)</strong>
+    <strong>Mounts zonder beschrijving</strong>
+    <div class="sub">Docker wacht erop, maar geen enkele taak maakt ze aan</div>
     <table>
-      <tr><th>Device</th><th>Model</th><th>Health</th><th>Temp</th></tr>
-{% for d in pve.report_disks %}
+      <tr><th>Host</th><th>Pad</th><th>Betekenis</th></tr>
+{% for g in mount_gaps %}
       <tr>
-        <td><strong>{{ d.device }}</strong></td>
-        <td>{{ d.model }}</td>
-        <td class="{{ 'ok' if d.passed else 'bad' }}">{{ 'PASSED' if d.passed else 'FAILED / unknown' }}</td>
-        <td class="{{ 'warn' if (d.temp is number and d.temp >= 55) else '' }}">{{ d.temp }}{{ ' °C' if d.temp is number else '' }}</td>
+        <td><strong>{{ g.host }}</strong></td>
+        <td class="bad">{{ g.path }}</td>
+        <td>staat in wait_for_mounts, niet in nfs_mounts - een herbouwde host blijft hier hangen</td>
       </tr>
 {% endfor %}
     </table>
@@ -306,6 +307,32 @@
 {% endfor %}
     </table>
   </div>
+
+{# ---------------------------------------------------------------------------
+   En de andere kant op: back-upgroepen zonder guest. De tabel hierboven loopt
+   over de guests en vindt dus wel een guest zonder back-up, maar nooit een
+   back-up zonder guest. Die blijven liggen als je een guest weggooit, kosten
+   ruimte, en maken de lijst na een half jaar onleesbaar - je weet dan niet
+   meer of 109 er hoorde te zijn. Op 22-09 stonden er twee.
+   --------------------------------------------------------------------------- #}
+{% set live_vmids = report_guests.proxmox_vms | map(attribute='vmid') | map('string') | list %}
+{% set orphans = backup_map.keys() | reject('in', live_vmids) | list %}
+{% if orphans %}
+  <div class="card">
+    <strong>Back-ups zonder guest</strong>
+    <div class="sub">de guest bestaat niet meer, de back-up wel</div>
+    <table>
+      <tr><th>ID</th><th>Laatste back-up</th><th>Wat te doen</th></tr>
+{% for o in orphans | sort %}
+      <tr>
+        <td class="warn"><strong>{{ o }}</strong></td>
+        <td>{{ '%Y-%m-%d %H:%M' | strftime(backup_map[o]) }}</td>
+        <td>weghalen in de PBS-UI, of zie de netwerk-runbook</td>
+      </tr>
+{% endfor %}
+    </table>
+  </div>
+{% endif %}
 
   </div>
 
