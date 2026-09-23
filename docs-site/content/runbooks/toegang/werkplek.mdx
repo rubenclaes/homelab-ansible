@@ -16,8 +16,9 @@ playbooks draaien en de docs-site bijwerken.
 | --- | --- | --- |
 | Je wil vanaf een **nieuwe laptop** playbooks draaien en `ssh caddy` typen | nieuwe MacBook, de `mbp` opnieuw geïnstalleerd, of `~/.zshrc` kwijt | [Laptop klaarzetten](#laptop-klaarzetten) |
 | Er is een **nieuwe machine** bij en `ssh <naam>` werkt nog niet | net een LXC gebouwd met `new-guest.yml` | [Nieuwe machine bij naam](#nieuwe-machine-bij-naam-bereiken) |
-| Je wil een **afkorting** toevoegen of aanpassen in je shell | een alias zoals `hl` of `ap` | [Shell-afkorting aanpassen](#shell-afkorting-aanpassen) |
+| Je wil een **afkorting** toevoegen of aanpassen in je shell | een alias zoals `gs` voor `git status` | [Shell-afkorting aanpassen](#shell-afkorting-aanpassen) |
 | Je weet niet meer **hoe een playbook heet** of wat het doet | "was het `smoketest.yml` of `dns-smoketest.yml`?" | [Een playbook kiezen met `ap`](#een-playbook-kiezen-met-ap) |
+| Je wil **snel** een dienst openen, op een host inloggen of **logs** van een container zien | Plex openen, `ssh pve01`, de logs van Sonarr | [Snel naar een dienst, host of log](#snel-naar-een-dienst-host-of-log) |
 | Je wil in iTerm **zien op welke host** je zit | typ je nu in `pve01` of in `docker`? | [Kleur per host in iTerm](#kleur-per-host-in-iterm) |
 | Je wil **snel iets weten** van een host, zonder in te loggen | welke Caddy-versie draait er, leven ze nog | [Snel iets vragen](#snel-iets-vragen-aan-een-host) |
 | Je wil een playbook draaien, maar eerst **zien wat het doet** | `site.yml` na een wijziging in de inventory | [Veilig een playbook proberen](#veilig-een-playbook-proberen) |
@@ -176,18 +177,21 @@ daarheen.
 | `ssh semaphore` | `ssh ansible@192.168.0.30` |
 | `ssh pbs` | `ssh ansible@192.168.0.181` |
 | `ssh tailscale` | `ssh ansible@192.168.0.50` |
+| `ssh macmini` | `ssh rubenclaes@192.168.0.26` |
 
 Dit lijstje is niet de bron: dat is de inventory, zie [Machines](/homelab/machines/).
 Verhuist een host naar een ander adres, dan volgt `ssh <naam>` na de volgende run vanzelf.
 
-`haos` en `macmini` staan er **niet** bij: ze zitten niet in de groep `linux`
-(Home Assistant is een appliance, de Mac mini zit in `macs`).
+`haos` en `ntfy` staan er **niet** bij: daar log je niet op in (Home Assistant is
+een appliance, `ntfy` een OCI-container zonder SSH). De Mac mini wel, met zijn
+eigen gebruiker en dezelfde `ansible`-sleutel.
 
 ### Welke afkortingen je nu hebt
 
 | Typ dit | Doet |
 | --- | --- |
 | `hl` | `cd ~/Development/homelab-ansible` |
+| `hl go`, `hl ssh`, `hl logs` | menu's, zie [Snel naar een dienst, host of log](#snel-naar-een-dienst-host-of-log) |
 | `ap` | een menu van alle playbooks, zie [Een playbook kiezen met `ap`](#een-playbook-kiezen-met-ap) |
 | `ap playbooks/site.yml` | `ansible-playbook playbooks/site.yml`, vanuit elke map |
 
@@ -304,6 +308,28 @@ Enter. `Esc` sluit het menu zonder iets te doen.
 
 </Steps>
 
+## Snel naar een dienst, host of log
+
+Drie menu's, vanuit elke map. Typ een paar letters om te filteren, pijltjes en
+Enter om te kiezen, `Esc` om te stoppen.
+
+| Typ dit | Doet |
+| --- | --- |
+| `hl go` | alle diensten met hun uitleg; Enter opent hem in je browser |
+| `hl ssh` | alle hosts in hun kleur; Enter logt in |
+| `hl logs` | alle containers op `docker`, `docker-grafana-stack` en `macmini`, met hun laatste logregels eronder; Enter volgt de logs live (`Ctrl-C` stopt) |
+
+Zet er een naam achter en je slaat het menu over als er maar één past:
+
+```bash
+hl go plex        # opent https://plex.neodata.be
+hl ssh pve        # ssh pve01
+hl logs sonarr    # volgt de logs van sonarr, op welke host hij ook draait
+```
+
+`hl logs` vraagt de containers live op, bij alle drie de hosts tegelijk. Een
+host die niet binnen 5 seconden antwoordt, valt uit de lijst.
+
 ## Kleur per host in iTerm
 
 Dit doet niets zelf: het werkt vanzelf zodra je `ssh <host>` typt in iTerm.
@@ -314,6 +340,7 @@ Dit doet niets zelf: het werkt vanzelf zodra je `ssh <host>` typt in iTerm.
 | oranje | `adguard`, `caddy`, `tailscale` | het netwerk: DNS, de voordeur, de VPN |
 | paars | `semaphore` | de planner |
 | blauw | `docker`, `docker-grafana-stack` | de apps |
+| groen | `macmini` | media, en de tweede kopie van de back-ups |
 
 Het tabblad krijgt de kleur, en de naam van de host staat groot in de hoek van
 het venster (de "badge"). Log je uit, dan wordt het tabblad weer gewoon. Een
@@ -528,3 +555,10 @@ Pas hem aan en draai `ap playbooks/dotfiles.yml`; een nieuwe terminal pakt het
 op. Het werkt met een `ssh`-functie in `~/.config/homelab/homelab.zsh`, die
 iTerm-escapecodes stuurt voor en na de echte `ssh`. Buiten iTerm is het gewone
 `ssh`.
+
+### Waar de menu's hun lijst vandaan halen
+
+`hl go` en `hl ssh` lezen een lijst die `dotfiles.yml` uit de inventory
+schrijft: de routes uit `caddy_sites`, de hosts uit `linux` en `macs`. Een
+nieuwe route of host staat er dus pas in na `ap playbooks/dotfiles.yml`. `hl
+logs` vraagt het live, en is daarom altijd bij.

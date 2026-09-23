@@ -7,3 +7,11 @@ Host {{ host }}
     User ansible
     IdentityFile ~/.ssh/ansible_ed25519
 {% endfor %}
+{% for host in groups['macs'] | sort if hostvars[host].ansible_host is defined %}
+
+# A Mac: its own user, but the same ansible key
+Host {{ host }}
+    HostName {{ hostvars[host].ansible_host }}
+    User {{ hostvars[host].ansible_user }}
+    IdentityFile ~/.ssh/ansible_ed25519
+{% endfor %}

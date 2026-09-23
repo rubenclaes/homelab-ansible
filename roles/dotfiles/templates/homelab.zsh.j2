@@ -1,60 +1,79 @@
 # Managed by Ansible (dotfiles role): edit roles/dotfiles/templates/homelab.zsh.j2
-# Sourced from ~/.zshrc. Homelab helpers for the workstation.
+# Sourced from ~/.zshrc. Homelab helpers for the workstation. Hosts, routes and
+# Docker hosts below come from the inventory; rerun dotfiles.yml after a change.
+#
+#   hl                 cd to the repo
+#   hl go [naam]       open a service in the browser
+#   hl ssh [naam]      ssh to a host
+#   hl logs [naam]     follow the logs of a container
+#   ap                 pick a playbook;  ap playbooks/x.yml ...  run one
+#
+# Every menu takes an optional filter; with exactly one match it skips the menu.
 
 HOMELAB_REPO="{{ dotfiles_homelab_repo | regex_replace('^~', '$HOME') }}"
+{% set mac_hosts = groups['macs'] | sort | select('in', groups['all']) | list %}
+{% set ssh_hosts = (groups['linux'] | sort) + (mac_hosts | map('extract', hostvars) | selectattr('ansible_host', 'defined') | map(attribute='inventory_hostname') | list) %}
 
-# --- ap: ansible-playbook, from anywhere, with a menu -----------------------
-#   ap                     menu of every playbook, with its header as preview
-#   ap playbooks/x.yml -C  plain ansible-playbook, run from the repo
-#
-# The menu does not run anything. It puts `ap playbooks/<pick>.yml ` on your
-# command line, so you can add --check, --limit or -e before pressing Enter.
-# Some playbooks reboot or destroy; one Enter too many should not do that.
-ap() {
-  if [[ $# -gt 0 ]]; then
-    (cd "$HOMELAB_REPO" && ansible-playbook "$@")
-    return
-  fi
-  local pick
-  pick=$(cd "$HOMELAB_REPO" && ls playbooks/*.yml | fzf \
-    --prompt='playbook> ' --height=80% --layout=reverse \
-    --preview "sed -n '2,/^[^#]/p' {} | sed '\$d' | cut -c3-" \
-    --preview-window=right,65%,wrap) || return
-  print -z "ap $pick "
-}
+# --- Inventory data -----------------------------------------------------------
+typeset -A HOMELAB_HOST_IP HOMELAB_HOST_RGB HOMELAB_DOCKER_CLI
+HOMELAB_HOST_IP=(
+{% for h in ssh_hosts %}
+  {{ h }} {{ hostvars[h].ansible_host }}
+{% endfor %}
+)
+HOMELAB_HOST_RGB=(
+{% for color, hosts in dotfiles_host_colors | dictsort %}
+{% for h in hosts %}
+  {{ h }} "{{ dotfiles_color_rgb[color] }}"
+{% endfor %}
+{% endfor %}
+)
+# How to reach Docker on each host that runs stacks. The ansible user is not in
+# the docker group on Linux, but has sudo without a password.
+HOMELAB_DOCKER_CLI=(
+{% for h in groups['all'] | sort if hostvars[h].docker_stacks_list is defined %}
+  {{ h }} "{{ 'sudo -n docker' if h in groups['linux'] else hostvars[h].docker_stacks_docker_cli | default('docker') }}"
+{% endfor %}
+)
+# name <tab> host <tab> url <tab> description, one per caddy_sites route
+HOMELAB_ROUTES=(
+{% for s in hostvars['caddy'].caddy_sites | default([]) | sort(attribute='name') %}
+  '{{ s.name }}	{{ s.host }}	https://{{ s.name }}.{{ hostvars['caddy'].caddy_domain }}	{{ s.desc | default('') | replace("'", "'\\''") }}'
+{% endfor %}
+)
 
-# --- ssh: iTerm tab color and badge per host --------------------------------
+# --- Colors -------------------------------------------------------------------
 # The color says how much breaks if you type in the wrong window:
 {% for color, hosts in dotfiles_host_colors | dictsort %}
 #   {{ color }}: {{ hosts | join(', ') }}
 {% endfor %}
-# The badge is the big host name in the corner of the window.
-# Only in iTerm; anywhere else this is plain ssh.
-typeset -A HOMELAB_HOST_RGB
-HOMELAB_HOST_RGB=(
-{% for color, hosts in dotfiles_host_colors | dictsort %}
-{% for host in hosts %}
-  {{ host }} "{{ dotfiles_color_rgb[color] }}"
-{% endfor %}
-{% endfor %}
-)
-
-_homelab_tab() {  # _homelab_tab "r g b" | _homelab_tab reset
-  if [[ $1 == reset ]]; then
-    printf '\e]6;1;bg;*;default\a'
-    return
+_homelab_fg() {  # print $2 in the color of host $1 (plain if it has none)
+  local rgb=(${=HOMELAB_HOST_RGB[$1]})
+  if (( $#rgb )); then
+    printf '\e[38;2;%s;%s;%sm%s\e[0m' $rgb[1] $rgb[2] $rgb[3] "$2"
+  else
+    printf '%s' "$2"
   fi
-  local rgb=(${=1})
-  printf '\e]6;1;bg;red;brightness;%s\a' $rgb[1]
-  printf '\e]6;1;bg;green;brightness;%s\a' $rgb[2]
-  printf '\e]6;1;bg;blue;brightness;%s\a' $rgb[3]
 }
 
-ssh() {
-  if [[ $TERM_PROGRAM != iTerm.app ]]; then
-    command ssh "$@"
+_homelab_tab() {  # _homelab_tab <host> | _homelab_tab reset
+  [[ $TERM_PROGRAM == iTerm.app ]] || return 0
+  if [[ $1 == reset ]]; then
+    printf '\e]6;1;bg;*;default\a\e]1337;SetBadgeFormat=\a'
     return
   fi
+  local rgb=(${=HOMELAB_HOST_RGB[$1]})
+  if (( $#rgb )); then
+    printf '\e]6;1;bg;red;brightness;%s\a' $rgb[1]
+    printf '\e]6;1;bg;green;brightness;%s\a' $rgb[2]
+    printf '\e]6;1;bg;blue;brightness;%s\a' $rgb[3]
+  fi
+  printf '\e]1337;SetBadgeFormat=%s\a' "$(printf '%s' "$1" | base64)"
+}
+
+# --- ssh: iTerm tab color and badge per host ------------------------------------
+# Only in iTerm; anywhere else this is plain ssh.
+ssh() {
   # The host is the first argument that is not an option, and not the value
   # of one: in `ssh -o BatchMode=yes pve01` the host is pve01.
   local host arg skip=0
@@ -66,11 +85,102 @@ ssh() {
       *) host=${arg#*@}; break ;;
     esac
   done
-  [[ -n ${HOMELAB_HOST_RGB[$host]} ]] && _homelab_tab "${HOMELAB_HOST_RGB[$host]}"
-  printf '\e]1337;SetBadgeFormat=%s\a' "$(printf '%s' "$host" | base64)"
+  _homelab_tab "$host"
   command ssh "$@"
   local rc=$?
   _homelab_tab reset
-  printf '\e]1337;SetBadgeFormat=\a'
   return $rc
+}
+
+_homelab_fzf() {  # fzf with the shared look; extra flags pass through
+  fzf --ansi --height=80% --layout=reverse --select-1 --exit-0 \
+    --delimiter=$'\t' "$@"
+}
+
+# --- ap: ansible-playbook, from anywhere, with a menu -------------------------
+# The menu does not run anything. It puts `ap playbooks/<pick>.yml ` on your
+# command line, so you can add --check, --limit or -e before pressing Enter.
+# Some playbooks reboot or destroy; one Enter too many should not do that.
+ap() {
+  if [[ $# -gt 0 ]]; then
+    (cd "$HOMELAB_REPO" && ansible-playbook "$@")
+    return
+  fi
+  local f line pick
+  pick=$(cd "$HOMELAB_REPO" && for f in playbooks/*.yml; do
+      # name <tab> first line of the header comment
+      line=$(sed -n '2{s/^# *//;p;}' $f)
+      printf '%s\t\e[2m%s\e[0m\n' $f "$line"
+    done | _homelab_fzf --prompt='playbook> ' --no-select-1 \
+      --preview "sed -n '2,/^[^#]/p' {1} | sed '\$d' | cut -c3-" \
+      --preview-window=right,60%,wrap) || return
+  print -z "ap ${pick%%$'\t'*} "
+}
+
+# Tab completion: playbook names first, host names after --limit / -l.
+_ap() {
+  if [[ ${words[CURRENT-1]} == (--limit|-l) ]]; then
+    compadd -- ${(k)HOMELAB_HOST_IP}
+  elif (( CURRENT == 2 )); then
+    local pbs=($HOMELAB_REPO/playbooks/*.yml(N))
+    compadd -- ${pbs#$HOMELAB_REPO/}
+  else
+    _files
+  fi
+}
+(( $+functions[compdef] )) && compdef _ap ap
+
+# --- hl -------------------------------------------------------------------------
+hl() {
+  local cmd=$1; (( $# )) && shift
+  case $cmd in
+    "")   cd "$HOMELAB_REPO" ;;
+    go)   _hl_go "$@" ;;
+    ssh)  _hl_ssh "$@" ;;
+    logs) _hl_logs "$@" ;;
+    *)    print "hl [go|ssh|logs] [naam]  -  zie ~/.config/homelab/homelab.zsh" >&2
+          return 1 ;;
+  esac
+}
+
+_hl_go() {  # open a route in the browser
+  local r name host url desc pick
+  pick=$(for r in $HOMELAB_ROUTES; do
+      IFS=$'\t' read -r name host url desc <<< "$r"
+      printf '%s\t%s\t\e[2m%s\e[0m\t%s\n' "$name" "$(_homelab_fg $host $host)" "$desc" "$url"
+    done | _homelab_fzf --prompt='open> ' --query="$*" --with-nth=1,2,3 \
+      --preview='echo {4}' --preview-window=down,1) || return
+  open "${pick##*$'\t'}"
+}
+
+_hl_ssh() {  # pick a host, in its color
+  local h pick
+  pick=$(for h in ${(ko)HOMELAB_HOST_IP}; do
+      printf '%s\t\e[2m%s\e[0m\t%s\n' "$(_homelab_fg $h $h)" $HOMELAB_HOST_IP[$h] $h
+    done | _homelab_fzf --prompt='ssh> ' --query="$*" --with-nth=1,2) || return
+  ssh "${pick##*$'\t'}"
+}
+
+_hl_logs() {  # pick a container on any Docker host, follow its logs
+  local tmp h pick fields
+  tmp=$(mktemp -d)
+  # Ask every Docker host at once; a host that does not answer in 5s is skipped.
+  # Per line: name, host (colored), status, then host and docker command for
+  # the preview and the follow - shown columns are only the first three.
+  for h in ${(k)HOMELAB_DOCKER_CLI}; do
+    command ssh -o BatchMode=yes -o ConnectTimeout=5 $h \
+      "$HOMELAB_DOCKER_CLI[$h] ps --format '{{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}'" 2>/dev/null \
+      | while IFS=$'\t' read -r name st; do
+          printf '%s\t%s\t\e[2m%s\e[0m\t%s\t%s\n' "$name" "$(_homelab_fg $h $h)" "$st" $h "$HOMELAB_DOCKER_CLI[$h]"
+        done > $tmp/$h &
+  done
+  wait
+  pick=$(cat $tmp/*(N) | sort | _homelab_fzf --prompt='logs> ' --query="$*" \
+    --with-nth=1,2,3 --preview-window=down,50%,follow \
+    --preview 'command ssh -o BatchMode=yes {4} {5} logs --tail 40 {1} 2>&1')
+  rm -rf $tmp
+  [[ -n $pick ]] || return
+  fields=("${(@ps:\t:)pick}")
+  print "Logs van $fields[1] op $fields[4] - Ctrl-C om te stoppen"
+  ssh -t $fields[4] "$fields[5] logs -f --tail 200 $fields[1]"
 }

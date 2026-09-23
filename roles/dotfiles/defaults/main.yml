@@ -12,8 +12,10 @@ dotfiles_host_colors:
   orange: [adguard, caddy, tailscale]            # the network: DNS, the front door, the VPN
   purple: [semaphore]                            # the scheduler
   blue: [docker, docker-grafana-stack]           # the apps
+  green: [macmini]                               # the Mac mini: media, and the second backup copy
 dotfiles_color_rgb:
   red: "200 40 40"
   orange: "230 130 20"
   purple: "140 80 200"
   blue: "40 110 220"
+  green: "40 160 80"

@@ -62,11 +62,14 @@
 
 # ap (playbook menu) and the iTerm colors per host. A file of its own so
 # ~/.zshrc stays readable; zshrc.j2 sources it.
+# Same guard as the SSH config: the host and Docker lists come from the
+# inventory, and an incomplete one would write menus with half the hosts.
 - name: Deploy the homelab shell helpers
   ansible.builtin.template:
     src: homelab.zsh.j2
     dest: ~/.config/homelab/homelab.zsh
     mode: "0644"
+  when: dotfiles_inventory_complete | bool
 
 - name: Deploy ~/.zshrc
   ansible.builtin.template:

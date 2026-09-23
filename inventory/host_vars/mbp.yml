@@ -68,4 +68,3 @@ dotfiles_zsh_block: |-
   # -W bij het opstarten en kan urllib3 dan nog niet importeren, dus het geeft
   # "Invalid -W option ignored: invalid module name" en waarschuwt alsnog.
   export PYTHONWARNINGS="ignore:Unverified HTTPS request"
-  alias hl='cd ~/Development/homelab-ansible'
