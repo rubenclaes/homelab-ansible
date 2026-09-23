@@ -98,26 +98,22 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
 
 ## Grotere projecten
 
-- [ ] **AdGuard werkt zichzelf bij, en de rol pint een versie. Kies.**
-      Op 23-09 stond de rol op `v0.107.71` terwijl er `v0.107.79` draaide: hij
-      had zichzelf bijgewerkt. De pin is bijgetrokken zodat de rol hem niet
-      terugzet, maar dat is uitstel - bij de volgende zelf-update staat het er
-      weer. Twee eerlijke antwoorden:
+- [ ] **De upstream en de clientinstellingen van AdGuard staan nog nergens.**
+      De blocklists en de rewrites zijn sinds 23-09 beschreven, de rest niet:
+      de Quad9-upstream over DoH en wat er per client is ingesteld leven enkel
+      in die container. De upstream is met opzet overgeslagen - één verkeerde
+      waarde legt de naamresolutie van het hele huis plat, en dat verdient een
+      eigen wijziging op een rustig moment.
 
-      - zelf-bijwerken uitzetten in AdGuard, en de pin gaat weer ergens over.
-        Dan bepaal jij wanneer de DNS van het huis een nieuwe binary krijgt.
-      - de pin laten vallen en `state: latest`-gedrag accepteren. Dan is het
-        beschreven, maar niet meer beheerst.
+      Let op bij het updaten van AdGuard zelf: hij werkt zichzelf NIET bij
+      (geen timer, geen cron, geen auto_update in de config). Klik je op
+      "Update now" in de UI, werk dan `adguard_version` en `adguard_checksum`
+      in `roles/adguard/defaults/main.yml` mee bij. Doe je dat niet, dan zet
+      de volgende run de oude binary terug - en dat is een DNS-onderbreking
+      voor iedereen. Dat gebeurde op 22-09: de UI stond op v0.107.79, de rol
+      op v0.107.71.
 
-      Wat niet werkt is allebei half, zoals nu. De rol wilde de DNS van het
-      hele huis downgraden, en dat werd alleen tegengehouden door een fout
-      elders (`unarchive` kreeg een `checksum`-parameter die niet bestaat;
-      die is nu opgelost met `get_url`).
-
-      De blocklists zijn wél beschreven sinds 23-09. Wat nog niet in de rol
-      staat: de Quad9-upstream over DoH en de clientinstellingen. Die upstream
-      is met opzet overgeslagen - één verkeerde waarde legt de naamresolutie
-      van het hele huis plat, en dat verdient een eigen wijziging.
+        curl -sL https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.XX/checksums.txt | grep linux_amd64
 
 - [ ] **De AdGuard op de Mac mini uitzetten.** Al het andere is af: sinds
       22-09 loopt de hele estate via de LXC op `192.168.0.29`, die Ansible

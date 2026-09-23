@@ -5,9 +5,13 @@
 # the network's DNS, and replacing the binary interrupts resolution for
 # everything.
 # Bijgewerkt op 23-09 van v0.107.71 naar wat er draait. AdGuard werkt zichzelf
-# bij, dus de pin liep achter en de rol wilde hem terugzetten - een downgrade
-# van de DNS van het hele huis. Zie TODO.md: pin en zelf-bijwerken kunnen niet
-# allebei waar zijn, daar moet je kiezen.
+# niet bij - er is geen timer, geen cron en geen auto_update in zijn config -
+# maar de knop "Update now" in de web-UI doet het wel, en die is op 22-09
+# gebruikt. De rol wilde daarna de oude binary terugzetten, wat een
+# DNS-onderbreking voor het hele huis was geweest.
+#
+# Werk je hem bij via de UI, werk dan deze twee regels mee bij. De checksum
+# staat in checksums.txt bij de release.
 adguard_version: v0.107.79
 adguard_checksum: sha256:c48f4a43000665484c5ec28177de11a004759b620dae8f77b2aabefc9ef3687f
 
