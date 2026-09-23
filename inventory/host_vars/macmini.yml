@@ -103,17 +103,10 @@ macos_brew_packages_absent:
 # blijven ze staan en blijft `brew upgrade --cask` proberen Docker Desktop
 # terug te zetten.
 #
-# Een cask met bestanden onder /Library (zoals multipass, die inmiddels met de
-# hand verwijderd is) krijgt Ansible er niet af: zijn uninstall draait
-# `sudo /bin/rm`, en over SSH is er geen terminal waar sudo een wachtwoord kan
-# vragen ("sudo: a terminal is required to read the password"). `-K` helpt
-# niet, brew roept sudo zelf aan. SUDO_ASKPASS met het wachtwoord uit de vault
-# zou werken, maar geeft je inlogwachtwoord aan elke brew-taak op deze Mac.
-# Zo'n cask doe je dus met de hand, met een echte terminal erachter:
-#
-#   ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask <naam>'
-#
-# en zet je hier niet in: zolang hij hier staat faalt elke macos-run erop.
+# Een cask met bestanden onder /Library hoort hier niet: brew roept daarvoor
+# zelf sudo aan, dat faalt over SSH, en zolang hij hier staat faalt elke
+# macos-run erop. Hoe en waarom met de hand: docs-site runbook "Updates",
+# kopje "Casks die root nodig hebben".
 macos_casks_absent:
   - docker
   - docker-desktop

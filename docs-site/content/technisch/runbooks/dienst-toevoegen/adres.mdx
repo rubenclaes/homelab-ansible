@@ -1,0 +1,69 @@
+---
+title: Alleen een adres
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Alleen een adres
+
+De dienst **draait al**, je wil hem alleen bereiken op `naam.neodata.be` in
+plaats van op `192.168.0.26:8084`. Je hoeft niets te installeren. Je voegt
+alleen een route toe.
+
+Voorbeeld: Shelfmark draait op de Mac mini op poort 8084.
+
+<Steps>
+
+### Voeg één regel toe aan `caddy_sites`
+
+```bash
+$EDITOR inventory/host_vars/caddy/main.yml
+```
+
+Zet onder `caddy_sites:`:
+
+```yaml
+  - { name: shelfmark, host: macmini, port: 8084, desc: "Shelfmark — metadata voor boeken" }
+```
+
+- `name` — wordt het adres: `shelfmark.neodata.be`
+- `host` — de naam van de machine **zoals in de inventory** (niet het IP)
+- `port` — de poort waar de dienst op luistert
+- `desc` — korte uitleg, komt op deze docs-site
+
+<Callout type="info">
+Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
+`upstream: "192.168.0.50:80"` in plaats van `host` en `port`.
+</Callout>
+
+### Zet hem live en test
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/docs.yml
+```
+
+### Commit en push
+
+```bash
+git add inventory && git commit -m 'Route voor shelfmark' && git push
+```
+
+</Steps>
+
+## Alle velden van een route
+
+| Veld | Doet |
+| --- | --- |
+| `name` | wordt `name.neodata.be` |
+| `host` | een **inventory-hostnaam**; zijn adres wordt de bestemming |
+| `port` | de poort waar de dienst luistert |
+| `upstream` | alternatief voor `host` + `port`, voor iets dat niet in de inventory staat |
+| `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
+| `host_header` | stuur de oorspronkelijke `Host`-header door |
+| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij (Home Assistant wil dit) |
+| `auth` | zet een login (tinyauth) voor de dienst |
+
+Waarom `host` en niet gewoon een IP? Verhuist een machine naar een ander adres,
+dan pas je dat op één plek aan en volgen alle routes vanzelf.

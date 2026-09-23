@@ -1,0 +1,158 @@
+---
+title: Virtuele machine
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Een virtuele machine
+
+Een VM maak je **met de hand** in het Proxmox-scherm
+([waarom](/technisch/runbooks/nieuwe-guest/goed-om-te-weten/#waarom-vms-niet-automatisch)).
+Daarna neemt Ansible het over, net als bij een container.
+
+Voorbeeld: een VM `nieuwehost` met Debian.
+
+## Het grote plaatje
+
+| Stap | Waar | Wat |
+| --- | --- | --- |
+| 1–3 | Proxmox-scherm | Debian-ISO ophalen, VM aanmaken, Debian installeren |
+| 4 | in de VM | guest agent aanzetten |
+| 5 | UniFi | adres vastzetten |
+| 6–8 | je werkstation | Ansible hem laten zien, sleutel erop, `bootstrap` + `baseline` |
+| 9 | je werkstation | opschrijven in `vms.yml` |
+
+<Callout type="info">
+Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Neem cores,
+geheugen, schijfgrootte en vooral het **MAC-adres** exact over uit
+`inventory/group_vars/proxmox/vms.yml`. Aan het MAC-adres hangt zijn vaste
+adres in UniFi. Meestal wil je dan geen nieuwe VM maar een back-up terugzetten:
+zie [Herstellen](/technisch/runbooks/disaster-recovery/).
+</Callout>
+
+<Steps>
+
+### Haal de Debian-installer op
+
+Eén keer; staat hij er al, sla dit over.
+
+1. Open het Proxmox-scherm: `https://192.168.0.14:8006`.
+2. Links: **pve01 → local (pve01) → ISO Images → Download from URL**.
+3. Plak de link naar het nieuwste `debian-…-amd64-netinst.iso` van
+   [cdimage.debian.org/debian-cd/current/amd64/iso-cd](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/)
+   en klik **Query URL**, dan **Download**.
+
+### Maak de VM aan
+
+Kies een vrij nummer en een naam zoals bij
+[een container](/technisch/runbooks/nieuwe-guest/container/#zoek-een-vrij-nummer).
+Klik rechtsboven op **Create VM** en vul per tabblad in. Alles wat hier niet
+staat laat je op de standaardwaarde.
+
+| Tabblad | Veld | Waarde | Waarom |
+| --- | --- | --- | --- |
+| General | VM ID | het vrije nummer | |
+| | Name | `nieuwehost` | wordt zijn naam in de inventory: kleine letters, geen spaties |
+| | Start at boot | aan | komt terug na een herstart van pve01 |
+| OS | ISO image | het Debian-ISO | |
+| System | Machine | `q35` | zoals de andere VM's |
+| | BIOS | `OVMF (UEFI)` | |
+| | EFI Storage | `vm-hdd` | |
+| | Qemu Agent | **aan** | zonder dit vindt Ansible zijn adres niet |
+| Disks | Storage | `vm-hdd` | |
+| | Disk size | bv. `32` | in GB, groter maken kan later |
+| | Discard, SSD emulation | aan | geeft vrije ruimte terug aan de opslag |
+| CPU | Cores | bv. `2` | |
+| | Type | `host` | volle snelheid van de processor |
+| Memory | Memory | bv. `2048` | in MB. Zie [hoeveel geheugen](/technisch/runbooks/nieuwe-guest/goed-om-te-weten/#hoeveel-geheugen-een-vm-krijgt) |
+| Network | Bridge | `vmbr0` | het thuisnetwerk |
+| | Model | `VirtIO` | |
+
+Klik **Finish**. Selecteer daarna de VM en klik **Start**, dan **Console**.
+
+### Installeer Debian
+
+In de console kies je **Install** (niet Graphical install) en volg je de
+vragen. Alleen deze zijn belangrijk:
+
+| Vraag | Antwoord | Waarom |
+| --- | --- | --- |
+| Netwerk | laat DHCP zijn werk doen | het adres zet je straks vast in UniFi |
+| Hostname | `nieuwehost` | dezelfde naam als de VM |
+| Domain name | leeg | |
+| Root password | **leeg laten** (twee keer Enter) | dan krijgt de gebruiker hieronder `sudo`, en dat heeft Ansible straks nodig |
+| Gebruiker | bv. `ruben` + wachtwoord | alleen voor de eerste keer, daarna gebruikt Ansible zijn eigen account |
+| Partitioning | Guided – use entire disk, alles op één partitie | |
+| Software selection | **alleen** SSH server + standard system utilities | geen desktop |
+
+Na de herstart log je in de console in met je gebruiker.
+
+### Zet de guest agent aan
+
+In de VM:
+
+```bash
+sudo apt install -y qemu-guest-agent
+sudo systemctl enable --now qemu-guest-agent
+ip -4 addr show   # onthoud het adres, bv. 192.168.0.99
+```
+
+De guest agent vertelt Proxmox het adres van de VM. Via die weg vindt Ansible
+hem: een VM zet je **nooit** met de hand in de inventory.
+
+### Zet zijn adres vast in UniFi
+
+In UniFi: zoek het toestel `nieuwehost` bij de clients en zet **Fixed IP** aan
+op het adres dat hij nu heeft. Zo krijgt hij na een herstart hetzelfde adres,
+en blijven routes in Caddy kloppen.
+
+### Controleer dat Ansible hem ziet
+
+Terug op je werkstation:
+
+```bash
+ansible-inventory --host nieuwehost | grep ansible_host
+```
+
+Zie je `"ansible_host": "192.168.0.99"`, dan is het goed. Niets? Kijk in het
+Proxmox-scherm bij de VM → **Summary**: staat bij IPs "Guest Agent not
+running", dan is stap 4 of het vinkje **Qemu Agent** niet gelukt (dat vinkje
+vraagt een volledige stop en start van de VM, geen reboot van binnenuit).
+
+### Zet de Ansible-sleutel op je gebruiker
+
+```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub ruben@192.168.0.99
+```
+
+Hij vraagt eerst of je de hostkey vertrouwt (`yes`), dan het wachtwoord van
+`ruben`. Daarna kan Ansible zonder wachtwoord binnen.
+
+### Zet het ansible-account erop en pas de baseline toe
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit nieuwehost -u ruben -K
+ansible-playbook playbooks/baseline.yml --limit nieuwehost
+```
+
+`-u ruben` logt de eerste keer in als jouw gebruiker, `-K` vraagt zijn
+sudo-wachtwoord. `bootstrap` maakt het `ansible`-account; vanaf `baseline`
+gebruikt alles dat account.
+
+### Schrijf hem op in `vms.yml`
+
+Op pve01 (bv. via **pve01 → Shell** in het Proxmox-scherm):
+
+```bash
+qm config <vmid>
+```
+
+Neem die waarden over in `inventory/group_vars/proxmox/vms.yml`, in dezelfde
+vorm als de VM's die er al staan. Geen playbook leest dit bestand: het is je
+geheugen voor als pve01 ooit weg is.
+
+### Werk hem af
+
+Ga verder met [Afwerken](/technisch/runbooks/nieuwe-guest/afwerken/).
+
+</Steps>

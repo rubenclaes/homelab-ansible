@@ -130,12 +130,6 @@ ansible-playbook playbooks/new-guest.yml -e guest=caddy
 
 Maakt de container, zet het `ansible`-account erop en doet de baseline.
 
-<Callout type="warning">
-`new-guest.yml` maakt **elke** container uit `pve_lxcs` die ontbreekt, niet
-alleen die je noemt. Bootstrappen en baselinen gebeurt wel alleen op de
-genoemde.
-</Callout>
-
 ### Alleen bij `tailscale`: geef hem `/dev/net/tun`
 
 Zet als root op pve01 deze twee regels onderaan `/etc/pve/lxc/108.conf`:
@@ -618,6 +612,24 @@ eerste: DNS), `semaphore` (104), `haos` (101), `docker-grafana-stack` (102) en
 `qmrestore` maakt de VM zelf aan, met de instellingen en het MAC-adres uit de
 back-up. Je hoeft 101 tot 103 niet eerst met de hand te maken.
 
+<Callout type="warning">
+Kijk na de restore van `adguard` of onderaan `/etc/pve/lxc/107.conf` de twee
+`/dev/net/tun`-regels nog staan (zie [geval 1](#alleen-bij-tailscale-geef-hem-devnettun)).
+Ontbreken ze, zet ze erbij en doe `pct reboot 107`.
+</Callout>
+
+### Haal het container-template op
+
+Op pve01, als root:
+
+```bash
+pveam update
+pveam download local debian-13-standard_13.1-2_amd64.tar.zst
+```
+
+Een verse Proxmox heeft het niet, en de rol haalt het niet zelf op. Het staat
+in `pve_lxc_defaults.template` (`lxcs.yml`).
+
 ### Bouw de rest opnieuw
 
 ```bash
@@ -626,16 +638,35 @@ ansible-playbook playbooks/new-guest.yml -e guest=tailscale
 ```
 
 Vergeet de `/dev/net/tun`-regels voor `tailscale` niet (zie
-[geval 1](#geval-1--container-opnieuw-bouwen)).
+[geval 1](#alleen-bij-tailscale-geef-hem-devnettun)).
+
+### Zet de diensten op de nieuwe containers
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/tailscale.yml
+ansible-playbook playbooks/semaphore.yml   # niet site.yml --limit semaphore: die faalt
+```
+
+Een opnieuw aangemelde `tailscale` biedt `192.168.0.0/24` opnieuw aan. Keur die
+route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet.
 
 ### Trek alles gelijk
 
 ```bash
-ansible-playbook playbooks/site.yml --check --diff    # lees dit echt
+ansible-playbook playbooks/site.yml --check --diff    # lees dit echt: back-up vs repo
 ansible-playbook playbooks/site.yml
 ansible-playbook playbooks/docs.yml
 ansible-playbook playbooks/report.yml
 ```
+
+<Callout type="info">
+Stopt `stacks.yml` met een deploy-key? Dat gebeurt alleen op een host die
+**nieuw** gebouwd is. Zet de getoonde publieke sleutel in GitHub onder
+Settings → Deploy keys (`docker` → `rubenclaes/containers`,
+`docker-grafana-stack` → `rubenclaes/monitoring-stack`) en draai opnieuw. Kwam
+de host uit PBS, dan staat de oude sleutel er nog.
+</Callout>
 
 </Steps>
 

@@ -1,0 +1,68 @@
+---
+title: Goed om te weten
+---
+
+# Nieuwe machine: goed om te weten
+
+## Waar het adres van een container vandaan komt
+
+Zolang de container niet bestaat, is `lxcs.yml` de enige plek met zijn adres.
+Zodra hij bestaat, haalt de inventory het live uit Proxmox. Je schrijft het
+adres dus nergens anders op, en zet een guest **nooit** in `00-static.yml`:
+dat overschaduwt de live gegevens.
+
+## Bestaande containers worden nooit aangepast
+
+De rol kijkt alleen welke vmid ontbreekt. Pas je later `memory` of `cores` aan
+in `lxcs.yml`, dan verandert er niets aan een draaiende container. Doe dat in
+het Proxmox-scherm en zet het ook in `lxcs.yml`, zodat een herbouw klopt.
+
+## Hoeveel geheugen een VM krijgt
+
+Geef een VM wat zijn diensten echt gebruiken, plus wat ruimte voor pieken, en
+niet "zoveel als er vrij is". Linux vult elk vrij geheugen in de VM met
+bestandscache. Zonder balloon geeft een VM dat nooit terug, dus voor pve01 is
+het gewoon bezet.
+
+De `docker`-VM had tot 23-09 28 GB. Proxmox zag 26 GB in gebruik, maar de
+containers zelf gebruikten er samen maar ~4,2 GB van. De rest was cache. Op
+pve01 bleef daardoor maar ~9 GB over voor alle andere guests en de ZFS-cache.
+Nu heeft hij 16 GB, genoeg voor de pieken van Immich.
+
+Wat een VM echt gebruikt, zie je **binnen** de VM, niet in Proxmox:
+
+```bash
+free -m                   # kijk naar "used", niet naar "buff/cache"
+docker stats --no-stream  # per container
+```
+
+Aanpassen doe je op pve01, en daarna ook in `vms.yml`:
+
+```bash
+qm set <vmid> --memory 16384   # gaat pas in na een herstart
+qm pending <vmid>              # toont wat er nog wacht
+qm reboot <vmid>               # herstart hem netjes, alle diensten erop gaan even plat
+```
+
+## Waarom de hostkey via Proxmox gelezen wordt
+
+Een nieuwe container heeft een hostkey die niemand kent, en Ansible kan die
+niet zomaar accepteren. `new-guest.yml` leest de sleutel via `pct exec`
+rechtstreeks van de schijf van de container. Zo vertrouw je de echte machine,
+en niet wat er toevallig op dat adres antwoordt.
+
+## Waarom VM's niet automatisch
+
+Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
+instellingen. Hem opnieuw aanmaken uit een lijst geeft je een correcte, maar
+lege machine. Het echte herstel is een back-up terugzetten uit PBS. Daarom
+staat `vms.yml` er alleen als naslag.
+
+## Na een wijziging aan dit pad
+
+Pas je `new-guest.yml`, `bootstrap.yml`, de baseline of de `proxmox_lxc`-rol
+aan? Draai dan de drill die een wegwerpcontainer bouwt en weer sloopt:
+
+```bash
+ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
+```

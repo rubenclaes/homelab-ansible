@@ -19,10 +19,8 @@
 # wegwerpcontainer mee te bouwen en weer te slopen. Wijzig je hier iets,
 # draai dan die drill.
 #
-# Let op: de proxmox_lxc-rol is lijstgestuurd en maakt élke container uit
-# pve_lxcs die nog niet bestaat, niet alleen degene die je noemt. Bootstrappen
-# en baselinen gebeurt wél alleen op de genoemde. Dat is hetzelfde gedrag als
-# proxmox-lxcs.yml, alleen nu met de vervolgstappen eraan vast.
+# De proxmox_lxc-rol is lijstgestuurd; hier krijgt hij alleen de genoemde
+# container. Zo blijven de nummers van guests die uit PBS terug moeten vrij.
 - name: Create the container and make it reachable
   hosts: pve01
   gather_facts: true
@@ -43,9 +41,11 @@
       ansible.builtin.set_fact:
         new_guest_entry: "{{ pve_lxcs | selectattr('hostname', 'eq', guest) | first }}"
 
-    - name: Create any container the list describes but the node lacks
+    - name: Create it, if the node lacks it
       ansible.builtin.include_role:
         name: proxmox_lxc
+      vars:
+        pve_lxcs: ["{{ new_guest_entry }}"]
 
     - name: Wait for SSH on {{ guest }}
       ansible.builtin.wait_for:

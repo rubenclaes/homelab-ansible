@@ -1,0 +1,87 @@
+---
+title: Afwerken
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Een nieuwe machine afwerken
+
+Je machine staat er en heeft de baseline, via
+[Nieuwe container](/technisch/runbooks/nieuwe-guest/container/) of
+[Virtuele machine](/technisch/runbooks/nieuwe-guest/vm/). Nu zet je er iets op
+en zorg je dat hij overal meetelt. Voorbeeld: `vaultwarden`.
+
+<Steps>
+
+### Installeer de dienst
+
+Voor software zonder Docker schrijf je een rol. Dat staat in
+[Dienst toevoegen → Eigen rol](/technisch/runbooks/dienst-toevoegen/eigen-rol/):
+
+```bash
+ansible-playbook playbooks/new-role.yml \
+  -e svc_name=vaultwarden \
+  -e svc_host=vaultwarden \
+  -e svc_tag=secrets \
+  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
+```
+
+### Geef hem een adres (optioneel)
+
+Wil je hem op `https://vaultwarden.neodata.be`, zet dan een route in
+`inventory/host_vars/caddy/main.yml` onder `caddy_sites`:
+
+```yaml
+  - { name: vaultwarden, host: vaultwarden, port: 8080, desc: "Wachtwoordkluis" }
+```
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/caddy-smoketest.yml
+```
+
+Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/technisch/runbooks/dienst-toevoegen/adres/#alle-velden-van-een-route).
+
+### Zet hem in de wekelijkse back-up
+
+De dagelijkse back-up naar PBS neemt elke guest vanzelf mee. De wekelijkse
+kopie naar de Mac mini **niet**: die heeft een vaste lijst.
+
+```bash
+$EDITOR inventory/group_vars/proxmox/backup.yml   # vmid toevoegen aan "101,102,…,108"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+### Commit en push
+
+```bash
+git add inventory/ roles/ playbooks/
+git commit -m "vaultwarden erbij"
+git push
+```
+
+<Callout type="error">
+Sla dit niet over. Semaphore draait zijn geplande runs vanuit git, niet vanaf
+je laptop. Een route of rol die niet gepusht is, bestaat voor Semaphore niet
+en kan bij de volgende run weer verdwijnen.
+</Callout>
+
+### Controleer
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff --limit vaultwarden
+```
+
+Verandert niets, toont alleen wat er nog zou veranderen. Staat er niets open,
+dan klopt alles.
+
+### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina's met hosts en containers op deze site worden uit de inventory
+gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
+
+</Steps>
