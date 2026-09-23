@@ -13,51 +13,66 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **`dns-smoketest.yml` op een schema zetten.** Geschreven en gelint,
-      nog niet gedraaid. Hij vraagt elke `<host>.home.arpa` bij AdGuard op en
-      vergelijkt met het adres uit de inventory, plus één publieke naam voor
-      de forwarding. Hoort naast `drift.yml` in Semaphore: sinds 22-09 loopt
-      de hele estate via één LXC, en dat is precies het soort ding dat je
-      niet wil ontdekken op het moment dat je het nodig hebt.
+- [x] **De crons staan op lokale tijd**, 23-09. De unit zet
+      `SEMAPHORE_SCHEDULE_TIMEZONE=Europe/Brussels` en de dienst is om 08:54
+      herstart; `systemctl show` bevestigt de variabele. Daarvoor was het UTC,
+      dus alles draaide twee uur later dan er stond - en schoof het mee met de
+      zomertijd.
 
-      Let op: hij roept `dig` aan op de host die hem draait. `dnsutils` staat
-      daarom sinds vandaag in `baseline_packages`, maar dat betekent dat
-      Semaphore eerst een `site.yml` gezien moet hebben voor het schema werkt.
+      Let op bij een droogloop: `semaphore.yml --check --diff` laat het
+      verschil zien maar schrijft niets, en herstart dus ook niets. Hier is
+      twee keer gedacht dat het gezet was terwijl de unit nog van 21-09 was.
+
+- [x] **`dns-smoketest.yml` staat op een schema**, 23-09, dagelijks 06:30.
+      Eerst met de hand gedraaid en groen - tien namen, allemaal het adres uit
+      de inventory - daarna als template aangemaakt. 06:30 omdat 06:00 en
+      07:00 al bezet zijn door Drift check en Docs.
+
+      `dig` bleek al aanwezig op de Semaphore-container, dus de zorg dat
+      `dnsutils` eerst via een `site.yml` moest landen was onnodig. Dat blijft
+      wel gelden voor een nieuwe controller.
 
 ---
 
 ## Semaphore — automatiseren wat nu van jouw geheugen afhangt
 
 De vier punten die hier stonden zijn geen UI-werk meer.
-`roles/semaphore_templates` beschrijft de templates én hun cron via de API, en
-ze staan in `semaphore_templates_list` in `inventory/host_vars/semaphore/`:
-Site (apply) zondag 03:00, Drift (report) dagelijks 06:00, Cleanup (apply)
-zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
-`--limit guests:!semaphore` zonder schema. Wat rest staat hieronder.
+`roles/semaphore_templates` beschrijft de templates én hun cron via de API. Op
+23-09 echt gedraaid; vijf templates staan in `semaphore_templates_list` in
+`inventory/host_vars/semaphore/main.yml`:
 
-- [ ] **`inventory/host_vars/semaphore/vault.yml` aanmaken.** Zonder dat
-      bestand faalt de rol meteen, en dat is met opzet - een sync die
-      stilletjes overslaat is erger dan een rode run.
+| Template | Cron | Wat |
+| --- | --- | --- |
+| Site converge | `0 5 * * 0` | site.yml, `--limit all:!mbp:!semaphore` |
+| Update guests | `0 4 * * 0` | update.yml, `--limit guests:!semaphore` |
+| Drift check | `0 6 * * *` | drift.yml met `drift_fail` en `drift_limit` |
+| DNS smoketest | `30 6 * * *` | dns-smoketest.yml |
+| Cleanup (Apply) | `0 3 * * 6` | cleanup.yml met `cleanup_apply` |
+| Restore drill | `0 4 1 * *` | restore-drill.yml |
 
-          ansible-vault create --encrypt-vault-id infra \
-            inventory/host_vars/semaphore/vault.yml
+Lokale tijd sinds 23-09. `--check` geeft nul wijzigingen, dus wat hier staat is
+wat er draait.
 
-      Met `vault_semaphore_api_user` en `vault_semaphore_api_password`: de
-      login van de web-UI.
+LET OP dat `Drift check` nog op `error` staat: die faalde op 23-09 om 06:00 op
+de `unarchive: checksum`-fout in de adguard-rol. Die fix staat inmiddels op
+origin, dus de eerste eerlijke run is morgenvroeg 06:00. Wat verder rest staat
+hieronder.
 
-- [ ] **`Cleanup (apply)` (id 13) weggooien in de UI**, die met de kleine a.
-      Hij heeft een schema op zaterdag 03:00 en `Cleanup (Apply)` (id 15) ook,
-      dus tot dat gebeurt draait die job dubbel.
+- [x] **`inventory/host_vars/semaphore/vault.yml` aangemaakt**, 23-09. Let op
+      dat het `--encrypt-vault-id infra` is en niet `--vault-id`: ansible.cfg
+      kent twee identiteiten, dus bij aanmaken moet je zeggen mét welke je
+      versleutelt.
 
-      De rest van de opruiming van 23-09 is af: `Site (apply)` en
-      `Drift (report)` zijn weg. Bij het opruimen is per ongeluk id 10
-      verwijderd - de originele `Cleanup (Apply)` - waarna de rol hem opnieuw
-      aanmaakte als id 15. Die twee namen verschillen alleen in een
-      hoofdletter, dus ga op het id af en niet op de naam. De taakgeschiedenis
-      van id 10 is daarmee weg.
+- [x] **De dubbele templates opgeruimd**, 23-09. De lijst was er die dag
+      eerst met eigen namen ingezet en maakte duplicaten naast wat er al
+      stond: `Site (apply)`, `Drift (report)` en `Cleanup (apply)` met een
+      kleine a. Alle drie weg, de repo draait nu op de bestaande namen.
 
-      Weggooien kan alleen met de hand: de rol verwijdert niets. Een nieuwe
-      run maakt id 13 ook niet opnieuw aan, want de repo beschrijft hem niet.
+      De les die blijft: `name` is de sleutel, en `Cleanup (apply)` naast
+      `Cleanup (Apply)` verschilt in één hoofdletter. Ga bij het verwijderen
+      op het id af en niet op de naam - hier sneuvelde daardoor per ongeluk de
+      originele id 10, inclusief zijn taakgeschiedenis, waarna de rol hem
+      opnieuw aanmaakte als id 15.
 
 - [ ] **De zes overgebleven templates overnemen in de repo.**
       `Baseline (dry run)`, `Caddy`, `Cleanup (report)`, `Docs`,
@@ -67,27 +82,45 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
       gebeurd is, is "welk playbook draait wanneer" nog steeds niet volledig
       in git te lezen.
 
-- [ ] **`semaphore-templates.yml` eerst met `--check` draaien, dan echt.**
-      Lees de rapportageregel voor je hem loslaat. `name` is de sleutel:
-      staat er iets onder `create` dat je dacht bij te werken, dan wijkt de
-      naam af van wat er nu in de UI staat en zou je een tweede template
-      maken naast de bestaande.
+- [x] **`semaphore-templates.yml` echt gedraaid**, 23-09. Vijf templates en
+      hun schema's staan erin, `--check` geeft sindsdien nul wijzigingen, en
+      alle twaalf templates in het project hebben hun environment nog.
 
-      De rol is tegen een nagebouwde API getest - aanmaken, bijwerken,
-      schema's, en drie runs achter elkaar zonder wijziging - maar nog nooit
-      tegen jouw Semaphore. De eerste echte run is het bewijs.
+      Dat laatste was niet vanzelfsprekend: de eerste versie stuurde alleen
+      `environment_id` mee, en dat veld is in Semaphore geen kolom maar een
+      aparte tabel die bij elke schrijfactie leeggegooid wordt. Zonder
+      `environment_ids` in het payload draait een template zonder zijn
+      variabelen.
 
 - [ ] **Een melding als een geplande job faalt.** Dit staat nog steeds open
-      en de rol lost het niet op: hij zet schema's, geen alerting. Een
-      geplande job die stilletjes faalt is erger dan geen job.
+      en de rol lost het niet op: hij zet schema's, geen alerting.
 
-- [ ] **`semaphore-templates.yml` in `site.yml` zetten**, zodra die eerste
-      echte run groen was. Eén regel. Nu bewust nog niet: een ongeteste
-      API-aanroep hoort niet in het playbook dat alles gelijktrekt.
+      Het is geen theorie meer. `Drift check` faalde op 23-09 om 06:00 UTC op
+      de `unarchive: checksum`-fout in de adguard-rol, en dat is pas gezien
+      toen er met de hand in de taaklijst gekeken werd - twee uur later, bij
+      toeval. Precies het scenario waarvoor hier stond dat een stille job
+      erger is dan geen job.
+
+- [ ] **`semaphore-templates.yml` in `site.yml` zetten.** De eerste echte run
+      was groen, dus de reden om te wachten is weg. Eén regel.
+
+      Bedenk wel wat het oplevert: `Site converge` draait met
+      `--limit all:!mbp:!semaphore`, dus in de geplande converge zou deze play
+      juist worden overgeslagen. Hij zou alleen meelopen als je site.yml met
+      de hand en zonder limit draait.
 
 ---
 
 ## Opruimen in de estate
+
+- [ ] **Zet `--accept-routes` aan op de toestellen die van huis gaan.**
+      Nu staat het overal uit (`RouteAll: False` op de Mini en ct 108). Voor
+      DNS maakt dat sinds 23-09 niet meer uit - de nameserver is een
+      tailnet-adres - maar het betekent wel dat je onderweg niet bij
+      `192.168.0.x` kunt, alleen bij wat een eigen 100.x-adres heeft. De
+      subnet-route die ct 108 adverteert doet dus niets zolang niemand hem
+      accepteert.
+
 
 - [ ] **`vpn.neodata.be` hangt aan een dynamisch WAN-adres.** Hij wees op
       22-09 naar `94.111.99.122` en dat klopte, maar de VPN-server staat op
