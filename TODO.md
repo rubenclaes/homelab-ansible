@@ -39,7 +39,7 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
       bestand faalt de rol meteen, en dat is met opzet - een sync die
       stilletjes overslaat is erger dan een rode run.
 
-          ansible-vault create --vault-id infra@bin/vault-pass-client \
+          ansible-vault create --encrypt-vault-id infra \
             inventory/host_vars/semaphore/vault.yml
 
       Met `vault_semaphore_api_user` en `vault_semaphore_api_password`: de
@@ -98,21 +98,26 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
 
 ## Grotere projecten
 
-- [ ] **AdGuard is maar voor een tiende beschreven.** De rol beheert alleen
-      de rewrites onder `home.arpa`. Alles wat hem tot een filter maakt staat
-      enkel in die container: vier actieve blocklists van samen ruim 420.000
-      regels (AdGuard DNS filter, HaGeZi Normal, HaGeZi Badware, PhishTank),
-      de Quad9-upstream over DoH, en de clientinstellingen.
+- [ ] **AdGuard werkt zichzelf bij, en de rol pint een versie. Kies.**
+      Op 23-09 stond de rol op `v0.107.71` terwijl er `v0.107.79` draaide: hij
+      had zichzelf bijgewerkt. De pin is bijgetrokken zodat de rol hem niet
+      terugzet, maar dat is uitstel - bij de volgende zelf-update staat het er
+      weer. Twee eerlijke antwoorden:
 
-      Bouw je ct 107 opnieuw, dan krijg je je namen terug en verder niets -
-      geen filtering, en een upstream die terugvalt op de standaardwaarde.
-      Dat is nu een groter gat dan het was, want sinds 22-09 loopt *alle* DNS
-      van het huis hierlangs.
+      - zelf-bijwerken uitzetten in AdGuard, en de pin gaat weer ergens over.
+        Dan bepaal jij wanneer de DNS van het huis een nieuwe binary krijgt.
+      - de pin laten vallen en `state: latest`-gedrag accepteren. Dan is het
+        beschreven, maar niet meer beheerst.
 
-      Zelfde vorm als de rewrites: lijst in de inventory, via de API gezet,
-      en wat je met de hand in de UI toevoegt blijft met rust. Let bij het
-      opschrijven op `AdAway Default Blocklist`: die staat uit en heeft 0
-      regels, dus hij laadt niet. Weghalen in plaats van overnemen.
+      Wat niet werkt is allebei half, zoals nu. De rol wilde de DNS van het
+      hele huis downgraden, en dat werd alleen tegengehouden door een fout
+      elders (`unarchive` kreeg een `checksum`-parameter die niet bestaat;
+      die is nu opgelost met `get_url`).
+
+      De blocklists zijn wél beschreven sinds 23-09. Wat nog niet in de rol
+      staat: de Quad9-upstream over DoH en de clientinstellingen. Die upstream
+      is met opzet overgeslagen - één verkeerde waarde legt de naamresolutie
+      van het hele huis plat, en dat verdient een eigen wijziging.
 
 - [ ] **De AdGuard op de Mac mini uitzetten.** Al het andere is af: sinds
       22-09 loopt de hele estate via de LXC op `192.168.0.29`, die Ansible
