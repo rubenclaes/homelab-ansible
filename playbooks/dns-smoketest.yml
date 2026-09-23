@@ -1,0 +1,113 @@
+---
+# Vraagt elke DNS-rewrite op bij AdGuard en faalt als er één ontbreekt of naar
+# het verkeerde adres wijst.
+#
+#   ansible-playbook playbooks/dns-smoketest.yml
+#
+# Draai dit na adguard.yml, en op een schema. Niet in site.yml: het
+# controleert, het convergeert niet - zelfde afspraak als caddy-smoketest.yml.
+#
+# Waarom naast caddy-smoketest.yml: die vraagt de *.neodata.be routes op en
+# faalt dus al als een naam niet resolvet. Wat hij NIET ziet is de zone die
+# AdGuard zelf serveert. Valt een rewrite om, dan blijven de routes werken
+# (Caddy praat met IP-adressen) terwijl `ssh pve01.home.arpa` stilletjes stuk
+# is, en dat merk je precies op het moment dat je erbij moet.
+- name: Smoke test the DNS rewrites
+  hosts: adguard
+  gather_facts: false
+
+  vars:
+    # Het adres van de resolver zelf. LET OP de omweg via hostvars: de dig
+    # hieronder draait met delegate_to: localhost, en onder delegatie wijst
+    # het kale `ansible_host` naar de gedelegeerde host - dat is een
+    # verbindingsvariabele. Een expliciete hostvars-lookup blijft wél van
+    # adguard. Zonder dit ondervraag je je eigen werkplek en is alles groen.
+    dns_smoketest_server: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+
+    # De controle op de forwarding. Zonder deze blijft alles onder home.arpa
+    # groen terwijl AdGuards upstream weg is en het halve huis stuk: de
+    # rewrites beantwoordt hij zelf, de rest moet hij doorvragen.
+    dns_smoketest_public_name: google.com
+
+  tasks:
+    # Dezelfde uitdrukking als in roles/adguard/tasks/rewrites.yml, met opzet
+    # overgeschreven in plaats van gedeeld. Deze test hoort te bewijzen dat
+    # DNS antwoordt wat de inventory zegt; zou hij de lijst van de rol lenen,
+    # dan zou een fout in die lijst zichzelf goedkeuren.
+    - name: Collect the names the inventory asks for
+      ansible.builtin.set_fact:
+        dns_smoketest_wanted: >-
+          {{ dns_smoketest_names | zip(dns_smoketest_addrs) | map('join', ' ') | sort }}
+      vars:
+        dns_smoketest_hosts: >-
+          {{ groups['all'] | sort | map('extract', hostvars) | selectattr('ansible_host', 'defined') | list }}
+        dns_smoketest_names: >-
+          {{ dns_smoketest_hosts | map(attribute='inventory_hostname')
+             | map('regex_replace', '$', '.' ~ adguard_rewrite_domain) | list }}
+        dns_smoketest_addrs: "{{ dns_smoketest_hosts | map(attribute='ansible_host') | list }}"
+
+    # `dig @adres` in plaats van de resolver van de werkplek: dit moet bewijzen
+    # dat DEZE server het goede antwoord geeft, niet dat er ergens een cache
+    # nog een oud antwoord heeft.
+    #
+    # +time=3 +tries=1 begrenst hoe lang een dode resolver mag kosten. Zonder
+    # die twee probeert dig drie keer met vijf seconden geduld, per naam - met
+    # tien hosts is een uitgevallen AdGuard dan twee en een halve minuut
+    # stilte. Op het LAN antwoordt hij in milliseconden, dus drie seconden is
+    # ruim.
+    #
+    # Opvragen wijzigt niets en de asserts hieronder hebben het resultaat
+    # nodig, dus check_mode: false - anders slaat de taak over en is het hele
+    # playbook onbruikbaar onder --check.
+    - name: Ask AdGuard for every name the inventory expects
+      ansible.builtin.command:
+        argv: [dig, +short, +time=3, +tries=1, "@{{ dns_smoketest_server }}", "{{ item.split(' ') | first }}", A]
+      loop: "{{ dns_smoketest_wanted }}"
+      loop_control:
+        label: "{{ item.split(' ') | first }}"
+      register: dns_smoketest_answers
+      failed_when: false
+      changed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+
+    - name: Ask AdGuard for a name it has to forward
+      ansible.builtin.command:
+        argv: [dig, +short, +time=3, +tries=1, "@{{ dns_smoketest_server }}", "{{ dns_smoketest_public_name }}", A]
+      register: dns_smoketest_public
+      failed_when: false
+      changed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+
+    # Per naam vergelijken kan niet in één selectattr - die kent maar één kant
+    # van het paar. Een lus die de kapotte gevallen opschrijft leest beter dan
+    # de Jinja waarmee dat wél in één uitdrukking zou passen.
+    - name: Work out which names answer wrong
+      ansible.builtin.set_fact:
+        dns_smoketest_broken: >-
+          {{ dns_smoketest_broken | default([])
+             + [item.item.split(' ') | first ~ ': verwacht ' ~ (item.item.split(' ') | last)
+                ~ ', kreeg ' ~ (item.stdout_lines | join(', ') | default('geen antwoord', true))] }}
+      loop: "{{ dns_smoketest_answers.results }}"
+      loop_control:
+        label: "{{ item.item.split(' ') | first }}"
+      when: item.item.split(' ') | last not in item.stdout_lines
+
+    - name: Require every rewrite to answer with the inventory's address
+      ansible.builtin.assert:
+        that: dns_smoketest_broken | default([]) | length == 0
+        fail_msg: "{{ dns_smoketest_broken | default([]) | join(' | ') }}"
+        success_msg: "All {{ dns_smoketest_wanted | length }} rewrites answer with the address the inventory gives"
+        quiet: true
+
+    - name: Require forwarding to still work
+      ansible.builtin.assert:
+        that: dns_smoketest_public.stdout_lines | length > 0
+        fail_msg: >-
+          {{ dns_smoketest_server }} answers for {{ adguard_rewrite_domain }} but returns nothing for
+          {{ dns_smoketest_public_name }}. The rewrites are fine; the upstream is not.
+        success_msg: "{{ dns_smoketest_public_name }} resolves, so forwarding works"
+        quiet: true

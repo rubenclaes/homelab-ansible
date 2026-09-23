@@ -1,0 +1,104 @@
+---
+# De templates zelf: aanmaken wat ontbreekt, bijwerken wat afwijkt.
+#
+# `name` is de sleutel. Semaphore heeft geen tweede identiteit voor een
+# template, dus een naam veranderen in semaphore_templates_list maakt een
+# nieuwe template en laat de oude staan. Dat is de prijs van niet verwijderen.
+
+- name: Build the wanted templates
+  ansible.builtin.set_fact:
+    semaphore_templates_wanted: >-
+      {{ semaphore_templates_wanted | default([]) + [{
+           'name': item.name,
+           'playbook': item.playbook,
+           'description': item.description | default(''),
+           'arguments': item.arguments | default([]) | to_json,
+           'project_id': semaphore_templates_project_id | int,
+           'app': 'ansible',
+         } | combine(semaphore_templates_ids)] }}
+  loop: "{{ semaphore_templates_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Read the templates that exist
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/templates"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+  register: semaphore_templates_existing
+  check_mode: false
+
+- name: Work out which templates are missing
+  ansible.builtin.set_fact:
+    semaphore_templates_create: >-
+      {{ semaphore_templates_wanted | default([])
+         | rejectattr('name', 'in', semaphore_templates_existing.json | map(attribute='name') | list) | list }}
+
+# Alleen de velden die deze rol bezit worden vergeleken. Alles daarbuiten -
+# surveys, views, vaults, de vlaggen onder "Advanced" - mag in de UI staan
+# zoals het staat, en een verschil daar hoort geen update uit te lokken.
+- name: Work out which templates differ
+  ansible.builtin.set_fact:
+    semaphore_templates_update: >-
+      {{ semaphore_templates_update | default([]) + [item | combine({'id': semaphore_templates_current.id | int})] }}
+  loop: "{{ semaphore_templates_wanted | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    semaphore_templates_current: >-
+      {{ (semaphore_templates_existing.json | selectattr('name', 'equalto', item.name) | list | first)
+         | default({}, true) }}
+  when:
+    - semaphore_templates_current.id is defined
+    - >-
+      [item.playbook, item.description, item.arguments,
+       item.inventory_id | int, item.repository_id | int, item.environment_id | int]
+      !=
+      [semaphore_templates_current.playbook | default(''),
+       semaphore_templates_current.description | default(''),
+       semaphore_templates_current.arguments | default('[]'),
+       semaphore_templates_current.inventory_id | default(0) | int,
+       semaphore_templates_current.repository_id | default(0) | int,
+       semaphore_templates_current.environment_id | default(0) | int]
+
+# De uri-taken hieronder slaan over onder --check. Dit is dus de enige plek
+# waar een droogloop laat zien wat er zou gebeuren - zelfde reden als de
+# rapportagetaak in roles/adguard/tasks/rewrites.yml.
+- name: Report the templates that will change
+  ansible.builtin.debug:
+    msg:
+      create: "{{ semaphore_templates_create | map(attribute='name') | list }}"
+      update: "{{ semaphore_templates_update | default([]) | map(attribute='name') | list }}"
+  changed_when: true
+  when: semaphore_templates_create | length > 0 or semaphore_templates_update | default([]) | length > 0
+
+- name: Create the templates that are missing
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/templates"
+    method: POST
+    body_format: json
+    body: "{{ item }}"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+    status_code: [201]
+  loop: "{{ semaphore_templates_create }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+
+# PUT eist dat id en project_id in het lichaam gelijk zijn aan die in het pad,
+# en weigert een template waarvan `app` niet bestaat op deze server. Beide
+# zitten in het payload dat hierboven is opgebouwd; haal ze er niet uit.
+- name: Update the templates that differ
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/templates/{{ item.id }}"
+    method: PUT
+    body_format: json
+    body: "{{ item }}"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+    status_code: [204]
+  loop: "{{ semaphore_templates_update | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true

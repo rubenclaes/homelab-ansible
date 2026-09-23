@@ -1,0 +1,122 @@
+---
+# De schema's. Dit is waar het om begonnen was: "site.yml draait zondag 03:00"
+# hoort in git te staan en niet in een webformulier.
+#
+# Een schema is in Semaphore een eigen object met een eigen id, geen veld op
+# de template. Er is geen manier om er één op te zoeken bij een template
+# anders dan ze allemaal lezen en op template_id filteren.
+
+# Opnieuw lezen, want templates.yml heeft er net misschien een paar
+# aangemaakt en die hebben pas sinds dat moment een id. Onder --check is er
+# niets aangemaakt, dus een nieuwe template krijgt in een droogloop ook nog
+# geen schema te zien. Dat klopt: die kan er nog niet zijn.
+- name: Re-read the templates now the missing ones exist
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/templates"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+  register: semaphore_templates_after
+  check_mode: false
+
+# LET OP: dit endpoint staat niet in api-docs.yml van Semaphore, maar het
+# bestaat wel - het is geregistreerd in api/router.go als GetProjectSchedules.
+# Gedocumenteerd zijn alleen POST /schedules en /schedules/{id}. Zonder deze
+# lijst is er geen idempotentie mogelijk, alleen aanmaken.
+- name: Read the schedules
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/schedules"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+  register: semaphore_templates_schedules
+  check_mode: false
+
+- name: Work out which schedules are missing
+  ansible.builtin.set_fact:
+    semaphore_templates_cron_create: >-
+      {{ semaphore_templates_cron_create | default([]) + [{
+           'project_id': semaphore_templates_project_id | int,
+           'template_id': semaphore_templates_tpl.id | int,
+           'cron_format': item.schedule,
+           'name': item.name,
+           'active': true,
+         }] }}
+  loop: "{{ semaphore_templates_list | selectattr('schedule', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    semaphore_templates_tpl: >-
+      {{ (semaphore_templates_after.json | selectattr('name', 'equalto', item.name) | list | first)
+         | default({}, true) }}
+    semaphore_templates_cron: >-
+      {{ semaphore_templates_schedules.json
+         | selectattr('template_id', 'equalto', semaphore_templates_tpl.id | default(0) | int) | list }}
+  when:
+    - semaphore_templates_tpl.id is defined
+    - semaphore_templates_cron | length == 0
+
+# `active` wordt overgenomen in plaats van op true gezet. Zet je een schema in
+# de UI op pauze, dan hoort de volgende run hem niet stilletjes weer aan te
+# zetten; de cron is wat deze rol bezit, niet de aan-uitknop.
+- name: Work out which schedules differ
+  ansible.builtin.set_fact:
+    semaphore_templates_cron_update: >-
+      {{ semaphore_templates_cron_update | default([]) + [{
+           'id': semaphore_templates_cron | map(attribute='id') | first | int,
+           'project_id': semaphore_templates_project_id | int,
+           'template_id': semaphore_templates_tpl.id | int,
+           'cron_format': item.schedule,
+           'name': item.name,
+           'active': semaphore_templates_cron | map(attribute='active') | first,
+         }] }}
+  loop: "{{ semaphore_templates_list | selectattr('schedule', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    semaphore_templates_tpl: >-
+      {{ (semaphore_templates_after.json | selectattr('name', 'equalto', item.name) | list | first)
+         | default({}, true) }}
+    semaphore_templates_cron: >-
+      {{ semaphore_templates_schedules.json
+         | selectattr('template_id', 'equalto', semaphore_templates_tpl.id | default(0) | int) | list }}
+  when:
+    - semaphore_templates_tpl.id is defined
+    - semaphore_templates_cron | length > 0
+    - (semaphore_templates_cron | map(attribute='cron_format') | first) != item.schedule
+
+- name: Report the schedules that will change
+  ansible.builtin.debug:
+    msg:
+      create: "{{ semaphore_templates_cron_create | default([]) | map(attribute='name') | list }}"
+      update: "{{ semaphore_templates_cron_update | default([]) | map(attribute='name') | list }}"
+  changed_when: true
+  when: >-
+    semaphore_templates_cron_create | default([]) | length > 0
+    or semaphore_templates_cron_update | default([]) | length > 0
+
+- name: Create the schedules that are missing
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/schedules"
+    method: POST
+    body_format: json
+    body: "{{ item }}"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+    status_code: [201]
+  loop: "{{ semaphore_templates_cron_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+
+- name: Update the schedules that differ
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/schedules/{{ item.id }}"
+    method: PUT
+    body_format: json
+    body: "{{ item }}"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+    status_code: [204]
+  loop: "{{ semaphore_templates_cron_update | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true

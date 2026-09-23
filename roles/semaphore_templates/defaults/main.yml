@@ -1,0 +1,37 @@
+---
+# Semaphore praat met zichzelf: de rol draait op de Semaphore-host, dus de API
+# is lokaal en hoeft het netwerk niet op. 3000 is de poort uit de Caddy-route
+# (caddy_sites, `semaphore`), niet een gok.
+semaphore_templates_api: "http://127.0.0.1:3000/api"
+
+# Project, inventory, repository en environment worden op NAAM opgezocht en
+# niet als nummer ingevuld. Een id is een database-rij: maak je een inventory
+# opnieuw aan, dan klopt het nummer stil niet meer en wijst een template naar
+# iets anders dan je denkt.
+#
+# Leeg gelaten betekent "er is er maar één, neem die". Staan er meerdere, dan
+# faalt de rol met de namen erbij, zodat je weet wat je hier in moet vullen.
+semaphore_templates_project: null
+semaphore_templates_inventory: null
+semaphore_templates_repository: null
+semaphore_templates_environment: null
+
+# De templates zelf. Per stuk:
+#
+#   name        de naam in de UI, en meteen de sleutel: hierop wordt gezocht,
+#               dus hernoemen in deze lijst maakt een tweede template
+#   playbook    pad in de repo, zoals Semaphore het aanroept
+#   description optioneel, maar doe het - dit is wat je leest bij een alarm
+#   arguments   optioneel, een lijst; wordt als JSON-string doorgegeven
+#   schedule    optioneel, cron. Weggelaten betekent "geen schema", NIET
+#               "verwijder het schema dat er staat"
+#
+# Wat deze rol met opzet niet aanraakt: templates die hier niet in staan, en
+# surveys, views en vaults op de templates die er wel in staan. Die blijven
+# van de UI.
+semaphore_templates_list: []
+
+# semaphore_api_user en semaphore_api_password hebben geen default, net als bij
+# de adguard-rol. Het zijn de inloggegevens van de web-UI en ze horen in
+# inventory/host_vars/semaphore/vault.yml. Zonder die twee hoort de rol te
+# falen en niet stilletjes over te slaan.

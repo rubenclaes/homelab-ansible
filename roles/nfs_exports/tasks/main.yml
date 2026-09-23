@@ -1,0 +1,45 @@
+---
+# Een lege lijst is geen reden om /etc/exports leeg te schrijven. Dat zou de
+# shares uitzetten van een host waarvan alleen de variabelen nog ontbreken -
+# stil, en pas merkbaar als de media-stack aan de andere kant omvalt. Dus:
+# niets beschreven, niets gedaan.
+- name: Skip hosts that export nothing
+  ansible.builtin.meta: end_host
+  when: nfs_exports_shares | length == 0
+
+- name: Write /etc/exports
+  ansible.builtin.template:
+    src: exports.j2
+    dest: /etc/exports
+    owner: root
+    group: wheel
+    mode: "0644"
+  notify: Update NFS exports
+
+# macOS kan dit bestand niet vooraf valideren: `nfsd checkexports` leest
+# /etc/exports zelf en neemt geen pad aan, dus de `validate:` van de
+# template-module - zoals caddy en sshd die wel hebben - kan hier niet.
+#
+# Gevolg: een fout bestand staat er al voor we het merken. Deze taak zorgt er
+# alleen voor dat je het meteen wéét in plaats van een week later. Repareren
+# doe je in nfs_exports_shares, niet in het bestand.
+#
+# Slaat over onder --check, want dan is er niets geschreven en zou hij het
+# oude bestand goedkeuren.
+- name: Check the exports file macOS now has
+  ansible.builtin.command: /usr/sbin/nfsd checkexports
+  changed_when: false
+
+- name: Read whether nfsd is enabled
+  ansible.builtin.command: /usr/sbin/nfsd status
+  register: nfs_exports_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Zonder draaiende nfsd is /etc/exports een tekstbestand. `nfsd enable` zet
+# hem aan én start hem, en overleeft een herstart van de Mini.
+- name: Enable nfsd
+  ansible.builtin.command: /usr/sbin/nfsd enable
+  when: "'disabled' in nfs_exports_status.stdout"
+  changed_when: true

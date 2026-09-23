@@ -1,0 +1,23 @@
+---
+# Zet de NFS-shares van de Mac mini terug zoals ze beschreven staan.
+#
+#   ansible-playbook playbooks/nfs.yml -K
+#
+# Die -K is geen slordigheid. /etc/exports schrijven vraagt root, en sudo op
+# de Mini vraagt een wachtwoord - daar is geen NOPASSWD-regel zoals op de
+# Linux-hosts, die krijgen die van bootstrap.yml.
+#
+# Daarom staat dit playbook NIET in site.yml: elke geplande run zou erop
+# blijven hangen. Wil je dat wel, dan moet er een ansible_become_password in
+# de vault van de Mini, en dat is een apart besluit.
+#
+# Waarom dit bestaat: de docker-host mount drie shares van deze Mini en de
+# media-stack valt om zonder. Ze stonden alleen in /etc/exports op de machine
+# zelf - raak je de Mini kwijt, dan is dit het eerste wat terug moet, en dan
+# wil je het niet uit je hoofd doen.
+- name: NFS exports
+  hosts: macmini
+  become: true
+  roles:
+    - nfs_exports
+  tags: [nfs, storage, macos]

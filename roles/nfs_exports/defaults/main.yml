@@ -1,0 +1,28 @@
+---
+# De shares die deze host over NFS aanbiedt. Leeg gelaten betekent: deze rol
+# doet niets. Per share is alleen `path` verplicht; de rest is voor het hele
+# huis hetzelfde en staat hieronder als default, zodat een share in de
+# host_vars één regel blijft.
+#
+#   nfs_exports_shares:
+#     - path: /Volumes/media01
+#
+# Per share te overschrijven met network, mask en mapall.
+nfs_exports_shares: []
+
+# Wie mag mounten. Het hele LAN, niet één adres: de docker-host is een guest
+# waarvan het adres uit Proxmox komt, en een export die aan een IP hangt
+# breekt zodra die guest verhuist.
+nfs_exports_network: 192.168.0.0
+nfs_exports_mask: 255.255.255.0
+
+# Alle toegang vertalen naar één uid:gid. De containers op de docker-host
+# draaien als 1000:1000 en de bestanden op de Mini zijn van rubenclaes (501).
+# Zonder mapall krijgt elke container "permission denied" op wat hij zelf
+# geschreven heeft.
+nfs_exports_mapall: "1000:1000"
+
+# -alldirs laat de client ook een submap van de export mounten in plaats van
+# alleen de wortel. macOS eist dat de export een mountpunt is; alle drie de
+# shares zijn losse volumes onder /Volumes, dus dat klopt hier.
+nfs_exports_alldirs: true

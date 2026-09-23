@@ -41,6 +41,7 @@ zelf als guest, met zijn opslag op een aparte schijf.
 | Een container is stuk, de data is niet belangrijk | [Opnieuw opbouwen](#opnieuw-opbouwen) |
 | Een container of VM is stuk, de data moet terug | [Back-up terugzetten](#back-up-terugzetten) |
 | pve01 zelf is weg | [De hele node](#de-hele-node) |
+| De media-stack ziet zijn bestanden niet meer | [De shares van de Mac mini](#de-shares-van-de-mac-mini) |
 
 ## Opnieuw opbouwen
 
@@ -209,6 +210,43 @@ ansible-playbook playbooks/site.yml
 ```
 
 </Steps>
+
+## De shares van de Mac mini
+
+De Mac mini exporteert drie volumes over NFS, en de docker-host mount ze alle
+drie. De media-stack valt om zonder. Dat is de stilste afhankelijkheid in dit
+huis: de containers draaien, de routes werken, en toch is alles leeg.
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+| Export | Waarheen |
+| --- | --- |
+| `/Volumes/media01` | de media-stack op `docker` |
+| `/Volumes/FastStore` | idem |
+| `/Volumes/SSD Nas` | idem |
+
+Ze staan in `nfs_exports_shares` in `inventory/host_vars/macmini.yml`. Het
+netwerk (`192.168.0.0/24`), `-alldirs` en `-mapall=1000:1000` zijn voor alle
+drie hetzelfde en staan als default in de rol. Die `mapall` is wat de
+containers hun eigen bestanden laat teruglezen: zij draaien als `1000:1000`,
+de bestanden op de Mini zijn van `rubenclaes`.
+
+<Callout type="warning">
+Die `-K` hoort erbij. `/etc/exports` schrijven vraagt root, en `sudo` op de
+Mini vraagt een wachtwoord — daar staat geen NOPASSWD-regel zoals op de
+Linux-hosts, die krijgen die van `bootstrap.yml`. Daarom staat dit playbook
+ook **niet** in `site.yml`: elke geplande run zou erop blijven hangen.
+</Callout>
+
+<Callout type="info">
+macOS kan `/etc/exports` niet vooraf nakijken: `nfsd checkexports` leest het
+bestand zelf en neemt geen pad aan, dus de `validate:` die `caddy` en `sshd`
+wél hebben kan hier niet. De rol schrijft dus eerst en controleert daarna, en
+faalt luid als het mis is. Repareren doe je in `nfs_exports_shares`, niet in
+het bestand — de volgende run zet dat toch terug.
+</Callout>
 
 ## Controleer dat je herstelpad werkt
 

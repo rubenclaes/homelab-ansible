@@ -195,6 +195,18 @@ dig +short books.neodata.be    # 192.168.0.25 - de wildcard naar Caddy
 
 Die eerste is de bewijzende: die naam bestaat nergens anders.
 
+Wil je ze allemaal in één keer, in plaats van de twee die je toevallig
+intypt:
+
+```bash
+ansible-playbook playbooks/dns-smoketest.yml
+```
+
+Die vraagt elke naam op die de inventory kent en vergelijkt het antwoord met
+het adres dat daar staat. Zie
+[Onderhoud](/technisch/runbooks/onderhoud/#antwoordt-dns-nog-wat-het-moet) voor
+wat hij precies dekt en wat niet.
+
 ## Van buitenaf naar binnen: twee wegen
 
 Er zijn er twee, en ze vallen onafhankelijk om. Dat is met opzet nuttig, geen

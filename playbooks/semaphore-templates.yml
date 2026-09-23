@@ -1,0 +1,20 @@
+---
+# Zet de Semaphore-templates en hun schema's zoals de repo ze beschrijft.
+#
+#   ansible-playbook playbooks/semaphore-templates.yml --check    # eerst dit
+#   ansible-playbook playbooks/semaphore-templates.yml
+#
+# Waarom dit bestaat: welk playbook wanneer draait was het enige deel van deze
+# estate dat nergens opgeschreven stond. Het zat in een webformulier, en een
+# webformulier heeft geen geschiedenis, geen review en geen back-up.
+#
+# Wat het NIET doet: templates verwijderen. Wat je in de UI maakt blijft van
+# de UI. De lijst staat in inventory/host_vars/semaphore/main.yml.
+#
+# Nog niet in site.yml, met opzet. Eerst één echte run die groen is; pas dan
+# hoort een API-aanroep thuis in het playbook dat alles gelijktrekt.
+- name: Semaphore templates
+  hosts: semaphore
+  roles:
+    - semaphore_templates
+  tags: [semaphore, templates]

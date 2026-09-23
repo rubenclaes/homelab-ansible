@@ -1,0 +1,70 @@
+---
+# Inloggegevens voor de Semaphore-API, gebruikt door roles/semaphore_templates.
+# Het is dezelfde gebruiker als waarmee je de web-UI opent. Ze staan in de
+# gevaulte vault.yml hiernaast; zonder dat bestand faalt de rol met een
+# melding die dat zegt. Zelfde opzet als inventory/host_vars/adguard/.
+#
+# Dat bestand maak je zelf, want het wachtwoord staat nergens in deze repo:
+#
+#   ansible-vault create --vault-id infra@bin/vault-pass-client \
+#     inventory/host_vars/semaphore/vault.yml
+#
+# met daarin vault_semaphore_api_user en vault_semaphore_api_password.
+semaphore_api_user: "{{ vault_semaphore_api_user }}"
+semaphore_api_password: "{{ vault_semaphore_api_password }}"
+
+# --- Templates ------------------------------------------------------------
+# Welk playbook wanneer draait. Dit was tot nu toe klikwerk in de UI, en dus
+# het enige deel van deze estate dat nergens opgeschreven stond.
+#
+# LET OP bij de eerste run. `name` is de sleutel waarop gezocht wordt, en die
+# moet letterlijk overeenkomen met wat er nu in Semaphore staat. Draai daarom
+# eerst een droogloop en lees de rapportageregel: staat een template die je
+# dacht bij te werken onder `create`, dan wijkt de naam af en zou je een
+# tweede maken. Hernoem er dan één van voor je het echt draait.
+#
+# De rol verwijdert nooit iets. Een template die je hier weghaalt blijft in de
+# UI staan, inclusief zijn schema.
+semaphore_templates_list:
+  # De grootste winst die er lag, en het kost nul regels code: nu trek je de
+  # estate gelijk als je eraan denkt, met een schema repareert drift zichzelf.
+  - name: "Site (apply)"
+    playbook: playbooks/site.yml
+    description: "Trekt elke host gelijk met de repo. Idempotent, veilig om te herhalen."
+    schedule: "0 3 * * 0"
+
+  # Draait site.yml --check --diff en vat samen. Met drift_fail=true wordt hij
+  # rood bij drift, en dat is de versie die op een schema hoort - een groene
+  # samenvatting die je moet lezen om te zien dat hij rood had moeten zijn is
+  # geen melding. Zes uur 's ochtends, dus na de wekelijkse apply.
+  - name: "Drift (report)"
+    playbook: playbooks/drift.yml
+    description: "Wat zou site.yml veranderen? Faalt als het antwoord niet 'niets' is."
+    arguments: ["-e", "drift_fail=true"]
+    schedule: "0 6 * * *"
+
+  # Zonder deze tweede template ruimt de rapportageversie nooit iets op.
+  - name: "Cleanup (apply)"
+    playbook: playbooks/cleanup.yml
+    description: "Maakt schijfruimte vrij. Raakt geen volumes, containers of held packages aan."
+    arguments: ["-e", "cleanup_apply=true"]
+    schedule: "0 3 * * 6"
+
+  # Een drill die je alleen draait als je eraan denkt, draai je precies niet in
+  # het half jaar waarin de back-ups stilletjes stukgaan. Maandelijks, want hij
+  # maakt en sloopt een echte guest en dat wil je niet elke nacht.
+  - name: "Restore drill"
+    playbook: playbooks/restore-drill.yml
+    description: "Zet een PBS-back-up terug op een wegwerp-guest, leest er staat uit, sloopt hem."
+    schedule: "0 4 1 * *"
+
+  # LET OP: dit is de template die Semaphore zichzelf liet patchen. De limit
+  # houdt hem van zijn eigen container af; die machine patch je met de hand.
+  # Herstart Semaphore halverwege een run, dan is de job dood en weet je niet
+  # of de upgrade af is.
+  #
+  # Geen schema: updates blijven iets waar je bij bent.
+  - name: "Update guests"
+    playbook: playbooks/update.yml
+    description: "Pakketupdates op de guests. Niet op Semaphore zelf - zie de limit."
+    arguments: ["--limit", "guests:!semaphore"]

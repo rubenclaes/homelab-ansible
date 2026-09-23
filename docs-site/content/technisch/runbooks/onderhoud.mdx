@@ -6,18 +6,20 @@ import { Callout } from 'nextra/components'
 
 # Onderhoud
 
-Zes playbooks die niets installeren. Ze kijken, ze ruimen op, of ze schrijven
-op wat er is. Geen van beide zit in `site.yml`, en per playbook staat hieronder
-waarom niet.
+Playbooks die niets installeren. Ze kijken, ze ruimen op, of ze schrijven op
+wat er is. Geen van alle zit in `site.yml`, en per playbook staat hieronder
+waarom niet. Onderaan staat wat er vanzelf draait, zonder dat jij iets typt.
 
 | Je vraagt je af | Draai |
 | --- | --- |
 | staat de vloot er goed bij? | `report.yml` |
 | is er iets met de hand gewijzigd? | `drift.yml` |
+| antwoordt DNS nog wat het moet? | `dns-smoketest.yml` |
 | waarom is die schijf vol? | `cleanup.yml` |
 | wat draait er eigenlijk op die host? | `discover.yml` |
 | welke guests draaien er nu écht? | `proxmox-info.yml` |
 | klopt deze site nog? | `docs.yml` |
+| wat draait er vanzelf, en wanneer? | `semaphore-templates.yml` |
 
 ## Staat alles er goed bij?
 
@@ -74,6 +76,43 @@ BEREIKT` in plaats van `gelijk aan de repo`. Een slapende Mac ziet er in een
 samenvatting uit als een host zonder drift, en dat is precies het verschil
 tussen "niets te doen" en "niet gekeken".
 </Callout>
+
+## Antwoordt DNS nog wat het moet?
+
+```bash
+ansible-playbook playbooks/dns-smoketest.yml
+```
+
+Vraagt elke naam op die de inventory kent — `<host>.home.arpa` voor elke host
+met een adres — rechtstreeks bij AdGuard op `192.168.0.29`, en vergelijkt het
+antwoord met het adres dat in de inventory staat. Eén naam die niets teruggeeft
+of naar een oud adres wijst maakt de run rood, met de naam en beide adressen
+erbij.
+
+Dat tweede is het punt. Een rewrite die ontbreekt merk je vanzelf; een rewrite
+die een oud adres teruggeeft is stiller en vervelender, want dan krijg je wél
+een antwoord en loop je tegen een dienst aan die er niet meer is.
+
+Daarna vraagt hij één publieke naam op — standaard `google.com`, te zetten met
+`dns_smoketest_public_name`. Die hoort er niet bij voor de volledigheid: valt
+AdGuards upstream weg, dan blijven alle rewrites groen (die beantwoordt hij
+zelf) terwijl de rest van het huis geen enkele naam meer vindt.
+
+Hij berekent de lijst op dezelfde manier als de `adguard`-rol hem wegschrijft,
+maar met opzet met een eigen kopie van die uitdrukking. Zou hij de lijst van de
+rol lenen, dan zou een fout in die lijst zichzelf goedkeuren.
+
+<Callout type="info">
+Naast `caddy-smoketest.yml`, niet in plaats van. Die vraagt de `neodata.be`-
+routes op en faalt dus al als zo'n naam niet resolvet. Wat hij níét ziet is de
+zone die AdGuard zelf serveert: valt een rewrite om, dan blijven de routes
+werken — Caddy praat met adressen, niet met namen — terwijl
+`ssh pve01.home.arpa` stil stuk is. Dat merk je precies op het moment dat je
+erbij moet.
+</Callout>
+
+Niet in `site.yml`: het controleert, het convergeert niet. Hij hoort op een
+schema, naast `drift.yml`.
 
 ## Schijfruimte vrijmaken
 
@@ -193,3 +232,65 @@ route of een stack die verandert zonder `docs.yml` betekent dat deze site iets
 beweert wat niet meer waar is — en dat is erger dan geen documentatie, want je
 gelooft het.
 </Callout>
+
+## Wat draait er vanzelf, en wanneer?
+
+```bash
+ansible-playbook playbooks/semaphore-templates.yml --check   # eerst dit
+ansible-playbook playbooks/semaphore-templates.yml
+```
+
+Semaphore draait de playbooks hierboven volgens een schema. Welke dat zijn en
+wanneer ze gaan stond tot nu toe alleen in de web-UI — het enige deel van deze
+estate dat nergens opgeschreven was. Een webformulier heeft geen geschiedenis,
+geen review en geen back-up: raak je die container kwijt, dan weet je niet meer
+wat er draaide.
+
+De lijst staat nu in `semaphore_templates_list` in
+`inventory/host_vars/semaphore/main.yml`. Per template een naam, een playbook,
+eventuele argumenten en een cron:
+
+```yaml
+- name: "Drift (report)"
+  playbook: playbooks/drift.yml
+  description: "Wat zou site.yml veranderen?"
+  arguments: ["-e", "drift_fail=true"]
+  schedule: "0 6 * * *"
+```
+
+| Template | Wanneer | Waarom dan |
+| --- | --- | --- |
+| Site (apply) | zondag 03:00 | wekelijks gelijktrekken; drift repareert zichzelf |
+| Drift (report) | dagelijks 06:00 | ná de wekelijkse apply, zodat je ziet wat er tussendoor afwijkt |
+| Cleanup (apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
+| Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
+| Update guests | geen schema | updates blijven iets waar je bij bent |
+
+<Callout type="warning">
+`Update guests` draait met `--limit guests:!semaphore`, en dat is geen
+detail. Zonder die limit patcht de job de container waarop hij zelf draait:
+Semaphore herstart halverwege, de job is dood, en je weet niet of de upgrade af
+is. Die ene machine patch je met de hand.
+</Callout>
+
+De rol maakt aan en werkt bij, en **verwijdert nooit**. Wat je met de hand in
+de UI maakt blijft staan, en een template die je uit de lijst haalt blijft ook
+staan — inclusief zijn schema. Dat is met opzet: zolang niet alles beschreven
+is, is stil iets weggooien erger dan iets laten slingeren.
+
+<Callout type="error">
+Draai de eerste keer met `--check` en lees de rapportageregel. `name` is de
+sleutel waarop gezocht wordt en moet letterlijk overeenkomen met wat er nu in
+Semaphore staat. Staat een template die je dacht bij te werken onder `create`,
+dan wijkt de naam af en zou je een tweede aanmaken in plaats van de bestaande
+te wijzigen.
+</Callout>
+
+Wat de rol niet aanraakt: surveys, views, vaults en de vlaggen onder
+*Advanced*. Die blijven van de UI, en een verschil daar lokt geen update uit.
+Ook het aan-uitknopje van een schema blijft: zet je er een in de UI op pauze,
+dan neemt de volgende run die pauze over in plaats van hem stilletjes weer aan
+te zetten. De cron is wat deze rol bezit, niet of hij loopt.
+
+Nog niet in `site.yml`, met opzet. Eerst één echte run die groen is; pas dan
+hoort een API-aanroep thuis in het playbook dat alles gelijktrekt.

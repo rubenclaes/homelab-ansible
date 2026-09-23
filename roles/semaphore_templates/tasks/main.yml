@@ -1,0 +1,126 @@
+---
+# Zet de templates en hun schema's in Semaphore zoals semaphore_templates_list
+# ze beschrijft. Aanmaken en bijwerken, nooit verwijderen: wat je met de hand
+# in de UI maakt blijft staan.
+#
+# Waarom over de API: Semaphore heeft geen Ansible-module en geen
+# configuratiebestand voor templates. De API is de enige ondersteunde ingang,
+# en dit is dezelfde `uri`-aanpak als roles/adguard voor zijn rewrites.
+
+- name: Require the API credentials
+  ansible.builtin.assert:
+    that:
+      - semaphore_api_user | default('') | length > 0
+      - semaphore_api_password | default('') | length > 0
+    fail_msg: >-
+      semaphore_api_user en semaphore_api_password ontbreken. Ze horen in
+      inventory/host_vars/semaphore/vault.yml; zie de adguard-host voor
+      dezelfde opzet.
+    success_msg: "Inloggegevens aanwezig"
+    quiet: true
+
+# Semaphore kent zowel een bearer-token als een sessiecookie. De cookie wint
+# hier: een token moet je eerst met de hand in de UI aanmaken, en dan verplaats
+# je het UI-werk alleen maar in plaats van het weg te nemen.
+- name: Log in to Semaphore
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/auth/login"
+    method: POST
+    body_format: json
+    body:
+      auth: "{{ semaphore_api_user }}"
+      password: "{{ semaphore_api_password }}"
+    status_code: [204]
+  register: semaphore_templates_login
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Read the projects
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/projects"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+  register: semaphore_templates_projects
+  check_mode: false
+
+- name: Pick the project
+  ansible.builtin.set_fact:
+    semaphore_templates_found_projects: >-
+      {{ semaphore_templates_projects.json | selectattr('name', 'equalto', semaphore_templates_project) | list
+         if semaphore_templates_project | default('', true) | length > 0
+         else semaphore_templates_projects.json }}
+
+- name: Require exactly one project
+  ansible.builtin.assert:
+    that: semaphore_templates_found_projects | length == 1
+    fail_msg: >-
+      {{ semaphore_templates_found_projects | length }} treffers. Zet
+      semaphore_templates_project op één van deze namen:
+      {{ semaphore_templates_projects.json | map(attribute='name') | join(', ') }}.
+    success_msg: "Project {{ semaphore_templates_found_projects | map(attribute='name') | first }}"
+    quiet: true
+
+- name: Remember the project id
+  ansible.builtin.set_fact:
+    semaphore_templates_project_id: "{{ semaphore_templates_found_projects | map(attribute='id') | first | int }}"
+
+# Inventory, repository en environment horen bij elke template en zijn op deze
+# host voor alle templates hetzelfde, dus één keer opzoeken.
+#
+# De paden zijn die van de API en niet allemaal meervoud: `inventory` en
+# `environment` zijn enkelvoud, `repositories` niet. Dat is Semaphore, geen
+# typefout hier.
+- name: Read the objects every template points at
+  ansible.builtin.uri:
+    url: "{{ semaphore_templates_api }}/project/{{ semaphore_templates_project_id }}/{{ item.path }}"
+    headers:
+      Cookie: "{{ semaphore_templates_login.cookies_string }}"
+  loop:
+    - { path: inventory, key: inventory_id, want: "{{ semaphore_templates_inventory }}" }
+    - { path: repositories, key: repository_id, want: "{{ semaphore_templates_repository }}" }
+    - { path: environment, key: environment_id, want: "{{ semaphore_templates_environment }}" }
+  loop_control:
+    label: "{{ item.path }}"
+  register: semaphore_templates_objects
+  check_mode: false
+
+# Eerst verzamelen, dan pas beoordelen, dan pas de ids onthouden. Dat zijn drie
+# taken waar één met een slimme Jinja-regel ook had gekund, maar de foutmelding
+# is hier het halve werk: hij moet kunnen zeggen wát er te kiezen viel.
+- name: Collect the matches
+  ansible.builtin.set_fact:
+    semaphore_templates_found: >-
+      {{ semaphore_templates_found | default({}) | combine({item.item.key: (
+           item.json | selectattr('name', 'equalto', item.item.want) | list
+           if item.item.want | default('', true) | length > 0 else item.json)}) }}
+  loop: "{{ semaphore_templates_objects.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Require exactly one of each
+  ansible.builtin.assert:
+    that: semaphore_templates_found[item.item.key] | length == 1
+    fail_msg: >-
+      {{ semaphore_templates_found[item.item.key] | length }} treffers voor
+      {{ item.item.path }}. Beschikbaar:
+      {{ item.json | map(attribute='name') | join(', ') }}.
+    success_msg: >-
+      {{ item.item.path }}:
+      {{ semaphore_templates_found[item.item.key] | map(attribute='name') | first }}
+    quiet: true
+  loop: "{{ semaphore_templates_objects.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Remember their ids
+  ansible.builtin.set_fact:
+    semaphore_templates_ids: >-
+      {{ dict(semaphore_templates_found.keys()
+              | zip(semaphore_templates_found.values() | map('first') | map(attribute='id'))) }}
+
+- name: Sync the templates
+  ansible.builtin.import_tasks: templates.yml
+
+- name: Sync the schedules
+  ansible.builtin.import_tasks: schedules.yml

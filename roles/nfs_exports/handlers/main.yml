@@ -1,0 +1,7 @@
+---
+# `nfsd update` leest /etc/exports opnieuw zonder de service te herstarten,
+# dus een client die op dat moment aan het lezen is merkt er niets van. Een
+# herstart zou de mounts op de docker-host laten hangen.
+- name: Update NFS exports
+  ansible.builtin.command: /usr/sbin/nfsd update
+  changed_when: true

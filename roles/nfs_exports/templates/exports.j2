@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Beheerd door roles/nfs_exports. Met de hand bewerken houdt het niet: de
+# volgende run zet dit bestand terug zoals nfs_exports_shares het beschrijft.
+{% for share in nfs_exports_shares %}
+"{{ share.path }}"{% if share.alldirs | default(nfs_exports_alldirs) %} -alldirs{% endif %} -mapall={{ share.mapall | default(nfs_exports_mapall) }} -network={{ share.network | default(nfs_exports_network) }} -mask={{ share.mask | default(nfs_exports_mask) }}
+{% endfor %}

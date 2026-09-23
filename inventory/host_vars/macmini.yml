@@ -173,19 +173,27 @@ docker_ports_without_route:
   - { port: 9001, why: "portainer agent - gesproken door de portainer op docker, geen UI" }
   - { port: 8084, why: "shelfmark - geen route, nog te beslissen of hij blijft" }
 
+# --- NFS ------------------------------------------------------------------
+# De drie shares die de docker-host mount. Op 22-09 uit /etc/exports en
+# `showmount -e localhost` gelezen; sindsdien beheert roles/nfs_exports ze,
+# dus dit is nu de bron en niet meer de beschrijving. De docker-kant staat in
+# docker_stacks_nfs_mounts in host_vars/docker.yml en mount alle drie.
+#
+# -alldirs, -mapall=1000:1000 en het netwerk zijn voor alle drie hetzelfde en
+# staan als default in roles/nfs_exports/defaults/main.yml.
+#
+# LET OP dat "SSD Nas" een spatie heeft. De template quote elk pad, want
+# zonder aanhalingstekens leest macOS dat als twee exports - /Volumes/SSD en
+# Nas - en exporteert hij stilletjes het verkeerde.
+#
+# Terugzetten na een herbouw: `ansible-playbook playbooks/nfs.yml -K`. Dit
+# playbook staat niet in site.yml, omdat sudo hier een wachtwoord vraagt.
+nfs_exports_shares:
+  - path: /Volumes/media01
+  - path: /Volumes/FastStore
+  - path: "/Volumes/SSD Nas"
+
 # --- Wat hier buiten valt -------------------------------------------------
-# De NFS-export naar de docker-host wordt door geen enkele rol beheerd. Het
-# zijn er DRIE, niet één - dat is op 22-09 uit /etc/exports en
-# `showmount -e localhost` gelezen:
-#
-#   /Volumes/media01    -alldirs -mapall=1000:1000 -network=192.168.0.0 -mask=255.255.255.0
-#   /Volumes/FastStore  -alldirs -mapall=1000:1000 -network=192.168.0.0 -mask=255.255.255.0
-#   "/Volumes/SSD Nas"  -alldirs -mapall=1000:1000 -network=192.168.0.0 -mask=255.255.255.0
-#
-# De docker-host mount alle drie (docker_stacks_nfs_mounts in
-# host_vars/docker.yml, nu ook alle drie) en de media-stack valt om zonder.
-# Raakt deze Mini kwijt, dan is dit het eerste wat je terug moet zetten.
-#
 # Het netwerk `External` dat die compose-files delen wordt met de hand
 # aangemaakt (`docker network create External`, staat in de README van die
 # repo). De rol maakt geen netwerken.

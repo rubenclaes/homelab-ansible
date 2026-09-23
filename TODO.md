@@ -13,29 +13,55 @@ De volledige geschiedenis van wat af is staat in `git log`, niet hier.
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
+- [ ] **`dns-smoketest.yml` op een schema zetten.** Geschreven en gelint,
+      nog niet gedraaid. Hij vraagt elke `<host>.home.arpa` bij AdGuard op en
+      vergelijkt met het adres uit de inventory, plus één publieke naam voor
+      de forwarding. Hoort naast `drift.yml` in Semaphore: sinds 22-09 loopt
+      de hele estate via één LXC, en dat is precies het soort ding dat je
+      niet wil ontdekken op het moment dat je het nodig hebt.
+
+      Let op: hij roept `dig` aan op de host die hem draait. `dnsutils` staat
+      daarom sinds vandaag in `baseline_packages`, maar dat betekent dat
+      Semaphore eerst een `site.yml` gezien moet hebben voor het schema werkt.
+
 ---
 
 ## Semaphore — automatiseren wat nu van jouw geheugen afhangt
 
-- [ ] **`drift.yml` op een schema zetten.** Geschreven, nog niet gedraaid.
-      Draait `site.yml --check --diff` en vat samen: per host één regel, dan
-      de taken die zouden wijzigen. Met `-e drift_fail=true` wordt hij rood
-      bij drift, en dat is de versie die op een schema hoort. Let op: dit
-      werkt pas als de droogloop groen kan zijn, dus na de twee
-      vault-bestanden hierboven.
+De vier punten die hier stonden zijn geen UI-werk meer.
+`roles/semaphore_templates` beschrijft de templates én hun cron via de API, en
+ze staan in `semaphore_templates_list` in `inventory/host_vars/semaphore/`:
+Site (apply) zondag 03:00, Drift (report) dagelijks 06:00, Cleanup (apply)
+zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
+`--limit guests:!semaphore` zonder schema. Wat rest staat hieronder.
 
-- [ ] **`site.yml` op een schema zetten, met een melding als hij faalt.**
-      Dit is de grootste winst die er ligt en het kost nul regels code. Nu
-      trek je alles gelijk als je eraan denkt; met een schema repareert drift
-      zichzelf. Een geplande job die stilletjes faalt is wel erger dan geen
-      job, dus de melding hoort erbij.
+- [ ] **`inventory/host_vars/semaphore/vault.yml` aanmaken.** Zonder dat
+      bestand faalt de rol meteen, en dat is met opzet - een sync die
+      stilletjes overslaat is erger dan een rode run.
 
-- [ ] **"Cleanup (apply)" als tweede template**, met `cleanup_apply: true`,
-      zaterdag 03:00. Zonder die versie ruimt de rapportversie nooit iets op.
+          ansible-vault create --vault-id infra@bin/vault-pass-client \
+            inventory/host_vars/semaphore/vault.yml
 
-Alle vier de Semaphore-punten zijn UI-werk: de rol installeert en configureert
-Semaphore, maar beheert geen templates. Wie ze in code wil, moet ze eerst via
-de API beschrijven.
+      Met `vault_semaphore_api_user` en `vault_semaphore_api_password`: de
+      login van de web-UI.
+
+- [ ] **`semaphore-templates.yml` eerst met `--check` draaien, dan echt.**
+      Lees de rapportageregel voor je hem loslaat. `name` is de sleutel:
+      staat er iets onder `create` dat je dacht bij te werken, dan wijkt de
+      naam af van wat er nu in de UI staat en zou je een tweede template
+      maken naast de bestaande.
+
+      De rol is tegen een nagebouwde API getest - aanmaken, bijwerken,
+      schema's, en drie runs achter elkaar zonder wijziging - maar nog nooit
+      tegen jouw Semaphore. De eerste echte run is het bewijs.
+
+- [ ] **Een melding als een geplande job faalt.** Dit staat nog steeds open
+      en de rol lost het niet op: hij zet schema's, geen alerting. Een
+      geplande job die stilletjes faalt is erger dan geen job.
+
+- [ ] **`semaphore-templates.yml` in `site.yml` zetten**, zodra die eerste
+      echte run groen was. Eén regel. Nu bewust nog niet: een ongeteste
+      API-aanroep hoort niet in het playbook dat alles gelijktrekt.
 
 ---
 
@@ -123,9 +149,12 @@ de API beschrijven.
             daar mogelijk over; dan `brew install --cask orbstack --adopt`.
             De oude `docker`- en `docker-desktop`-cask-restjes wijzen naar een
             `/Applications/Docker.app` die niet meer bestaat en mogen weg.
-      - [ ] **De NFS-exports horen in een rol.** Ze staan nu opgeschreven in
-            `host_vars/macmini.yml` en de docker-host mount ze alle drie, maar
-            niets zet ze terug als de Mini opnieuw opgebouwd wordt.
+      - [ ] **De NFS-exports één keer echt draaien.** `roles/nfs_exports`
+            schrijft `/etc/exports` nu uit `nfs_exports_shares`, en
+            `playbooks/nfs.yml -K` is het herbouwpad. Gedraaid is hij nog
+            niet: tot dat gebeurd is, is ook dit een beschrijving. De
+            template quote elk pad, dus `"/Volumes/SSD Nas"` komt er goed
+            uit - dat is lokaal nagekeken, niet op de machine zelf.
 
 - [ ] **De Duplicati-secrets roteren.** Ze staan sinds 22-09 niet meer hard
       in de compose-file: die leest nu `${SETTINGS_ENCRYPTION_KEY}` en

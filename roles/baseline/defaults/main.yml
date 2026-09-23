@@ -1,5 +1,10 @@
 ---
 baseline_timezone: Europe/Brussels
+# dnsutils staat hier voor `dig`, en niet alleen om een storing te kunnen
+# uitzoeken: playbooks/dns-smoketest.yml roept dig aan op de host die het
+# playbook draait. Dat is jouw werkplek als je het met de hand doet, maar de
+# Semaphore-container zodra het op een schema staat, en Debian levert dig niet
+# standaard mee.
 baseline_packages:
   - acl
   - curl
@@ -10,6 +15,7 @@ baseline_packages:
   - jq
   - ncdu
   - ca-certificates
+  - dnsutils
 
 baseline_unattended_upgrades: true
 baseline_ssh_hardening: true

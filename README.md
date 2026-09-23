@@ -324,6 +324,31 @@ ansible-playbook playbooks/drift.yml -e drift_fail=true   # rood bij drift, voor
 # Een host die niet bereikbaar was telt niet als "gelijk", dat zegt hij erbij.
 
 
+# === Zien of DNS nog antwoordt wat het moet ===============================
+ansible-playbook playbooks/dns-smoketest.yml
+# Vraagt elke <host>.home.arpa rechtstreeks bij AdGuard op en vergelijkt het
+# antwoord met het adres uit de inventory - een rewrite die naar een oud adres
+# wijst is erger dan een die ontbreekt. Daarna een publieke naam, want valt de
+# upstream weg dan blijven de rewrites groen terwijl de rest stuk is.
+# Naast caddy-smoketest.yml: die ziet de home.arpa-zone niet.
+
+
+# === Wat draait er vanzelf, en wanneer ====================================
+ansible-playbook playbooks/semaphore-templates.yml --check   # eerst dit
+ansible-playbook playbooks/semaphore-templates.yml
+# De Semaphore-templates en hun cron staan in semaphore_templates_list in
+# inventory/host_vars/semaphore/main.yml. Maakt aan en werkt bij, verwijdert
+# nooit. `name` is de sleutel: staat er bij --check iets onder `create` dat je
+# dacht bij te werken, dan wijkt de naam af van wat er in de UI staat.
+
+
+# === De NFS-shares van de Mac mini terugzetten ============================
+ansible-playbook playbooks/nfs.yml -K
+# Drie volumes die de docker-host mount; de media-stack valt om zonder. De -K
+# hoort erbij, want sudo vraagt op de Mini een wachtwoord - en daarom staat dit
+# playbook niet in site.yml.
+
+
 # === Guests moeten mee opstarten met pve01 ================================
 ansible-playbook playbooks/proxmox-autostart.yml
 
