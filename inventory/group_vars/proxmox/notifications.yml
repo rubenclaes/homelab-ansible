@@ -1,0 +1,35 @@
+---
+# Waar Proxmox zijn meldingen heen stuurt, naast mail-to-root.
+#
+# De URL is het IP van ntfy, niet ntfy.neodata.be: een melding over een
+# storing mag niet afhangen van Caddy en AdGuard, want dat zijn precies de
+# dingen die stuk kunnen gaan. Het IP komt uit pve_oci_lxcs, zodat het op één
+# plek staat.
+#
+# {{ title }}, {{ message }}, {{ severity }} en {{ secrets.token }} zijn
+# Handlebars van Proxmox zelf, geen Jinja; vandaar de raw-blokken. Het token
+# gaat als Proxmox-secret mee en staat daardoor niet leesbaar in
+# /etc/pve/notifications.cfg.
+pve_notification_webhooks:
+  - name: ntfy
+    url: "http://{{ (pve_oci_lxcs | selectattr('hostname', 'eq', 'ntfy') | first).ip | split('/') | first }}/homelab"
+    method: post
+    headers:
+      Authorization: "Bearer {% raw %}{{ secrets.token }}{% endraw %}"
+      Title: "{% raw %}{{ title }}{% endraw %}"
+      # ntfy maakt van de tag `warning` een ⚠️ in de melding.
+      Tags: "{% raw %}{{ severity }}{% endraw %}"
+    body: "{% raw %}{{ message }}{% endraw %}"
+    secrets:
+      token: "{{ vault_ntfy_proxmox_token }}"
+    comment: "ntfy op ct 109, topic homelab"
+
+# Alleen waarschuwingen en fouten. Een geslaagde back-up is geen melding waard,
+# en wie elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
+pve_notification_matchers:
+  - name: ntfy-warnings
+    params:
+      target: ntfy
+      match-severity: "warning,error"
+      mode: all
+      comment: "Waarschuwingen en fouten naar de telefoon"
