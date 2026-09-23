@@ -202,7 +202,6 @@ docker_routes_without_container:
 # Poorten die hier luisteren en bewust geen route hebben.
 docker_ports_without_route:
   - { port: 9001, why: "portainer agent - gesproken door de portainer op docker, geen UI" }
-  - { port: 8084, why: "shelfmark - geen route, nog te beslissen of hij blijft" }
 
 # --- NFS ------------------------------------------------------------------
 # De drie shares die de docker-host mount. Op 22-09 uit /etc/exports en

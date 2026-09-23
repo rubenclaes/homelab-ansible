@@ -88,6 +88,7 @@ caddy_sites:
   - { name: duplicati, host: macmini, port: 8200, desc: "Back-ups vanaf de Mac mini" }
   - { name: auth, host: macmini, port: 1411, desc: "Pocket ID — oude instantie, wordt uitgefaseerd" } # TODO: old Pocket ID instance
   - { name: books, host: macmini, port: 6061, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
+  - { name: shelfmark, host: macmini, port: 8084, desc: "Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht" }
 
 # --- Logverzameling -------------------------------------------------------
 # Deze host is sinds 23-09 de eerste met een Grafana Alloy erop. Reden: hij

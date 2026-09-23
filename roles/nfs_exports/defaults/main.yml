@@ -10,6 +10,12 @@
 # Per share te overschrijven met network, mask en mapall.
 nfs_exports_shares: []
 
+# Waar nfsd staat. /sbin, niet /usr/sbin - dat laatste bestaat niet op macOS 14
+# en stond hier een dag fout zonder dat het opviel, omdat de taak die hem als
+# eerste aanroept `failed_when: false` heeft. Eén variabele, zodat zo'n fout
+# niet op vier plekken tegelijk kan staan.
+nfs_exports_nfsd: /sbin/nfsd
+
 # Wie mag mounten. Het hele LAN, niet één adres: de docker-host is een guest
 # waarvan het adres uit Proxmox komt, en een export die aan een IP hangt
 # breekt zodra die guest verhuist.

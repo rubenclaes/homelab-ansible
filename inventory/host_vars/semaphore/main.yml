@@ -113,17 +113,22 @@ semaphore_templates_list:
   # Overgenomen uit de UI op 23-09, precies zoals ze daar stonden: allemaal
   # zonder argumenten, en alleen Docs en Homelab Report met een cron.
 
-  # LET OP de naam. Deze template draait `baseline.yml` ZONDER `--check`, en
-  # dat playbook convergeert gewoon - het is de eerste play van site.yml, los.
-  # "Dry run" staat er dus ten onrechte: wie hierop klikt in de verwachting
-  # een voorbeeld te zien, past de baseline toe op elke Linux-host.
+  # De `--check` hier is de reparatie van 23-09. Tot die dag droeg deze
+  # template de naam "dry run" terwijl ze `baseline.yml` gewoon uitvoerde - en
+  # dat playbook convergeert, het is de eerste play van site.yml, los. Wie
+  # erop klikte om te kijken wat er zou gebeuren, paste de baseline toe op
+  # elke Linux-host.
   #
-  # Niet stilzwijgend gerepareerd, want beide reparaties hebben een prijs:
-  # hernoemen maakt een tweede template (naam is de sleutel), en `--check`
-  # toevoegen verandert wat een bestaande knop doet.
+  # Gekozen voor de argumenten aanpassen en niet voor hernoemen: `name` is de
+  # sleutel waarop deze rol zoekt, dus hernoemen had een tweede template
+  # gemaakt en de taakgeschiedenis van deze achtergelaten.
+  #
+  # `--diff` staat erbij omdat een droogloop zonder diff alleen taaknamen laat
+  # zien en niet wát er zou veranderen. Wil je een korter scherm, haal hem weg.
   - name: "Baseline (dry run)"
     playbook: playbooks/baseline.yml
-    description: "LET OP: draait zonder --check en convergeert dus echt, ondanks de naam."
+    description: "Droogloop van de baseline op elke Linux-host. Verandert niets."
+    arguments: ["--check", "--diff"]
 
   - name: "Caddy"
     playbook: playbooks/caddy.yml

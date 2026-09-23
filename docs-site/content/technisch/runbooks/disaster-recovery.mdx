@@ -27,6 +27,34 @@ plaats van hoogstens een dag. Zie [De tweede kopie](#de-tweede-kopie-op-de-mac-m
 Dat maakt de sleutel niet minder belangrijk, het maakt hem minder fataal.
 </Callout>
 
+<Callout type="error">
+**En dit er meteen bij.** Twee vault-wachtwoorden openen alles wat deze repo
+versleuteld bewaart — API-tokens, logins, de `.env`-bestanden van de stacks.
+Ze staan alleen op je werkstation:
+
+```bash
+~/.ansible/vault_pass_infra
+~/.ansible/vault_pass_stacks
+```
+
+Niet in git, en met opzet. Ben je ze kwijt, dan is de repo wél compleet maar
+onbruikbaar: geen playbook dat een vault-bestand aanraakt draait nog, en dat is
+zo ongeveer alles. Leg ze op dezelfde plek als de PBS-sleutel.
+
+Ze zijn nergens uit af te leiden. De enige weg terug is elk vault-bestand
+opnieuw aanmaken en elk secret opnieuw zetten.
+</Callout>
+
+<Callout type="info">
+Deze pagina staat op `docs.neodata.be`, en die draait op `caddy` — een guest op
+`pve01`. Is dat weg, dan is deze pagina dat ook. De bron staat in git, op
+GitHub en in elke clone, als gewone Markdown:
+
+```
+docs-site/content/technisch/runbooks/
+```
+</Callout>
+
 ## Eerst even de woorden
 
 **Node** — de fysieke machine, `pve01`. Eén kast met Proxmox erop. Alles draait
@@ -47,6 +75,8 @@ zelf als guest, met zijn opslag op een aparte schijf.
 | pve01 zelf is weg | [De hele node](#de-hele-node) |
 | pve01 is weg *en* de encryptiesleutel ook | [De tweede kopie](#de-tweede-kopie-op-de-mac-mini) |
 | De media-stack ziet zijn bestanden niet meer | [De shares van de Mac mini](#de-shares-van-de-mac-mini) |
+| De Mac mini is weg | [De Mac mini is weg](#de-mac-mini-is-weg) |
+| Niets resolvet meer | [Geen DNS](#geen-dns) |
 
 ## Opnieuw opbouwen
 
@@ -202,7 +232,7 @@ ssh ansible@192.168.0.14 'df -h /mnt/pve/macmini-backup'
 ```
 
 <Callout type="warning">
-`media01` zat op 23-09 al op 95% vol en draagt ook je Time Machine en
+`media01` zat op 23-09 op 94% vol (400 GiB vrij) en draagt ook je Time Machine en
 Duplicati. Daarom staat de retentie op twee dumps (`prune-backups keep-last=2`
 op de opslag, ongeveer 50 GB) en niet hoger. Zet je dat getal omhoog, kijk dan
 eerst of die schijf het heeft — hij vol laten lopen breekt alle drie de
@@ -285,6 +315,90 @@ ansible-playbook playbooks/site.yml
 ```
 
 </Steps>
+
+## De Mac mini is weg
+
+Niet de ergste storing, wel de meest onderschatte. Wat je kwijt bent:
+
+| Weg | Gevolg |
+| --- | --- |
+| de tweede back-upkopie (`macmini-backup`) | alleen PBS nog, en die staat op pve01 zelf |
+| de drie NFS-shares | de media-stack op `docker` valt om |
+| Plex en zes compose-stacks | draaien nergens anders |
+
+Wat je **niet** kwijt bent: pve01, PBS en de dagelijkse back-ups. De guests
+zijn ongemoeid.
+
+<Steps>
+
+### Zet macOS terug en geef Ansible toegang
+
+Installeren, `ansible`-toegang via je SSH-sleutel, en `sshd` Volledige
+Schijftoegang geven — zonder dat laatste mag Ansible geen TCC-beschermd
+bestand aanraken en faalt `nfs.yml` meteen. Zie de Callout verderop.
+
+### Zet de shares terug, want daar wacht de docker-host op
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+### Zet brew, casks en de stacks terug
+
+```bash
+ansible-playbook playbooks/site.yml --limit macmini
+ansible-playbook playbooks/stacks.yml --limit macmini
+```
+
+Plex en OrbStack komen hier **niet** mee: allebei staan ze buiten Homebrew.
+Die zet je met de hand terug voor je verder gaat. Het waarom staat in
+`inventory/host_vars/macmini.yml`.
+
+### Haal de tweede back-upkopie terug op pve01
+
+Die opslag is een NFS-mount naar `192.168.0.26:/Volumes/media01/backups/proxmox`.
+Staat de export weer, dan komt hij vanzelf terug:
+
+```bash
+ansible-playbook playbooks/proxmox-datacenter.yml
+ssh ansible@192.168.0.14 'pvesm status | grep macmini-backup'
+```
+
+De oude dumps zijn weg met de schijf. Wacht tot zondag 01:00, of trek er met
+de hand één.
+
+</Steps>
+
+<Callout type="error">
+Dit pad is **beschreven maar nooit gelopen**. `stacks.yml --limit macmini` is
+groen in droogloop en `nfs.yml` heeft één keer echt gedraaid, maar een Mini die
+van nul terugkomt is nog niet geprobeerd. Reken op verrassingen rond Homebrew:
+die machine draait macOS 14 en bouwt daar alles vanaf broncode, en daarom staat
+`macos_brew_upgrade` er op `false`.
+</Callout>
+
+## Geen DNS
+
+Niets resolvet meer — `*.home.arpa` niet en `*.neodata.be` niet. Sinds 22-09
+loopt de hele estate via één LXC op `192.168.0.29`, dus dat is één container
+die het hele huis stil kan leggen.
+
+**Ansible blijft werken.** De inventory praat met adressen, niet met namen, dus
+je kunt gewoon herstellen terwijl DNS plat ligt.
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=adguard   # als de container weg is
+ansible-playbook playbooks/site.yml --limit adguard
+ansible-playbook playbooks/dns-smoketest.yml
+```
+
+Die laatste vraagt elke naam uit de inventory op bij AdGuard zelf en
+vergelijkt met het adres dat daar staat, plus één publieke naam om te zien of
+het doorvragen weer werkt.
+
+Clients krijgen `192.168.0.29` via DHCP uit UniFi. Komt de container met een
+ander adres terug, pas dat dan daar aan — anders blijft het huis een resolver
+zoeken die er niet is.
 
 ## De shares van de Mac mini
 

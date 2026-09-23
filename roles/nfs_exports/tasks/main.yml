@@ -7,6 +7,37 @@
   ansible.builtin.meta: end_host
   when: nfs_exports_shares | length == 0
 
+# LET OP: deze taak faalt op de Mac mini zolang `sshd` geen Volledige
+# Schijftoegang heeft. De fout is:
+#
+#   [Errno 1] Operation not permitted:
+#     '/etc/.ansible_tmpXXXXexports' -> '/etc/exports'
+#
+# Het is GEEN sudo-probleem: het tijdelijke bestand belandt wel degelijk in
+# /etc, en dat mag alleen root. Het is TCC. /etc/exports draagt
+# `com.apple.macl`, en een proces dat onder sshd start mag zo'n bestand niet
+# aanraken - ook niet als root.
+#
+# Op 23-09 uitgezocht, en dit is wat NIET werkt, zodat je het niet opnieuw
+# probeert:
+#
+#   - `unsafe_writes: true`. Lijkt ervoor gemaakt, maar in
+#     module_utils/basic.py springt die vlag alleen in bij EBUSY:
+#       if unsafe_writes and ex.errno == errno.EBUSY:
+#     Wij krijgen EPERM, dus hij doet niets.
+#   - `xattr -d com.apple.macl /etc/exports`. Geeft zelf EPERM, over SSH en
+#     lokaal. De vlag is kernel-beschermd.
+#   - In het bestand schrijven in plaats van het te vervangen
+#     (`cat ... > /etc/exports`). Over SSH ook EPERM.
+#
+# Wat WEL werkt is precies hetzelfde commando lokaal in Terminal op de Mini.
+# Dat is het bewijs dat het aan het proces ligt en niet aan het bestand, en
+# dus dat de echte oplossing dit is, één keer, met de hand op de Mini:
+#
+#   Systeeminstellingen > Privacy en beveiliging > Volledige schijftoegang
+#   > + > cmd-shift-G > /usr/libexec/sshd-keygen-wrapper
+#
+# Daarna opnieuw verbinden; een lopende SSH-sessie pakt het niet op.
 - name: Write /etc/exports
   ansible.builtin.template:
     src: exports.j2
@@ -27,11 +58,16 @@
 # Slaat over onder --check, want dan is er niets geschreven en zou hij het
 # oude bestand goedkeuren.
 - name: Check the exports file macOS now has
-  ansible.builtin.command: /usr/sbin/nfsd checkexports
+  ansible.builtin.command: "{{ nfs_exports_nfsd }} checkexports"
   changed_when: false
 
+# LET OP het `failed_when: false` hieronder: `nfsd status` geeft een niet-nul
+# code als de dienst uit staat, en dat is hier een antwoord en geen fout. Maar
+# het slikt ook "binary bestaat niet", en daardoor stond het pad een dag fout
+# zonder dat deze taak er iets van zei. De taak die het wél merkt is
+# `checkexports` hierboven - en die slaat over onder --check.
 - name: Read whether nfsd is enabled
-  ansible.builtin.command: /usr/sbin/nfsd status
+  ansible.builtin.command: "{{ nfs_exports_nfsd }} status"
   register: nfs_exports_status
   changed_when: false
   failed_when: false
@@ -40,6 +76,6 @@
 # Zonder draaiende nfsd is /etc/exports een tekstbestand. `nfsd enable` zet
 # hem aan én start hem, en overleeft een herstart van de Mini.
 - name: Enable nfsd
-  ansible.builtin.command: /usr/sbin/nfsd enable
+  ansible.builtin.command: "{{ nfs_exports_nfsd }} enable"
   when: "'disabled' in nfs_exports_status.stdout"
   changed_when: true
