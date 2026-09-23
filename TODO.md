@@ -45,11 +45,6 @@ runbook *Onderhoud*.
 
 ## Opruimen in de estate
 
-- [ ] **`vpn.neodata.be` hangt aan een dynamisch WAN-adres.** De VPN-server
-      staat op "Existing IP Address" en UniFi waarschuwt zelf dat dat adres
-      wijzigt. Zoek uit of iets die Cloudflare-record bijwerkt; zo niet, zet
-      Dynamic DNS aan.
-
 
 ---
 

@@ -33,15 +33,14 @@ VPN, de route en de DNS.
 ### Werkt het niet?
 
 Zet hem uit en probeer de andere. Werkt Tailscale wel en WireGuard niet, volg
-dan [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/vpn/):
-meestal is je WAN-adres veranderd.
+dan [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/vpn/).
 
 </Steps>
 
-<Callout type="warning">
-WireGuard breekt stil als je provider je een ander WAN-adres geeft. Dat staat
-op de TODO. Tot dan: werkt WireGuard onderweg ineens niet meer, neem Tailscale
-en kijk thuis het adres na.
+<Callout type="info">
+Geeft je provider je een ander WAN-adres, dan werkt UniFi `vpn.neodata.be`
+zelf bij (Dynamic DNS). Werkt WireGuard onderweg toch ineens niet, neem dan
+Tailscale en kijk thuis het adres na.
 </Callout>
 
 ## Goed om te weten

@@ -53,8 +53,18 @@ zijn DNS niet via een omweg bij zichzelf gaat halen.
 
 ## Het WAN-adres is dynamisch
 
-De VPN-server staat op "Existing IP Address" in plaats van Dynamic DNS, en
-UniFi waarschuwt daar zelf voor. Krijg je van je provider een ander IP en
-werkt niets `vpn.neodata.be` bij, dan breekt de VPN stil, en dat merk je pas
-als je binnen wil. Zet Dynamic DNS aan, of zoek uit wat die Cloudflare-record
-bijhoudt. Staat op de TODO.
+Je provider kan je WAN-adres veranderen. Daarom werkt UniFi `vpn.neodata.be`
+zelf bij in Cloudflare:
+
+| Waar | Wat |
+| --- | --- |
+| UniFi → Settings → Internet → WAN → Advanced → Dynamic DNS | service **Cloudflare**, hostname `vpn.neodata.be` |
+
+Dat staat in UniFi, niet in deze repo. Het WireGuard-profiel op je toestel
+gebruikt de naam `vpn.neodata.be`, niet het adres, dus na een wissel volgt het
+vanzelf. UniFi kan bij de VPN-server nog waarschuwen dat hij op "Existing IP
+Address" staat; met Dynamic DNS actief mag die waarschuwing blijven staan.
+
+Sinds 4 september is het adres niet gewisseld, dus de update is nooit echt
+nodig geweest. Werkt WireGuard na een wissel niet, kijk dan of de record
+gevolgd is: zie [De VPN nakijken](/technisch/runbooks/netwerk/vpn/).
