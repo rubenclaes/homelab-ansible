@@ -4,9 +4,6 @@ title: Goed om te weten
 
 # Onderhoud: goed om te weten
 
-Over Semaphore (limits, tijdzone, de API): zie
-[Goed om te weten: Semaphore](/runbooks/onderhoud/goed-om-te-weten-semaphore/).
-
 ## Waarom deze playbooks niet in `site.yml` zitten
 
 `site.yml` trekt gelijk. `report.yml` is traag en hoort op een schema,
@@ -55,3 +52,70 @@ labels indexeert: pel af bij het zoeken, niet bij het schrijven.
 `docs.neodata.be` en `report.neodata.be` staan niet in `caddy_sites` maar als
 vaste blokken in de Caddyfile. Ze serveren van schijf en geven een 403 buiten
 het LAN en de tailnet: ze beschrijven de binnenkant van het netwerk.
+
+## Semaphore
+
+### De limits in de templates
+
+- **`!semaphore`** — houdt een job van zijn eigen container af. Herstart
+  Semaphore halverwege, dan is de job dood en weet je niet of hij af is. Die
+  machine patch je met de hand.
+- **`!mbp`** — `mbp` heeft `ansible_connection: local`. Vanuit Semaphore
+  betekent dat "de container die de job draait", niet je MacBook. Die zit in
+  `macs` en krijgt dan macOS-taken: zo liep `Cleanup (report)` op 23-09 vast
+  op "Measure the Homebrew cache" in een Debian-container. Aan je bureau klopt
+  `mbp` wel; daar draai je zonder limit.
+- **Geen limit** bij `Homelab Report`, met opzet. `report.yml` slaat de
+  macOS-taken zelf over als hij geen Mac ziet. En `all` telt de impliciete
+  `localhost` niet mee: met een kale `all:!mbp` is de run groen maar
+  verschijnt er niets op report.neodata.be. Een limit die te veel wegsnijdt
+  maakt een job niet rood, alleen stil.
+- **`drift_limit`** in plaats van `--limit` bij `Drift check` — `drift.yml`
+  draait zelf op `localhost`; een `--limit` zou die play raken, niet de
+  droogloop eronder.
+
+### Een schema herschrijft zichzelf niet
+
+`Site converge` draait met `--limit all:!mbp:!semaphore`, dus de play
+`semaphore-templates.yml` in `site.yml` valt daar weg. Dat is met opzet: een
+schema dat zijn eigen schema's herschrijft terwijl het draait, wil je niet.
+
+### Waarom de tijden lokale tijd zijn
+
+Tot 23-09 las Semaphore elke cron als UTC (`Drift check` met `0 6 * * *`
+eindigde op `06:00:37Z`, dus 08:00 hier). UTC schuift mee met de zomertijd.
+De `semaphore`-rol zet nu `SEMAPHORE_SCHEDULE_TIMEZONE` uit
+`semaphore_schedule_timezone` (`Europe/Brussels`), als omgevingsvariabele en
+niet in de gevaulte `config.json`, zodat je hem kunt nalezen.
+
+### Baseline (dry run) deed vroeger echt iets
+
+Tot 23-09 draaide hij `baseline.yml` **zonder** `--check`: wie ging kijken,
+paste de baseline toe op elke Linux-host. Nu met `--check --diff`. Niet
+hernoemd, want een nieuwe naam maakt een tweede template en laat de
+geschiedenis achter.
+
+### Waarom `Stacks` dagelijks draait
+
+Na een herstart van OrbStack komen `duplicati` en `shelfmark` op de Mac mini
+niet terug: ze koppelen een schijf onder `/Volumes` aan die OrbStack pas later
+doorgeeft, en `restart: unless-stopped` helpt niet tegen een start die mislukt.
+Een dagelijkse run herstelt dat binnen een dag. De eerste beheerde run is op
+23-09 met de hand gedaan en was schoon (`changed=0`): een schema dat zijn
+eerste run onbewaakt doet, is een gok.
+
+### De Semaphore-API kent geen gedeeltelijke update
+
+Een `UPDATE` zet élke kolom uit het verzoek; wat je weglaat wordt leeg. Daarom
+bouwt de rol het verzoek op uit wat de server nu heeft, met alleen onze velden
+erover. Om dezelfde reden stuurt hij `environment_ids` mee: laat je dat weg,
+dan draait de template zonder environment. Denk hieraan voor je de rol
+"vereenvoudigt".
+
+### Een template hernoemen
+
+`name` is de sleutel waarop de rol zoekt. Hernoem je hem alleen in
+`semaphore_templates_list`, dan maakt de rol een tweede template en blijft de
+oude staan, met zijn schema. Hernoem hem dus eerst in de UI, en draai dan
+`semaphore-templates.yml --check`: de template moet onder `update` staan, niet
+onder `create`. Zo werd `DNS smoketest` op 23-09 `Smoketest`.

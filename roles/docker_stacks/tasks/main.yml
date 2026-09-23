@@ -5,8 +5,8 @@
 #
 # FIRST RUN ON A NEW HOST NEEDS A HAND. The deploy key below is generated
 # here and printed; the git clone right after it fails until that public key
-# is added to github.com/rubenclaes/containers -> Deploy keys. See section 4
-# of the README.
+# is added to github.com/rubenclaes/containers -> Deploy keys. See the
+# runbook "pve01 is weg" on the docs site.
 - name: Generate deploy key for the stacks repo
   community.crypto.openssh_keypair:
     path: "{{ docker_stacks_deploy_key }}"

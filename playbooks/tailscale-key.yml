@@ -20,7 +20,7 @@
 # in its vault. Nothing connects to it: the play vars below make every task
 # run locally, and override the linux group's ansible_become, which would
 # otherwise sudo on the workstation. A play-level var overriding inventory is
-# exactly the trap README warns about; here it is the point.
+# exactly the trap update.yml warns about; here it is the point.
 - name: Tailscale key
   hosts: tailscale
   gather_facts: false

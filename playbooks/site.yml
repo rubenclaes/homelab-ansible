@@ -11,7 +11,7 @@
 #   proxmox-network.yml    can make the hypervisor unreachable
 #   proxmox-autostart.yml  flips onboot on every guest
 #   restore-drill.yml      restores a backup onto a throwaway guest, then destroys it
-#   bootstrap.yml          first-contact root login, see README
+#   bootstrap.yml          first-contact root login, see the runbooks
 #   update.yml             package upgrades and reboots
 #   cleanup.yml            deletes: caches, old images, orphaned packages
 #   nfs.yml                sudo on the Mini wants a password, so it needs -K

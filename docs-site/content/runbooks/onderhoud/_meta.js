@@ -9,6 +9,5 @@ export default {
   'docs-site': 'Docs-site bijwerken',
   'semaphore-schema': 'Schema in Semaphore',
   vanzelf: 'Wat draait er vanzelf?',
-  'goed-om-te-weten': 'Goed om te weten',
-  'goed-om-te-weten-semaphore': 'Goed om te weten: Semaphore'
+  'goed-om-te-weten': 'Goed om te weten'
 }
