@@ -93,6 +93,11 @@ pve_oci_lxcs:
     memory: 256
     disk: { storage: vm-hdd, size: 2 }
     ip: 192.168.0.32/24
+    # Vast, net als de MAC's in vms.yml. Een herbouw zonder vaste MAC geeft een
+    # nieuwe, en wie het oude adres nog in zijn ARP-cache heeft - Caddy, je
+    # laptop - bereikt ntfy dan een tijd niet. Gezien op 23-09: de eerste
+    # herbouw was een minuut onbereikbaar via ntfy.neodata.be.
+    hwaddr: BC:24:11:2A:34:48
     port: 80
     # Het image heeft deze map niet, en zonder stopt ntfy met "cache database
     # directory does not exist". Wordt meegenomen in de PBS-back-up.
