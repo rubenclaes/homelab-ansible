@@ -1,0 +1,22 @@
+---
+# Proxmox answers a create, pull, stop or delete with a task id (UPID) and
+# does the work afterwards. Wait for it, and fail on anything but OK - a
+# failed pull otherwise shows up two tasks later as "template not found".
+- name: Wait for Proxmox task {{ proxmox_oci_upid }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/tasks/{{ proxmox_oci_upid | urlencode }}/status"
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_task_status
+  until: proxmox_oci_task_status.json.data.status == 'stopped'
+  retries: 60
+  delay: 5
+  no_log: "{{ proxmox_oci_no_log }}"
+
+- name: Require that task to have succeeded
+  ansible.builtin.assert:
+    that: proxmox_oci_task_status.json.data.exitstatus == 'OK'
+    fail_msg: "Proxmox task {{ proxmox_oci_upid }} ended with: {{ proxmox_oci_task_status.json.data.exitstatus }}"
+    quiet: true

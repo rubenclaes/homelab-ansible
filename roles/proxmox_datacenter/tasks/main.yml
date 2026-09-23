@@ -5,6 +5,9 @@
 - name: Backup jobs
   ansible.builtin.import_tasks: backup_jobs.yml
 
+- name: Notification targets and matchers
+  ansible.builtin.import_tasks: notifications.yml
+
 # Imported last, deliberately. assert is fatal: asserting at the end of
 # either reconciliation above would halt the play before the other ran,
 # and a verification run is meant to report the whole role in one pass.

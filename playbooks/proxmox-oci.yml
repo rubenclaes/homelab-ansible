@@ -1,0 +1,19 @@
+---
+# Containers uit een OCI-image op pve01: ophalen, aanmaken, en entrypoint en
+# env gelijk houden met pve_oci_lxcs in inventory/group_vars/proxmox/lxcs.yml.
+#
+#   ansible-playbook playbooks/proxmox-oci.yml
+#   ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true   # na een versiewissel
+#
+# Niet in site.yml, om dezelfde reden als proxmox-lxcs.yml: dit maakt machines.
+# Een tweede run zonder wijzigingen doet niets; een gewijzigde env herstart de
+# container, want env geldt pas na een start.
+#
+# Dit is geen gewone guest: geen SSH, geen baseline, geen apt. Updaten is de
+# `version` ophogen. Zie de runbook "Een nieuwe guest", geval 4.
+- name: OCI containers on the hypervisor
+  hosts: pve01
+  gather_facts: false
+  roles:
+    - proxmox_oci
+  tags: [proxmox, oci]

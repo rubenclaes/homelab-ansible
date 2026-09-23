@@ -57,6 +57,7 @@ Niet versleuteld.
 | `caddy` | 106 | LXC | `vm-hdd` | opnieuw bouwen (geval 1) |
 | `adguard` | 107 | LXC | `vm-hdd` | back-up (geval 2 of 3) |
 | `tailscale` | 108 | LXC | `vm-hdd` | opnieuw bouwen (geval 1) |
+| `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/technisch/runbooks/nieuwe-guest/oci-container/) |
 
 Bron: `inventory/group_vars/proxmox/lxcs.yml` en `vms.yml`.
 
@@ -639,6 +640,16 @@ ansible-playbook playbooks/new-guest.yml -e guest=tailscale
 
 Vergeet de `/dev/net/tun`-regels voor `tailscale` niet (zie
 [geval 1](#alleen-bij-tailscale-geef-hem-devnettun)).
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+Dat is `ntfy`. Hij komt niet uit PBS maar wordt nieuw gebouwd: gebruikers,
+rechten en tokens staan in `lxcs.yml` en de vault, dus er gaat niets verloren
+behalve de berichten van de laatste uren. Het image komt van Docker Hub, dus
+pve01 moet al internet hebben. Tot hij draait, komen de meldingen van Proxmox
+alleen in `mail-to-root` terecht.
 
 ### Zet de diensten op de nieuwe containers
 

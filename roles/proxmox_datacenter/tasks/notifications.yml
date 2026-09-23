@@ -1,0 +1,106 @@
+---
+# Additive like the rest of this role: creates or updates what is declared,
+# removes nothing. mail-to-root and the default matcher stay.
+#
+# Secrets cannot be read back (the API returns only their names), so a changed
+# token is not detected. To rotate: delete the endpoint in the GUI and re-run.
+- name: Read the webhook endpoints
+  ansible.builtin.command: pvesh get /cluster/notifications/endpoints/webhook --output-format json
+  register: proxmox_datacenter_webhooks_raw
+  changed_when: false
+  check_mode: false
+
+- name: Read the notification matchers
+  ansible.builtin.command: pvesh get /cluster/notifications/matchers --output-format json
+  register: proxmox_datacenter_matchers_raw
+  changed_when: false
+  check_mode: false
+
+# Header and secret values travel base64-encoded, as `name=<n>,value=<b64>`
+# property strings: that is the only form the API takes them in.
+- name: Create or update each webhook endpoint
+  vars:
+    live: >-
+      {{ proxmox_datacenter_webhooks_raw.stdout | from_json
+         | selectattr('name', 'eq', hook.name) | list | first | default({}) }}
+    want_headers: >-
+      {%- set h = [] -%}
+      {%- for k, v in hook.headers.items() -%}
+      {%-   set _ = h.append('name=' ~ k ~ ',value=' ~ (v | b64encode)) -%}
+      {%- endfor -%}
+      {{ h }}
+    want_body: "{{ hook.body | b64encode }}"
+    differs: >-
+      {{ live | length == 0
+         or live.url | default('') != hook.url
+         or live.method | default('') != hook.method
+         or live.body | default('') != want_body
+         or (live.header | default([]) | sort) != (want_headers | sort) }}
+  ansible.builtin.command:
+    argv: >-
+      {%- set a = ['pvesh'] -%}
+      {%- if live | length == 0 -%}
+      {%-   set _ = a.extend(['create', '/cluster/notifications/endpoints/webhook', '--name', hook.name]) -%}
+      {%- else -%}
+      {%-   set _ = a.extend(['set', '/cluster/notifications/endpoints/webhook/' ~ hook.name]) -%}
+      {%- endif -%}
+      {%- set _ = a.extend(['--url', hook.url, '--method', hook.method, '--body', want_body,
+                            '--comment', hook.comment | default('')]) -%}
+      {%- for h in want_headers -%}
+      {%-   set _ = a.extend(['--header', h]) -%}
+      {%- endfor -%}
+      {%- for k, v in hook.secrets.items() -%}
+      {%-   set _ = a.extend(['--secret', 'name=' ~ k ~ ',value=' ~ (v | b64encode)]) -%}
+      {%- endfor -%}
+      {{ a }}
+  loop: "{{ pve_notification_webhooks | default([]) }}"
+  loop_control:
+    loop_var: hook
+    label: "{{ hook.name }}"
+  when: differs | bool
+  changed_when: true
+  no_log: true
+
+# `target` is written comma-separated in inventory and split here: pvesh wants
+# --target once per target, and several targets means "send to each".
+#
+# match-severity is NOT split, and that matters. Every match-* line is a rule
+# of its own, and with mode `all` every rule must hold. Two lines "warning"
+# and "error" would ask a notification to be both at once, and the matcher
+# would never fire. One rule "warning,error" means either - which is also what
+# the GUI writes.
+- name: Create or update each notification matcher
+  vars:
+    live: >-
+      {{ proxmox_datacenter_matchers_raw.stdout | from_json
+         | selectattr('name', 'eq', matcher.name) | list | first | default({}) }}
+    differs: >-
+      {{ live | length == 0
+         or ([live.target | default([])] | flatten | join(',')) != matcher.params.target
+         or ([live['match-severity'] | default([])] | flatten | join(',')) != matcher.params['match-severity']
+         or live.mode | default('all') != matcher.params.mode
+         or live.comment | default('') != matcher.params.comment | default('') }}
+  ansible.builtin.command:
+    argv: >-
+      {%- set a = ['pvesh'] -%}
+      {%- if live | length == 0 -%}
+      {%-   set _ = a.extend(['create', '/cluster/notifications/matchers', '--name', matcher.name]) -%}
+      {%- else -%}
+      {%-   set _ = a.extend(['set', '/cluster/notifications/matchers/' ~ matcher.name]) -%}
+      {%- endif -%}
+      {%- for k, v in matcher.params.items() -%}
+      {%-   if k == 'target' -%}
+      {%-     for item in (v | string).split(',') -%}
+      {%-       set _ = a.extend(['--' ~ k, item]) -%}
+      {%-     endfor -%}
+      {%-   else -%}
+      {%-     set _ = a.extend(['--' ~ k, v | string]) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ a }}
+  loop: "{{ pve_notification_matchers | default([]) }}"
+  loop_control:
+    loop_var: matcher
+    label: "{{ matcher.name }}"
+  when: differs | bool
+  changed_when: true

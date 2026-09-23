@@ -76,6 +76,9 @@ ansible-playbook playbooks/new-guest.yml -e guest=adguard
 ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ansible-playbook playbooks/new-guest.yml -e guest=tailscale
 ansible-playbook playbooks/new-guest.yml -e guest=semaphore
+# ntfy is geen gewone container: één programma uit een OCI-image, zonder SSH.
+# Alles wat hem opbouwt staat in pve_oci_lxcs en de vault.
+ansible-playbook playbooks/proxmox-oci.yml
 # tailscale heeft daarna nog twee `pct set`-regels als root nodig; het token
 # kan geen rauwe lxc-keys zetten. Ze staan bij vmid 108 in lxcs.yml.
 

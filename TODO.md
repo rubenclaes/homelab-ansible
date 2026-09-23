@@ -2,25 +2,36 @@
 
 ## Nu — hier kan iets misgaan
 
-- [ ] **Een geplande job die faalt meldt zichzelf niet.** `Drift check` faalde
-      op 23-09 om 06:00 en dat is pas twee uur later bij toeval gezien, door
-      met de hand in de taaklijst te kijken. Zolang dit er niet is, is elk
-      schema een aanname.
+- [ ] **Een geplande job die faalt meldt zichzelf niet — voor Proxmox opgelost.**
+      Sinds 23-09 stuurt Proxmox waarschuwingen en fouten naar ntfy (ct 109,
+      topic `homelab`), dus een mislukte back-up komt op je telefoon. Getest
+      met een vzdump die faalde. Nog open, en allemaal kunnen ze naar dezelfde
+      ntfy:
 
-      Dit gaat sinds 23-09 ook over de back-ups. De wekelijkse job schrijft
-      over NFS naar de Mac mini; slaapt die op zondagnacht, dan faalt hij stil.
-      En de oude job naar `local` faalde maandenlang elke zondag zonder dat
-      iemand het zag - dát is wat dit gat kost. Proxmox meldt nu naar
-      `mail-to-root`, wat lokale post is die niemand leest.
+      - **Semaphore.** Het begon hiermee: `Drift check` faalde op 23-09 om
+        06:00 en dat is pas twee uur later bij toeval gezien, door met de hand
+        in de taaklijst te kijken. Zolang dit er niet is, is elk schema een
+        aanname.
+      - **PBS** heeft een eigen meldingssysteem en meldt nog nergens heen.
+      - **Een Alertmanager** naast Prometheus, Grafana, Loki en Alloy op VM
+        102 dekt in één keer de schijven, de hosts en de certificaten.
 
-      Je hebt al Prometheus, Grafana, Loki en Alloy op VM 102 draaien. Een
-      Alertmanager ernaast dekt in één keer de schijven, de hosts en de
-      certificaten; Semaphore en Proxmox kunnen daarna naar dezelfde
-      ontvanger wijzen.
+      Waarom dit dringend was: de oude wekelijkse job naar `local` faalde
+      maandenlang elke zondag zonder dat iemand het zag. `mail-to-root` blijft
+      staan, maar dat is lokale post die niemand leest.
+
+      Eén grens: ligt ntfy zelf plat, dan hoor je niets. Dat vang je pas af met
+      een tweede kanaal, bv. een Alertmanager die ook mailt.
 
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
+
+- [ ] **ntfy op je iPhone.** App **ntfy**, standaardserver
+      `https://ntfy.neodata.be`, gebruiker `ruben`, abonneer op `homelab`. Het
+      wachtwoord: `ansible-vault view inventory/group_vars/proxmox/vault.yml |
+      grep ntfy_ruben_password`. Tot dan komen de meldingen aan in ntfy, maar
+      niet bij jou.
 
 - [ ] **De Mac mini is beschreven, niet beheerd.** `stacks.yml --limit
       macmini` is groen in droogloop en meldt voor alle zes stacks `ok`, maar

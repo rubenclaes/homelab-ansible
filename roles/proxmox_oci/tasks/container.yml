@@ -1,0 +1,251 @@
+---
+- name: Work out the desired state - {{ oci.hostname }}
+  ansible.builtin.set_fact:
+    proxmox_oci_template: "{{ oci.image | basename }}_{{ oci.version }}"
+    proxmox_oci_volid: "{{ proxmox_oci_template_storage }}:vztmpl/{{ oci.image | basename }}_{{ oci.version }}.tar"
+    proxmox_oci_description: "image: {{ oci.image }}:{{ oci.version }}"
+    proxmox_oci_exists: "{{ oci.vmid in (proxmox_oci_guests.json.data | map(attribute='vmid') | list) }}"
+    proxmox_oci_volumes: >-
+      {%- set m = {} -%}
+      {%- for v in oci.volumes | default([]) -%}
+      {%-   set _ = m.update({'mp' ~ loop.index0: v.storage ~ ':' ~ v.size ~ ',mp=' ~ v.mp}) -%}
+      {%- endfor -%}
+      {{ m }}
+
+# The vmid is the only key this role goes by. Before anything is written to an
+# existing guest, make sure it is this OCI container: a mistyped vmid would
+# otherwise rewrite the env of, say, tailscale and reboot it - and with
+# proxmox_oci_recreate, destroy it.
+- name: Require an existing guest to be this OCI container - {{ oci.hostname }}
+  vars:
+    proxmox_oci_guest: "{{ proxmox_oci_guests.json.data | selectattr('vmid', 'eq', oci.vmid) | first }}"
+  ansible.builtin.assert:
+    that:
+      - proxmox_oci_guest.type == 'lxc'
+      - proxmox_oci_guest.name | default('') == oci.hostname
+      - "'oci' in (proxmox_oci_guest.tags | default('')).split(';')"
+    fail_msg: >-
+      vmid {{ oci.vmid }} is not '{{ oci.hostname }}' with tag oci: it is a
+      {{ proxmox_oci_guest.type }} named '{{ proxmox_oci_guest.name | default('?') }}'
+      with tags '{{ proxmox_oci_guest.tags | default('') }}'. Nothing was changed.
+      Check the vmid in pve_oci_lxcs.
+    quiet: true
+  when: proxmox_oci_exists | bool
+
+- name: Work out the env for {{ oci.hostname }}
+  ansible.builtin.set_fact:
+    proxmox_oci_env: >-
+      {{ proxmox_oci_base_env | combine(oci.env | default({})) | dict2items
+         | map(attribute='key')
+         | zip(proxmox_oci_base_env | combine(oci.env | default({})) | dict2items | map(attribute='value') | map('string'))
+         | map('join', '=') | join(proxmox_oci_nul) }}
+  no_log: true
+
+# --- the image ------------------------------------------------------------
+# As root through pvesh, not through the API token like everything else here.
+# oci-registry-pull needs Sys.AccessNetwork on the node: the right to make the
+# node download from anywhere. The token does not get that for one pull;
+# root on pve01 already has it, and proxmox_datacenter uses pvesh the same way.
+#
+# `filename` without .tar: Proxmox appends it itself, and given `x.tar` makes
+# `x.tar.tar`.
+- name: Pull the image - {{ oci.image ~ ':' ~ oci.version }}
+  ansible.builtin.command:
+    argv:
+      - pvesh
+      - create
+      - /nodes/{{ proxmox_oci_node }}/storage/{{ proxmox_oci_template_storage }}/oci-registry-pull
+      - --reference
+      - "{{ oci.image }}:{{ oci.version }}"
+      - --filename
+      - "{{ proxmox_oci_template }}"
+  become: true
+  register: proxmox_oci_pull
+  when: proxmox_oci_volid not in (proxmox_oci_templates.json.data | map(attribute='volid') | list)
+  changed_when: true
+
+# pvesh may hand back the task id instead of waiting for it.
+- name: Wait for the pull
+  ansible.builtin.include_tasks: wait.yml
+  vars:
+    proxmox_oci_upid: "{{ proxmox_oci_pull.stdout | trim }}"
+  when:
+    - proxmox_oci_pull is not skipped
+    - proxmox_oci_pull.stdout | trim is match('^UPID:')
+
+# --- version drift --------------------------------------------------------
+- name: Read the description of {{ oci.hostname }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_before
+  when: proxmox_oci_exists | bool
+  no_log: "{{ proxmox_oci_no_log }}"
+
+- name: Decide whether the running version differs - {{ oci.hostname }}
+  ansible.builtin.set_fact:
+    proxmox_oci_drift: >-
+      {{ (proxmox_oci_exists | bool)
+         and ((proxmox_oci_before.json.data.description | default('') | trim) != proxmox_oci_description) }}
+
+- name: Say so when the version differs and may not be rebuilt
+  ansible.builtin.debug:
+    msg: >-
+      {{ oci.hostname }} runs '{{ proxmox_oci_before.json.data.description | default('?') | trim }}',
+      inventory says '{{ proxmox_oci_description }}'. Nothing changed. Rebuilding
+      destroys the container and its volumes; re-run with
+      -e proxmox_oci_recreate=true when that is what you want.
+  when:
+    - proxmox_oci_drift | bool
+    - not (proxmox_oci_recreate | bool)
+
+- name: Rebuild on the new version - {{ oci.hostname }}
+  when:
+    - proxmox_oci_drift | bool
+    - proxmox_oci_recreate | bool
+  block:
+    # force=1 stops it first when it runs. A separate status/stop call would
+    # fail on a container that is already stopped - and a crashed container is
+    # exactly the one you are most likely to rebuild.
+    - name: Destroy the container and its volumes - {{ oci.hostname }}
+      ansible.builtin.uri:
+        url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}?force=1&purge=1&destroy-unreferenced-disks=1"
+        method: DELETE
+        headers: "{{ proxmox_oci_headers }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: proxmox_oci_destroy
+      changed_when: true
+      no_log: "{{ proxmox_oci_no_log }}"
+
+    - name: Wait for the destroy
+      ansible.builtin.include_tasks: wait.yml
+      vars:
+        proxmox_oci_upid: "{{ proxmox_oci_destroy.json.data }}"
+
+    - name: Treat the container as missing from here on - {{ oci.hostname }}
+      ansible.builtin.set_fact:
+        proxmox_oci_exists: false
+
+# --- the container --------------------------------------------------------
+# env and entrypoint are NOT passed here: for an OCI template Proxmox ignores
+# them and copies the image's. They are set in the next section.
+- name: Create {{ oci.hostname }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc"
+    method: POST
+    headers: "{{ proxmox_oci_headers }}"
+    body_format: form-urlencoded
+    body: >-
+      {{ {
+           'vmid': oci.vmid,
+           'hostname': oci.hostname,
+           'ostemplate': proxmox_oci_volid,
+           'cores': oci.cores,
+           'memory': oci.memory,
+           'swap': 0,
+           'rootfs': oci.disk.storage ~ ':' ~ oci.disk.size,
+           'net0': 'name=eth0,bridge=' ~ pve_lxc_defaults.bridge ~ ',ip=' ~ oci.ip ~ ',gw=' ~ pve_lxc_defaults.gateway
+                   ~ (',hwaddr=' ~ oci.hwaddr if oci.hwaddr is defined else ''),
+           'unprivileged': 1,
+           'onboot': 1,
+           'tags': 'oci',
+           'description': proxmox_oci_description,
+         } | combine(proxmox_oci_volumes) }}
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_create
+  when: not (proxmox_oci_exists | bool)
+  changed_when: true
+  no_log: "{{ proxmox_oci_no_log }}"
+
+- name: Wait for the create
+  ansible.builtin.include_tasks: wait.yml
+  vars:
+    proxmox_oci_upid: "{{ proxmox_oci_create.json.data }}"
+  when: proxmox_oci_create is not skipped
+
+# --- entrypoint and env ---------------------------------------------------
+- name: Read the live config of {{ oci.hostname }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_live
+  no_log: "{{ proxmox_oci_no_log }}"
+
+- name: Compare entrypoint and env for {{ oci.hostname }}
+  ansible.builtin.set_fact:
+    proxmox_oci_config_differs: >-
+      {{ proxmox_oci_live.json.data.entrypoint | default('') != oci.entrypoint
+         or proxmox_oci_live.json.data.env | default('') != proxmox_oci_env }}
+  no_log: true
+
+# Over the API because env is NUL-separated, and no command-line argument can
+# carry a NUL. Form-encoding sends it as %00; Proxmox writes one
+# lxc.environment.runtime line per entry.
+- name: Set entrypoint and env on {{ oci.hostname }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
+    method: PUT
+    headers: "{{ proxmox_oci_headers }}"
+    body_format: form-urlencoded
+    body:
+      entrypoint: "{{ oci.entrypoint }}"
+      env: "{{ proxmox_oci_env }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  when: proxmox_oci_config_differs | bool
+  changed_when: true
+  no_log: "{{ proxmox_oci_no_log }}"
+
+# --- running --------------------------------------------------------------
+- name: Read the state of {{ oci.hostname }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/status/current"
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_state
+  no_log: "{{ proxmox_oci_no_log }}"
+
+# env is read at start, so a changed env on a running container means a
+# reboot. A stopped container is started either way: onboot says it should run.
+- name: Start or reboot {{ oci.hostname }}
+  ansible.builtin.uri:
+    url: >-
+      {{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/status/{{
+         'start' if proxmox_oci_state.json.data.status != 'running' else 'reboot' }}
+    method: POST
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_power
+  when: proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
+  changed_when: true
+  no_log: "{{ proxmox_oci_no_log }}"
+
+- name: Wait for the start
+  ansible.builtin.include_tasks: wait.yml
+  vars:
+    proxmox_oci_upid: "{{ proxmox_oci_power.json.data }}"
+  when: proxmox_oci_power is not skipped
+
+- name: Wait for the service to listen - {{ oci.hostname }}
+  ansible.builtin.wait_for:
+    host: "{{ oci.ip | split('/') | first }}"
+    port: "{{ oci.port }}"
+    timeout: 60
+  delegate_to: localhost
+  become: false
+  when: oci.port is defined

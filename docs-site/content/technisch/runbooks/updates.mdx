@@ -19,6 +19,7 @@ Gebruik deze pagina als je pakketten wil bijwerken op de Linux-machines, op
 | Je wil **`pve01` zelf** bijwerken en herstarten | nieuwe Proxmox-kernel | [Geval 4 — De hypervisor](#geval-4--de-hypervisor) |
 | Je wil de **Macs** bijwerken | Homebrew-pakketten op `mbp`, apps op `macmini` | [Geval 5 — De Macs](#geval-5--de-macs) |
 | Je wil **Caddy** upgraden | een nieuwe Caddy-versie | [Geval 6 — Caddy](#geval-6--caddy) |
+| Je wil een **OCI-container** bijwerken | een nieuwe versie van `ntfy` | [Geval 7 — OCI-containers](#geval-7--oci-containers) |
 
 <Callout type="info">
 Wil je een pakket of app **weg** van een Mac? Dan ben je hier verkeerd: dat is
@@ -281,6 +282,47 @@ werkt elk `*.neodata.be`-adres nog.
 Gebruik niet `ansible caddy -a "caddy upgrade"`. Dat vervangt de binary, maar
 herstart Caddy niet en controleert niets.
 </Callout>
+
+---
+
+## Geval 7 — OCI-containers
+
+`ntfy` en andere containers uit een OCI-image doen **niet** mee met
+`update.yml`: er zit geen apt in, alleen het programma. Je werkt ze bij door
+een nieuwer image te nemen, en dat betekent: de container opnieuw bouwen.
+
+<Steps>
+
+### Hoog de versie op
+
+In `pve_oci_lxcs` (`inventory/group_vars/proxmox/lxcs.yml`), het veld
+`version`. Een vaste versie, nooit `latest`: dan weet je wat er draait, en een
+herbouw geeft je hetzelfde terug.
+
+### Kijk eerst wat er zou gebeuren
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+Zonder vlag verandert er niets. De rol meldt welke versie draait en welke je
+vraagt.
+
+### Bouw hem opnieuw
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
+```
+
+De container **en zijn volumes** gaan weg en komen terug op het nieuwe image.
+Voor ntfy is dat bewust aanvaard: gebruikers, rechten en tokens staan in
+`env` en zijn er na de start meteen weer. Alleen de berichtcache van de
+laatste uren is weg.
+
+</Steps>
+
+Waarom zo en niet in `update.yml`: zie
+[Nieuwe machine → OCI-container](/technisch/runbooks/nieuwe-guest/oci-container/#updaten-is-opnieuw-bouwen).
 
 ---
 

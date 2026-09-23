@@ -16,6 +16,7 @@ Gebruik dit als je een **extra machine** op pve01 nodig hebt: een container
 | Je wil een **nieuwe container** voor software die een eigen machine hoort te hebben | Vaultwarden op een eigen LXC | [Nieuwe container](/technisch/runbooks/nieuwe-guest/container/) |
 | Een container die **al in de lijst staat** is weg en je wil hem opnieuw bouwen | `adguard` na een herinstallatie van pve01 | [Container herbouwen](/technisch/runbooks/nieuwe-guest/container-herbouwen/) |
 | Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Virtuele machine](/technisch/runbooks/nieuwe-guest/vm/) |
+| Je wil **één programma uit een Docker-image** dat moet blijven werken als de docker-VM plat ligt | `ntfy` | [OCI-container](/technisch/runbooks/nieuwe-guest/oci-container/) |
 
 <Callout type="info">
 Wil je gewoon een **Docker-app** draaien (Memos, Jellyfin…)? Dan heb je **geen
@@ -28,8 +29,9 @@ seconde, kost nauwelijks geheugen, en het hele pad is geautomatiseerd. Een VM
 is voor als het echt niet anders kan, bv. een eigen besturingssysteem zoals
 Home Assistant OS.
 
-Na elk van de drie ga je verder met [Afwerken](/technisch/runbooks/nieuwe-guest/afwerken/):
-dienst erop, adres, back-up, commit, docs.
+Na een container of VM ga je verder met [Afwerken](/technisch/runbooks/nieuwe-guest/afwerken/):
+dienst erop, adres, back-up, commit, docs. Een OCI-container heeft zijn
+eigen, kortere pad: de dienst ís de container.
 
 ## Woorden die je nodig hebt
 
@@ -48,6 +50,7 @@ dienst erop, adres, back-up, commit, docs.
 | Een fout over een hostkey | Er stond al een andere machine op dat adres. `ssh-keygen -R <adres>` en opnieuw |
 | Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet. Zie de README |
 | Een VM staat niet in de inventory | De guest agent draait niet. Zie [Virtuele machine](/technisch/runbooks/nieuwe-guest/vm/#controleer-dat-ansible-hem-ziet) |
+| Een OCI-container staat meteen weer op `stopped` | Meestal een ontbrekend `entrypoint`-argument of een map die niet bestaat. Zet `lxc.console.logfile: /tmp/ct.log` onderaan `/etc/pve/lxc/<vmid>.conf`, start hem, en lees dat bestand. Haal de regel daarna weer weg |
 
 Een half gebouwde container is niet erg: het playbook mag altijd opnieuw. Wat
 al bestaat wordt niet nog eens gemaakt.

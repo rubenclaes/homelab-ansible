@@ -71,6 +71,59 @@ pve_lxcs:
     #   pct set 108 -lxc.cgroup2.devices.allow "c 10:200 rwm"
     #   pct set 108 -lxc.mount.entry "/dev/net/tun dev/net/tun none bind,create=file"
 
+# Containers uit een OCI-image, gemaakt door roles/proxmox_oci
+# (playbooks/proxmox-oci.yml). Apart van pve_lxcs, want die lijst gaat uit van
+# Debian, SSH en een baseline, en hier is er niets van dat: één programma uit
+# een image, en alles wat het nodig heeft staat in env. De rol zet er tag `oci`
+# op, en daardoor houdt de inventory ze buiten `linux`.
+#
+# `version` is de enige manier om te updaten. Een andere waarde dan wat draait
+# geeft een waarschuwing; pas met -e proxmox_oci_recreate=true wordt de
+# container opnieuw gebouwd. Dat gooit ook de volumes weg, dus alles wat moet
+# overleven hoort in env, niet op de schijf.
+pve_oci_lxcs:
+  - vmid: 109
+    hostname: ntfy
+    image: docker.io/binwiederhier/ntfy
+    version: v2.28.0
+    # Het image heeft ENTRYPOINT ["ntfy"] zonder CMD; kaal start dat de help
+    # en stopt meteen.
+    entrypoint: ntfy serve
+    cores: 1
+    memory: 256
+    disk: { storage: vm-hdd, size: 2 }
+    ip: 192.168.0.32/24
+    # Vast, net als de MAC's in vms.yml. Een herbouw zonder vaste MAC geeft een
+    # nieuwe, en wie het oude adres nog in zijn ARP-cache heeft - Caddy, je
+    # laptop - bereikt ntfy dan een tijd niet. Gezien op 23-09: de eerste
+    # herbouw was een minuut onbereikbaar via ntfy.neodata.be.
+    hwaddr: BC:24:11:2A:34:48
+    port: 80
+    # Het image heeft deze map niet, en zonder stopt ntfy met "cache database
+    # directory does not exist". Wordt meegenomen in de PBS-back-up.
+    volumes:
+      - { mp: /var/lib/ntfy, storage: vm-hdd, size: 1 }
+    env:
+      NTFY_BASE_URL: https://ntfy.neodata.be
+      NTFY_LISTEN_HTTP: ":80"
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/user.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      # Een mislukte vzdump stuurt de hele log van elke guest mee, al snel
+      # 15 KB of meer. Boven 4 KB maakt ntfy er een bijlage van, en zonder
+      # deze map weigert hij het bericht (400): de ene melding waar het om
+      # draait kwam dan nooit aan. Proxmox kapt zelf af op 1 MiB.
+      NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+      NTFY_ATTACHMENT_FILE_SIZE_LIMIT: 2M
+      NTFY_ATTACHMENT_TOTAL_SIZE_LIMIT: 200M
+      # Voor de iPhone: Apple laat een app alleen via hun eigen push wekken.
+      # ntfy.sh stuurt enkel een seintje door, de inhoud haalt de app hier.
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
+      NTFY_AUTH_USERS: "ruben:{{ vault_ntfy_ruben_hash }}:admin,proxmox:{{ vault_ntfy_proxmox_hash }}:user"
+      NTFY_AUTH_ACCESS: "proxmox:homelab:wo"
+      NTFY_AUTH_TOKENS: "proxmox:{{ vault_ntfy_proxmox_token }}:proxmox"
+
 # The vmid playbooks/recovery-drill.yml builds and destroys. It is declared
 # here, not guessed at run time, so a glance at this file shows the one id a
 # playbook is allowed to destroy. 199 sits well above the range pve_lxcs uses

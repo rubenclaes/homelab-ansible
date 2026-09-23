@@ -12,6 +12,12 @@
 #   id:      backup-e6cc3e8b-ac39      required, the Proxmox-generated job ID
 #   params:  {}                        required, Proxmox API field names
 #
+# Shape of a pve_notification_webhooks entry (group_vars/proxmox/notifications.yml):
+#   name, url, method, headers: {}, body, secrets: {}, comment
+# Shape of a pve_notification_matchers entry:
+#   name, params: {}                   Proxmox API field names; array fields
+#                                      (target, match-severity) comma-separated
+#
 # This file is comments only, deliberately. Defaulting either list here would
 # let a typo'd inventory filename resolve to an empty list and report success
 # while managing nothing.
