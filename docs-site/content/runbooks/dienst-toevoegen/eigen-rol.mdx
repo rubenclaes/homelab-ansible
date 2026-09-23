@@ -23,22 +23,19 @@ Voorbeeld: Vaultwarden op een eigen LXC.
 
 Maak de LXC met [Nieuwe container](/runbooks/nieuwe-guest/container/).
 
-### Laat het playbook een lege rol aanmaken
+### Kopieer een bestaande rol
+
+Neem de rol die het meest op de jouwe lijkt. `adguard` is een goed
+vertrekpunt: één binary, één config, één dienst.
 
 ```bash
-ansible-playbook playbooks/new-role.yml \
-  -e svc_name=vaultwarden \
-  -e svc_host=vaultwarden \
-  -e svc_tag=secrets \
-  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
+cp -r roles/adguard roles/vaultwarden
+cp playbooks/adguard.yml playbooks/vaultwarden.yml
 ```
 
-- `svc_name` — naam van de rol; alleen kleine letters, cijfers en `_`
-- `svc_host` — op welke machine hij moet draaien
-- `svc_tag` — een label om hem apart te kunnen draaien
-
-Dit maakt `roles/vaultwarden/` en `playbooks/vaultwarden.yml`. De rol is nog
-**leeg**: er staat alleen commentaar in dat uitlegt wat er moet komen.
+Pas in `playbooks/vaultwarden.yml` de naam, `hosts:`, de rol en de tags aan.
+In de rol: hernoem de variabelen (`adguard_*` wordt `vaultwarden_*`) en zet de
+beschrijving in `meta/main.yml` goed.
 
 ### Schrijf de installatiestappen
 
@@ -46,14 +43,12 @@ Dit maakt `roles/vaultwarden/` en `playbooks/vaultwarden.yml`. De rol is nog
 $EDITOR roles/vaultwarden/tasks/main.yml
 ```
 
-Volg de TODO's. Ze beschrijven het vaste patroon dat alle rollen hier volgen:
+Houd het vaste patroon aan dat alle rollen hier volgen:
 
 1. installeer een vaste versie
 2. schrijf de configuratie (en laat die controleren vóór ze actief wordt)
 3. zet de dienst aan
 4. herstart hem als de configuratie verandert
-
-Kijk bij twijfel naar een bestaande rol, zoals `roles/adguard/`.
 
 ### Zet hem in `site.yml`
 
@@ -61,9 +56,7 @@ Kijk bij twijfel naar een bestaande rol, zoals `roles/adguard/`.
 $EDITOR playbooks/site.yml
 ```
 
-Het playbook doet dit bewust niet zelf: de volgorde in `site.yml` telt (eerst
-waar je dienst van afhangt, daarna je dienst), en dat moet jij beslissen. De
-regels om te plakken staan aan het eind van de run.
+De volgorde telt: eerst waar je dienst van afhangt, daarna je dienst.
 
 ### Probeer droog, dan echt
 

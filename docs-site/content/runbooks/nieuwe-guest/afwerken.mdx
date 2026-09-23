@@ -16,15 +16,7 @@ en zorg je dat hij overal meetelt. Voorbeeld: `vaultwarden`.
 ### Installeer de dienst
 
 Voor software zonder Docker schrijf je een rol. Dat staat in
-[Dienst toevoegen → Eigen rol](/runbooks/dienst-toevoegen/eigen-rol/):
-
-```bash
-ansible-playbook playbooks/new-role.yml \
-  -e svc_name=vaultwarden \
-  -e svc_host=vaultwarden \
-  -e svc_tag=secrets \
-  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
-```
+[Dienst toevoegen → Eigen rol](/runbooks/dienst-toevoegen/eigen-rol/).
 
 ### Geef hem een adres (optioneel)
 

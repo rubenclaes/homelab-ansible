@@ -205,8 +205,7 @@
 # Via de CLI en niet via community.docker.docker_host_info: die module heeft
 # de Python-SDK op de doelhost nodig. Op Debian zet de docker_stacks-rol die
 # neer, op macOS is er geen apt en ontbreekt zelfs `requests` in de
-# systeem-Python. `docker ps --format json` werkt overal, en discover.yml
-# doet het al zo.
+# systeem-Python. `docker ps --format json` werkt overal.
 - name: Collect Docker status
   hosts: docker_hosts:macs
   gather_facts: false

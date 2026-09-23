@@ -1,7 +1,6 @@
 ---
-# Bewijst dat een PBS-back-up terugkomt. Niet dat een container te bouwen is -
-# dat doet recovery-drill.yml - maar dat de data die erop stond er nog is en
-# leesbaar is.
+# Bewijst dat een PBS-back-up terugkomt: dat de data die erop stond er nog is
+# en leesbaar is.
 #
 #   ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
 #   ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=caddy
@@ -17,7 +16,7 @@
 # het punt. site.yml bouwt caddy opnieuw; niets bouwt je AdGuard-filterlijst
 # opnieuw.
 #
-# EEN GEFAALDE DRILL LAAT DE CONTAINER STAAN, net als recovery-drill.yml: het
+# EEN GEFAALDE DRILL LAAT DE CONTAINER STAAN: het
 # wrak is het nuttigste wat een mislukte drill oplevert. Opruimen met
 # `pct destroy {{ drill_vmid }}` als je uitgekeken bent. De volgende run
 # weigert dan trouwens te starten, met een melding die zegt waarom, en dat is
@@ -60,8 +59,8 @@
         restore_source: "{{ pve_lxcs | selectattr('hostname', 'eq', restore_guest) | first }}"
         restore_probe: "{{ drill_probes[restore_guest] | default('/etc/hostname') }}"
 
-    # Dezelfde twee wachten als recovery-drill.yml, en om dezelfde reden: dit
-    # playbook mag precies één vmid aanraken en die mag van niemand zijn.
+    # Twee wachten: dit playbook mag precies één vmid aanraken, en die mag
+    # van niemand zijn.
     - name: Weiger een vmid die de inventory claimt
       ansible.builtin.assert:
         that: drill_vmid not in (pve_lxcs | map(attribute='vmid') | list)
@@ -207,7 +206,7 @@
               - "  {{ restore_probe_result.stdout }}"
               - "Back-up van {{ restore_candidates[-1].volid }}."
 
-# Een aparte play, net als in recovery-drill.yml: hier komt hij alleen als
+# Een aparte play: hier komt hij alleen als
 # elke controle hierboven is geslaagd. Faalt er iets, dan blijft de container
 # staan en is dit de play die niet draait.
 - name: Ruim de drill-container op

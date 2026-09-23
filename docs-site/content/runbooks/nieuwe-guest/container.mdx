@@ -14,7 +14,7 @@ het Proxmox-scherm heb je niet nodig.
 ### Zoek een vrij nummer
 
 ```bash
-ansible-playbook playbooks/proxmox-info.yml   # toont elke guest: vmid, type, naam, status
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, naam, status
 ```
 
 Kies een nummer dat daar niet in staat.
@@ -22,7 +22,7 @@ Kies een nummer dat daar niet in staat.
 <Callout type="warning">
 Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
 nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
-gereserveerd voor de recovery-drill.
+gereserveerd voor de restore-drill.
 </Callout>
 
 ### Zoek een vrij adres

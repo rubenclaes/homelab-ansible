@@ -2,7 +2,7 @@
 title: Guests en API-token
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Guests en API-token checken
 
@@ -11,23 +11,24 @@ API-token nog werkt.
 
 <Steps>
 
-### Vraag de guests op
+### Vraag de inventory op
 
 ```bash
-ansible-playbook playbooks/proxmox-info.yml
+ansible-inventory --graph
 ```
 
-Toont elke guest op `pve01` met vmid, type en status.
+De guests komen uit `homelab.proxmox.yml`, via het API-token. Zie je alleen
+`pve01` en de Macs, dan werkt het token niet (of ontbreekt `proxmoxer`, zie
+[Laptop](/runbooks/werkplek/laptop/)). Dát is dan je probleem, niet de host
+die je zocht.
 
-### Lees de uitkomst
+### Vraag Proxmox zelf
 
-Leeg of een fout? Dan werkt het API-token niet, en dan ziet de dynamische
-inventory ook niets. Dát is dan je probleem, niet de host die je zocht.
+```bash
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'
+```
+
+Toont elke guest met vmid, naam en status, ook als het token stuk is. Staat
+hij hier wel en in de inventory niet, dan ligt het aan het token.
 
 </Steps>
-
-<Callout type="warning">
-Dit "leesplaybook" verwijdert `python3-proxmoxer` van `pve01`. Dat is
-opruiming van iets wat ooit anders geïnstalleerd werd; de modules draaien op
-`localhost` en hebben het op de node niet nodig. Het staat in `TODO.md`.
-</Callout>

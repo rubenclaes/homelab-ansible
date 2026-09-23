@@ -57,12 +57,3 @@ Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
 instellingen. Hem opnieuw aanmaken uit een lijst geeft je een correcte, maar
 lege machine. Het echte herstel is een back-up terugzetten uit PBS. Daarom
 staat `vms.yml` er alleen als naslag.
-
-## Na een wijziging aan dit pad
-
-Pas je `new-guest.yml`, `bootstrap.yml`, de baseline of de `proxmox_lxc`-rol
-aan? Draai dan de drill die een wegwerpcontainer bouwt en weer sloopt:
-
-```bash
-ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
-```

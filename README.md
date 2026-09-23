@@ -89,9 +89,7 @@ ansible-playbook playbooks/proxmox-oci.yml
 #   100 pbs   101 haos   102 docker-grafana-stack   103 docker
 #
 # macmini en docker-grafana-stack draaien diensten die deze repo nog niet kan
-# terugbouwen. Voor die twee is PBS het herstelpad, niet dit playbook. Wat ze
-# draaien haal je op met playbooks/discover.yml; zie hun host_vars voor de
-# volgorde waarin dat dichtgetrokken wordt.
+# terugbouwen. Voor die twee is PBS het herstelpad, niet dit playbook.
 
 # --- 6. Handwerk waar een rol op staat te wachten -------------------------
 # adguard   loop de setup-wizard af op http://192.168.0.29:3000, anders stopt
@@ -141,9 +139,9 @@ heeft een uitgeschreven runbook op [docs.neodata.be](https://docs.neodata.be):
 | --- | --- |
 | Werkplek | `ssh <host>`-snelkoppelingen, shell-afkortingen, wat je na een run doet |
 | Nieuwe machine | een nieuwe machine op pve01 |
-| Dienst toevoegen | `new-service.yml`, `new-role.yml`, een route in `caddy_sites` |
+| Dienst toevoegen | `new-service.yml`, een eigen rol, een route in `caddy_sites` |
 | Updates | pakketten updaten, de Macs, Caddy upgraden |
-| Onderhoud | `report.yml`, `drift.yml`, `cleanup.yml`, `discover.yml`, `docs.yml` |
+| Onderhoud | `report.yml`, `drift.yml`, `cleanup.yml`, `docs.yml` |
 | Netwerk en Proxmox | bridges, autostart, een Tailscale-sleutel |
 | Herstellen | een back-up terugzetten, de hele node, het herstelpad bewijzen |
 | Van niets naar alles | een nieuw werkstation, en pve01 na een herinstallatie |
@@ -163,12 +161,9 @@ ansible-playbook playbooks/site.yml --check --diff --limit <hostname>
 
 
 # === Een nieuwe dienst die GEEN container is ==============================
-ansible-playbook playbooks/new-role.yml \
-  -e svc_name=vaultwarden -e svc_host=vaultwarden -e svc_tag=secrets \
-  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
-# Zet roles/<naam>/ op met het patroon van adguard, caddy en pbs erin als
-# commentaar, plus de wrapper-playbook met zijn tags. Zet hem daarna zelf in
-# site.yml: die volgorde is afhankelijkheidsvolgorde en dat weet geen playbook.
+cp -r roles/adguard roles/vaultwarden && cp playbooks/adguard.yml playbooks/vaultwarden.yml
+# Kopieer de rol die het meest op de jouwe lijkt en pas namen en taken aan.
+# Zet hem daarna zelf in site.yml: die volgorde is afhankelijkheidsvolgorde.
 # Draait de dienst op een nieuwe LXC, bouw die eerst met new-guest.yml.
 
 
@@ -242,16 +237,6 @@ ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask <naam>'
 ansible-playbook playbooks/cleanup.yml --limit macmini -e cleanup_apply=true
 
 
-# === Uitzoeken wat er op een host draait ==================================
-ansible-playbook playbooks/discover.yml --limit macmini
-# Leest de host uit en schrijft een voorstel in .discovered/<host>.yml:
-# compose-projecten met hun paden, gepubliceerde poorten, en op een Mac ook
-# `brew leaves` en de casks. Verandert niets, op geen enkele host.
-# Voor de hosts die nog niet beschreven staan. Wat je overneemt hoort in
-# inventory/host_vars/<host>.yml; een host met een docker_stacks_list wordt
-# vanaf dan door stacks.yml beheerd.
-
-
 # === Caddy upgraden =======================================================
 ansible-playbook playbooks/caddy-upgrade.yml
 # Niet met apt. De draaiende binary is de pakketversie met caddy-dns/cloudflare
@@ -280,7 +265,7 @@ ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 # === Zien of alles gezond is ==============================================
 ansible-playbook playbooks/report.yml     # pending updates, reboots, schijf, drift
 open https://report.neodata.be
-ansible-playbook playbooks/proxmox-info.yml   # welke guests draaien er nu echt
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # welke guests draaien er nu echt
 
 
 # === De documentatiesite bijwerken ========================================
@@ -304,11 +289,6 @@ ansible-playbook playbooks/site.yml --limit adguard       # terug naar wat de re
 
 
 # === Bewijzen dat het herstelpad nog werkt ================================
-ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
-# Bouwt een wegwerpcontainer, bootstrapt, baselinet, controleert, sloopt.
-# Bewijst dat je een guest kunt BOUWEN. Draai dit na elke wijziging aan
-# proxmox_lxc, bootstrap.yml, baseline of new-guest.yml.
-
 ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
 ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=caddy
 ansible-playbook playbooks/restore-drill.yml --check          # welke back-up zou hij pakken
@@ -316,8 +296,7 @@ ansible-playbook playbooks/restore-drill.yml --check          # welke back-up zo
 # vmid 199, haalt er de netwerkkaart af zodat hij niet botst met het
 # origineel, start hem, leest er één bestand uit en sloopt hem.
 # Dit is het enige dat aantoont dat de encryptiesleutel werkt.
-# Beide drills laten het wrak staan als ze falen; opruimen met
-# `pct destroy 199`.
+# Laat het wrak staan als hij faalt; opruimen met `pct destroy 199`.
 
 
 # === Zien of er drift is ==================================================
@@ -439,6 +418,6 @@ schijfruimte, niet over wat er hoort te staan.
 `site.yml` is de converge en is veilig om te herhalen. Deze playbooks zitten
 er bewust niet in, want ze provisionen, herstarten of verwijderen:
 `bootstrap.yml`, `proxmox-lxcs.yml`, `proxmox-network.yml`,
-`proxmox-autostart.yml`, `update.yml`, `cleanup.yml`, `recovery-drill.yml`,
+`proxmox-autostart.yml`, `update.yml`, `cleanup.yml`, `restore-drill.yml`,
 `report.yml`.
 

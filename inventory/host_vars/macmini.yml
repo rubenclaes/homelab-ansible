@@ -2,7 +2,7 @@
 # De Mac mini. Draait Plex als macOS-app, acht compose-projecten uit
 # github.com/rubenclaes/homelab, en exporteert drie shares over NFS naar de
 # docker-host. Alles hieronder is op 22-09 van de machine zelf gelezen
-# (discover.yml, docker compose ls, een poortscan en /etc/exports), niet uit
+# (brew leaves, docker compose ls, een poortscan en /etc/exports), niet uit
 # het geheugen overgetikt.
 
 # `brew leaves`: wat je zelf gevraagd hebt, zonder de afhankelijkheden

@@ -31,8 +31,5 @@ vault_pass
 # Subagent-driven-development scratch: ledgers, briefs, review packages.
 .superpowers/
 
-# Voorstellen van playbooks/discover.yml. Geen inventory: leesvoer.
-.discovered/
-
 # Droogloop-logs van playbooks/drift.yml.
 .drift/

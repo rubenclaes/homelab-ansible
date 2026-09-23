@@ -4,7 +4,6 @@ export default {
   drift: 'Drift zoeken',
   dns: 'DNS controleren',
   schijfruimte: 'Schijfruimte vrijmaken',
-  'host-in-kaart': 'Host in kaart brengen',
   guests: 'Guests en API-token',
   'caddy-logs': 'Caddy-logs doorzoeken',
   'docs-site': 'Docs-site bijwerken',

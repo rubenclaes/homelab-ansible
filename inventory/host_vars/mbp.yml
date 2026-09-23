@@ -1,6 +1,6 @@
 ---
 # Mijn eigen laptop. De Mac mini is de dev-machine; wat hier staat is bewust
-# iets anders. Gelezen van de machine zelf op 22-09 met discover.yml.
+# iets anders. Gelezen van de machine zelf op 22-09.
 
 # `brew leaves`: alleen wat ik zelf gevraagd heb, niet de afhankelijkheden.
 macos_brew_packages_extra:

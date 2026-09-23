@@ -1,7 +1,6 @@
 ---
-# Shared by bootstrap.yml and recovery-drill.yml so a drill container is
-# provisioned exactly the way a real new host is. If these drift apart, the
-# drill stops proving anything about the real path.
+# Shared by bootstrap.yml and new-guest.yml, so a new container is
+# provisioned exactly the way a rebuilt host is.
 - name: Ensure sudo is installed
   ansible.builtin.apt:
     name: sudo

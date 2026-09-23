@@ -10,7 +10,7 @@
 #   proxmox-oci.yml        creates OCI containers, and can rebuild them
 #   proxmox-network.yml    can make the hypervisor unreachable
 #   proxmox-autostart.yml  flips onboot on every guest
-#   recovery-drill.yml     creates AND DESTROYS a throwaway guest
+#   restore-drill.yml      restores a backup onto a throwaway guest, then destroys it
 #   bootstrap.yml          first-contact root login, see README
 #   update.yml             package upgrades and reboots
 #   cleanup.yml            deletes: caches, old images, orphaned packages

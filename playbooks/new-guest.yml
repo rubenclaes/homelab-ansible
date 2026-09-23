@@ -15,10 +15,6 @@
 # Wat dit NIET doet: de dienst installeren. Dat is per dienst een rol, of voor
 # een Docker-dienst playbooks/new-service.yml.
 #
-# Dit loopt hetzelfde pad als recovery-drill.yml, dat het bewijst door er een
-# wegwerpcontainer mee te bouwen en weer te slopen. Wijzig je hier iets,
-# draai dan die drill.
-#
 # De proxmox_lxc-rol is lijstgestuurd; hier krijgt hij alleen de genoemde
 # container. Zo blijven de nummers van guests die uit PBS terug moeten vrij.
 - name: Create the container and make it reachable
