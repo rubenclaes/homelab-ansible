@@ -18,20 +18,6 @@
       certificaten; Semaphore en Proxmox kunnen daarna naar dezelfde
       ontvanger wijzen.
 
-- [ ] **Twee stacks op de Mini komen niet terug na een herstart van OrbStack.**
-      Oorzaak gevonden op 23-09: het zijn precies de twee die een externe
-      schijf onder `/Volumes` aankoppelen - `duplicati` op
-      `/Volumes/media01/backups`, `shelfmark` op `/Volumes/SSD Nas/...`. De
-      vijf die wél terugkwamen gebruiken alleen paden onder
-      `/Users/rubenclaes/Container`. OrbStack deelt die schijf pas later de VM
-      in, en `restart: unless-stopped` helpt niet tegen een start die niet
-      lukt.
-
-      De goedkoopste reparatie is `Stacks` een dagelijks schema geven: dan
-      herstelt het zichzelf binnen een dag. Doe dat pas ná de eerste
-      handmatige run hieronder, anders draait die eerste beheerde run
-      onbewaakt.
-
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen

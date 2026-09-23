@@ -148,9 +148,25 @@ semaphore_templates_list:
     description: "Leest de hele vloot en publiceert naar report.neodata.be. Traag, vandaar wekelijks."
     schedule: "0 8 * * 0"
 
+  # Dagelijks, en dat schema is de reparatie voor een concreet probleem: na een
+  # herstart van OrbStack komen `duplicati` en `shelfmark` op de Mini niet
+  # terug. Het zijn precies de twee die een schijf onder /Volumes aankoppelen;
+  # OrbStack deelt die schijf pas later de VM in en `restart: unless-stopped`
+  # helpt niet tegen een start die niet lukt. Met een dagelijkse run herstelt
+  # dat zich binnen een dag in plaats van pas als je het merkt.
+  #
+  # 05:30 en niet vroeger: op zondag draait Site converge om 05:00 en die roept
+  # stacks.yml zelf al aan. Die run is in anderhalve minuut klaar, dus om 05:30
+  # vechten ze niet om dezelfde controller. En het is vóór Drift check van
+  # 06:00, zodat die een estate ziet die al bijgetrokken is.
+  #
+  # De eerste beheerde run op de Mini is op 23-09 met de hand gedaan en was
+  # schoon (changed=0, alle zes stacks ok), dus dit schema erft geen
+  # onbewaakte eerste keer - dat was de voorwaarde die in TODO.md stond.
   - name: "Stacks"
     playbook: playbooks/stacks.yml
     description: "Trekt de compose-stacks gelijk met de repo en zet ze op."
+    schedule: "30 5 * * *"
 
 # Hiermee staat elke template van dit project in git. Komt er een bij in de UI,
 # zet hem dan ook hier neer - anders is dit bestand weer een deellijst en
