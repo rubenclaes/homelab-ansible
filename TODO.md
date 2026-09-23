@@ -27,22 +27,10 @@
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **ntfy op je iPhone.** App **ntfy**, standaardserver
-      `https://ntfy.neodata.be`, gebruiker `ruben`, abonneer op `homelab`. Het
-      wachtwoord: `ansible-vault view inventory/group_vars/proxmox/vault.yml |
-      grep ntfy_ruben_password`. Tot dan komen de meldingen aan in ntfy, maar
-      niet bij jou.
-
-- [ ] **De Mac mini is beschreven, niet beheerd.** `stacks.yml --limit
-      macmini` is groen in droogloop en meldt voor alle zes stacks `ok`, maar
-      zolang hij niet echt gedraaid heeft is het een beschrijving en geen
-      herbouwpad.
-
-          ansible-playbook playbooks/stacks.yml --limit macmini
-
-      Daarnaast, los daarvan: **Plex** en **OrbStack** staan buiten Homebrew,
-      dus die moet je eerst met de hand overzetten voor je ze beschrijft. Het
-      waarom staat in `host_vars/macmini.yml`.
+- [ ] **Plex en OrbStack op de Mac mini staan buiten Homebrew.** Die moet je
+      eerst met de hand overzetten voor je ze beschrijft. Het waarom staat in
+      `host_vars/macmini.yml`. (De stacks zelf zijn sinds 23-09 beheerd: `Stacks`
+      draait dagelijks ook op de Mini, en een droogloop geeft `changed=0`.)
 
 ---
 
@@ -71,12 +59,6 @@ runbook *Onderhoud*.
       niet meer uit, maar onderweg kom je zo niet bij `192.168.0.x` - en de
       subnet-route die ct 108 adverteert doet niets zolang niemand hem
       accepteert.
-
-- [ ] **De monitoring-stack herstart bij de eerste beheerde run.**
-      `docker compose up --dry-run` zegt Recreate voor grafana, prometheus,
-      loki en alloy. Te overleven, hun data staat in `${DATA_PATH}`, maar plan
-      het: het is een onderbreking van precies het ding dat onderbrekingen
-      moet melden.
 
 ---
 
