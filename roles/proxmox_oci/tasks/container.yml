@@ -12,6 +12,26 @@
       {%- endfor -%}
       {{ m }}
 
+# The vmid is the only key this role goes by. Before anything is written to an
+# existing guest, make sure it is this OCI container: a mistyped vmid would
+# otherwise rewrite the env of, say, tailscale and reboot it - and with
+# proxmox_oci_recreate, destroy it.
+- name: Require an existing guest to be this OCI container - {{ oci.hostname }}
+  vars:
+    proxmox_oci_guest: "{{ proxmox_oci_guests.json.data | selectattr('vmid', 'eq', oci.vmid) | first }}"
+  ansible.builtin.assert:
+    that:
+      - proxmox_oci_guest.type == 'lxc'
+      - proxmox_oci_guest.name | default('') == oci.hostname
+      - "'oci' in (proxmox_oci_guest.tags | default('')).split(';')"
+    fail_msg: >-
+      vmid {{ oci.vmid }} is not '{{ oci.hostname }}' with tag oci: it is a
+      {{ proxmox_oci_guest.type }} named '{{ proxmox_oci_guest.name | default('?') }}'
+      with tags '{{ proxmox_oci_guest.tags | default('') }}'. Nothing was changed.
+      Check the vmid in pve_oci_lxcs.
+    quiet: true
+  when: proxmox_oci_exists | bool
+
 - name: Work out the env for {{ oci.hostname }}
   ansible.builtin.set_fact:
     proxmox_oci_env: >-
