@@ -1,7 +1,6 @@
 export default {
   index: 'Start hier',
   container: 'Nieuwe container',
-  'container-herbouwen': 'Container herbouwen',
   vm: 'Virtuele machine',
   'oci-container': 'OCI-container',
   afwerken: 'Afwerken',

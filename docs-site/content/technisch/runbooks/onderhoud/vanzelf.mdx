@@ -1,0 +1,59 @@
+---
+title: Wat draait er vanzelf?
+---
+
+import { Callout } from 'nextra/components'
+
+# Wat draait er vanzelf?
+
+Alles wat loopt zonder dat jij iets typt. Tijden zijn lokale tijd
+(Europe/Brussels).
+
+## In Semaphore, met schema
+
+| Template | Wanneer | Waarom dan |
+| --- | --- | --- |
+| Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
+| Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
+| Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
+| Stacks | dagelijks 05:30 | ná de converge van zondag, vóór Drift check |
+| Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
+| DNS smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
+| Docs | dagelijks 07:00 | de site volgt de repo |
+| Homelab Report | zondag 08:00 | traag, dus wekelijks |
+| Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
+
+## In Semaphore, zonder schema (klik ze zelf)
+
+| Template | Doet |
+| --- | --- |
+| Baseline (dry run) | `baseline.yml --check --diff`: droogloop, verandert niets |
+| Caddy | `caddy.yml` |
+| Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
+
+Daarmee staan alle twaalf templates van het project in git. Maak je er een in
+de UI, zet hem dan ook in `semaphore_templates_list`, anders is dat bestand
+weer een deellijst en geloof je hem ten onrechte. Hoe:
+[Schema in Semaphore](/technisch/runbooks/onderhoud/semaphore-schema/).
+
+## Op pve01, niet in Semaphore
+
+De back-ups draaien op de cron van Proxmox. Ze staan in `pve_backup_jobs` in
+`inventory/group_vars/proxmox/backup.yml`.
+
+| Job | Wanneer | Waarheen | Waarom |
+| --- | --- | --- | --- |
+| dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
+| wekelijks | zondag 01:00 | de Mac mini, over NFS | tweede kopie, voor als pve01 zelf weg is |
+
+Terugzetten: [Herstellen](/technisch/runbooks/disaster-recovery/terugzetten/), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/technisch/runbooks/disaster-recovery/tweede-kopie/).
+
+<Callout type="warning">
+**Niets hiervan meldt zichzelf als het faalt**, niet in Semaphore en niet op
+Proxmox. De wekelijkse back-up schrijft naar een Mac die kan slapen. Tot er
+meldingen zijn, is elk schema een aanname: kijk af en toe zelf in de
+taaklijst. Staat bovenaan `TODO.md`.
+</Callout>
+
+Waarom de tijden en limits zijn wat ze zijn:
+[Goed om te weten: Semaphore](/technisch/runbooks/onderhoud/goed-om-te-weten-semaphore/).

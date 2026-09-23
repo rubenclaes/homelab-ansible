@@ -1,0 +1,168 @@
+---
+title: Laptop klaarzetten
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Laptop klaarzetten
+
+Van een laptop die deze repo nog nooit zag tot `ssh caddy` werkt. Ook goed als
+alleen je `~/.zshrc` of `~/.ssh/config` kwijt is: begin dan bij
+**Draai het dotfiles-playbook**.
+
+<Steps>
+
+### Haal de repo binnen
+
+```bash
+git clone https://github.com/rubenclaes/homelab-ansible.git ~/Development/homelab-ansible
+cd ~/Development/homelab-ansible
+```
+
+### Installeer Ansible
+
+```bash
+pipx install "ansible-core==2.21.4" "ansible-lint==26.8.0"
+pipx inject ansible-core proxmoxer requests   # nodig voor de dynamische inventory
+ansible-galaxy collection install -r collections/requirements.yml
+```
+
+De versies staan vast in `requirements.txt`, dezelfde als in CI.
+
+<Callout type="info">
+Zo kan het ook, en zo staat het nu op de `mbp`: `brew install ansible ansible-lint`.
+Die `ansible` bevat ansible-core 2.21.4 én `proxmoxer`.
+</Callout>
+
+<Callout type="warning">
+Zonder `proxmoxer` ziet Ansible alleen `pve01` en de Macs. De guests
+(`caddy`, `docker`, …) ontbreken dan, zonder duidelijke fout.
+</Callout>
+
+### Kopieer de ansible-sleutel
+
+```bash
+scp <oude-mac>:'~/.ssh/ansible_ed25519*' ~/.ssh/
+chmod 600 ~/.ssh/ansible_ed25519
+```
+
+Staat ook in de wachtwoordkluis. Het pad `~/.ssh/ansible_ed25519` staat vast
+in `ansible.cfg`: niet hernoemen.
+
+<Callout type="error">
+Maak deze sleutel **niet** opnieuw aan. Elke host kent de bestaande. Echt
+kwijt? Zie [Herstellen → Ansible-sleutel kwijt](/technisch/runbooks/disaster-recovery/ansible-sleutel/).
+</Callout>
+
+### Zet de twee vault-wachtwoorden neer
+
+```bash
+mkdir -p ~/.ansible
+install -m 600 /dev/null ~/.ansible/vault_pass_infra
+install -m 600 /dev/null ~/.ansible/vault_pass_stacks
+$EDITOR ~/.ansible/vault_pass_infra     # plak het infra-wachtwoord
+$EDITOR ~/.ansible/vault_pass_stacks    # plak het stacks-wachtwoord
+```
+
+Plakken zonder spaties erachter: een spatie of extra regel maakt er een ander
+wachtwoord van. `bin/vault-pass-client` leest deze twee bestanden. Waarom
+twee: zie [Goed om te weten](/technisch/runbooks/werkplek/goed-om-te-weten/).
+
+### Zet de pre-commit hook aan
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Git doet dit niet zelf bij een clone. De hook blokkeert een commit met een
+onversleuteld geheim erin.
+
+### Test de repo
+
+```bash
+bin/check-vaulted       # alles wat versleuteld moet zijn, is het
+ansible-lint            # de repo is in orde
+ansible all -m ping     # elke host antwoordt
+```
+
+### Draai het dotfiles-playbook
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+Het draait lokaal op je laptop (host `mbp`) en schrijft vier dingen:
+
+| Wat | Waar |
+| --- | --- |
+| een `Host`-blok per Linux-machine | `~/.ssh/config.d/homelab` |
+| één regel `Include ~/.ssh/config.d/*` bovenaan | `~/.ssh/config` |
+| je shell, met de afkortingen erin | `~/.zshrc` |
+| je git-instellingen (naam, e-mail, signeren) | `~/.gitconfig` |
+
+<Callout type="warning">
+Zie je de melding "`~/.ssh/config.d/homelab` niet aangeraakt"? Dan kon de
+Proxmox-API niet gelezen worden. Controleer met `ansible-inventory --graph` of
+de guests erin staan, en draai opnieuw. Zie
+[Goed om te weten](/technisch/runbooks/werkplek/goed-om-te-weten/).
+</Callout>
+
+<Callout type="info">
+Git signeert elke commit met `~/.ssh/id_ed25519.pub` (`commit.gpgsign` staat
+aan in `inventory/host_vars/mbp.yml`). Zet dus ook je eigen persoonlijke
+sleutel `~/.ssh/id_ed25519` over, anders weigert `git commit`.
+</Callout>
+
+### Open een nieuwe terminal
+
+```bash
+exec zsh   # of sluit en open je terminal
+```
+
+De nieuwe `~/.zshrc` telt pas in een nieuwe shell.
+
+### Test ssh
+
+```bash
+ssh caddy   # moet meteen binnenkomen, zonder wachtwoord
+```
+
+</Steps>
+
+Er valt niets te committen: alles hierboven staat alleen op je laptop.
+
+<Callout type="info">
+Wil je ook `docs.yml` draaien? Dat bouwt de site op je laptop met `npm`, dus
+je hebt Node.js nodig. Wil je diensten toevoegen, clone dan ook de
+`containers`-repo naar `~/Development/containers`; `new-service.yml` schrijft
+daarheen.
+</Callout>
+
+## Welke namen je nu kan gebruiken
+
+| Typ dit | In plaats van |
+| --- | --- |
+| `ssh pve01` | `ssh ansible@192.168.0.14` |
+| `ssh docker` | `ssh ansible@192.168.0.15` |
+| `ssh docker-grafana-stack` | `ssh ansible@192.168.0.17` |
+| `ssh caddy` | `ssh ansible@192.168.0.25` |
+| `ssh adguard` | `ssh ansible@192.168.0.29` |
+| `ssh semaphore` | `ssh ansible@192.168.0.30` |
+| `ssh pbs` | `ssh ansible@192.168.0.181` |
+| `ssh tailscale` | `ssh ansible@192.168.0.50` |
+
+Dit lijstje is niet de bron: dat is de inventory, zie [Machines](/technisch/machines/).
+Verhuist een host naar een ander adres, dan volgt `ssh <naam>` na de volgende run vanzelf.
+
+`haos` en `macmini` staan er **niet** bij: ze zitten niet in de groep `linux`
+(Home Assistant is een appliance, de Mac mini zit in `macs`).
+
+## Welke afkortingen je nu hebt
+
+| Typ dit | Doet |
+| --- | --- |
+| `hl` | `cd ~/Development/homelab-ansible` |
+| `ap` | `ansible-playbook` |
+
+Dus `hl && ap playbooks/site.yml` werkt vanuit elke map. Zelf een toevoegen:
+[Shell-afkorting aanpassen](/technisch/runbooks/werkplek/afkorting/).

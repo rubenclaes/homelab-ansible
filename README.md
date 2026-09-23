@@ -300,7 +300,7 @@ pct start 107
 ssh-keygen -R <adres>                                     # nieuwe hostkey
 ansible-playbook playbooks/site.yml --limit adguard       # terug naar wat de repo zegt
 # Twijfel je over een back-up? Zet hem op vmid 199 en kijk, dan `pct destroy 199`.
-# Volledige uitleg: docs-site/content/technisch/runbooks/disaster-recovery.mdx
+# Volledige uitleg: docs-site/content/technisch/runbooks/disaster-recovery/
 
 
 # === Bewijzen dat het herstelpad nog werkt ================================

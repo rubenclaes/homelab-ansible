@@ -1,0 +1,48 @@
+---
+title: Veilig een playbook proberen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Veilig een playbook proberen
+
+Eerst zien wat een playbook doet, dan pas draaien. Voorbeeld: `site.yml` na
+een wijziging in de inventory.
+
+<Steps>
+
+### Kijk wie en wat je raakt
+
+```bash
+ansible-playbook playbooks/site.yml --list-hosts   # welke hosts
+ansible-playbook playbooks/site.yml --list-tags    # welke onderdelen
+```
+
+### Doe een droogloop
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff   # toont wat er zou veranderen, verandert niets
+```
+
+### Beperk wat je raakt
+
+```bash
+ansible-playbook playbooks/site.yml --limit docker            # één host
+ansible-playbook playbooks/site.yml --limit 'linux:!proxmox'  # alles behalve de hypervisor
+ansible-playbook playbooks/site.yml --tags dns                # één onderdeel (hier: AdGuard)
+```
+
+<Callout type="warning">
+Zet de aanhalingstekens rond `'linux:!proxmox'`, anders snapt de shell de `!` verkeerd.
+</Callout>
+
+### Draai het echt
+
+Hetzelfde commando, zonder `--check --diff`.
+
+### Commit en push
+
+Veranderde je iets in de repo (bv. de inventory)? Commit en push het. De
+nachtelijke run in Semaphore draait vanuit git.
+
+</Steps>

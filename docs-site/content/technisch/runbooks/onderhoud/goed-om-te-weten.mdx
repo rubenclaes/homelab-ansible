@@ -1,0 +1,57 @@
+---
+title: Goed om te weten
+---
+
+# Onderhoud: goed om te weten
+
+Over Semaphore (limits, tijdzone, de API): zie
+[Goed om te weten: Semaphore](/technisch/runbooks/onderhoud/goed-om-te-weten-semaphore/).
+
+## Waarom deze playbooks niet in `site.yml` zitten
+
+`site.yml` trekt gelijk. `report.yml` is traag en hoort op een schema,
+`drift.yml` en `dns-smoketest.yml` controleren alleen, en `cleanup.yml`
+verwijdert. Uitzondering: `semaphore-templates.yml` zit er wél in, sinds 23-09.
+
+## Waarom `brew cleanup` niet in `update.yml` zit
+
+Op de MacBook komt `ansible` zelf uit Homebrew en is de verbinding `local`. Een
+update vervangt de interpreter die de playbook draait; `brew cleanup` zou daarna
+de map weggooien waar dat proces nog uit leest. Daarom zet `update.yml`
+`HOMEBREW_NO_INSTALL_CLEANUP=1`, en zit de opruiming in `cleanup.yml`, dat
+niets upgradet.
+
+## Images en build cache
+
+Images hebben een leeftijdsgrens (`cleanup_docker_until`), build cache niet. Een
+image dat toch nodig blijkt moet opnieuw over het netwerk; build cache wordt
+gewoon opnieuw gebouwd.
+
+## De DNS-test rekent zelf
+
+`dns-smoketest.yml` berekent de lijst namen op dezelfde manier als de
+`adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de lijst
+van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
+
+## De rapportvergelijkingen lopen over alle containerhosts
+
+`docker`, `docker-grafana-stack` en de Mac mini (`docker_hosts` plus `macs`,
+dezelfde regel als `stacks.yml`). Tot 22-09 keek hij alleen naar `docker`, en
+zo bleven drie dode routes en een dienst zonder compose-bestand op de Mini
+maandenlang onopgemerkt. Een nieuwe host komt er vanzelf bij.
+
+## Alloy en de rechten op de logbestanden
+
+Alloy draait als gebruiker `alloy`, niet als root, en leest via groep `caddy`.
+Daarom staat `caddy_log_mode` op `0640`. Caddy past die mode toe bij het
+**openen** van een bestand: na `systemctl reload caddy` bleef het `0600`, pas
+na `systemctl restart caddy` (of de rotatie om middernacht) werd het `0640`.
+
+De regels zijn JSON en krijgen geen label per statuscode of pad, omdat Loki op
+labels indexeert: pel af bij het zoeken, niet bij het schrijven.
+
+## docs en report zijn niet publiek
+
+`docs.neodata.be` en `report.neodata.be` staan niet in `caddy_sites` maar als
+vaste blokken in de Caddyfile. Ze serveren van schijf en geven een 403 buiten
+het LAN en de tailnet: ze beschrijven de binnenkant van het netwerk.

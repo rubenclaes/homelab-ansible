@@ -1,0 +1,53 @@
+---
+title: Shell-afkorting aanpassen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Shell-afkorting aanpassen
+
+Je afkortingen staan in de inventory, niet in `~/.zshrc`. Voorbeeld: je wil
+een alias `gs` voor `git status`.
+
+<Steps>
+
+### Pas het blok in de inventory aan
+
+```bash
+$EDITOR inventory/host_vars/mbp.yml
+```
+
+Voeg onder `dotfiles_zsh_block: |-` een regel toe:
+
+```yaml
+  alias gs='git status'
+```
+
+### Draai het dotfiles-playbook
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+### Laad je shell opnieuw
+
+```bash
+exec zsh
+```
+
+### Commit en push
+
+```bash
+git add inventory/host_vars/mbp.yml
+git commit -m 'Alias gs toegevoegd'
+git push
+```
+
+</Steps>
+
+<Callout type="warning">
+Bewerk `~/.zshrc` **niet** met de hand: de volgende run overschrijft het hele
+bestand. Ansible zet de oude wel als back-up ernaast (`~/.zshrc.<datum>~`).
+Wil je iets buiten het afkortingenblok veranderen, pas dan het sjabloon
+`roles/dotfiles/templates/zshrc.j2` aan.
+</Callout>

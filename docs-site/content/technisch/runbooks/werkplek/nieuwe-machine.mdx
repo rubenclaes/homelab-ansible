@@ -1,0 +1,40 @@
+---
+title: Nieuwe machine bij naam
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Nieuwe machine bij naam bereiken
+
+Er is een machine bij en `ssh <naam>` werkt nog niet. Voorbeeld: je hebt net
+`vaultwarden` gebouwd met [Nieuwe machine](/technisch/runbooks/nieuwe-guest/).
+
+<Steps>
+
+### Kijk of hij in de inventory staat
+
+```bash
+ansible-inventory --graph linux   # vaultwarden moet in de lijst staan
+```
+
+Staat hij er niet, dan kent Proxmox hem nog niet. Draai eerst `new-guest.yml` af.
+
+### Draai het dotfiles-playbook
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+### Test
+
+```bash
+ssh vaultwarden
+```
+
+</Steps>
+
+<Callout type="warning">
+De nachtelijke run in Semaphore werkt je laptop **niet** bij: "Site converge"
+draait met `--limit all:!mbp:!semaphore`. Een nieuwe `ssh <naam>` krijg je
+dus alleen door zelf `dotfiles.yml` (of `site.yml` zonder `--limit`) te draaien.
+</Callout>

@@ -67,9 +67,12 @@ pve_lxcs:
     disk: { storage: vm-hdd, size: 8 }
     ip: 192.168.0.50/24
     features: [nesting=1]
-    # After recreation, as root on pve01 (the API token can't set raw lxc keys):
-    #   pct set 108 -lxc.cgroup2.devices.allow "c 10:200 rwm"
-    #   pct set 108 -lxc.mount.entry "/dev/net/tun dev/net/tun none bind,create=file"
+    # Na herbouw, als root op pve01 (de API-token kan geen rauwe lxc-sleutels
+    # zetten). Niet met `pct set`: die weigert ze op deze versie, zie 107
+    # hierboven. Dus onderaan /etc/pve/lxc/108.conf:
+    #   lxc.cgroup2.devices.allow: c 10:200 rwm
+    #   lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+    # en daarna `pct reboot 108`.
 
 # Containers uit een OCI-image, gemaakt door roles/proxmox_oci
 # (playbooks/proxmox-oci.yml). Apart van pve_lxcs, want die lijst gaat uit van

@@ -1,0 +1,33 @@
+---
+title: Guests en API-token
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Guests en API-token checken
+
+Ansible ziet een host niet? Kijk eerst of Proxmox hem kent, en of het
+API-token nog werkt.
+
+<Steps>
+
+### Vraag de guests op
+
+```bash
+ansible-playbook playbooks/proxmox-info.yml
+```
+
+Toont elke guest op `pve01` met vmid, type en status.
+
+### Lees de uitkomst
+
+Leeg of een fout? Dan werkt het API-token niet, en dan ziet de dynamische
+inventory ook niets. Dát is dan je probleem, niet de host die je zocht.
+
+</Steps>
+
+<Callout type="warning">
+Dit "leesplaybook" verwijdert `python3-proxmoxer` van `pve01`. Dat is
+opruiming van iets wat ooit anders geïnstalleerd werd; de modules draaien op
+`localhost` en hebben het op de node niet nodig. Het staat in `TODO.md`.
+</Callout>

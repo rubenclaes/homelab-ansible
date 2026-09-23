@@ -1,0 +1,29 @@
+---
+title: Herstellen testen
+---
+
+import { Callout } from 'nextra/components'
+
+# Af en toe: bewijs dat herstellen werkt
+
+Een herstelpad dat nooit gedraaid heeft, is een aanname.
+
+```bash
+ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
+ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
+```
+
+| Playbook | Bewijst | Wanneer |
+| --- | --- | --- |
+| `recovery-drill.yml` | je kan een container **bouwen** (maken, bootstrap, baseline) | na elke wijziging aan `proxmox_lxc`, `bootstrap.yml`, de baseline of `new-guest.yml` |
+| `restore-drill.yml` | je krijgt je **data** terug uit PBS (sleutel werkt, archief heel) | na wijzigingen aan de back-upjobs, en af en toe |
+
+Beide gebruiken vmid 199 en slopen die op het eind.
+
+<Callout type="warning">
+**Faalt een drill, dan blijft 199 staan**, zodat je kan kijken wat er misging.
+Opruimen: `ssh pve01 'sudo pct destroy 199'`.
+</Callout>
+
+`restore-drill.yml --check` zegt alleen welke back-up hij zou pakken, zonder
+iets te doen.

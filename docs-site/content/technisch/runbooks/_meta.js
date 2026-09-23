@@ -5,6 +5,5 @@ export default {
   updates: 'Updates',
   onderhoud: 'Onderhoud',
   netwerk: 'Netwerk en Proxmox',
-  'disaster-recovery': 'Herstellen',
-  opzetten: 'Van niets naar alles'
+  'disaster-recovery': 'Herstellen'
 }

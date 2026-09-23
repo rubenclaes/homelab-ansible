@@ -33,7 +33,7 @@ VPN, de route en de DNS.
 ### Werkt het niet?
 
 Zet hem uit en probeer de andere. Werkt Tailscale wel en WireGuard niet, volg
-dan [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/#geval-5--de-vpn-nakijken):
+dan [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/vpn/):
 meestal is je WAN-adres veranderd.
 
 </Steps>
@@ -51,11 +51,11 @@ en kijk thuis het adres na.
 WireGuard draait op de UniFi-gateway, Tailscale op pve01. Ligt pve01 eruit,
 precies wanneer je erbij wil, dan werkt WireGuard nog. Breekt WireGuard (meestal
 het WAN-adres), dan werkt Tailscale nog. Meer in
-[Netwerk → Twee wegen naar binnen](/technisch/runbooks/netwerk/#twee-wegen-naar-binnen).
+[Netwerk → Twee wegen naar binnen](/technisch/runbooks/netwerk/hoe-het-staat/#twee-wegen-naar-binnen).
 
 ### Hoe Tailscale op het LAN komt
 
 ct 108 biedt `192.168.0.0/24` aan de tailnet aan, en die route is goedgekeurd.
 Een toestel dat meereist neemt ze aan: op iOS is dat "Use Tailscale subnets"
 (staat standaard aan), op de MacBook staat het ook aan. De servers thuis nemen
-ze met opzet niet aan. Zie [Netwerk](/technisch/runbooks/netwerk/#hoe-de-tailscale-weg-op-het-lan-komt).
+ze met opzet niet aan. Zie [Netwerk](/technisch/runbooks/netwerk/hoe-het-staat/#hoe-de-tailscale-weg-op-het-lan-komt).

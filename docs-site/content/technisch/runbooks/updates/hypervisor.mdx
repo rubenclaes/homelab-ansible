@@ -1,0 +1,46 @@
+---
+title: De hypervisor
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# De hypervisor
+
+`pve01` zelf bijwerken en herstarten, bijvoorbeeld voor een nieuwe
+Proxmox-kernel.
+
+<Callout type="error">
+**Nooit vanuit Semaphore.** Semaphore is een container **op** `pve01`. Een
+reboot van `pve01` doodt de job die hem gaf. Draai dit altijd vanaf je laptop.
+</Callout>
+
+<Steps>
+
+### Kies een moment waarop alles even weg mag
+
+Een herstart van `pve01` legt **elke guest** plat: ook DNS (`adguard`) en alle
+`*.neodata.be`-adressen (`caddy`).
+
+### Patch en herstart
+
+```bash
+ansible-playbook playbooks/update.yml --limit linux \
+  -e allow_reboot=true -e allow_hypervisor_reboot=true
+```
+
+Eerst worden de guests gepatcht, dan pas `pve01`. Je hebt **beide** vlaggen
+nodig.
+
+### Controleer of alles terug is
+
+```bash
+ansible-playbook playbooks/dns-smoketest.yml     # antwoordt AdGuard nog?
+ansible-playbook playbooks/caddy-smoketest.yml   # werkt elk adres nog?
+```
+
+</Steps>
+
+<Callout type="info">
+Zonder de vlaggen patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
+krijgt dan een melding dat hij een reboot nodig heeft.
+</Callout>

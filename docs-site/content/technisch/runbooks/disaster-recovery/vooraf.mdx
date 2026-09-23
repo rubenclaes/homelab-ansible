@@ -1,0 +1,46 @@
+---
+title: 'Vooraf: doe dit nu'
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Vooraf: doe dit nu
+
+Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
+
+<Steps>
+
+### Maak een papieren kopie van de PBS-sleutel
+
+```bash
+ssh pve01
+sudo ls /etc/pve/priv/storage/                                         # hier hoort pbs.enc te staan
+sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text
+```
+
+Print wat eruit komt, en bewaar het **buiten het huis** (bv. ook in de
+wachtwoordkluis). Zonder deze sleutel zijn de back-ups op PBS niet terug te
+zetten.
+
+<Callout type="warning">
+`proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,
+niet de sleutel zelf. Daar kan je niets mee terugzetten.
+</Callout>
+
+### Bewaar de twee vault-wachtwoorden op dezelfde plek
+
+```bash
+cat ~/.ansible/vault_pass_infra
+cat ~/.ansible/vault_pass_stacks
+```
+
+Ze openen alles wat de repo versleuteld bewaart: API-tokens, logins, de
+`.env`-bestanden van de stacks. Ze staan niet in git, met opzet.
+
+<Callout type="error">
+Kwijt = de repo is compleet maar onbruikbaar. Bijna elk playbook leest een
+vault-bestand. Ze zijn nergens uit af te leiden: de enige weg terug is elk
+vault-bestand opnieuw maken en elk secret opnieuw zetten.
+</Callout>
+
+</Steps>

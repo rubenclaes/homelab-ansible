@@ -1,0 +1,68 @@
+---
+title: Guests patchen en herstarten
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Guests patchen en herstarten
+
+Patchen gebeurt **vanzelf**: Semaphore draait de template "Update guests" elke
+zondag om 04:00, behalve op `semaphore` zelf. Herstarten gebeurt **nooit**
+vanzelf, ook niet in die zondagse run: jij kiest het moment.
+
+Met de hand doe je dit als je niet op zondag wil wachten, om Semaphore te
+patchen, of als een guest `REBOOT NEEDED` meldt.
+
+<Steps>
+
+### Patch de guests
+
+```bash
+ansible-playbook playbooks/update.yml --limit guests
+```
+
+`apt full-upgrade`, één host na de andere. Er wordt **niet** herstart.
+
+### Of: patch alleen Semaphore
+
+```bash
+ansible-playbook playbooks/update.yml --limit semaphore
+```
+
+Altijd vanaf je laptop, nooit vanuit Semaphore zelf.
+
+<Callout type="warning">
+Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
+run, dan is de job dood en weet je niet of de upgrade af is.
+</Callout>
+
+### Kijk of er een herstart nodig is
+
+Zoek in de output naar `REBOOT NEEDED`. Staat die er niet, dan ben je klaar.
+
+### Herstart één guest
+
+```bash
+ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true
+```
+
+Hij patcht eerst, en herstart alleen als het nodig is.
+
+<Callout type="warning">
+Herstart je `docker`, dan liggen alle stacks erop even plat.
+</Callout>
+
+### Of: alle guests die het nodig hebben
+
+```bash
+ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true
+```
+
+</Steps>
+
+<Callout type="info">
+Alleen de **VM's** (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
+reboot. Een **LXC** heeft geen eigen kernel: hij gebruikt die van `pve01`. Een
+nieuwe kernel voor de LXC's betekent dus:
+[`pve01` herstarten](/technisch/runbooks/updates/hypervisor/).
+</Callout>

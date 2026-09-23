@@ -1,0 +1,61 @@
+---
+title: Host in kaart brengen
+---
+
+import { Steps } from 'nextra/components'
+
+# Een host in kaart brengen
+
+Je weet niet precies wat er op een host draait, bv. `docker-grafana-stack` of
+de Mac mini. `discover.yml` leest het uit en maakt een voorstel.
+
+<Steps>
+
+### Lees de host uit
+
+```bash
+ansible-playbook playbooks/discover.yml --limit docker-grafana-stack
+```
+
+Leest compose-projecten, containers en poorten (Docker-hosts) of
+`brew leaves` en casks (Macs). Verandert niets.
+
+### Lees het voorstel
+
+```bash
+$EDITOR .discovered/docker-grafana-stack.yml
+```
+
+Dit is **geen inventory**, het is een voorstel. Gooi eruit wat er niet in hoort.
+
+### Zet de rest in de host_vars
+
+```bash
+$EDITOR inventory/host_vars/docker-grafana-stack.yml
+```
+
+Zodra een host een `docker_stacks_list` heeft, pakt `stacks.yml` hem vanzelf
+op. Dat ene veld maakt een host beheerd.
+
+### Probeer droog
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker-grafana-stack --check --diff
+```
+
+### Commit en push
+
+```bash
+git add inventory && git commit -m 'docker-grafana-stack beschreven' && git push
+```
+
+### Werk de docs-site bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina [Machines](/technisch/machines/) toont de stacks van elke beheerde
+host.
+
+</Steps>

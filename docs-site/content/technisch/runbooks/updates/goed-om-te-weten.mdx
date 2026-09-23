@@ -1,0 +1,75 @@
+---
+title: Goed om te weten
+---
+
+# Updates: goed om te weten
+
+## Welke van de drie playbooks?
+
+| Playbook | De vraag | Wat hij doet |
+| --- | --- | --- |
+| `site.yml` | staat alles er zoals beschreven? | installeert wat ontbreekt, haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
+| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt. |
+| `cleanup.yml` | valt er schijfruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+
+Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)
+is `site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
+niet over wat er hoort te staan.
+
+## Alle vlaggen
+
+Allemaal standaard **uit**. Zonder vlaggen wordt er gepatcht en verder niets.
+
+| Variabele | Waar | Doet |
+| --- | --- | --- |
+| `allow_reboot` | opdrachtregel | herstart guests die het nodig hebben |
+| `allow_hypervisor_reboot` | opdrachtregel | ook `pve01`; werkt alleen samen met `allow_reboot` |
+| `allow_cask_upgrade` | opdrachtregel | ook de apps op de Macs |
+| `macos_brew_upgrade` | `host_vars/<mac>.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
+
+`allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
+ongeluk `pve01` meenemen.
+
+## Waarom de volgorde: guests, dan `pve01`, dan de Macs
+
+`update.yml` heeft drie plays, elk met `serial: 1`: één host is klaar voor de
+volgende begint. Een mislukte upgrade sloopt zo één machine, niet alles. Guests
+gaan vóór `pve01`, anders kan `pve01` herstarten terwijl zijn guests nog bezig
+zijn.
+
+De Macs komen als laatste omdat op de MacBook `ansible` zelf uit Homebrew komt.
+Een upgrade vervangt het programma dat op dat moment draait. Achteraan is dat
+risico zo klein mogelijk.
+
+## Waarom Semaphore de Macs niet doet
+
+`mbp` heeft `ansible_connection: local`: "de machine die Ansible draait". Vanuit
+Semaphore is dat de Semaphore-container, niet je MacBook. Daarom draait de
+template "Update guests" met `--limit guests:!semaphore`.
+
+## De Mac mini en Homebrew
+
+De Mac mini draait macOS 14.6.1. Voor Homebrew is dat een *Tier 3*-configuratie:
+er worden geen kant-en-klare pakketten (bottles) meer gebouwd, dus alles moet
+vanaf broncode. Een volledige run duurde 22 minuten en faalde alsnog; dertien
+pakketten werden niet eens geprobeerd. Casks werken wel, want dat zijn
+kant-en-klare apps. De pakketten komen pas terug na een nieuwere macOS.
+
+## Casks die root nodig hebben
+
+Sommige casks zetten bestanden onder `/Library`. Bij een upgrade of
+verwijdering roept brew zélf `sudo` aan. Over SSH is er geen terminal, dus sudo
+kan geen wachtwoord vragen. `-K` helpt niet: dat is het sudo-wachtwoord van
+Ansible, en Ansible zit hier niet tussen.
+
+Het kan wel automatisch (`SUDO_ASKPASS` met een scriptje dat het wachtwoord
+uit de vault haalt), maar dat is bewust niet gedaan: dan krijgt elke brew-taak
+op die Mac je inlogwachtwoord, voor een handvol casks.
+
+## Waarom Caddy vaststaat
+
+Caddy is hier een eigen build met de plugin `caddy-dns/cloudflare`. Een gewone
+`apt full-upgrade` verving hem ooit door de standaardversie. Die weigert te
+starten met de Cloudflare-module in de Caddyfile, en elk `*.neodata.be`-adres
+lag plat. `apt full-upgrade` en `cleanup.yml` respecteren de hold, dus ze raken
+hem niet aan. `caddy upgrade` bouwt opnieuw mét de plugins.

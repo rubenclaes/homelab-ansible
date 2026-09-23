@@ -73,18 +73,12 @@ voor elke site. De container staat na de eerste run in de inventory, onder
 
 ## Updaten is opnieuw bouwen
 
-Een OCI-container kun je niet `apt upgrade`n. Je hoogt `version` op en
-bouwt hem opnieuw:
+Een OCI-container kun je niet `apt upgrade`n: je hoogt `version` op en bouwt
+hem opnieuw. Dat sloopt de container **en zijn volumes**, daarom staat alles
+wat moet overleven in `env`. Voor ntfy zijn dat de gebruikers, rechten en
+tokens; je verliest alleen de berichtcache van de laatste uren.
 
-```bash
-ansible-playbook playbooks/proxmox-oci.yml                             # waarschuwt alleen
-ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
-```
-
-Zonder de vlag waarschuwt de rol alleen en blijft alles staan. Met de vlag
-sloopt hij de container **en zijn volumes**. Daarom staat alles wat moet
-overleven in `env`: voor ntfy zijn dat de gebruikers, rechten en tokens. Wat
-je verliest, is de berichtcache van de laatste uren.
+De stappen staan in [Updates → OCI-containers](/technisch/runbooks/updates/oci-container/).
 
 ## ntfy op je iPhone
 

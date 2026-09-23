@@ -1,0 +1,45 @@
+---
+title: Tailscale-sleutel voor een apparaat
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Tailscale-sleutel voor een apparaat
+
+Voor alles met een commandline: een Windows-pc, een NAS, een Raspberry Pi.
+**Niet voor telefoons**: de iOS- en Android-app loggen in via de browser en
+hebben geen plek om een sleutel te plakken.
+
+<Steps>
+
+### Maak de sleutel, vanaf je werkstation
+
+```bash
+ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
+```
+
+`label` mag alleen kleine letters, cijfers en koppeltekens bevatten. In de
+Tailscale-console wordt het `device-pc-ouders`: het enige spoor dat de
+sleutel achterlaat. Kies dus iets wat je over een half jaar nog herkent.
+
+<Callout type="warning">
+Draai dit **niet** vanuit Semaphore. De sleutel wordt afgedrukt en een
+Semaphore-tasklog bewaart hem.
+</Callout>
+
+### Gebruik hem binnen 10 minuten op het apparaat
+
+```bash
+tailscale up --auth-key=<sleutel>
+```
+
+De sleutel is eenmalig en al goedgekeurd. Na 600 seconden verloopt hij.
+
+### Controleer in de Tailscale-console
+
+Het apparaat staat erbij met de tag `tag:homelab`.
+
+Sleutel kwijt of verlopen? Draai stap 1 opnieuw. De API kan een sleutel geen
+tweede keer tonen, en een ongebruikte verloopt vanzelf.
+
+</Steps>

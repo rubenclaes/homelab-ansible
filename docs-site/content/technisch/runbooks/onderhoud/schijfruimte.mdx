@@ -1,0 +1,69 @@
+---
+title: Schijfruimte vrijmaken
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Schijfruimte vrijmaken
+
+Een schijf loopt vol. `cleanup.yml` rapporteert eerst en verwijdert pas met een
+vlag. Semaphore ruimt elke zaterdag om 03:00 echt op.
+
+<Steps>
+
+### Kijk eerst wat er weg kan
+
+```bash
+ansible-playbook playbooks/cleanup.yml                 # rapporteert alleen
+ansible-playbook playbooks/cleanup.yml --limit macs    # alleen de Macs (brew-cache)
+```
+
+Zonder vlag verandert hij niets. Je krijgt de **namen** van wat weg zou gaan,
+niet alleen een aantal.
+
+### Lees het lijstje
+
+Let vooral op `pve01`: daar duiken oude `proxmox-kernel-*`-pakketten op. Dat
+lijstje zien vóór je opruimt, is het hele punt van deze stap.
+
+### Ruim echt op
+
+```bash
+ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true
+```
+
+<Callout type="warning">
+Zet `cleanup_apply` **nooit** in de inventory. Het is de schakelaar die een
+rapport in een verwijdering verandert; een default in `group_vars` maakt elke
+run destructief.
+</Callout>
+
+</Steps>
+
+## Wat hij nooit aanraakt
+
+| Blijft staan | Waarom |
+| --- | --- |
+| Docker-volumes | daar staat de data van de stacks; weggooien is een restore, geen cleanup |
+| containers, ook gestopte | een gestopte container houdt zijn image buiten de prune, dus een `down`-stack overleeft dit |
+| gepinde pakketten | `autoremove` respecteert dpkg-holds, dus de custom Caddy-build blijft |
+| de geïnstalleerde Homebrew-versie | alleen oude versies en oude downloads gaan |
+
+## De knoppen
+
+In `inventory/group_vars/all/cleanup.yml`:
+
+| Var | Standaard | Doet |
+| --- | --- | --- |
+| `cleanup_journal_keep` | `14d` | hoeveel journal-geschiedenis blijft |
+| `cleanup_docker_until` | `720h` | ongebruikte images jonger dan dit blijven staan |
+| `cleanup_brew_prune` | `30` | brew-downloads ouder dan zoveel dagen gaan weg |
+
+<Callout type="info">
+Pakketten weghalen die je niet meer wil, doe je **niet** hier: dat gaat via de
+`*_absent`-lijsten in de host_vars en `site.yml`. Zie
+[Updates](/technisch/runbooks/updates/) voor het verschil.
+</Callout>
+
+Waarom `brew cleanup` hier zit en niet in `update.yml`, en waarom build cache
+geen leeftijdsgrens heeft: [Goed om te weten](/technisch/runbooks/onderhoud/goed-om-te-weten/).

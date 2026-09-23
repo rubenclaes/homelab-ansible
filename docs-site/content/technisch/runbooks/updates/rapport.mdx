@@ -1,0 +1,35 @@
+---
+title: Kijken wat er openstaat
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Kijken wat er openstaat
+
+Je wil zien welke updates klaarliggen, zonder iets te veranderen.
+
+<Steps>
+
+### Draai het rapport
+
+```bash
+ansible-playbook playbooks/report.yml   # leest alleen, verandert niets
+```
+
+Draai hem **zonder** `--limit`. Semaphore doet dit ook elke zondag om 08:00.
+
+### Open het tabblad Updates
+
+Ga naar [report.neodata.be](https://report.neodata.be) → tabblad **Updates**.
+Per host één regel per pakket: de versie die er nu staat en de versie die
+klaarligt. Security-updates staan bovenaan bij hun host.
+
+Daar staat ook welke hosts een **herstart nodig** hebben.
+
+</Steps>
+
+<Callout type="warning">
+Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
+Die doet `update.yml` níét: het playbook werkt alleen Homebrew bij. macOS zelf
+update je met de hand op de Mac.
+</Callout>
