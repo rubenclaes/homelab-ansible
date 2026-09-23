@@ -354,10 +354,25 @@ wel, en daar draai je zonder limit.
 los commando; een `--limit` zou die ene play raken in plaats van de converge
 eronder.
 
-Nog niet beschreven, en dus nog steeds alleen UI: `Baseline (dry run)`,
-`Caddy`, `Cleanup (report)`, `Docs`, `Homelab Report` en `Stacks`. Twee
-daarvan hebben een schema — Docs dagelijks 07:00, Homelab Report zondag 08:00.
-Ze overnemen is kopieerwerk; het staat in `TODO.md`.
+Naast deze zes staan er zes zonder schema in de lijst: `Baseline (dry run)`,
+`Caddy`, `Cleanup (report)`, `Stacks`, en met een schema `Docs` (dagelijks
+07:00) en `Homelab Report` (zondag 08:00). Daarmee staat elke template van het
+project in git. Komt er een bij in de UI, zet hem dan ook in
+`semaphore_templates_list` — anders is dat bestand weer een deellijst en
+geloof je hem ten onrechte.
+
+<Callout type="warning">
+`Baseline (dry run)` heet iets anders dan hij doet: hij draait `baseline.yml`
+**zonder** `--check`, en dat playbook convergeert gewoon. Wie erop klikt om te
+kijken wat er zou gebeuren, past de baseline toe op elke Linux-host. Het staat
+zo in de repo omdat het zo in de UI staat; de keuze tussen hernoemen en
+`--check` toevoegen staat in `TODO.md`.
+</Callout>
+
+`site.yml` roept `semaphore-templates.yml` sinds 23-09 zelf aan. Let op dat de
+gepláánde converge deze play juist overslaat: `Site converge` draait met
+`--limit all:!mbp:!semaphore`. Dat is geen omissie — een schema dat zijn eigen
+schema's herschrijft terwijl het draait is precies wat je niet wil.
 
 <Callout type="warning">
 `Update guests` draait met `--limit guests:!semaphore`, en dat is geen

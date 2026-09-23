@@ -109,7 +109,44 @@ semaphore_templates_list:
     arguments: ["--limit", "guests:!semaphore"]
     schedule: "0 4 * * 0"
 
-# Nog niet beschreven, en dus nog steeds alleen UI: Baseline (dry run), Caddy,
-# Cleanup (report), Docs, Homelab Report en Stacks. Twee daarvan hebben een
-# schema (Docs dagelijks 07:00, Homelab Report zondag 08:00). Ze overnemen is
-# kopieerwerk, geen ontwerpwerk - het staat in TODO.md.
+  # --- De losse playbooks, zonder schema tenzij vermeld ------------------
+  # Overgenomen uit de UI op 23-09, precies zoals ze daar stonden: allemaal
+  # zonder argumenten, en alleen Docs en Homelab Report met een cron.
+
+  # LET OP de naam. Deze template draait `baseline.yml` ZONDER `--check`, en
+  # dat playbook convergeert gewoon - het is de eerste play van site.yml, los.
+  # "Dry run" staat er dus ten onrechte: wie hierop klikt in de verwachting
+  # een voorbeeld te zien, past de baseline toe op elke Linux-host.
+  #
+  # Niet stilzwijgend gerepareerd, want beide reparaties hebben een prijs:
+  # hernoemen maakt een tweede template (naam is de sleutel), en `--check`
+  # toevoegen verandert wat een bestaande knop doet.
+  - name: "Baseline (dry run)"
+    playbook: playbooks/baseline.yml
+    description: "LET OP: draait zonder --check en convergeert dus echt, ondanks de naam."
+
+  - name: "Caddy"
+    playbook: playbooks/caddy.yml
+    description: "Reverse proxy: Caddyfile uit caddy_sites, en de route-certificaten."
+
+  - name: "Cleanup (report)"
+    playbook: playbooks/cleanup.yml
+    description: "Rapporteert wat er vrij te maken valt. Verwijdert niets - dat doet Cleanup (Apply)."
+
+  - name: "Docs"
+    playbook: playbooks/docs.yml
+    description: "Bouwt docs.neodata.be uit de inventory en publiceert naar de caddy-host."
+    schedule: "0 7 * * *"
+
+  - name: "Homelab Report"
+    playbook: playbooks/report.yml
+    description: "Leest de hele vloot en publiceert naar report.neodata.be. Traag, vandaar wekelijks."
+    schedule: "0 8 * * 0"
+
+  - name: "Stacks"
+    playbook: playbooks/stacks.yml
+    description: "Trekt de compose-stacks gelijk met de repo en zet ze op."
+
+# Hiermee staat elke template van dit project in git. Komt er een bij in de UI,
+# zet hem dan ook hier neer - anders is dit bestand weer een deellijst en
+# geloof je hem ten onrechte.

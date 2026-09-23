@@ -50,5 +50,14 @@
 - name: Semaphore UI
   ansible.builtin.import_playbook: semaphore.yml
 
+# Direct na semaphore.yml, want die zet de dienst waar dit tegen praat. Merk op
+# dat de geplande converge deze play juist NIET draait: "Site converge" gebruikt
+# `--limit all:!mbp:!semaphore`, en dit playbook richt zich op `semaphore`. Dat
+# is geen omissie - een schema dat zijn eigen schema's herschrijft terwijl het
+# draait is precies wat je niet wil. Hij loopt mee als je site.yml met de hand
+# en zonder limit draait.
+- name: Semaphore templates
+  ansible.builtin.import_playbook: semaphore-templates.yml
+
 - name: Workstation dotfiles
   ansible.builtin.import_playbook: dotfiles.yml

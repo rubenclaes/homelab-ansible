@@ -11,7 +11,9 @@
 # DNS-onderbreking voor het hele huis was geweest.
 #
 # Werk je hem bij via de UI, werk dan deze twee regels mee bij. De checksum
-# staat in checksums.txt bij de release.
+# staat in checksums.txt bij de release:
+#
+#   curl -sL https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.XX/checksums.txt | grep linux_amd64
 adguard_version: v0.107.79
 adguard_checksum: sha256:c48f4a43000665484c5ec28177de11a004759b620dae8f77b2aabefc9ef3687f
 
