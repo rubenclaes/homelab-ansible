@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: proxmox_oci
+  author: rubenclaes
+  description: >-
+    Containers from OCI images on Proxmox VE 9.1+, created and kept in step
+    through the API.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - virtualization
+
+# Composed by playbooks, not by role dependencies.
+dependencies: []

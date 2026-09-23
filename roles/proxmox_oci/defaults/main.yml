@@ -1,0 +1,30 @@
+---
+# The container list is inventory data (`pve_oci_lxcs` in
+# inventory/group_vars/proxmox/lxcs.yml), not a role setting. See there for its
+# shape and the reasons behind each field.
+
+# Rebuild a container whose running image differs from the declared version.
+# Off by default and never on in inventory: a rebuild destroys the container
+# AND its volumes. Only the person running it knows the data is disposable.
+#
+#   ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
+proxmox_oci_recreate: false
+
+proxmox_oci_node: "{{ inventory_hostname }}"
+proxmox_oci_template_storage: local
+proxmox_oci_api: "https://{{ pve_api_host }}:8006/api2/json"
+proxmox_oci_headers:
+  Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token_id }}={{ pve_api_token_secret }}"
+
+# Replacing env replaces all of it, PATH included, and an image's own PATH is
+# not kept. Without it the entrypoint is not found and the container stops
+# without a word. Always first, so a container's env cannot drop it.
+# The separator Proxmox wants between env entries. Defined here, in a
+# double-quoted YAML scalar, because that is where the escape is turned into a
+# real NUL. Written as '\x00' inside a Jinja expression in a `>-` block it
+# stays four literal characters: YAML leaves block scalars alone and Jinja
+# does not unescape it either, so every entry lands on one env line.
+proxmox_oci_nul: "\0"
+
+proxmox_oci_base_env:
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

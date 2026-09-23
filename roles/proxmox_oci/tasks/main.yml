@@ -1,0 +1,29 @@
+---
+# Everything goes through the API with the automation token, from the
+# controller, like proxmox_lxc. Setting env and entrypoint needs
+# VM.Config.Options; pulling an image needs Datastore.AllocateTemplate. The
+# token has both (roles/proxmox_access/defaults/main.yml).
+- name: Read the templates on {{ proxmox_oci_template_storage }}
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/storage/{{ proxmox_oci_template_storage }}/content?content=vztmpl"
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_templates
+
+- name: Read the existing guests
+  ansible.builtin.uri:
+    url: "{{ proxmox_oci_api }}/cluster/resources?type=vm"
+    headers: "{{ proxmox_oci_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: proxmox_oci_guests
+
+- name: Converge each OCI container
+  ansible.builtin.include_tasks: container.yml
+  loop: "{{ pve_oci_lxcs | default([]) }}"
+  loop_control:
+    loop_var: oci
+    label: "{{ oci.hostname }}"
