@@ -12,6 +12,8 @@
 #   recovery-drill.yml     creates AND DESTROYS a throwaway guest
 #   bootstrap.yml          first-contact root login, see README
 #   update.yml             package upgrades and reboots
+#   cleanup.yml            deletes: caches, old images, orphaned packages
+#   nfs.yml                sudo on the Mini wants a password, so it needs -K
 #   report.yml             read-only, but slow; scheduled separately
 
 - name: Linux baseline

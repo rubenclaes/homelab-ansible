@@ -229,6 +229,14 @@ ansible-playbook playbooks/site.yml --tags macos --limit macmini
 # en noemt hij de namen. Anders zou hij hem elke run installeren en de
 # volgende run weer weggooien.
 #
+# Een cask die bestanden onder /Library heeft (multipass) krijgt Ansible er
+# niet af: zijn uninstall draait `sudo /bin/rm` en over SSH is er geen
+# terminal waar sudo een wachtwoord kan vragen. -K helpt niet, brew roept
+# sudo zelf aan. Die doe je met de hand, met een tty:
+ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask multipass'
+# Uitleg en de reden om dit niet te automatiseren: docs-site runbook
+# "Updates", kopje "Een cask die root nodig heeft".
+#
 # Daarna de wezen opruimen - afhankelijkheden die nergens meer voor dienen:
 ansible-playbook playbooks/cleanup.yml --limit macmini -e cleanup_apply=true
 #
@@ -415,6 +423,22 @@ Tags van `site.yml`, per play twee: een naam en een soort.
 
 `proxmox-network.yml` heeft ook tags maar zit niet in `site.yml`, dus
 `--tags network` doet daar niets.
+
+`--tags semaphore` slaat de eerste play van `semaphore.yml` over — die
+verzamelt facts van alle beheerde hosts en heeft met opzet geen tag. De rol
+heeft die facts nodig voor `known_hosts` en stopt met een assert die precies
+dat zegt. Draai `playbooks/semaphore.yml` in zijn geheel.
+
+Drie playbooks lijken op elkaar en zijn het niet:
+
+| Playbook | De vraag | Wat hij doet |
+| --- | --- | --- |
+| `site.yml` | staat alles er zoals beschreven? | zet neer, configureert, en haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
+| `update.yml` | zijn de versies nog actueel? | `apt full-upgrade` en `brew upgrade`. Reboots alleen op verzoek. |
+| `cleanup.yml` | valt er ruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+
+Iets wat weg moet is dus `site.yml`, niet `cleanup.yml` — die gaat over
+schijfruimte, niet over wat er hoort te staan.
 
 `site.yml` is de converge en is veilig om te herhalen. Deze playbooks zitten
 er bewust niet in, want ze provisionen, herstarten of verwijderen:

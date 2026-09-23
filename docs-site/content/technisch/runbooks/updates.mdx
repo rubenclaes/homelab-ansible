@@ -25,6 +25,26 @@ hypervisor als laatste.
 Spotify, VLC, Chromium. Die upgraden vervangt een app die misschien openstaat,
 dus dat gebeurt alleen als je er expliciet om vraagt.
 
+## Welke van de drie?
+
+`site.yml`, `update.yml` en `cleanup.yml` lijken op elkaar en zijn het niet.
+Ze beantwoorden drie verschillende vragen.
+
+| Playbook | De vraag | Wat hij doet |
+| --- | --- | --- |
+| `site.yml` | staat alles er zoals beschreven? | zet neer en configureert wat in de inventory staat, en haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
+| `update.yml` | zijn de versies nog actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt. |
+| `cleanup.yml` | valt er ruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+
+De valkuil zit tussen de eerste en de derde, en het is de naam die hem legt.
+Wil je een pakket of app *weg* van een machine — iets in
+`macos_brew_packages_absent` of `macos_casks_absent` — dan is dat
+`site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
+niet over wat er hoort te staan.
+
+Andersom net zo: `site.yml` installeert wat ontbreekt en laat staan wat er
+staat, hoe oud ook. Versies zijn van `update.yml` alleen.
+
 ## Wat staat er open?
 
 `playbooks/report.yml` publiceert naar [report.neodata.be](https://report.neodata.be),
@@ -119,6 +139,43 @@ Daarom staat `macos_brew_upgrade: false` in zijn host_vars. De playbook slaat
 hem over en zégt dat ook, elke run. Zijn **apps** kun je wel gewoon bijwerken.
 Wil je de pakketten terug, dan moet die Mac eerst naar een nieuwere macOS.
 </Callout>
+
+### Een cask die root nodig heeft
+
+Sommige casks zijn meer dan een app in `/Applications`. `multipass` zet ook
+bestanden onder `/Library` neer, en bij een upgrade gooit brew de oude eerst
+weg met `sudo /bin/rm`. Over SSH is er geen terminal, dus sudo kan geen
+wachtwoord vragen en de taak faalt:
+
+```
+sudo: a terminal is required to read the password
+Error: multipass: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
+```
+
+`-K` lost dit niet op. Dat zet het become-wachtwoord van Ansible, terwijl brew
+sudo zélf aanroept — Ansible zit er niet tussen. Doe zo'n cask met de hand, met
+een echte terminal erachter:
+
+```bash
+ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask multipass'
+```
+
+Die `-t` is het hele verschil: daarmee krijgt sudo een terminal en mag hij
+vragen.
+
+<Callout type="warning">
+Eén Mac die hierop faalt stopt de hele play. `update.yml` draait met
+`serial: 1`, dus toen dit op 23-09 op de Mac mini gebeurde is de MacBook nooit
+aan de beurt geweest — `google-chrome` bleef daar gewoon verouderd staan,
+zonder dat er iets over de mbp in het log stond. Faalt er een Mac, kijk dan
+altijd of de volgende nog gedraaid heeft.
+</Callout>
+
+Het is wél te automatiseren: zet `SUDO_ASKPASS` naar een scriptje dat het
+wachtwoord uit de vault echoot, dan draait Homebrew `sudo -A` en komt hij er
+zelf uit. Bewust niet gedaan — dat zet een inlogwachtwoord in de vault en geeft
+het aan elke brew-taak op die machine, voor één cask die toch weg moet. Zo'n
+handeling hoort zichtbaar handwerk te blijven.
 
 ## Caddy staat vast
 

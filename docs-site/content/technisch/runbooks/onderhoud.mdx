@@ -169,6 +169,11 @@ vrijmaken — mét de namen erbij, niet alleen een aantal. Op `pve01` is dat waa
 oude `proxmox-kernel-*`-pakketten opduiken, en dat lijstje zien vóór je
 opruimt is het hele punt van een rapportage-run.
 
+Wat dit playbook **niet** is: de plek waar je pakketten weghaalt die je niet
+meer wilt. Dat staat in de `*_absent`-lijsten in de host_vars en wordt gedaan
+door `site.yml`. Cleanup gaat over schijfruimte — zie
+[Updates](/technisch/runbooks/updates/) voor het verschil tussen de drie.
+
 `cleanup_apply` heeft met opzet geen waarde in de inventory. Het is de
 schakelaar die een rapport in een verwijdering verandert, dus die zet je per
 run. Een default in `group_vars` zou elke run destructief maken.

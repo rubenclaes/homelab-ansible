@@ -98,9 +98,34 @@ macos_brew_packages_absent:
   - minikube
   - ollama
 
-# De twee dode cask-registraties uit de Caskroom. Ze uit macos_casks halen is
-# niet genoeg: dan blijven ze staan en blijft `brew upgrade --cask` proberen
-# Docker Desktop terug te zetten.
+# Casks die hier weg moeten. `docker` en `docker-desktop` zijn dode
+# registraties uit de Caskroom: ze uit macos_casks halen is niet genoeg, dan
+# blijven ze staan en blijft `brew upgrade --cask` proberen Docker Desktop
+# terug te zetten.
+#
+# multipass staat erbij omdat er geen VM's meer op deze Mac draaien. LET OP:
+# die krijgt Ansible er niet af, en upgraden lukt evenmin. Zijn uninstall
+# gooit bestanden onder /Library weg en doet dat met `sudo /bin/rm`. Over SSH
+# is er geen terminal, dus sudo kan geen wachtwoord vragen:
+#
+#   sudo: a terminal is required to read the password
+#
+# Op 23-09 sloopte dat de hele cask-upgrade van deze Mac, en omdat update.yml
+# `serial: 1` draait kwam de mbp daarna niet eens meer aan de beurt. iterm2
+# was op dat moment al bijgewerkt; alleen multipass bleef liggen.
+#
+# `-K` helpt niet - dat zet Ansible's become-wachtwoord, en brew roept sudo
+# zelf aan. Wat wel zou werken is SUDO_ASKPASS naar een scriptje dat het
+# wachtwoord uit de vault echoot; Homebrew zet dan `sudo -A`
+# (Library/Homebrew/system_command.rb). Bewust niet gedaan: dat zet je
+# inlogwachtwoord in de vault en geeft het aan elke brew-taak op deze Mac,
+# voor één cask die toch weggaat. Doe hem met de hand, met een echte
+# terminal erachter:
+#
+#   ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask multipass'
+#
+# Daarna mag hij hier weg. Zolang hij hier staat faalt elke macos-run op deze
+# Mac op dezelfde regel.
 macos_casks_absent:
   - docker
   - docker-desktop
