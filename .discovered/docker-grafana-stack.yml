@@ -1,0 +1,29 @@
+---
+# Voorstel voor inventory/host_vars/docker-grafana-stack.yml
+# Gelezen van de host zelf op 2026-09-22. Geen inventory:
+# lees het na, snoei het, en zet wat blijft in het echte host_vars-bestand.
+
+# --- De stacks ------------------------------------------------------------
+# `path` is relatief aan docker_stacks_root (/opt/monitoring-stack/stacks).
+# Staat de compose-file daar niet onder, dan hoort hij eerst in de
+# containers-repo voor deze regel klopt - de rol kan alleen uitrollen wat
+# daarin staat.
+docker_stacks_list:
+  - { name: monitoring, path: /opt/containers/stacks/monitoring }  # LET OP: staat buiten de stacks-map
+
+# --- Wat er nu luistert ---------------------------------------------------
+# Eén regel per container met een gepubliceerde poort. Hoort er een route bij,
+# zet hem in caddy_sites (inventory/host_vars/caddy/main.yml). Hoort er
+# bewust géén route bij, zet de poort in docker_ports_without_route, anders
+# meldt report.yml hem elke run als drift.
+#   monitoring-alloy             192.168.0.17:12345->12345/tcp
+#   monitoring-grafana           192.168.0.17:3001->3000/tcp
+#   monitoring-loki              192.168.0.17:3100->3100/tcp
+#   monitoring-prometheus        192.168.0.17:9090->9090/tcp
+#   portainer_agent              0.0.0.0:9001->9001/tcp, [::]:9001->9001/tcp
+
+# --- Waar de rol zijn spullen zet -----------------------------------------
+# Alleen nodig als deze host afwijkt van de defaults in
+# roles/docker_stacks/defaults/main.yml.
+# docker_stacks_owner: root
+# docker_stacks_root: /opt/monitoring-stack/stacks
