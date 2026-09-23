@@ -1,0 +1,70 @@
+---
+title: Goed om te weten
+---
+
+# Netwerk en Proxmox: goed om te weten
+
+## Waarom de bridges niet in `site.yml` zitten
+
+`proxmox_network_apply` staat op `false` in de rol-defaults en mag nergens in de
+inventory op `true`. Een gewone run die de bridges van de hypervisor kan
+herschrijven, kan in één keer alles platleggen. Toepassen doe je alleen per
+run, met de vlag op de commandline.
+
+## De dodemansknop
+
+Met de vlag gebeurt dit:
+
+1. de draaiende config wordt gekopieerd naar `/etc/network/interfaces.before-ansible`
+2. een `systemd-run`-timer wordt gewapend die die kopie na **180 seconden** terugzet en `ifreload -a` draait
+3. de nieuwe config wordt via de Proxmox-API toegepast
+4. vanaf je werkstation wordt elk adres uit `pve_node_interfaces` op poort 22 geprobeerd
+5. lukt dat, dan wordt de timer gestopt
+
+Valt het playbook ergens tussenuit, dan komt de node vanzelf terug op een
+config die werkte. De test draait bewust vanaf je werkstation: op de node zelf
+slaagt hij altijd, dus bewijst hij niets.
+
+## Waarom 180 seconden
+
+Kopiëren en wapenen duren elk een seconde, toepassen ongeveer vijftien, en de
+test in het slechtste geval twee keer twintig. Samen zo'n tachtig, plus marge.
+Te lang is veiliger dan te kort: te vroeg terugzetten kost je een nieuwe poging,
+te laat laat je wachten met een onbereikbare hypervisor.
+
+## Waarom `proxmox-autostart.yml` niet in `site.yml` zit
+
+Een guest die bewust níét meestart, zou bij elke run stilletjes weer aangezet
+worden. Meestal draai je dit één keer, na een herbouw.
+
+## Waarom DNS naar ct 107 moest
+
+De DNS van het huis hing eerst aan de AdGuard op de Mac mini, die in geen enkel
+playbook stond. Dat is dezelfde machine die de NFS-shares exporteert: viel hij
+om, dan verloor je naamresolutie én media-opslag tegelijk. ct 107 beschrijft
+Ansible en neemt PBS mee in de back-up.
+
+## Waarom de tailnet een 100.x-adres als DNS heeft
+
+Een LAN-adres (`192.168.0.29`) als tailnet-nameserver werkt alleen voor
+toestellen die de subnet-route accepteren. Onderweg heb je dan helemaal geen
+DNS. Daarom zit ct 107 zelf op de tailnet, met `--accept-dns=false` zodat hij
+zijn DNS niet via een omweg bij zichzelf gaat halen.
+
+## Het WAN-adres is dynamisch
+
+Je provider kan je WAN-adres veranderen. Daarom werkt UniFi `vpn.neodata.be`
+zelf bij in Cloudflare:
+
+| Waar | Wat |
+| --- | --- |
+| UniFi → Settings → Internet → WAN → Advanced → Dynamic DNS | service **Cloudflare**, hostname `vpn.neodata.be` |
+
+Dat staat in UniFi, niet in deze repo. Het WireGuard-profiel op je toestel
+gebruikt de naam `vpn.neodata.be`, niet het adres, dus na een wissel volgt het
+vanzelf. UniFi kan bij de VPN-server nog waarschuwen dat hij op "Existing IP
+Address" staat; met Dynamic DNS actief mag die waarschuwing blijven staan.
+
+Sinds 4 september is het adres niet gewisseld, dus de update is nooit echt
+nodig geweest. Werkt WireGuard na een wissel niet, kijk dan of de record
+gevolgd is: zie [De VPN nakijken](/runbooks/netwerk/vpn/).

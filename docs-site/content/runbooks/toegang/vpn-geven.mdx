@@ -1,0 +1,67 @@
+---
+title: Iemand VPN geven
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Iemand VPN geven
+
+| | WireGuard | Tailscale |
+| --- | --- | --- |
+| Geeft | het hele thuisnetwerk (`192.168.0.0/24`) | alleen de diensten (`*.neodata.be`, via Caddy) |
+| Per | toestel: één profiel per toestel | persoon: hij logt zelf in |
+| Beheer | UniFi | NeoGate + Tailscale-console |
+| Kies als | iemand echt bij een machine thuis moet, niet alleen bij een dienst | iemand je diensten van buitenaf moet kunnen gebruiken |
+
+Twijfel je: **Tailscale**. Die geeft iemand alleen de diensten. Een
+WireGuard-profiel geeft het hele thuisnetwerk: pve01, Proxmox, SSH, de Mac mini.
+
+Dat Tailscale zo beperkt is, komt door de toegangsregels van de tailnet: jij
+mag alles, de anderen alleen Caddy en DNS. Ze staan in
+`files/tailscale/policy.hujson`, zie
+[Netwerk → Wie mag wat via Tailscale](/homelab/netwerk/#wie-mag-wat-via-tailscale).
+
+## WireGuard-profiel
+
+<Steps>
+
+### Controleer de DNS: `192.168.0.29`
+
+Bij de VPN-server moet de DNS-server `192.168.0.29` zijn (AdGuard).
+
+<Callout type="warning">
+De DNS zit **ingebakken** in het profiel. Klopt hij niet en pas je hem achteraf
+aan, dan moet elk toestel zijn profiel opnieuw importeren. Kijk het dus na vóór
+je de client aanmaakt.
+</Callout>
+
+### Maak een client aan in UniFi
+
+| Scherm | Wat |
+| --- | --- |
+| UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** | **Add Client**, naam `persoon-toestel`, bv. `lies-iphone` |
+
+Eén profiel per toestel: dan kan je er later één intrekken zonder de andere.
+
+### Geef het profiel door
+
+Toon de **QR-code** en laat de persoon hem scannen met de WireGuard-app, of
+stuur het `.conf`-bestand.
+
+Het profiel is een sleutel tot je netwerk: stuur het niet via een kanaal dat
+het bewaart (e-mail). Scannen terwijl je erbij staat is het veiligst.
+
+### Test samen
+
+Wifi uit op het toestel, VPN aan, open
+[photos.neodata.be](https://photos.neodata.be). Laadt die, dan werkt het.
+
+</Steps>
+
+## Tailscale
+
+Dat gaat via NeoGate: vink **Tailscale** ("netwerk") aan bij de persoon. Zie
+[Iemand diensten geven](/runbooks/toegang/diensten-geven/).
+
+Een toestel met een commandline (pc, NAS) zonder persoon erachter? Dat is een
+sleutel, zie [Netwerk → Tailscale-sleutel](/runbooks/netwerk/tailscale-sleutel/).

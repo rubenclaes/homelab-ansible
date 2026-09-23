@@ -1,0 +1,42 @@
+---
+title: Updates
+---
+
+import { Callout } from 'nextra/components'
+
+# Updates
+
+Pakketten bijwerken op de Linux-machines, op `pve01` of op de Macs. Of eerst
+zien wat er openstaat.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil **weten wat er openstaat**, zonder iets te veranderen | "Staan er security-updates klaar op `caddy`?" | [Kijken wat er openstaat](/runbooks/updates/rapport/) |
+| Je wil de **guests patchen** (de gewone ronde) | `adguard`, `docker`, `pbs` bijwerken; Semaphore zelf patchen | [Guests patchen en herstarten](/runbooks/updates/guests/) |
+| Een guest meldt **`REBOOT NEEDED`** | `docker` kreeg een nieuwe kernel | [Guests patchen en herstarten](/runbooks/updates/guests/) |
+| Je wil **`pve01` zelf** bijwerken en herstarten | nieuwe Proxmox-kernel | [De hypervisor](/runbooks/updates/hypervisor/) |
+| Je wil de **Macs** bijwerken | Homebrew-pakketten op `mbp`, apps op `macmini` | [De Macs](/runbooks/updates/macs/) |
+| Je wil **Caddy** upgraden | een nieuwe Caddy-versie | [Caddy](/runbooks/updates/caddy/) |
+| Je wil een **OCI-container** bijwerken | een nieuwe versie van `ntfy` | [OCI-containers](/runbooks/updates/oci-container/) |
+
+<Callout type="info">
+Wil je een pakket of app **weg** van een Mac? Dan ben je hier verkeerd: dat is
+`site.yml --tags macos`. Zie
+[Welke van de drie playbooks?](/runbooks/updates/goed-om-te-weten/#welke-van-de-drie-playbooks).
+</Callout>
+
+## Woorden die je nodig hebt
+
+**Hypervisor** — de fysieke machine waar de rest op draait: `pve01`. Gaat die
+uit, dan gaat alles uit.
+
+**Guest** — een VM of LXC *op* `pve01`: `adguard`, `caddy`, `docker`, `pbs`,
+`semaphore`, `tailscale`, `docker-grafana-stack`. Dat is de groep `guests`.
+
+**Formula** — een Homebrew-*pakket* op een Mac, commandoregel-gereedschap
+zoals `jq` of `ffmpeg`.
+
+**Cask** — een Homebrew-*app* op een Mac, iets met een venster zoals Spotify
+of VLC.

@@ -1,0 +1,45 @@
+---
+title: Goed om te weten
+---
+
+# Toestellen en toegang: goed om te weten
+
+## Nieuw toestel
+
+### Waarom geen `home.arpa`-naam
+
+`<naam>.home.arpa` bestaat alleen voor machines in de Ansible-inventory
+(pve01, de guests, de Macs). Een printer of TV staat daar niet in en krijgt
+dus geen naam in AdGuard. Voor een mooi adres gebruik je een Caddy-route.
+
+### Waarom UniFi met de hand
+
+Er was een Ansible-rol die namen en vaste adressen in UniFi zette. Die werkte,
+maar is bewust weggehaald: een vast adres kost twintig seconden klikken, één
+keer per toestel. Daartegenover stonden een apart account, een vault-bestand en
+onderhoud aan een API die Ubiquiti bezit.
+
+## Zelf van buitenaf
+
+### Waarom twee wegen
+
+WireGuard draait op de UniFi-gateway, Tailscale op pve01. Ligt pve01 eruit,
+precies wanneer je erbij wil, dan werkt WireGuard nog. Breekt WireGuard (meestal
+het WAN-adres), dan werkt Tailscale nog. Meer in
+[Netwerk → Twee wegen naar binnen](/homelab/netwerk/#twee-wegen-naar-binnen).
+
+### Hoe Tailscale op het LAN komt
+
+ct 108 biedt `192.168.0.0/24` aan de tailnet aan, en die route is goedgekeurd.
+Een toestel dat meereist neemt ze aan: op iOS is dat "Use Tailscale subnets"
+(staat standaard aan), op de MacBook staat het ook aan. De servers thuis nemen
+ze met opzet niet aan. Zie [Netwerk](/homelab/netwerk/#hoe-de-tailscale-weg-op-het-lan-komt).
+
+## Blokkeren
+
+### Waarom blocklists in de inventory en losse regels niet
+
+Een blocklist die alleen in de container staat, ben je bij een herbouw stil
+kwijt: de `home.arpa`-namen (rewrites) komen terug, de filtering niet. Losse regels zijn klein en
+worden per geval gezet; die bijhouden in de repo zou elk "Unblock" een commit
+maken.

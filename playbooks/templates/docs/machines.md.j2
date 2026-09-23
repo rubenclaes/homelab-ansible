@@ -28,7 +28,7 @@ Proxmox-guests die `homelab.proxmox.yml` live ophaalt, `pve_lxcs` en elke
 </Callout>
 
 Alles waar iets op draait, op één pagina. Per machine zie je het adres, welke
-[diensten](/technisch/services/) erop staan en - bij een Docker-machine - in
+[diensten](/homelab/diensten/) erop staan en - bij een Docker-machine - in
 welke stack elke dienst zit. Een stack is één compose-bestand met één of meer
 diensten erin.
 
@@ -107,20 +107,20 @@ in zijn config staat.
 | --- | --- | --- | --- |
 {% for st in hv.docker_stacks_list | sort(attribute='name') -%}
 {%- set members = svcs | selectattr('stack', 'defined') | selectattr('stack', 'equalto', st.name) | map(attribute='name') | list %}
-{%- set runs = (members | map('regex_replace', '^(.*)$', '[\\1](/technisch/services/\\1/)') | join(', ')) if members
+{%- set runs = (members | map('regex_replace', '^(.*)$', '[\\1](/homelab/diensten/\\1/)') | join(', ')) if members
                else ('_' ~ st.desc ~ '_' if st.desc is defined else '—') %}
 | **{{ st.name }}** | {{ runs }} | `{{ root }}/{{ st.path }}`{{ ' (project `' ~ st.project ~ '`)' if st.project is defined }} | {{ '`.env` in vault' if st.env | default(true) else 'geen' }} |
 {% endfor %}
 {%- set loose = svcs | rejectattr('stack', 'defined') | map(attribute='name') | list %}
 {%- if loose | length > 0 %}
 
-Buiten een stack: {% for s in loose %}[{{ s }}](/technisch/services/{{ s }}/){{ ', ' if not loop.last }}{% endfor %}.
+Buiten een stack: {% for s in loose %}[{{ s }}](/homelab/diensten/{{ s }}/){{ ', ' if not loop.last }}{% endfor %}.
 {% endif %}
 
 Compose-bestanden uit [{{ slug }}](https://github.com/{{ slug }}).{% if mounts | length > 0 %} Docker wacht bij het opstarten op {% for m in mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.{% endif +%}
 
 {% elif svcs | length > 0 %}
-Diensten: {% for s in svcs %}[{{ s.name }}](/technisch/services/{{ s.name }}/){{ ', ' if not loop.last }}{% endfor +%}
+Diensten: {% for s in svcs %}[{{ s.name }}](/homelab/diensten/{{ s.name }}/){{ ', ' if not loop.last }}{% endfor +%}
 
 {% else %}
 Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.

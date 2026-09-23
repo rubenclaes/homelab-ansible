@@ -12,9 +12,9 @@ title: {{ s.name }}
 | --- | --- |
 | URL | — geen webroute |
 | Adres | `{{ h.ansible_host | default('?') }}` |
-| Host | [{{ s.host }}](/technisch/machines/#{{ s.host }}) |
+| Host | [{{ s.host }}](/homelab/machines/#{{ s.host }}) |
 | Poorten | {% for p in s.ports %}`{{ p }}`{{ ', ' if not loop.last }}{% endfor %} |
-| Stack | [{{ s.stack }}](/technisch/machines/#{{ s.host }}) |
+| Stack | [{{ s.stack }}](/homelab/machines/#{{ s.host }}) |
 
 {% if s.how is defined %}
 ## Gebruiken

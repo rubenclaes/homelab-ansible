@@ -1,0 +1,55 @@
+---
+title: Toestel kwijt
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Een toestel is kwijt of weg
+
+Een gestolen telefoon, een laptop die de deur uit gaat. Je sluit af wat dat
+toestel binnenlaat.
+
+<Callout type="warning">
+Dringend? Doe eerst stap 1 en 2: dat zijn de twee wegen naar binnen van
+buitenaf.
+</Callout>
+
+<Steps>
+
+### Haal het van de tailnet
+
+| Scherm | Wat |
+| --- | --- |
+| [Tailscale admin console](https://login.tailscale.com/admin/machines) → **Machines** | het toestel → `⋯` → **Remove** |
+
+Het toestel kan daarna niet meer via Tailscale binnen. Is het account nog
+ingelogd op dat toestel (Google, Apple), dan kan iemand het wel opnieuw
+aanmelden: wijzig bij twijfel ook dat wachtwoord.
+
+### Verwijder zijn WireGuard-profiel
+
+| Scherm | Wat |
+| --- | --- |
+| UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** | het clientprofiel van dat toestel → verwijderen |
+
+Heeft het toestel geen eigen profiel (nu heeft alleen jouw iPhone er een), sla
+dit over.
+
+### Blokkeer het in UniFi (optioneel)
+
+Voor een gestolen toestel dat nog in wifi-bereik kan komen: UniFi → **Client
+Devices** → het toestel → **Block**. Haal ook zijn **Fixed IP** weg als het er
+een had.
+
+### Log uit in de apps
+
+Bleef het toestel ingelogd in Immich, Plex of een andere app? Log de sessies
+uit in die app zelf (bij Immich: **Account Settings** → **Authorized
+Devices**).
+
+### Moet de persoon zelf ook weg?
+
+Dan ook NeoGate en de Tailscale-gebruiker, zie
+[Toegang afnemen](/runbooks/toegang/toegang-afnemen/).
+
+</Steps>

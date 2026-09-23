@@ -1,0 +1,117 @@
+---
+title: Diensten
+---
+
+import { Callout } from 'nextra/components'
+
+# Diensten
+
+<Callout type="warning">
+Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus
+`docker_services_without_route` voor diensten zonder webadres. Bewerk de
+inventory, niet deze pagina.
+</Callout>
+
+Wat er draait, per machine. Een dienst met een webroute staat op
+`https://<naam>.neodata.be`; klik de naam voor het adres, de poort en
+de instellingen. De stack linkt naar de machine waar hij op staat.
+
+Zo komt een bezoek aan een dienst binnen, met `photos` als voorbeeld:
+
+```mermaid
+flowchart LR
+  you["Jij<br/>browser of app"]
+  dns["<b>adguard</b><br/>DNS"]
+  caddy["<b>caddy</b><br/>reverse proxy + HTTPS"]
+  svc["<b>photos</b><br/>stack media op docker"]
+  you -- "1 · waar is photos.neodata.be?" --> dns
+  dns -- "2 · bij caddy, 192.168.0.25" --> you
+  you -- "3 · HTTPS" --> caddy
+  caddy -- "4 · docker:2283" --> svc
+```
+
+1. AdGuard stuurt élke naam onder `neodata.be` naar Caddy. Dat is één
+   wildcard, dus een nieuwe dienst heeft geen eigen DNS-regel nodig.
+2. Caddy zorgt voor het certificaat en zoekt in `caddy_sites` naar welke
+   machine en poort hij moet doorsturen.
+3. Een dienst zonder webroute, zoals RustDesk, slaat Caddy over: de app praat
+   rechtstreeks met de machine.
+
+## adguard
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [dns](/homelab/diensten/dns/) | AdGuard Home — DNS voor de hele estate, en filtering | — |
+
+## docker
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [audiobooks](/homelab/diensten/audiobooks/) | Audiobookshelf — luisterboeken en podcasts | [media](/homelab/machines/#docker) |
+| [code](/homelab/diensten/code/) | code-server — VS Code in de browser | [utils](/homelab/machines/#docker) |
+| [home](/homelab/diensten/home/) | Homepage — startpagina met alle diensten | [homepage](/homelab/machines/#docker) |
+| [id](/homelab/diensten/id/) | Pocket ID — OIDC-provider (huidige instantie) | [infra](/homelab/machines/#docker) |
+| [memos](/homelab/diensten/memos/) | Memos - snelle notities | [memos](/homelab/machines/#docker) |
+| [metube](/homelab/diensten/metube/) | MeTube — webinterface voor yt-dlp | [utils](/homelab/machines/#docker) |
+| [neogate](/homelab/diensten/neogate/) | NeoGate — toegangsbeheer voor het homelab (eigen app) | [neogate](/homelab/machines/#docker) |
+| [openbooks](/homelab/diensten/openbooks/) | OpenBooks — e-books zoeken en downloaden via IRC | [media](/homelab/machines/#docker) |
+| [overseerr](/homelab/diensten/overseerr/) | Aanvragen voor films en series | [media](/homelab/machines/#docker) |
+| [pairdrop](/homelab/diensten/pairdrop/) | Bestanden tussen toestellen in huis, zoals AirDrop | [utils](/homelab/machines/#docker) |
+| [pdf](/homelab/diensten/pdf/) | BentoPDF — PDF's samenvoegen, splitsen en omzetten | [utils](/homelab/machines/#docker) |
+| [photos](/homelab/diensten/photos/) | Immich — foto- en videobibliotheek | [media](/homelab/machines/#docker) |
+| [portainer](/homelab/diensten/portainer/) | Docker-beheer voor de docker-host | [portainer](/homelab/machines/#docker) |
+| [prowlarr](/homelab/diensten/prowlarr/) | Indexerbeheer voor Sonarr en Radarr | [media](/homelab/machines/#docker) |
+| [radarr](/homelab/diensten/radarr/) | Beheer van films | [media](/homelab/machines/#docker) |
+| [rustdesk](/homelab/diensten/rustdesk/) | RustDesk — eigen server voor remote support (ID en relay) _(geen webroute)_ | [rustdesk](/homelab/machines/#docker) |
+| [sonarr](/homelab/diensten/sonarr/) | Beheer van series | [media](/homelab/machines/#docker) |
+| [spullen](/homelab/diensten/spullen/) | Homebox — wat ligt waar, met QR-labels | [homebox](/homelab/machines/#docker) |
+| [termix](/homelab/diensten/termix/) | SSH in de browser | [utils](/homelab/machines/#docker) |
+| [tools](/homelab/diensten/tools/) | IT-Tools — ontwikkelaarsgereedschap, offline | [utils](/homelab/machines/#docker) |
+| [torrent](/homelab/diensten/torrent/) | qBittorrent — schrijft naar de NFS-share van de Mac mini | [media](/homelab/machines/#docker) |
+
+## docker-grafana-stack
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [monitoring](/homelab/diensten/monitoring/) | Grafana — dashboards op Prometheus en Loki | [monitoring](/homelab/machines/#docker-grafana-stack) |
+| [prometheus](/homelab/diensten/prometheus/) | Metrics-store die Grafana scrapet | [monitoring](/homelab/machines/#docker-grafana-stack) |
+
+## haos
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [haos](/homelab/diensten/haos/) | Home Assistant — domotica | — |
+
+## macmini
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [books](/homelab/diensten/books/) | Grimmory — bibliotheek voor e-books, strips en luisterboeken | [grimmory](/homelab/machines/#macmini) |
+| [duplicati](/homelab/diensten/duplicati/) | Back-ups vanaf de Mac mini | [duplicati](/homelab/machines/#macmini) |
+| [plex](/homelab/diensten/plex/) | Plex — de hoofdtaak van de Mac mini | — |
+| [shelfmark](/homelab/diensten/shelfmark/) | Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht | [shelfmark](/homelab/machines/#macmini) |
+
+## ntfy
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [ntfy](/homelab/diensten/ntfy/) | ntfy — meldingen van de homelab naar je telefoon | — |
+
+## pbs
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [backup](/homelab/diensten/backup/) | Proxmox Backup Server — de back-ups en hun verificatie | — |
+
+## pve01
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [proxmox](/homelab/diensten/proxmox/) | Proxmox VE — de hypervisor | — |
+
+## semaphore
+
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [semaphore](/homelab/diensten/semaphore/) | Ansible control plane — draait de playbooks volgens schema | — |
+

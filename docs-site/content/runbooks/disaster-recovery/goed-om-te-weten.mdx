@@ -1,0 +1,144 @@
+---
+title: Goed om te weten
+---
+
+# Herstellen: goed om te weten
+
+## De twee back-upjobs
+
+| | Dagelijks | Wekelijks |
+| --- | --- | --- |
+| Wanneer | elke nacht 02:30 | zondag 01:00 |
+| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
+| Welke guests | alle behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 |
+| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps |
+| Bewaart | 7 | 2 |
+| Versleuteld | ja | **nee** |
+| Redt je van | een kapotte guest | een pve01 die weg is |
+
+De dagelijkse is de hoofdkopie. Maar die staat op pve01 zelf: sterft die
+machine met zijn schijven, dan gaan guests en back-ups samen. Daarvoor is de
+wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
+
+## Het is geen off-site
+
+Beide kopieën staan in hetzelfde huis, aan dezelfde stroom, op hetzelfde
+netwerk. Tegen brand, diefstal of ransomware helpt dit niet. En de dumps op de
+Mini zijn niet versleuteld: iedereen die die NFS-share kan mounten, kan ze
+lezen.
+
+## Faalt de wekelijkse job, dan meldt niemand dat
+
+Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job stil. Kijk
+af en toe zelf:
+
+```bash
+ssh pve01 'sudo pvesm list macmini-backup'
+ssh pve01 'df -h /mnt/pve/macmini-backup'
+```
+
+## Waarom maar twee dumps bewaren
+
+`media01` op de Mini is bijna vol en draagt ook Time Machine en Duplicati.
+Daarom staat `prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je
+meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken alle
+drie de back-ups tegelijk.
+
+## Waarom twee vault-wachtwoorden
+
+Een keuze over schade bij een lek:
+
+| Identiteit | Beschermt | Een lek betekent |
+| --- | --- | --- |
+| `infra` | inventory-vaults, `homelab.proxmox.yml`, Semaphore-config | controle over hypervisor, DNS en back-ups roteren |
+| `stacks` | `files/env/*.env` | applicatie-logins roteren |
+
+## De vault-wachtwoorden staan ook op Semaphore
+
+De `semaphore`-rol kopieert ze naar de Semaphore-container, zodat die zijn
+geplande jobs kan draaien. Een back-up van `semaphore` (ct 104) bevat ze dus
+ook. Handig als je werkstation weg is, maar bewaar ze toch apart.
+
+## Het API-token staat op twee plekken
+
+`inventory/group_vars/proxmox/vault.yml` (`vault_pve_api_token_secret`) voor de
+playbooks, en `inventory/homelab.proxmox.yml` (`token_secret`) voor de
+dynamische inventory. Een inventory-bron wordt gelezen vóór `group_vars`, dus
+kan hij niet naar een vault-variabele verwijzen. Daarom is dat hele bestand
+versleuteld onder `infra`. Nieuw token = beide aanpassen.
+
+## `bootstrap.yml` doet één host tegelijk
+
+Hij weigert meer dan één host. Zonder die grendel herschrijft een vergeten
+`--limit` `/etc/sudoers.d/ansible` op alle hosts. Er gaat niets stuk, maar een
+playbook voor één nieuwe machine hoort de rest niet te raken.
+
+## Waarom `proxmox-access.yml` via het token test
+
+Hij vraagt de guest-agent op dóór het token heen, niet met `pvesh`. `pvesh`
+draait als root en slaagt altijd, dus dat bewijst niets over wat de
+inventory straks ziet.
+
+## `new-guest.yml` maakt alleen wat je noemt
+
+De container-rol zelf maakt élke container uit `pve_lxcs` die ontbreekt.
+`new-guest.yml` geeft hem alleen de genoemde, zodat de nummers die nog uit
+PBS terug moeten vrij blijven.
+
+## `/dev/net/tun` gaat met de hand
+
+`tailscale` (108) en `adguard` (107, sinds 23-09 op de tailnet als globale
+nameserver) hebben `/dev/net/tun` nodig. Het API-token kan geen rauwe
+`lxc.`-sleutels zetten, en `pct set` weigert ze op deze Proxmox-versie. Dus:
+twee regels onderaan `/etc/pve/lxc/<vmid>.conf` en `pct reboot`. De bron is het
+commentaar in `inventory/group_vars/proxmox/lxcs.yml`.
+
+## Waarom `proxmox_datacenter_create` niet standaard aan staat
+
+Op een gezonde node betekent ontbrekende opslag: "de inventory klopt niet". Op
+een herbouwde node: "de inventory is de waarheid, maak het aan". Alleen jij
+weet welke van de twee het is. Daarom zet je de vlag zelf, en alleen bij een
+herbouw.
+
+## Waarom VM's niet uit een playbook komen
+
+`vms.yml` beschrijft de vier VM's, maar niets leest dat bestand. Een VM
+opnieuw maken geeft een lege schijf, en de waarde zit in de schijf. Voor
+101–103 doet `qmrestore` het beter: die zet de schijf én de instellingen
+terug. `vms.yml` is er voor PBS (100) en voor als er geen back-up is. Neem dan
+zeker het MAC-adres over: daar hangt de DHCP-reservering aan, en `haos`
+herkent zichzelf eraan.
+
+## Niet alles komt uit een playbook terug
+
+`macmini` en `docker-grafana-stack` draaien diensten die deze repo nog niet
+kan terugbouwen: daar is PBS het herstelpad. Wat ze draaien zie je met
+`discover.yml`, zie [Onderhoud](/runbooks/onderhoud/). Ook de
+AdGuard-instellingen (`AdGuardHome.yaml`) en de database van Semaphore zet geen
+rol terug.
+
+## Waarom `nfs.yml` niet in `site.yml` zit
+
+`/etc/exports` schrijven vraagt root, en `sudo` op de Mini vraagt een
+wachtwoord. De Linux-hosts hebben een NOPASSWD-regel van `bootstrap.yml`, de
+Mini niet. Een geplande run zou dus blijven hangen op dat wachtwoord.
+
+## TCC: sshd moet Volledige schijftoegang hebben
+
+Krijg je `[Errno 1] Operation not permitted` bij het vervangen van
+`/etc/exports`, dan is dat **geen** sudo-probleem. `/etc/exports` draagt het
+macOS-label `com.apple.macl`, en een proces dat onder `sshd` start mag zo'n
+bestand niet aanraken, ook niet als root. Hetzelfde commando werkt lokaal in
+Terminal. De oplossing is `sshd` Volledige schijftoegang geven (zie
+[Mac mini is weg](/runbooks/disaster-recovery/mac-mini/)) en daarna
+**opnieuw verbinden**.
+
+Al geprobeerd op 23-09, werkt niet: `unsafe_writes: true`, `xattr -d
+com.apple.macl` en in het bestand schrijven in plaats van het vervangen.
+Details in `roles/nfs_exports/tasks/main.yml`.
+
+## macOS kan `/etc/exports` niet vooraf nakijken
+
+`nfsd checkexports` leest alleen het echte bestand. De rol schrijft dus eerst
+en controleert daarna, en faalt luid als het mis is. Repareer in
+`nfs_exports_shares`, niet in het bestand: de volgende run zet dat toch terug.

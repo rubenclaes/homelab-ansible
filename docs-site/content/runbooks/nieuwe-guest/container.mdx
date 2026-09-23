@@ -1,0 +1,83 @@
+---
+title: Nieuwe container
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Een nieuwe container
+
+Voorbeeld: Vaultwarden op een eigen LXC. Alles gebeurt vanaf je werkstation,
+het Proxmox-scherm heb je niet nodig.
+
+<Steps>
+
+### Zoek een vrij nummer
+
+```bash
+ansible-playbook playbooks/proxmox-info.yml   # toont elke guest: vmid, type, naam, status
+```
+
+Kies een nummer dat daar niet in staat.
+
+<Callout type="warning">
+Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
+nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
+gereserveerd voor de recovery-drill.
+</Callout>
+
+### Zoek een vrij adres
+
+Kijk in `inventory/group_vars/proxmox/lxcs.yml` welke adressen al gebruikt
+worden, en test of het adres echt vrij is:
+
+```bash
+ping -c 2 192.168.0.31   # geen antwoord = waarschijnlijk vrij
+```
+
+### Zet de container in de lijst
+
+```bash
+$EDITOR inventory/group_vars/proxmox/lxcs.yml
+```
+
+Voeg onderaan in `pve_lxcs` een blok toe:
+
+```yaml
+  - vmid: 111
+    hostname: vaultwarden
+    cores: 1
+    memory: 512
+    swap: 512
+    disk: { storage: vm-hdd, size: 8 }
+    ip: 192.168.0.31/24
+    features: [nesting=1]
+```
+
+| Veld | Wat je invult |
+| --- | --- |
+| `vmid` | het vrije nummer |
+| `hostname` | kleine letters, geen spaties. Wordt ook zijn naam in de inventory |
+| `cores` / `memory` / `swap` | geheugen in MB. Begin klein, ophogen kan later |
+| `disk` | opslag + grootte in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
+| `ip` | het vrije adres, met `/24` erachter |
+| `features` | `nesting=1` zet je er altijd bij (Docker heeft het nodig, de rest heeft er geen last van) |
+
+Gateway, template en de Ansible-sleutel komen uit `pve_lxc_defaults` bovenaan
+hetzelfde bestand. Die hoef je niet in te vullen.
+
+### Bouw hem
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=vaultwarden
+```
+
+Dit maakt de container, wacht tot SSH luistert, vertrouwt zijn hostkey, zet
+het `ansible`-account erop en past de baseline toe. Aan het eind staat in beeld
+wat je hierna doet.
+
+### Werk hem af
+
+De machine staat er, maar is nog leeg. Ga verder met
+[Afwerken](/runbooks/nieuwe-guest/afwerken/).
+
+</Steps>

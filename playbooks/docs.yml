@@ -3,7 +3,7 @@
 #
 #   ansible-playbook playbooks/docs.yml
 #
-# De pagina's onder technisch/ worden uit de inventory gegenereerd - de
+# De pagina's onder homelab/ worden uit de inventory gegenereerd - de
 # machinepagina, en één pagina per route in caddy_sites (plus de diensten
 # zonder route uit docker_services_without_route) - en kunnen dus
 # niet uit de pas lopen. De runbooks zijn met de hand geschreven en worden
@@ -25,10 +25,11 @@
     # Eén pagina voor alle machines. Tot 23-09 waren dat er drie - hosts,
     # containers en stacks - die elk één laag toonden (Ansible, Proxmox,
     # Docker), zodat je ze moest combineren om te zien wat er op één machine
-    # staat. De oude .mdx-bestanden ruimt de taak hieronder op.
+    # staat. Sinds dezelfde dag staan machines en diensten onder homelab/
+    # (wat er is) en de runbooks onder runbooks/ (wat je doet); de oude
+    # splitsing homelab/technisch zei niet waar je iets moest zoeken.
     docs_pages: [machines]
-    docs_retired_pages: [hosts, containers, stacks]
-    docs_services: "{{ docs_site }}/content/technisch/services"
+    docs_services: "{{ docs_site }}/content/homelab/diensten"
     # Read straight off the caddy host. Safe here because none of these values
     # contain a template themselves. A var whose VALUE is a hostvars template -
     # caddy_tinyauth_upstream was one, until it was removed - cannot be read
@@ -95,15 +96,9 @@
     - name: Render the generated reference pages
       ansible.builtin.template:
         src: "docs/{{ item }}.md.j2"
-        dest: "{{ docs_site }}/content/technisch/{{ item }}.mdx"
+        dest: "{{ docs_site }}/content/homelab/{{ item }}.mdx"
         mode: "0644"
       loop: "{{ docs_pages }}"
-
-    - name: Remove the pages that machines.mdx replaced
-      ansible.builtin.file:
-        path: "{{ docs_site }}/content/technisch/{{ item }}.mdx"
-        state: absent
-      loop: "{{ docs_retired_pages }}"
 
     - name: Ensure the per-service page directory exists
       ansible.builtin.file:

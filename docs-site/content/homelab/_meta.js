@@ -1,6 +1,8 @@
+// diensten/ en machines.mdx worden geschreven door playbooks/docs.yml.
+// index.mdx en netwerk.mdx zijn met de hand geschreven.
 export default {
-  index: 'Start hier',
-  toestellen: 'Toestellen',
-  toegang: 'Toegang',
-  'internet-en-dns': 'Internet en DNS'
+  index: 'Overzicht',
+  diensten: 'Diensten',
+  machines: 'Machines',
+  netwerk: 'Netwerk'
 }

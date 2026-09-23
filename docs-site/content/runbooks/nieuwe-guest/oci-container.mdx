@@ -1,0 +1,105 @@
+---
+title: OCI-container
+---
+
+import { Steps } from 'nextra/components'
+
+# Een OCI-container
+
+Sinds Proxmox 9.1 kan een Docker-image rechtstreeks een container worden,
+zonder Docker ertussen. Er zit geen Debian in, geen SSH en geen apt: alleen
+het programma. Proxmox noemt dit nog een tech preview.
+
+**Wanneer wel:** voor iets kleins dat moet blijven werken als de docker-VM
+plat ligt. `ntfy` is het voorbeeld: wie meldt dat de docker-VM stuk is, mag er
+niet zelf op draaien.
+
+**Wanneer niet:** voor al de rest. Iets met meerdere containers (Immich), of
+iets waarvan de data belangrijk is, hoort op de docker-host. Daar heb je
+compose, healthchecks en `docker compose pull`.
+
+<Steps>
+
+### Zet hem in `pve_oci_lxcs`
+
+In `inventory/group_vars/proxmox/lxcs.yml`, met een vaste `version`, nooit
+`latest`. Kijk naar `ntfy` als voorbeeld. Twee dingen die je bij een nieuw
+image moet nakijken:
+
+- **`entrypoint`**: veel images hebben een `ENTRYPOINT` zonder argumenten.
+  Kaal start dat de help en stopt meteen, zonder melding.
+- **`volumes`**: elke map waar het programma naar schrijft en die niet in het
+  image zit. Ontbreekt er een, dan stopt de container.
+
+Zet alles wat moet blijven bestaan in `env`, niet op de schijf. Zie
+[Updaten is opnieuw bouwen](#updaten-is-opnieuw-bouwen).
+
+### Bouw hem
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+De rol haalt het image op, maakt de container, zet `entrypoint` en `env`, en
+start hem. Een tweede run doet niets.
+
+### Geef hem een naam (optioneel)
+
+Zoals bij een gewone container, in `caddy_sites`: zie
+[Afwerken → Geef hem een adres](/runbooks/nieuwe-guest/afwerken/#geef-hem-een-adres-optioneel).
+Geef hem een vaste `upstream` in plaats van alleen `host`: een gestopte
+OCI-container heeft geen adres in de inventory, en dan faalt de Caddyfile
+voor elke site. De container staat na de eerste run in de inventory, onder
+`appliances`.
+
+</Steps>
+
+## Waarom anders dan een gewone container
+
+- **Geen `new-guest.yml`**: er is geen SSH, dus geen bootstrap en geen
+  baseline. De tag `oci` houdt hem buiten `linux`, anders zou `site.yml` er
+  vergeefs de baseline op proberen.
+- **Proxmox negeert `entrypoint` en `env` bij het aanmaken** en neemt die van
+  het image over. Daarom zet de rol ze er achteraf op, en herstart hij de
+  container als ze veranderen: env wordt alleen bij het starten gelezen.
+- **`env` gaat via de API, niet via `pct`**: Proxmox wil de variabelen
+  gescheiden door NUL-tekens, en een shell kan die niet doorgeven. Alles plakt
+  dan aan elkaar, `PATH` verdwijnt, en de container stopt zonder uitleg. Wie
+  `env` zet, vervangt trouwens alles, ook de `PATH` van het image; de rol zet
+  die daarom altijd zelf mee.
+- **Het image ophalen gebeurt als root**, alles daarna met de API-token van
+  Ansible. Ophalen vraagt het recht om pve01 van eender waar te laten
+  downloaden, en dat hoort die token niet te hebben voor één `pull`.
+
+## Updaten is opnieuw bouwen
+
+Een OCI-container kun je niet `apt upgrade`n: je hoogt `version` op en bouwt
+hem opnieuw. Dat sloopt de container **en zijn volumes**, daarom staat alles
+wat moet overleven in `env`. Voor ntfy zijn dat de gebruikers, rechten en
+tokens; je verliest alleen de berichtcache van de laatste uren.
+
+De stappen staan in [Updates → OCI-containers](/runbooks/updates/oci-container/).
+
+## ntfy op je iPhone
+
+Installeer de app **ntfy**. Onder Instellingen → Standaardserver:
+`https://ntfy.neodata.be`, gebruiker `ruben`. Het wachtwoord staat in de vault:
+
+```bash
+ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_password
+```
+
+Abonneer op het topic `homelab`. Proxmox en PBS sturen daar hun
+waarschuwingen en fouten heen, elk met een eigen token (een mislukte back-up bijvoorbeeld), rechtstreeks naar
+`192.168.0.32` en dus niet via Caddy: een melding over een storing mag niet
+afhangen van Caddy of AdGuard. Geslaagde back-ups komen er bewust niet: wie
+elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
+
+Een mislukte back-up stuurt de hele log mee, en dat is al snel meer dan de
+4 KB die in één bericht past. Die komt binnen als "You received a file:
+attachment.txt": de titel zegt wat er misging, de bijlage is de log. Daarvoor
+staat `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n bericht
+en krijg je niets.
+
+Buitenshuis zonder VPN krijg je wel het seintje, maar kan de app de inhoud
+niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.

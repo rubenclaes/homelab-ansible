@@ -1,0 +1,53 @@
+---
+title: Shares van de Mac mini
+---
+
+import { Steps } from 'nextra/components'
+
+# De shares van de Mac mini
+
+De media-apps op `docker` draaien, de routes werken, maar de mappen zijn
+leeg. Dan mist `docker` de NFS-shares van de Mac mini. Dat is de stilste
+storing in dit huis.
+
+<Steps>
+
+### Zet de shares terug op de Mac mini
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+`-K` vraagt je sudo-wachtwoord van de Mini. Dat hoort zo.
+
+Fout `[Errno 1] Operation not permitted` op `/etc/exports`? Zie
+[TCC: sshd moet Volledige schijftoegang hebben](/runbooks/disaster-recovery/goed-om-te-weten/#tcc-sshd-moet-volledige-schijftoegang-hebben).
+
+### Mount ze opnieuw op `docker`
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker
+```
+
+Mount de drie shares (`/mnt/media01`, `/mnt/faststore`, `/mnt/ssdnas`) en
+zet de stacks op.
+
+### Herstart de media-stack
+
+```bash
+ssh docker 'sudo docker restart $(sudo docker ps -q --filter label=com.docker.compose.project=media-stack)'
+```
+
+Een container die startte toen de share er niet was, blijft in de lege map
+kijken tot hij herstart.
+
+</Steps>
+
+| Export op de Mini | Mount op `docker` |
+| --- | --- |
+| `/Volumes/media01` | `/mnt/media01` |
+| `/Volumes/FastStore` | `/mnt/faststore` |
+| `/Volumes/SSD Nas` | `/mnt/ssdnas` |
+
+Bron: `nfs_exports_shares` in `inventory/host_vars/macmini.yml` en
+`docker_stacks_nfs_mounts` in `inventory/host_vars/docker.yml`.

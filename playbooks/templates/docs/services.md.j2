@@ -50,7 +50,7 @@ flowchart LR
 | Dienst | Wat het is | Stack |
 | --- | --- | --- |
 {% for s in sites | sort(attribute='name') -%}
-| [{{ s.name }}](/technisch/services/{{ s.name }}/) | {{ s.desc | default('_niet gedocumenteerd_') }}{{ ' _(geen webroute)_' if s.ports is defined }} | {{ ('[' ~ s.stack ~ '](/technisch/machines/#' ~ s.host ~ ')') if s.stack is defined else '—' }} |
+| [{{ s.name }}](/homelab/diensten/{{ s.name }}/) | {{ s.desc | default('_niet gedocumenteerd_') }}{{ ' _(geen webroute)_' if s.ports is defined }} | {{ ('[' ~ s.stack ~ '](/homelab/machines/#' ~ s.host ~ ')') if s.stack is defined else '—' }} |
 {% endfor %}
 
 {% endfor %}

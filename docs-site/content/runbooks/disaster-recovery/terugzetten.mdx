@@ -1,0 +1,105 @@
+---
+title: Terugzetten uit back-up
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Terugzetten uit de back-up
+
+Voor alles waarvan de schijf het punt is: `adguard` (filterinstellingen,
+upstreams), `semaphore` (projecten, geschiedenis), `docker`, Home Assistant.
+
+Voorbeeld: `adguard` (ct 107). Alle commando's met `pct`/`qm`/`pvesm` draai je
+op pve01 (`ssh pve01`).
+
+<Steps>
+
+### Zoek de back-up die je wil
+
+```bash
+sudo pvesm list pbs | grep '/107/'
+```
+
+Je krijgt volledige namen zoals `pbs:backup/ct/107/2026-09-20T02:30:00Z`.
+Kopieer de **nieuwste van vóór de storing**, in zijn geheel.
+
+### Twijfel je? Test hem eerst ernaast
+
+```bash
+sudo pct restore 199 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd
+sudo pct set 199 --delete net0     # netwerkkaart eraf: anders botst hij met het origineel
+sudo pct start 199
+sudo pct exec 199 -- ls /opt/AdGuardHome   # kijk of je data erin staat
+sudo pct stop 199; sudo pct destroy 199
+```
+
+Dit raakt het origineel niet aan. Of laat een playbook het doen:
+`ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=adguard`.
+
+<Callout type="warning">
+Vergeet `--delete net0` niet. De back-up draagt het IP en MAC-adres van het
+origineel: start je hem zo, dan heb je twee machines op hetzelfde adres.
+</Callout>
+
+### Zet het origineel stil
+
+```bash
+sudo pct stop 107     # een VM: sudo qm stop 103
+```
+
+### Zet de back-up terug
+
+**Een container:**
+
+```bash
+sudo pct restore 107 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd --force
+```
+
+**Een VM:**
+
+```bash
+sudo qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd --force
+```
+
+`--force` overschrijft wat er op dat nummer staat. Kijk dus twee keer naar
+het nummer. Bestaat de guest niet meer, dan mag `--force` weg.
+
+<Callout type="warning">
+De volgorde verschilt: bij `pct restore` komt **het nummer eerst**, bij
+`qmrestore` **de back-up eerst**. Dat is geen typefout.
+
+`--storage`: neem dezelfde als het origineel (zie
+[Welke guest is wat](/runbooks/disaster-recovery/#welke-guest-is-wat)).
+`semaphore` staat op `local-lvm`, de rest op `vm-hdd`.
+</Callout>
+
+### Start hem
+
+```bash
+sudo pct start 107    # een VM: sudo qm start 103
+```
+
+### Trek hem gelijk met de repo
+
+Terug op je werkstation:
+
+```bash
+ansible-playbook playbooks/site.yml --limit adguard
+```
+
+De back-up draait de configuratie van toen. Deze run brengt hem naar wat de
+repo nu zegt.
+
+<Callout type="info">
+Terugzetten van `semaphore`? Gebruik dan `ansible-playbook playbooks/semaphore.yml`
+in plaats van `site.yml --limit semaphore`. Die laatste faalt: Semaphore moet
+eerst de hostkeys van alle machines ophalen.
+</Callout>
+
+### Krijg je "REMOTE HOST IDENTIFICATION HAS CHANGED"?
+
+```bash
+ssh-keygen -R 192.168.0.29    # het adres van de teruggezette guest
+```
+
+</Steps>

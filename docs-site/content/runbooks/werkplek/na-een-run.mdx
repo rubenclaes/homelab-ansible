@@ -1,0 +1,23 @@
+---
+title: Na een run
+---
+
+# Na een run
+
+Bijna elk playbook heeft een logische volgende stap: controleren of het klopt,
+of de rest laten bijtrekken.
+
+| Draaide je | Draai dan | Waarom |
+| --- | --- | --- |
+| `site.yml` | `site.yml --check --diff` | een tweede keer hoort niets meer te veranderen |
+| `new-guest.yml` | `site.yml --limit <host>`, daarna `dotfiles.yml` | de dienst erop, en de nieuwe `ssh <host>` |
+| `caddy.yml` | `caddy-smoketest.yml` | vraagt elke route echt op, faalt op een dode |
+| `stacks.yml` (nieuwe stack) | `caddy.yml`, `docs.yml` | route en servicepagina volgen de stack |
+| `update.yml` | `report.yml` | de lijst met openstaande updates hoort nu leeg |
+| iets in de inventory | `docs.yml` | Diensten en Machines onder Homelab komen daaruit |
+| wat dan ook, later | `drift.yml` | is er sindsdien iets met de hand gewijzigd |
+
+`report.yml` publiceert naar [report.neodata.be](https://report.neodata.be):
+de snelste blik op de hele vloot (schijf, uptime, herstarts, openstaande
+updates, back-ups, route-drift). Waarom deze controle-playbooks niet in
+`site.yml` zitten staat in [Onderhoud](/runbooks/onderhoud/).

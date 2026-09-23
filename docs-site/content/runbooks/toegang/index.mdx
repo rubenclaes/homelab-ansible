@@ -1,0 +1,42 @@
+---
+title: Toestellen en toegang
+---
+
+import { Callout } from 'nextra/components'
+
+# Toestellen en toegang
+
+Toestellen op het netwerk, mensen toegang geven of afnemen, en sites
+blokkeren. Dit gebeurt met de hand in UniFi, Tailscale, NeoGate en AdGuard,
+niet via Ansible.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Een **nieuw toestel** moet op het netwerk, met een vast adres | een printer, een NAS | [Nieuw toestel](/runbooks/toegang/nieuw-toestel/) |
+| Een toestel is **kwijt of weg** | gestolen telefoon | [Toestel kwijt](/runbooks/toegang/toestel-kwijt/) |
+| Je wil **zelf van buitenaf** aan het homelab | op reis, over 4G | [Zelf van buitenaf](/runbooks/toegang/van-buitenaf/) |
+| Iemand wil een **dienst** gebruiken | je zus wil Immich en Plex | [Iemand diensten geven](/runbooks/toegang/diensten-geven/) |
+| Iemand moet aan het **hele thuisnetwerk** | iemand die mee beheert | [Iemand VPN geven](/runbooks/toegang/vpn-geven/) |
+| Er komt iemand **op bezoek** | wifi, bestanden delen | [Gast op bezoek](/runbooks/toegang/gast-op-bezoek/) |
+| Iemand moet er **niet meer bij** | een ex-huisgenoot | [Toegang afnemen](/runbooks/toegang/toegang-afnemen/) |
+| Een site **laadt niet** of moet **geblokkeerd** | een link in een mail doet niets | [Blokkeren](/runbooks/toegang/blokkeren/) |
+
+## Woorden die je nodig hebt
+
+**NeoGate** — je eigen app op [neogate.neodata.be](https://neogate.neodata.be). Maakt accounts aan in Plex, Immich en de andere diensten, en haalt ze weer weg.
+
+**Tailnet** — het Tailscale-netwerk. Wie erop zit, komt aan je diensten.
+
+**WireGuard** — de VPN op de UniFi-gateway. Geeft het hele thuisnetwerk.
+
+**Fixed IP** — een vast adres in UniFi, zodat een toestel na een herstart hetzelfde adres houdt.
+
+<Callout type="info">
+De knoppen in deze runbooks zijn uit de documentatie en de code gehaald, niet
+in het scherm nagelopen. Heet een knop anders, zoek hem in hetzelfde menu.
+</Callout>
+
+Nieuwe machine of dienst op pve01? Dat is [Nieuwe machine](/runbooks/nieuwe-guest/)
+en [Dienst toevoegen](/runbooks/dienst-toevoegen/).

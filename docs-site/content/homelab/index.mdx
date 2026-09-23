@@ -1,23 +1,17 @@
 ---
-title: Homelab
+title: Overzicht
 ---
 
 # Homelab
 
-Niet via Ansible: UniFi, Tailscale, WireGuard, NeoGate, AdGuard.
-Alles via Ansible staat onder Technish.
+Wat er is. Hoe je iets doet, staat onder [Runbooks](/runbooks/).
 
-
-| Ik wil… | Ga naar |
+| Ik wil weten… | Ga naar |
 | --- | --- |
-| een nieuw toestel op het netwerk zetten, met een vast adres | [Nieuw toestel](/homelab/toestellen/nieuw-toestel/) |
-| een toestel dat kwijt of weg is afsluiten | [Toestel kwijt](/homelab/toestellen/toestel-kwijt/) |
-| zelf van buitenaf aan het homelab | [Zelf van buitenaf](/homelab/toegang/van-buitenaf/) |
-| iemand Immich, Plex of een andere dienst geven | [Iemand diensten geven](/homelab/toegang/diensten-geven/) |
-| iemand VPN-toegang geven | [Iemand VPN geven](/homelab/toegang/vpn-geven/) |
-| iemand op bezoek laten meedoen | [Gast op bezoek](/homelab/toegang/gast-op-bezoek/) |
-| iemand zijn toegang afnemen | [Toegang afnemen](/homelab/toegang/toegang-afnemen/) |
-| een site blokkeren of juist deblokkeren | [Blokkeren](/homelab/internet-en-dns/blokkeren/) |
+| welke diensten er zijn en op welk adres | [Diensten](/homelab/diensten/) |
+| welke machines er zijn, en wat er op elke machine draait | [Machines](/homelab/machines/) |
+| hoe DNS, Tailscale en de VPN in elkaar zitten | [Netwerk](/homelab/netwerk/) |
 
-Nieuwe machine/dienst op pve01? Dat is [Nieuwe machine](/technisch/runbooks/nieuwe-guest/)
-en [Dienst toevoegen](/technisch/runbooks/dienst-toevoegen/).
+Diensten en Machines worden gemaakt uit de inventory door
+`playbooks/docs.yml`, dus ze kloppen met wat Ansible beheert. Bewerk de
+inventory, niet die pagina's. Netwerk is met de hand geschreven.

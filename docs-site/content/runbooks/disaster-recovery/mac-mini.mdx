@@ -1,0 +1,104 @@
+---
+title: Mac mini is weg
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# De Mac mini is weg
+
+Wat je kwijt bent:
+
+| Weg | Gevolg |
+| --- | --- |
+| de tweede back-upkopie (`macmini-backup`) | alleen PBS nog, en die staat op pve01 zelf |
+| de drie NFS-shares | de media-stack op `docker` valt om |
+| Plex en zes compose-stacks | die draaien nergens anders |
+
+pve01, PBS en de guests zijn ongemoeid.
+
+<Callout type="error">
+Dit pad is **nooit volledig gelopen**. `nfs.yml` heeft één keer echt gedraaid,
+`stacks.yml --limit macmini` alleen droog. Reken op verrassingen, vooral rond
+Homebrew: de Mini draait macOS 14, waar alles vanaf broncode bouwt.
+</Callout>
+
+<Steps>
+
+### Installeer macOS en geef hem hetzelfde adres
+
+Hij moet weer op `192.168.0.26`. Dat adres staat vast in de inventory, in de
+mounts van `docker` en in de opslag `macmini-backup` op pve01.
+
+Geef de schijven **dezelfde namen**: `media01`, `FastStore`, `SSD Nas`.
+
+### Geef Ansible toegang
+
+Zet op de Mini *Extern inloggen* (SSH) aan. Dan, vanaf je werkstation:
+
+```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub rubenclaes@192.168.0.26
+```
+
+Ansible logt op de Mini in als `rubenclaes`, niet als `ansible`.
+
+### Geef `sshd` Volledige schijftoegang
+
+Op de Mini zelf:
+
+> Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `+`
+> → cmd-shift-G → `/usr/libexec/sshd-keygen-wrapper`
+
+Zonder dit faalt de volgende stap. Verbind daarna **opnieuw**. Uitleg:
+[TCC](/runbooks/disaster-recovery/goed-om-te-weten/#tcc-sshd-moet-volledige-schijftoegang-hebben).
+
+### Zet de shares terug
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+Eerst dit: `docker` wacht erop. Volg daarna stap 2 en 3 van
+[Shares van de Mac mini](/runbooks/disaster-recovery/mac-mini-shares/).
+
+### Installeer Plex en OrbStack met de hand
+
+Allebei staan ze buiten Homebrew en geen playbook zet ze terug. Zonder
+OrbStack is er geen Docker op de Mini. Het waarom staat in
+`inventory/host_vars/macmini.yml`.
+
+### Zet brew en casks terug
+
+```bash
+ansible-playbook playbooks/site.yml --limit macmini
+```
+
+### Maak het Docker-netwerk aan
+
+```bash
+ssh rubenclaes@192.168.0.26 '/Applications/OrbStack.app/Contents/MacOS/xbin/docker network create External'
+```
+
+De compose-files delen dit netwerk, en geen rol maakt het aan.
+
+### Zet de stacks terug
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit macmini
+```
+
+De eerste run **faalt op de git clone**, en dat hoort zo. Hij drukt een
+publieke sleutel af: zet die op GitHub bij `rubenclaes/homelab` → Settings →
+Deploy keys. Draai het daarna opnieuw.
+
+### Maak de back-upmap aan
+
+```bash
+ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
+ssh pve01 'sudo pvesm status | grep macmini-backup'    # moet "active" zeggen
+```
+
+Pas dan komt de tweede kopie terug. De oude dumps zijn weg met de schijf.
+Wacht tot zondag 01:00, of start de job met de hand in het Proxmox-scherm:
+Datacenter → Backup → de job naar `macmini-backup` → *Run now*.
+
+</Steps>

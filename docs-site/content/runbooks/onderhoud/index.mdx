@@ -1,0 +1,35 @@
+---
+title: Onderhoud
+---
+
+# Onderhoud
+
+Voor **kijken, opruimen of opschrijven**, niet installeren. Alle commando's
+draai je vanuit de root van deze repo.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil in één oogopslag zien of alles gezond is | openstaande updates, certificaat bijna verlopen, een poort zonder route | [Gezondheidsrapport](/runbooks/onderhoud/rapport/) |
+| Je vermoedt dat er iets met de hand gewijzigd is | iemand paste een config aan op `caddy` buiten de repo om | [Drift zoeken](/runbooks/onderhoud/drift/) |
+| Je wil weten of DNS nog klopt | `ssh pve01.home.arpa` vindt de host niet meer | [DNS controleren](/runbooks/onderhoud/dns/) |
+| Een schijf loopt vol | oude kernels op `pve01`, oude images op `docker` | [Schijfruimte vrijmaken](/runbooks/onderhoud/schijfruimte/) |
+| Je weet niet precies wat er op een host draait | `docker-grafana-stack`, de Mac mini | [Host in kaart brengen](/runbooks/onderhoud/host-in-kaart/) |
+| Je wil weten welke guests er echt draaien, of het API-token nog werkt | Ansible ziet een host niet | [Guests en API-token](/runbooks/onderhoud/guests/) |
+| Je wil zien wie er aanklopte bij de reverse proxy | 500-fouten op `plex.neodata.be` | [Caddy-logs doorzoeken](/runbooks/onderhoud/caddy-logs/) |
+| Je veranderde iets in de inventory of de runbooks | nieuwe route, andere hostnaam | [Docs-site bijwerken](/runbooks/onderhoud/docs-site/) |
+| Je wil een schema in Semaphore toevoegen of wijzigen | Drift check een uur later laten lopen | [Schema in Semaphore](/runbooks/onderhoud/semaphore-schema/) |
+
+Alleen weten **wat er vanzelf draait en wanneer**? Zie
+[Wat draait er vanzelf?](/runbooks/onderhoud/vanzelf/)
+
+## Woorden die je nodig hebt
+
+**Drift** — een host die niet meer overeenkomt met wat de repo beschrijft.
+
+**Converge** — `site.yml` draaien, zodat elke host weer gelijk is aan de repo.
+
+**Template** — een job in Semaphore: een playbook, argumenten en eventueel een schema (cron).
+
+**Demper** — een regel in de host_vars die een melding in het rapport bewust stilzet, mét reden.

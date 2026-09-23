@@ -1,0 +1,82 @@
+---
+title: DNS-server van een host omzetten
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# DNS-server van een host omzetten
+
+Een host moet een andere resolver gebruiken. Voorbeeld: `caddy` (ct 106) moet
+`192.168.0.29` gebruiken.
+
+<Steps>
+
+### Kijk eerst hoe de host zijn DNS regelt
+
+```bash
+ssh caddy 'ls -l /etc/resolv.conf'
+```
+
+- **Een pijl `->` in de uitvoer?** Dan beheert systemd-resolved het bestand. Ga naar de stap *Via netplan*.
+- **Geen pijl?** Dan is het een gewoon bestand. Ga naar de stap *Gewoon bestand*.
+
+<Callout type="warning">
+Een `sed` op een gesymlinkte `resolv.conf` lijkt te werken, maar is bij de
+volgende netwerkwijziging weer weg. Kijk dus altijd eerst welk van de
+mechanismen de host gebruikt.
+</Callout>
+
+### Via netplan (bij een symlink)
+
+```bash
+ssh -t docker 'sudoedit /etc/netplan/90-default.yaml'   # zet 192.168.0.29 onder nameservers
+ssh docker 'sudo netplan apply'
+```
+
+Zo staat het op `docker` en `docker-grafana-stack`.
+
+### Gewoon bestand (zonder symlink)
+
+```bash
+ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
+```
+
+### Zet het ook in de LXC-config (alleen bij een LXC)
+
+```bash
+ssh pve01 'sudo pct config 106 | grep search'   # welk searchdomain heeft hij nu?
+ssh pve01 'sudo pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa'
+```
+
+Anders draait een herstart van de container je wijziging terug. Geef
+`--searchdomain` altijd mee (de waarde die je net zag), want die verschilt per
+container.
+
+<Callout type="error">
+Nooit op `tailscale` (ct 108): daar staat `100.100.100.100` en dat beheert
+tailscaled zelf voor MagicDNS.
+</Callout>
+
+### Controleer
+
+```bash
+ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.14 - vanaf de host zelf
+dig +short pve01.home.arpa                 # 192.168.0.14 - vanaf je werkstation
+dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Caddy
+```
+
+`pve01.home.arpa` bewijst het: die naam kent alleen de AdGuard in ct 107.
+
+### Controleer alle namen in één keer
+
+```bash
+ansible-playbook playbooks/dns-smoketest.yml
+```
+
+Vraagt elke naam uit de inventory op bij AdGuard en vergelijkt het antwoord.
+Zie [Onderhoud](/runbooks/onderhoud/) voor wat hij wel en niet dekt.
+
+</Steps>
+
+Welke host welke resolver hoort te hebben: zie
+[Hoe het netwerk nu staat](/homelab/netwerk/#dns-wie-vraagt-wat-aan-wie).

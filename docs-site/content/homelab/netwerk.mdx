@@ -1,0 +1,101 @@
+---
+title: Netwerk
+---
+
+import { Callout } from 'nextra/components'
+
+# Hoe het netwerk staat
+
+Naslag: hoe DNS, Tailscale en de VPN nu in elkaar zitten.
+
+## DNS: wie vraagt wat aan wie
+
+Sinds 23-09 loopt alle naamresolutie via de AdGuard in **ct 107**
+(`192.168.0.29`). De oude AdGuard op de Mac mini (`192.168.0.26`) is weg.
+
+| Wie | Resolver | Hoe |
+| --- | --- | --- |
+| pve01, pbs, caddy, semaphore | `192.168.0.29` | gewone `/etc/resolv.conf` |
+| docker, docker-grafana-stack | `192.168.0.29` | via netplan |
+| adguard zelf | `127.0.0.1` + `1.1.1.1` | hij ís de resolver; `1.1.1.1` is het vangnet om nog te kunnen updaten als hij stilstaat |
+| tailscale (ct 108) | `100.100.100.100` | **niet aankomen**, tailscaled beheert dit |
+| de Mac mini | `192.168.0.29` | sinds zijn eigen AdGuard weg is |
+| telefoons, laptops thuis | `192.168.0.29` | via DHCP in UniFi |
+| via WireGuard | `192.168.0.29` | ingesteld in UniFi, ingebakken in het profiel |
+| via de tailnet | `100.84.46.18` | het tailnet-adres van ct 107, globale nameserver in de Tailscale-console |
+
+<Callout type="warning">
+Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
+`1.1.1.1`. Staat ct 107 stil en is er geen tweede, dan heeft het hele huis geen
+internet, ook het toestel waarmee je het zou repareren niet.
+</Callout>
+
+## Twee soorten namen
+
+| Namen | Wijst naar | Beheerd door |
+| --- | --- | --- |
+| `*.home.arpa` | één regel per host | `roles/adguard`, uit de inventory |
+| `*.neodata.be` | één wildcard naar Caddy (`192.168.0.25`) | met de hand in AdGuard |
+
+De rol raakt alleen rewrites onder `home.arpa` aan. De wildcard blijft dus staan.
+
+## Twee wegen naar binnen
+
+| Weg | Draait op | Weg als |
+| --- | --- | --- |
+| Tailscale, ct 108 | pve01 | pve01 eruit ligt |
+| WireGuard "Neodata VPN" | de UniFi-gateway | de gateway eruit ligt |
+
+Ze vallen los van elkaar om, en dat is met opzet. Ligt pve01 eruit (precies
+wanneer je erbij wil), dan werkt WireGuard nog.
+
+WireGuard, zoals het staat:
+
+| | |
+| --- | --- |
+| Endpoint | `vpn.neodata.be:51820` (WAN `94.111.99.122` op 22-09) |
+| VPN-subnet | `10.10.30.0/24`, gateway `10.10.30.1` |
+| Biedt aan | `192.168.0.0/24` (`Allowed IPs` op de client) |
+| Profielen | één: de iPhone, `10.10.30.2/32` |
+
+## Hoe de Tailscale-weg op het LAN komt
+
+ct 108 is een subnet router: hij biedt `192.168.0.0/24` aan, en die route is
+goedgekeurd in de Tailscale-console. Wie de route aanneemt, komt onderweg via
+Tailscale bij elk `192.168.0.x`-adres, en dus bij alle diensten. Getest op
+23-09: de iPhone, over 4G, opende `ntfy.neodata.be` met alleen Tailscale aan.
+
+Aannemen gebeurt per toestel. Op iOS en Android heet het "Use Tailscale
+subnets", op de Mac `RouteAll` (`--accept-routes` op de commandline).
+
+| Toestel | Neemt de route aan | Waarom |
+| --- | --- | --- |
+| iPhone, MacBook | ja | ze reizen mee |
+| Mac mini, ct 107, ct 108 | nee, met opzet | ze zitten zelf al op `192.168.0.0/24`. Een route naar je eigen LAN via Tailscale laat het verkeer een omweg maken en breekt verbindingen die rechtstreeks moeten |
+
+<Callout type="warning">
+Een verloren of gestolen toestel met Tailscale komt daardoor ook op het LAN.
+Trek het in via de Tailscale-console, net als een WireGuard-profiel.
+
+### Wie mag wat via Tailscale
+
+De subnet-route geeft niet iedereen het hele netwerk. De toegangsregels van de
+tailnet (Access controls in de console) beperken wie waar mag komen:
+
+| Wie | Mag bij | Waarom |
+| --- | --- | --- |
+| jij (`rubes.claes@gmail.com`) | alles | beheer |
+| iedereen anders op de tailnet | Caddy `192.168.0.25`, poort 80 en 443 | alle diensten (`*.neodata.be`) lopen via Caddy |
+| iedereen anders op de tailnet | `adguard` (tag `homelab`), poort 53 | zonder DNS lost `*.neodata.be` niet op |
+
+Tot 23-09 stond daar de standaardregel "alles mag alles". Iedereen die via
+NeoGate Tailscale kreeg, kon toen ook bij pve01, Proxmox, SSH en de Mac mini.
+
+De console is de bron. `files/tailscale/policy.hujson` is het afschrift: geen
+playbook leest het. Pas je de regels aan, plak de nieuwe versie in dat bestand
+en commit, zodat een wijziging een diff heeft.
+
+Gevolg voor Plex: de Plex-app van een ander probeert soms eerst de Mac mini
+rechtstreeks (`192.168.0.26:32400`). Dat is dicht, dus hij valt terug op de
+eigen verbinding van Plex van buitenaf, of op `plex.neodata.be`.
+</Callout>
