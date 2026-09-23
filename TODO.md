@@ -45,6 +45,25 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
       Met `vault_semaphore_api_user` en `vault_semaphore_api_password`: de
       login van de web-UI.
 
+- [ ] **Drie dubbele templates weggooien in de UI.** Op 23-09 is de lijst er
+      eerst met eigen namen ingezet, en dat maakte duplicaten naast wat er al
+      stond: `Site (apply)` (id 11), `Drift (report)` (id 12) en
+      `Cleanup (apply)` (id 13, kleine a). Alle drie hebben een schema, dus
+      tot ze weg zijn draaien die jobs dubbel - en `Site (apply)` doet dat
+      zondag 03:00 zónder de limit `all:!mbp:!semaphore`.
+
+      De repo is inmiddels aangepast aan de bestaande namen, dus een nieuwe
+      run maakt ze niet opnieuw aan. Weggooien kan alleen met de hand: de rol
+      verwijdert niets.
+
+- [ ] **De zes overgebleven templates overnemen in de repo.**
+      `Baseline (dry run)`, `Caddy`, `Cleanup (report)`, `Docs`,
+      `Homelab Report` en `Stacks` staan nog alleen in de UI. Docs draait
+      dagelijks 07:00 en Homelab Report zondag 08:00; de andere vier hebben
+      geen schema. Kopieerwerk, geen ontwerpwerk - maar zolang het niet
+      gebeurd is, is "welk playbook draait wanneer" nog steeds niet volledig
+      in git te lezen.
+
 - [ ] **`semaphore-templates.yml` eerst met `--check` draaien, dan echt.**
       Lees de rapportageregel voor je hem loslaat. `name` is de sleutel:
       staat er iets onder `create` dat je dacht bij te werken, dan wijkt de
@@ -66,15 +85,6 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
 ---
 
 ## Opruimen in de estate
-
-- [ ] **De VPN deelt de verkeerde DNS uit.** WireGuard op de UniFi-gateway
-      geeft clients `192.168.0.26` mee - de AdGuard op de Mac mini, precies
-      degene die uit moet. Zet hem in de UniFi-controller op `192.168.0.29`
-      en download het iPhone-profiel opnieuw: de clientconfiguratie heeft die
-      waarde ingebakken, dus alleen serverzijde wijzigen is niet genoeg.
-      **Doe dit vóór je de AdGuard op de Mini uitzet**, anders heeft je VPN
-      geen naamresolutie meer. AdGuard op `.29` beperkt geen clients, dus
-      `10.10.30.x` mag meteen vragen stellen.
 
 - [ ] **`vpn.neodata.be` hangt aan een dynamisch WAN-adres.** Hij wees op
       22-09 naar `94.111.99.122` en dat klopte, maar de VPN-server staat op
