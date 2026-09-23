@@ -39,7 +39,11 @@ caddy_sites:
   # de docker-host: wie meldt dat de docker-VM plat ligt, mag er niet zelf op
   # draaien. Proxmox stuurt NIET via deze naam maar rechtstreeks naar het IP,
   # zodat een melding niet van Caddy of AdGuard afhangt.
-  - { name: ntfy, host: ntfy, port: 80, desc: "ntfy — meldingen van de homelab naar je telefoon" }
+  #
+  # `upstream` vast, niet afgeleid: het adres van een gestopte container
+  # ontbreekt in de inventory, en dan faalde de Caddyfile voor elke site - ook
+  # tijdens een gewone herbouw van ntfy. Het IP staat vast in pve_oci_lxcs.
+  - { name: ntfy, host: ntfy, port: 80, upstream: "192.168.0.32:80", desc: "ntfy — meldingen van de homelab naar je telefoon" }
 
   # --- Beheer ---
   # De vier webinterfaces van de infrastructuur zelf. Ze draaiden alleen op

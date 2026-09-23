@@ -113,8 +113,14 @@ docs.{{ caddy_domain }} {
 {% for site in caddy_sites %}
 {# Upstream is derived from the inventory host's ansible_host, so an IP change
    is made in one place. `upstream:` on the site overrides it for anything that
-   is not an inventory host. #}
-{% set upstream = site.upstream | default(hostvars[site.host]['ansible_host'] ~ ':' ~ site.port) %}
+   is not an inventory host, or whose runtime address can be missing.
+   An if, not `| default(...)`: default's argument is evaluated anyway, so a
+   host without ansible_host (a stopped container) broke every site. #}
+{% if site.upstream is defined %}
+{% set upstream = site.upstream %}
+{% else %}
+{% set upstream = hostvars[site.host]['ansible_host'] ~ ':' ~ site.port %}
+{% endif %}
 {{ site.name }}.{{ caddy_domain }} {
 	import proxy_defaults
 {% if site.https | default(false) or site.host_header | default(false) or site.forwarded | default(false) %}
