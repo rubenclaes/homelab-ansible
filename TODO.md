@@ -115,28 +115,17 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
 
         curl -sL https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.XX/checksums.txt | grep linux_amd64
 
-- [ ] **De AdGuard op de Mac mini uitzetten.** Al het andere is af: sinds
-      22-09 loopt de hele estate via de LXC op `192.168.0.29`, die Ansible
-      beheert en PBS meeneemt - hosts, containers en DHCP. Het waarom staat
-      in de netwerk-runbook.
+- [ ] **Twee stacks op de Mini komen niet terug na een herstart van OrbStack.**
+      Op 23-09 herstartte OrbStack om 08:34. Vijf van de zeven stacks kwamen
+      vanzelf terug, `duplicati` en `shelfmark` niet - ze bleven op `exited`
+      staan (137 en 255) terwijl hun compose `restart: unless-stopped` zegt.
+      Met de hand weer opgestart.
 
-      Wat rest is de Mini zelf. Zijn AdGuard draait nog en hij wijst met de
-      hand naar zichzelf, op zowel `Ethernet` als `USB 10/100/1G/2.5G LAN`
-      (en7 is de actieve). Handmatig ingesteld, dus DHCP bereikt hem niet.
-      `sudo` vraagt daar een wachtwoord, dus dit is handwerk:
-
-        ssh -t macmini 'sudo networksetup -setdnsservers "USB 10/100/1G/2.5G LAN" 192.168.0.29 1.1.1.1'
-        ssh -t macmini 'sudo networksetup -setdnsservers "Ethernet" 192.168.0.29 1.1.1.1'
-        ssh macmini 'dig +short pve01.home.arpa; dig +short books.neodata.be'
-
-      Verwacht `192.168.0.14` en `192.168.0.25`. Klopt dat, pas dán:
-
-        ssh -t macmini 'sudo /Applications/AdGuardHome/AdGuardHome -s stop'
-
-      Omkeerbaar met `-s start`. LET OP dat hij bij een herstart van de Mini
-      gewoon terugkomt - denk je dat hij uit is, dan heb je er stilletjes
-      weer twee. Definitief weg is `-s uninstall`, als je een paar dagen
-      zeker weet dat je hem niet mist.
+      Zolang dat niet uitgezocht is, betekent elke herstart van OrbStack of
+      van de Mini dat je back-updienst stil uit staat. Kijk naar de
+      opstartvolgorde: allebei hangen ze aan paden onder
+      `/Users/rubenclaes/Container` en Duplicati ook aan `/Volumes/media01`.
+      Een volume dat er bij het starten nog niet is verklaart precies dit.
 
 - [ ] **De Mac mini: van beschreven naar beheerd.**
       `host_vars/macmini.yml` beschrijft hem nu wél — brew-formules, casks,
