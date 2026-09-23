@@ -45,16 +45,19 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
       Met `vault_semaphore_api_user` en `vault_semaphore_api_password`: de
       login van de web-UI.
 
-- [ ] **Drie dubbele templates weggooien in de UI.** Op 23-09 is de lijst er
-      eerst met eigen namen ingezet, en dat maakte duplicaten naast wat er al
-      stond: `Site (apply)` (id 11), `Drift (report)` (id 12) en
-      `Cleanup (apply)` (id 13, kleine a). Alle drie hebben een schema, dus
-      tot ze weg zijn draaien die jobs dubbel - en `Site (apply)` doet dat
-      zondag 03:00 zónder de limit `all:!mbp:!semaphore`.
+- [ ] **`Cleanup (apply)` (id 13) weggooien in de UI**, die met de kleine a.
+      Hij heeft een schema op zaterdag 03:00 en `Cleanup (Apply)` (id 15) ook,
+      dus tot dat gebeurt draait die job dubbel.
 
-      De repo is inmiddels aangepast aan de bestaande namen, dus een nieuwe
-      run maakt ze niet opnieuw aan. Weggooien kan alleen met de hand: de rol
-      verwijdert niets.
+      De rest van de opruiming van 23-09 is af: `Site (apply)` en
+      `Drift (report)` zijn weg. Bij het opruimen is per ongeluk id 10
+      verwijderd - de originele `Cleanup (Apply)` - waarna de rol hem opnieuw
+      aanmaakte als id 15. Die twee namen verschillen alleen in een
+      hoofdletter, dus ga op het id af en niet op de naam. De taakgeschiedenis
+      van id 10 is daarmee weg.
+
+      Weggooien kan alleen met de hand: de rol verwijdert niets. Een nieuwe
+      run maakt id 13 ook niet opnieuw aan, want de repo beschrijft hem niet.
 
 - [ ] **De zes overgebleven templates overnemen in de repo.**
       `Baseline (dry run)`, `Caddy`, `Cleanup (report)`, `Docs`,

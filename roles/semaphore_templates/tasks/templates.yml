@@ -5,6 +5,23 @@
 # template, dus een naam veranderen in semaphore_templates_list maakt een
 # nieuwe template en laat de oude staan. Dat is de prijs van niet verwijderen.
 
+# LET OP `environment_ids`, naast `environment_id`. Dat is geen dubbelop: in
+# Semaphore is de environment geen kolom op de template maar een rij in
+# project__template_environment, en zowel CreateTemplate als UpdateTemplate
+# vullen die tabel met een `delete` gevolgd door een `insert` van precies wat
+# `environment_ids` bevat. Stuur je alleen `environment_id`, dan wordt het
+# genegeerd - het veld staat in de Go-struct als `db:"-"` - en blijft de
+# koppeling leeg. Een template zonder environment draait zonder zijn
+# variabelen, en dat merk je pas als de job raar doet.
+#
+# Andersom lezen doet Semaphore wel uit die tabel: `environment_id` in een
+# GET is gewoon `environment_ids[0]`. Daarom vergelijkt de taak verderop
+# `environment_id` en stuurt deze `environment_ids`.
+# `separators` zonder spaties, want Semaphore bewaart `arguments` als een
+# kale string en vergelijkt deze rol hem als string. De web-UI schrijft
+# compacte JSON; zou dit `["--limit", "..."]` met spatie sturen, dan is elke
+# met de hand gezette waarde "anders" en schrijft de eerste run hem over
+# zonder dat er iets verandert.
 - name: Build the wanted templates
   ansible.builtin.set_fact:
     semaphore_templates_wanted: >-
@@ -12,9 +29,10 @@
            'name': item.name,
            'playbook': item.playbook,
            'description': item.description | default(''),
-           'arguments': item.arguments | default([]) | to_json,
+           'arguments': item.arguments | default([]) | to_json(separators=[',', ':']),
            'project_id': semaphore_templates_project_id | int,
            'app': 'ansible',
+           'environment_ids': [semaphore_templates_ids.environment_id | int],
          } | combine(semaphore_templates_ids)] }}
   loop: "{{ semaphore_templates_list }}"
   loop_control:
@@ -37,10 +55,22 @@
 # Alleen de velden die deze rol bezit worden vergeleken. Alles daarbuiten -
 # surveys, views, vaults, de vlaggen onder "Advanced" - mag in de UI staan
 # zoals het staat, en een verschil daar hoort geen update uit te lokken.
+#
+# En daarom gaat het payload uit wat de server NU heeft, met onze velden
+# eroverheen. De API kent geen gedeeltelijke update: zijn UPDATE-statement zet
+# elke kolom uit het verzoek, dus een veld dat je weglaat wordt leeggemaakt.
+# Zou dit alleen onze eigen velden sturen, dan wist elke update de survey,
+# de view en de task_params van een template - stil, en pas merkbaar bij de
+# volgende run van die job.
+#
+# `last_task` gaat er weer af: die schrijft Semaphore niet terug (`db:"-"`) en
+# hij sleept het hele laatste taakobject mee door het log.
 - name: Work out which templates differ
   ansible.builtin.set_fact:
     semaphore_templates_update: >-
-      {{ semaphore_templates_update | default([]) + [item | combine({'id': semaphore_templates_current.id | int})] }}
+      {{ semaphore_templates_update | default([])
+         + [semaphore_templates_current | combine(item)
+            | dict2items | rejectattr('key', 'equalto', 'last_task') | items2dict] }}
   loop: "{{ semaphore_templates_wanted | default([]) }}"
   loop_control:
     label: "{{ item.name }}"

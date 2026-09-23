@@ -28,6 +28,17 @@
     drift_dir: "{{ playbook_dir }}/../.drift"
     drift_log: "{{ playbook_dir }}/../.drift/site-check.log"
     drift_target: playbooks/site.yml
+
+    # Leeg betekent: de hele estate. Gezet, dan gaat het als --limit mee naar
+    # de droogloop hieronder - en NIET naar dit playbook zelf, dat op
+    # localhost draait.
+    #
+    # Waarom dit bestaat: vanuit Semaphore hoort `mbp` er niet bij. Die host
+    # heeft ansible_connection: local, dus daar betekent hij "de machine die
+    # de play draait" - de Semaphore-container, die geen Homebrew heeft en
+    # geen MacBook is. Aan je eigen bureau klopt hij wel. Vandaar dat het
+    # schema `all:!mbp:!semaphore` meegeeft en jij hier meestal niets zet.
+    drift_limit: ""
   tasks:
     - name: Zorg dat de logmap bestaat
       ansible.builtin.file:
@@ -43,7 +54,9 @@
     # van dit playbook. De samenvatting hieronder zegt het.
     - name: Draai de converge in droogloop
       ansible.builtin.command:
-        cmd: ansible-playbook {{ drift_target }} --check --diff
+        cmd: >-
+          ansible-playbook {{ drift_target }} --check --diff
+          {{ ('--limit ' ~ drift_limit) if drift_limit | length > 0 else '' }}
         chdir: "{{ drift_root }}"
       environment:
         ANSIBLE_NOCOLOR: "1"

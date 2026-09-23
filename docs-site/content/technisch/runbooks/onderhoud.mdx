@@ -298,20 +298,50 @@ De lijst staat nu in `semaphore_templates_list` in
 eventuele argumenten en een cron:
 
 ```yaml
-- name: "Drift (report)"
+- name: "Drift check"
   playbook: playbooks/drift.yml
   description: "Wat zou site.yml veranderen?"
-  arguments: ["-e", "drift_fail=true"]
+  arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
   schedule: "0 6 * * *"
 ```
 
 | Template | Wanneer | Waarom dan |
 | --- | --- | --- |
-| Site (apply) | zondag 03:00 | wekelijks gelijktrekken; drift repareert zichzelf |
-| Drift (report) | dagelijks 06:00 | ná de wekelijkse apply, zodat je ziet wat er tussendoor afwijkt |
-| Cleanup (apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
+| Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
+| Drift check | dagelijks 06:00 | ná de wekelijkse converge, zodat je ziet wat er tussendoor afwijkt |
+| Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
+| Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
 | Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
-| Update guests | geen schema | updates blijven iets waar je bij bent |
+
+<Callout type="error">
+**De namen zijn niet vrij te kiezen.** Ze zijn overgenomen uit wat er al in de
+UI stond, en dat is de les van 23-09: de lijst is er die dag eerst met eigen
+namen ingezet, en toen kreeg je `Cleanup (apply)` naast het bestaande
+`Cleanup (Apply)` — alleen een hoofdletter verschil, allebei met een schema op
+zaterdag 03:00. Hetzelfde met `Site (apply)` naast `Site converge` en
+`Drift (report)` naast `Drift check`.
+
+Drie dubbele jobs, en de ergste was een site-converge zónder de limit
+`all:!mbp:!semaphore` die in de bestaande template zat. Die kennis staat in de
+UI en niet in je hoofd, dus kijk eerst wat er staat.
+</Callout>
+
+Twee limits die je niet moet weghalen. `!semaphore` houdt een job van de
+container af waarop hij zelf draait — herstart hij halverwege, dan is de job
+dood en weet je niet of hij af is. En `!mbp` staat er omdat die host
+`ansible_connection: local` heeft: vanuit Semaphore betekent dat niet "jouw
+MacBook" maar "de container die dit draait". Aan je eigen bureau klopt hij
+wel, en daar draai je zonder limit.
+
+`Drift check` geeft die limit door als `-e drift_limit=...` en niet als
+`--limit`. Dat playbook draait zelf op `localhost` en start de droogloop als
+los commando; een `--limit` zou die ene play raken in plaats van de converge
+eronder.
+
+Nog niet beschreven, en dus nog steeds alleen UI: `Baseline (dry run)`,
+`Caddy`, `Cleanup (report)`, `Docs`, `Homelab Report` en `Stacks`. Twee
+daarvan hebben een schema — Docs dagelijks 07:00, Homelab Report zondag 08:00.
+Ze overnemen is kopieerwerk; het staat in `TODO.md`.
 
 <Callout type="warning">
 `Update guests` draait met `--limit guests:!semaphore`, en dat is geen
@@ -335,6 +365,20 @@ te wijzigen.
 
 Wat de rol niet aanraakt: surveys, views, vaults en de vlaggen onder
 *Advanced*. Die blijven van de UI, en een verschil daar lokt geen update uit.
+
+<Callout type="warning">
+Dat blijven staan kost wel moeite, en dat is de moeite waard om te weten voor
+je de rol ooit "vereenvoudigt". De Semaphore-API kent geen gedeeltelijke
+update: zijn `UPDATE` zet élke kolom uit het verzoek, dus een veld dat je
+weglaat wordt leeggemaakt. Daarom bouwt de rol het payload op uit wat de
+server nu heeft, met alleen onze velden eroverheen.
+
+Om dezelfde reden stuurt hij `environment_ids` mee en niet alleen
+`environment_id`. Die koppeling is geen kolom maar een aparte tabel, die bij
+elke create én update leeggegooid en opnieuw gevuld wordt met precies wat je
+meestuurt. Laat je het veld weg, dan draait de template daarna zonder zijn
+environment — en dat merk je pas als de job raar doet.
+</Callout>
 Ook het aan-uitknopje van een schema blijft: zet je er een in de UI op pauze,
 dan neemt de volgende run die pauze over in plaats van hem stilletjes weer aan
 te zetten. De cron is wat deze rol bezit, niet of hij loopt.

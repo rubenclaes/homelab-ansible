@@ -6,8 +6,12 @@
 #
 # Dat bestand maak je zelf, want het wachtwoord staat nergens in deze repo:
 #
-#   ansible-vault create --vault-id infra@bin/vault-pass-client \
+#   ansible-vault create --encrypt-vault-id infra \
 #     inventory/host_vars/semaphore/vault.yml
+#
+# `--encrypt-vault-id`, niet `--vault-id`: ansible.cfg kent twee identiteiten
+# (infra en stacks), dus bij aanmaken moet je zeggen mét welke je versleutelt.
+# Zonder dat stopt vault met "Specify the vault-id to encrypt with".
 #
 # met daarin vault_semaphore_api_user en vault_semaphore_api_password.
 semaphore_api_user: "{{ vault_semaphore_api_user }}"
@@ -26,25 +30,44 @@ semaphore_api_password: "{{ vault_semaphore_api_password }}"
 # De rol verwijdert nooit iets. Een template die je hier weghaalt blijft in de
 # UI staan, inclusief zijn schema.
 semaphore_templates_list:
-  # De grootste winst die er lag, en het kost nul regels code: nu trek je de
-  # estate gelijk als je eraan denkt, met een schema repareert drift zichzelf.
-  - name: "Site (apply)"
+  # LET OP de namen. Ze zijn NIET verzonnen: dit zijn de namen die al in de UI
+  # stonden. Op 23-09 is deze lijst er eerst met eigen namen ingezet, en dat
+  # leverde drie dubbele templates op - `Cleanup (apply)` naast het bestaande
+  # `Cleanup (Apply)`, met alleen een hoofdletter verschil, en allebei met een
+  # schema op zaterdag 03:00. Hernoemen hier is hernoemen in Semaphore, dus
+  # kijk eerst met `--check` of een naam onder `update` staat en niet onder
+  # `create`.
+
+  # Wekelijks gelijktrekken; met een schema repareert drift zichzelf.
+  #
+  # De limit is geen versiering. `mbp` heeft ansible_connection: local, dus
+  # vanuit Semaphore betekent die host "de container die de job draait" en
+  # niet jouw MacBook. En `semaphore` zit erbuiten omdat site.yml die
+  # container kan herstarten terwijl hij zijn eigen job draait.
+  - name: "Site converge"
     playbook: playbooks/site.yml
-    description: "Trekt elke host gelijk met de repo. Idempotent, veilig om te herhalen."
-    schedule: "0 3 * * 0"
+    description: "Trekt elke host gelijk met de repo. Zonder mbp en zonder Semaphore zelf."
+    arguments: ["--limit", "all:!mbp:!semaphore"]
+    schedule: "0 5 * * 0"
 
   # Draait site.yml --check --diff en vat samen. Met drift_fail=true wordt hij
   # rood bij drift, en dat is de versie die op een schema hoort - een groene
   # samenvatting die je moet lezen om te zien dat hij rood had moeten zijn is
-  # geen melding. Zes uur 's ochtends, dus na de wekelijkse apply.
-  - name: "Drift (report)"
+  # geen melding.
+  #
+  # `drift_limit` en niet `--limit`: dit playbook draait zelf op localhost en
+  # start de droogloop als los commando. Een --limit hier zou die play raken
+  # in plaats van de converge eronder.
+  - name: "Drift check"
     playbook: playbooks/drift.yml
     description: "Wat zou site.yml veranderen? Faalt als het antwoord niet 'niets' is."
-    arguments: ["-e", "drift_fail=true"]
+    arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
     schedule: "0 6 * * *"
 
-  # Zonder deze tweede template ruimt de rapportageversie nooit iets op.
-  - name: "Cleanup (apply)"
+  # De hoofdletter A is die van de bestaande template. Naast deze staat
+  # `Cleanup (report)` in de UI, zonder schema - die rapporteert alleen en
+  # staat hier bewust niet in.
+  - name: "Cleanup (Apply)"
     playbook: playbooks/cleanup.yml
     description: "Maakt schijfruimte vrij. Raakt geen volumes, containers of held packages aan."
     arguments: ["-e", "cleanup_apply=true"]
@@ -58,13 +81,19 @@ semaphore_templates_list:
     description: "Zet een PBS-back-up terug op een wegwerp-guest, leest er staat uit, sloopt hem."
     schedule: "0 4 1 * *"
 
-  # LET OP: dit is de template die Semaphore zichzelf liet patchen. De limit
-  # houdt hem van zijn eigen container af; die machine patch je met de hand.
-  # Herstart Semaphore halverwege een run, dan is de job dood en weet je niet
-  # of de upgrade af is.
+  # De limit houdt hem van zijn eigen container af; die machine patch je met
+  # de hand. Herstart Semaphore halverwege een run, dan is de job dood en weet
+  # je niet of de upgrade af is.
   #
-  # Geen schema: updates blijven iets waar je bij bent.
+  # Het schema stond al in de UI en staat nu hier, want dat is het hele punt
+  # van dit bestand: zondag 04:00, een uur voor de converge.
   - name: "Update guests"
     playbook: playbooks/update.yml
     description: "Pakketupdates op de guests. Niet op Semaphore zelf - zie de limit."
     arguments: ["--limit", "guests:!semaphore"]
+    schedule: "0 4 * * 0"
+
+# Nog niet beschreven, en dus nog steeds alleen UI: Baseline (dry run), Caddy,
+# Cleanup (report), Docs, Homelab Report en Stacks. Twee daarvan hebben een
+# schema (Docs dagelijks 07:00, Homelab Report zondag 08:00). Ze overnemen is
+# kopieerwerk, geen ontwerpwerk - het staat in TODO.md.
