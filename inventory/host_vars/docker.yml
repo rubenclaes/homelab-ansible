@@ -23,7 +23,23 @@ docker_stacks_list:
 # geen vergissing van nu, dat stond er al. Gelijktrekken is een aparte klus
 # op een rustig moment, niet iets om er stilletjes bij te doen.
 docker_stacks_nfs_mounts:
-  - src: '192.168.0.26:/Volumes/SSD\040Nas'
+  # LET OP: hier staat een ECHTE spatie, geen \040. De mount-module escapet
+  # zelf, en doet dat in deze volgorde:
+  #
+  #     v.replace('\\', '\\134').replace(' ', '\\040')
+  #
+  # De backslash gaat dus eerst. Een waarde die hier al geescapet staat als
+  # `SSD\040Nas` wordt daardoor `SSD\134040Nas`, en dat matcht nooit met wat
+  # er in /etc/fstab staat. Gevolg tot 23-09: deze taak meldde `changed` bij
+  # elke droogloop, en de dagelijkse Drift check werd er rood van.
+  #
+  # En het bleef niet bij ruis. Bij een ECHTE run schrijft de module die
+  # dubbel geescapete waarde weg, en `\134040` decodeert naar een letterlijke
+  # backslash gevolgd door `040` - een pad dat niet bestaat. Dat is nooit
+  # gebeurd omdat deze mountlijst pas op 22-09 compleet werd en er daarna geen
+  # converge meer over `docker` is gegaan; anders was /mnt/ssdnas na de
+  # eerstvolgende herstart weg geweest.
+  - src: '192.168.0.26:/Volumes/SSD Nas'
     path: /mnt/ssdnas
     opts: 'nfsvers=3,proto=tcp,noresvport,hard,timeo=30,retrans=3,nofail,_netdev'
   - src: '192.168.0.26:/Volumes/media01'
