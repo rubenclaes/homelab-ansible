@@ -47,6 +47,17 @@ pve_lxcs:
     disk: { storage: vm-hdd, size: 2 }
     ip: 192.168.0.29/24 # live container still uses DHCP (see TODO)
     features: [nesting=1, keyctl=1]
+    # Zit sinds 23-09 op de tailnet, zodat hij als globale nameserver kan
+    # dienen met een 100.x-adres. Tailscale heeft daarvoor /dev/net/tun nodig;
+    # zonder deze twee regels start tailscaled niet en faalt hij stil in een
+    # herstartlus. Na herbouw opnieuw zetten, als root op pve01 (de API-token
+    # kan geen rauwe lxc-sleutels zetten), en daarna de container herstarten,
+    # want een mount-entry geldt pas na een start:
+    # `pct set` weigert rauwe lxc-sleutels op deze versie ("400 unable to
+    # parse option"), dus rechtstreeks onderaan /etc/pve/lxc/107.conf:
+    #   lxc.cgroup2.devices.allow: c 10:200 rwm
+    #   lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+    # en daarna `pct reboot 107`.
 
   - vmid: 108
     hostname: tailscale
