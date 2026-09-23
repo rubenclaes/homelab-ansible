@@ -1,0 +1,192 @@
+---
+title: Mac mini
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Mac mini
+
+De Mac mini draagt de NFS-shares voor de media-stack, Plex, zes compose-stacks
+en de tweede back-upkopie. Hier haal je de shares terug, of de hele Mini.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| De media-apps draaien, maar hun mappen zijn leeg | Sonarr of Radarr ziet geen bestanden | [De shares van de Mac mini](#de-shares-van-de-mac-mini) |
+| De Mac mini is kapot of opnieuw geïnstalleerd | nieuwe schijf, macOS opnieuw | [De Mac mini is weg](#de-mac-mini-is-weg) |
+
+## De shares van de Mac mini
+
+De media-apps op `docker` draaien, de routes werken, maar de mappen zijn
+leeg. Dan mist `docker` de NFS-shares van de Mac mini. Dat is de stilste
+storing in dit huis.
+
+<Steps>
+
+#### Zet de shares terug op de Mac mini
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+`-K` vraagt je sudo-wachtwoord van de Mini. Dat hoort zo.
+
+Fout `[Errno 1] Operation not permitted` op `/etc/exports`? Zie
+[TCC: sshd moet Volledige schijftoegang hebben](#tcc-sshd-moet-volledige-schijftoegang-hebben).
+
+#### Mount ze opnieuw op `docker`
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker
+```
+
+Mount de drie shares (`/mnt/media01`, `/mnt/faststore`, `/mnt/ssdnas`) en
+zet de stacks op.
+
+#### Herstart de media-stack
+
+```bash
+ssh docker 'sudo docker restart $(sudo docker ps -q --filter label=com.docker.compose.project=media-stack)'
+```
+
+Een container die startte toen de share er niet was, blijft in de lege map
+kijken tot hij herstart.
+
+</Steps>
+
+| Export op de Mini | Mount op `docker` |
+| --- | --- |
+| `/Volumes/media01` | `/mnt/media01` |
+| `/Volumes/FastStore` | `/mnt/faststore` |
+| `/Volumes/SSD Nas` | `/mnt/ssdnas` |
+
+Bron: `nfs_exports_shares` in `inventory/host_vars/macmini.yml` en
+`docker_stacks_nfs_mounts` in `inventory/host_vars/docker.yml`.
+
+## De Mac mini is weg
+
+Wat je kwijt bent:
+
+| Weg | Gevolg |
+| --- | --- |
+| de tweede back-upkopie (`macmini-backup`) | alleen PBS nog, en die staat op pve01 zelf |
+| de drie NFS-shares | de media-stack op `docker` valt om |
+| Plex en zes compose-stacks | die draaien nergens anders |
+
+pve01, PBS en de guests zijn ongemoeid.
+
+<Callout type="error">
+Dit pad is **nooit volledig gelopen**. `nfs.yml` heeft één keer echt gedraaid,
+`stacks.yml --limit macmini` alleen droog. Reken op verrassingen, vooral rond
+Homebrew: de Mini draait macOS 14, waar alles vanaf broncode bouwt.
+</Callout>
+
+<Steps>
+
+#### Installeer macOS en geef hem hetzelfde adres
+
+Hij moet weer op `192.168.0.26`. Dat adres staat vast in de inventory, in de
+mounts van `docker` en in de opslag `macmini-backup` op pve01.
+
+Geef de schijven **dezelfde namen**: `media01`, `FastStore`, `SSD Nas`.
+
+#### Geef Ansible toegang
+
+Zet op de Mini *Extern inloggen* (SSH) aan. Dan, vanaf je werkstation:
+
+```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub rubenclaes@192.168.0.26
+```
+
+Ansible logt op de Mini in als `rubenclaes`, niet als `ansible`.
+
+#### Geef `sshd` Volledige schijftoegang
+
+Op de Mini zelf:
+
+> Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `+`
+> → cmd-shift-G → `/usr/libexec/sshd-keygen-wrapper`
+
+Zonder dit faalt de volgende stap. Verbind daarna **opnieuw**. Uitleg:
+[TCC](#tcc-sshd-moet-volledige-schijftoegang-hebben).
+
+#### Zet de shares terug
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+Eerst dit: `docker` wacht erop. Volg daarna stap 2 en 3 van
+[Shares van de Mac mini](#de-shares-van-de-mac-mini).
+
+#### Installeer Plex en OrbStack met de hand
+
+Allebei staan ze buiten Homebrew en geen playbook zet ze terug. Zonder
+OrbStack is er geen Docker op de Mini. Het waarom staat in
+`inventory/host_vars/macmini.yml`.
+
+#### Zet brew en casks terug
+
+```bash
+ansible-playbook playbooks/site.yml --limit macmini
+```
+
+#### Maak het Docker-netwerk aan
+
+```bash
+ssh rubenclaes@192.168.0.26 '/Applications/OrbStack.app/Contents/MacOS/xbin/docker network create External'
+```
+
+De compose-files delen dit netwerk, en geen rol maakt het aan.
+
+#### Zet de stacks terug
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit macmini
+```
+
+De eerste run **faalt op de git clone**, en dat hoort zo. Hij drukt een
+publieke sleutel af: zet die op GitHub bij `rubenclaes/homelab` → Settings →
+Deploy keys. Draai het daarna opnieuw.
+
+#### Maak de back-upmap aan
+
+```bash
+ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
+ssh pve01 'sudo pvesm status | grep macmini-backup'    # moet "active" zeggen
+```
+
+Pas dan komt de tweede kopie terug. De oude dumps zijn weg met de schijf.
+Wacht tot zondag 01:00, of start de job met de hand in het Proxmox-scherm:
+Datacenter → Backup → de job naar `macmini-backup` → *Run now*.
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom `nfs.yml` niet in `site.yml` zit
+
+`/etc/exports` schrijven vraagt root, en `sudo` op de Mini vraagt een
+wachtwoord. De Linux-hosts hebben een NOPASSWD-regel van `bootstrap.yml`, de
+Mini niet. Een geplande run zou dus blijven hangen op dat wachtwoord.
+
+### TCC: sshd moet Volledige schijftoegang hebben
+
+Krijg je `[Errno 1] Operation not permitted` bij het vervangen van
+`/etc/exports`, dan is dat **geen** sudo-probleem. `/etc/exports` draagt het
+macOS-label `com.apple.macl`, en een proces dat onder `sshd` start mag zo'n
+bestand niet aanraken, ook niet als root. Hetzelfde commando werkt lokaal in
+Terminal. De oplossing is `sshd` Volledige schijftoegang geven (zie
+[Mac mini is weg](#de-mac-mini-is-weg)) en daarna
+**opnieuw verbinden**.
+
+Al geprobeerd op 23-09, werkt niet: `unsafe_writes: true`, `xattr -d
+com.apple.macl` en in het bestand schrijven in plaats van het vervangen.
+Details in `roles/nfs_exports/tasks/main.yml`.
+
+### macOS kan `/etc/exports` niet vooraf nakijken
+
+`nfsd checkexports` leest alleen het echte bestand. De rol schrijft dus eerst
+en controleert daarna, en faalt luid als het mis is. Repareer in
+`nfs_exports_shares`, niet in het bestand: de volgende run zet dat toch terug.

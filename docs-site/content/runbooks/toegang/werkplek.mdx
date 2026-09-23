@@ -1,0 +1,471 @@
+---
+title: Werkplek
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Werkplek
+
+Alles wat je op je laptop (`mbp`) doet om vlot met de homelab te werken:
+de repo klaarzetten, hosts bij naam bereiken, korte shell-commando's, veilig
+playbooks draaien en de docs-site bijwerken.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil vanaf een **nieuwe laptop** playbooks draaien en `ssh caddy` typen | nieuwe MacBook, de `mbp` opnieuw geïnstalleerd, of `~/.zshrc` kwijt | [Laptop klaarzetten](#laptop-klaarzetten) |
+| Er is een **nieuwe machine** bij en `ssh <naam>` werkt nog niet | net een LXC gebouwd met `new-guest.yml` | [Nieuwe machine bij naam](#nieuwe-machine-bij-naam-bereiken) |
+| Je wil een **afkorting** toevoegen of aanpassen in je shell | een alias zoals `hl` of `ap` | [Shell-afkorting aanpassen](#shell-afkorting-aanpassen) |
+| Je wil **snel iets weten** van een host, zonder in te loggen | welke Caddy-versie draait er, leven ze nog | [Snel iets vragen](#snel-iets-vragen-aan-een-host) |
+| Je wil een playbook draaien, maar eerst **zien wat het doet** | `site.yml` na een wijziging in de inventory | [Veilig een playbook proberen](#veilig-een-playbook-proberen) |
+| Je hebt net een playbook gedraaid: **wat nu?** | na `caddy.yml`, `update.yml`, `stacks.yml` | [Na een run](#na-een-run) |
+| Je veranderde iets in de inventory of de runbooks en wil het **op de docs-site** | een nieuwe route, een aangepast runbook | [Docs-site bijwerken](#de-docs-site-bijwerken) |
+
+<Callout type="info">
+Nog nooit met deze repo gewerkt op deze laptop? Begin bij
+[Laptop klaarzetten](#laptop-klaarzetten). Zonder de
+`ansible`-sleutel en de vault-wachtwoorden werkt geen enkel ander geval.
+</Callout>
+
+## Laptop klaarzetten
+
+Van een laptop die deze repo nog nooit zag tot `ssh caddy` werkt. Ook goed als
+alleen je `~/.zshrc` of `~/.ssh/config` kwijt is: begin dan bij
+**Draai het dotfiles-playbook**.
+
+<Steps>
+
+#### Haal de repo binnen
+
+```bash
+git clone https://github.com/rubenclaes/homelab-ansible.git ~/Development/homelab-ansible
+cd ~/Development/homelab-ansible
+```
+
+#### Installeer Ansible
+
+```bash
+pipx install "ansible-core==2.21.4" "ansible-lint==26.8.0"
+pipx inject ansible-core proxmoxer requests   # nodig voor de dynamische inventory
+ansible-galaxy collection install -r collections/requirements.yml
+```
+
+De versies staan vast in `requirements.txt`, dezelfde als in CI.
+
+<Callout type="info">
+Zo kan het ook, en zo staat het nu op de `mbp`: `brew install ansible ansible-lint`.
+Die `ansible` bevat ansible-core 2.21.4 én `proxmoxer`.
+</Callout>
+
+<Callout type="warning">
+Zonder `proxmoxer` ziet Ansible alleen `pve01` en de Macs. De guests
+(`caddy`, `docker`, …) ontbreken dan, zonder duidelijke fout.
+</Callout>
+
+#### Kopieer de ansible-sleutel
+
+```bash
+scp <oude-mac>:'~/.ssh/ansible_ed25519*' ~/.ssh/
+chmod 600 ~/.ssh/ansible_ed25519
+```
+
+Staat ook in de wachtwoordkluis. Het pad `~/.ssh/ansible_ed25519` staat vast
+in `ansible.cfg`: niet hernoemen.
+
+<Callout type="error">
+Maak deze sleutel **niet** opnieuw aan. Elke host kent de bestaande. Echt
+kwijt? Zie [Herstellen → Ansible-sleutel kwijt](/runbooks/stuk/pve01/#de-ansible-sleutel-is-kwijt).
+</Callout>
+
+#### Zet de twee vault-wachtwoorden neer
+
+```bash
+mkdir -p ~/.ansible
+install -m 600 /dev/null ~/.ansible/vault_pass_infra
+install -m 600 /dev/null ~/.ansible/vault_pass_stacks
+$EDITOR ~/.ansible/vault_pass_infra     # plak het infra-wachtwoord
+$EDITOR ~/.ansible/vault_pass_stacks    # plak het stacks-wachtwoord
+```
+
+Plakken zonder spaties erachter: een spatie of extra regel maakt er een ander
+wachtwoord van. `bin/vault-pass-client` leest deze twee bestanden. Waarom
+twee: zie [Goed om te weten](#goed-om-te-weten).
+
+#### Zet de pre-commit hook aan
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Git doet dit niet zelf bij een clone. De hook blokkeert een commit met een
+onversleuteld geheim erin.
+
+#### Test de repo
+
+```bash
+bin/check-vaulted       # alles wat versleuteld moet zijn, is het
+ansible-lint            # de repo is in orde
+ansible all -m ping     # elke host antwoordt
+```
+
+#### Draai het dotfiles-playbook
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+Het draait lokaal op je laptop (host `mbp`) en schrijft vier dingen:
+
+| Wat | Waar |
+| --- | --- |
+| een `Host`-blok per Linux-machine | `~/.ssh/config.d/homelab` |
+| één regel `Include ~/.ssh/config.d/*` bovenaan | `~/.ssh/config` |
+| je shell, met de afkortingen erin | `~/.zshrc` |
+| je git-instellingen (naam, e-mail, signeren) | `~/.gitconfig` |
+
+<Callout type="warning">
+Zie je de melding "`~/.ssh/config.d/homelab` niet aangeraakt"? Dan kon de
+Proxmox-API niet gelezen worden. Controleer met `ansible-inventory --graph` of
+de guests erin staan, en draai opnieuw. Zie
+[Goed om te weten](#goed-om-te-weten).
+</Callout>
+
+<Callout type="info">
+Git signeert elke commit met `~/.ssh/id_ed25519.pub` (`commit.gpgsign` staat
+aan in `inventory/host_vars/mbp.yml`). Zet dus ook je eigen persoonlijke
+sleutel `~/.ssh/id_ed25519` over, anders weigert `git commit`.
+</Callout>
+
+#### Open een nieuwe terminal
+
+```bash
+exec zsh   # of sluit en open je terminal
+```
+
+De nieuwe `~/.zshrc` telt pas in een nieuwe shell.
+
+#### Test ssh
+
+```bash
+ssh caddy   # moet meteen binnenkomen, zonder wachtwoord
+```
+
+</Steps>
+
+Er valt niets te committen: alles hierboven staat alleen op je laptop.
+
+<Callout type="info">
+Wil je ook `docs.yml` draaien? Dat bouwt de site op je laptop met `npm`, dus
+je hebt Node.js nodig. Wil je diensten toevoegen, clone dan ook de
+`containers`-repo naar `~/Development/containers`; `new-service.yml` schrijft
+daarheen.
+</Callout>
+
+### Welke namen je nu kan gebruiken
+
+| Typ dit | In plaats van |
+| --- | --- |
+| `ssh pve01` | `ssh ansible@192.168.0.14` |
+| `ssh docker` | `ssh ansible@192.168.0.15` |
+| `ssh docker-grafana-stack` | `ssh ansible@192.168.0.17` |
+| `ssh caddy` | `ssh ansible@192.168.0.25` |
+| `ssh adguard` | `ssh ansible@192.168.0.29` |
+| `ssh semaphore` | `ssh ansible@192.168.0.30` |
+| `ssh pbs` | `ssh ansible@192.168.0.181` |
+| `ssh tailscale` | `ssh ansible@192.168.0.50` |
+
+Dit lijstje is niet de bron: dat is de inventory, zie [Machines](/homelab/machines/).
+Verhuist een host naar een ander adres, dan volgt `ssh <naam>` na de volgende run vanzelf.
+
+`haos` en `macmini` staan er **niet** bij: ze zitten niet in de groep `linux`
+(Home Assistant is een appliance, de Mac mini zit in `macs`).
+
+### Welke afkortingen je nu hebt
+
+| Typ dit | Doet |
+| --- | --- |
+| `hl` | `cd ~/Development/homelab-ansible` |
+| `ap` | `ansible-playbook` |
+
+Dus `hl && ap playbooks/site.yml` werkt vanuit elke map. Zelf een toevoegen:
+[Shell-afkorting aanpassen](#shell-afkorting-aanpassen).
+
+## Nieuwe machine bij naam bereiken
+
+Er is een machine bij en `ssh <naam>` werkt nog niet. Voorbeeld: je hebt net
+`vaultwarden` gebouwd met [Nieuwe machine](/runbooks/toevoegen/).
+
+<Steps>
+
+#### Kijk of hij in de inventory staat
+
+```bash
+ansible-inventory --graph linux   # vaultwarden moet in de lijst staan
+```
+
+Staat hij er niet, dan kent Proxmox hem nog niet. Draai eerst `new-guest.yml` af.
+
+#### Draai het dotfiles-playbook voor de nieuwe host
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+#### Test de nieuwe naam
+
+```bash
+ssh vaultwarden
+```
+
+</Steps>
+
+<Callout type="warning">
+De nachtelijke run in Semaphore werkt je laptop **niet** bij: "Site converge"
+draait met `--limit all:!mbp:!semaphore`. Een nieuwe `ssh <naam>` krijg je
+dus alleen door zelf `dotfiles.yml` (of `site.yml` zonder `--limit`) te draaien.
+</Callout>
+
+## Shell-afkorting aanpassen
+
+Je afkortingen staan in de inventory, niet in `~/.zshrc`. Voorbeeld: je wil
+een alias `gs` voor `git status`.
+
+<Steps>
+
+#### Pas het blok in de inventory aan
+
+```bash
+$EDITOR inventory/host_vars/mbp.yml
+```
+
+Voeg onder `dotfiles_zsh_block: |-` een regel toe:
+
+```yaml
+  alias gs='git status'
+```
+
+#### Draai het dotfiles-playbook voor je shell
+
+```bash
+ansible-playbook playbooks/dotfiles.yml
+```
+
+#### Laad je shell opnieuw
+
+```bash
+exec zsh
+```
+
+#### Commit en push de afkorting
+
+```bash
+git add inventory/host_vars/mbp.yml
+git commit -m 'Alias gs toegevoegd'
+git push
+```
+
+</Steps>
+
+<Callout type="warning">
+Bewerk `~/.zshrc` **niet** met de hand: de volgende run overschrijft het hele
+bestand. Ansible zet de oude wel als back-up ernaast (`~/.zshrc.<datum>~`).
+Wil je iets buiten het afkortingenblok veranderen, pas dan het sjabloon
+`roles/dotfiles/templates/zshrc.j2` aan.
+</Callout>
+
+## Snel iets vragen aan een host
+
+Voor iets kleins hoef je niet in te loggen: een ad-hoc-commando volstaat.
+
+<Steps>
+
+#### Kies één host, of een hele groep
+
+```bash
+ansible caddy -a "caddy version"          # één host
+ansible guests -a "uptime"                # alle guests
+ansible linux -m ansible.builtin.ping     # bereik ik ze allemaal nog?
+```
+
+Het eerste woord is een hostnaam of een groep uit de inventory. Na `-a` komt
+het commando.
+
+</Steps>
+
+Handige groepen:
+
+| Groep | Wie |
+| --- | --- |
+| `linux` | alle Linux-machines, inclusief `pve01` |
+| `guests` | alle Linux-guests op `pve01` |
+| `docker_hosts` | `docker` en `docker-grafana-stack` |
+| `macs` | `macmini` en `mbp` |
+
+## Veilig een playbook proberen
+
+Eerst zien wat een playbook doet, dan pas draaien. Voorbeeld: `site.yml` na
+een wijziging in de inventory.
+
+<Steps>
+
+#### Kijk wie en wat je raakt
+
+```bash
+ansible-playbook playbooks/site.yml --list-hosts   # welke hosts
+ansible-playbook playbooks/site.yml --list-tags    # welke onderdelen
+```
+
+#### Doe een droogloop
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff   # toont wat er zou veranderen, verandert niets
+```
+
+#### Beperk wat je raakt
+
+```bash
+ansible-playbook playbooks/site.yml --limit docker            # één host
+ansible-playbook playbooks/site.yml --limit 'linux:!proxmox'  # alles behalve de hypervisor
+ansible-playbook playbooks/site.yml --tags dns                # één onderdeel (hier: AdGuard)
+```
+
+<Callout type="warning">
+Zet de aanhalingstekens rond `'linux:!proxmox'`, anders snapt de shell de `!` verkeerd.
+</Callout>
+
+#### Draai het echt
+
+Hetzelfde commando, zonder `--check --diff`.
+
+#### Commit en push
+
+Veranderde je iets in de repo (bv. de inventory)? Commit en push het. De
+nachtelijke run in Semaphore draait vanuit git.
+
+</Steps>
+
+## Na een run
+
+Bijna elk playbook heeft een logische volgende stap: controleren of het klopt,
+of de rest laten bijtrekken.
+
+| Draaide je | Draai dan | Waarom |
+| --- | --- | --- |
+| `site.yml` | `site.yml --check --diff` | een tweede keer hoort niets meer te veranderen |
+| `new-guest.yml` | `site.yml --limit <host>`, daarna `dotfiles.yml` | de dienst erop, en de nieuwe `ssh <host>` |
+| `caddy.yml` | `smoketest.yml` | vraagt elke route echt op, faalt op een dode |
+| `stacks.yml` (nieuwe stack) | `caddy.yml`, `docs.yml` | route en servicepagina volgen de stack |
+| `update.yml` | `report.yml` | de lijst met openstaande updates hoort nu leeg |
+| iets in de inventory | `docs.yml` | Diensten en Machines onder Homelab komen daaruit |
+| wat dan ook, later | `drift.yml` | is er sindsdien iets met de hand gewijzigd |
+
+`report.yml` publiceert naar [report.neodata.be](https://report.neodata.be):
+de snelste blik op de hele vloot (schijf, uptime, herstarts, openstaande
+updates, back-ups, route-drift). Waarom deze controle-playbooks niet in
+`site.yml` zitten staat in [Onderhoud](/runbooks/onderhoud/).
+
+## De docs-site bijwerken
+
+Je veranderde iets in de inventory of de runbooks. `playbooks/docs.yml` maakt
+de pagina's onder Homelab (Diensten en Machines) opnieuw, bouwt de site en zet hem op `caddy`.
+
+<Steps>
+
+#### Commit en push je wijziging eerst
+
+```bash
+git add inventory docs-site && git commit -m '...' && git push
+```
+
+<Callout type="warning">
+Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
+lokaal hebt, staat de volgende ochtend weer niet online.
+</Callout>
+
+#### Bouw en publiceer
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+Verzamelt eerst facts van `linux:macs`, genereert de pagina's, en draait dan
+`npm ci` en `npm run build` op je eigen machine; alleen het resultaat gaat naar
+de `caddy`-host.
+
+#### Kijk de site na
+
+Open [docs.neodata.be](https://docs.neodata.be). Werkt alleen vanaf het LAN of
+de tailnet.
+
+</Steps>
+
+### Wat waar vandaan komt
+
+| Deel | Bron |
+| --- | --- |
+| **Homelab → [Machines](/homelab/machines/)**: elke machine met adres, diensten en stacks | gegenereerd uit de inventory door `docs.yml` |
+| **Homelab → [Diensten](/homelab/diensten/)**: één pagina per route in `caddy_sites`, plus diensten zonder route uit `docker_services_without_route` | gegenereerd uit de inventory door `docs.yml` |
+| **Runbooks** (zoals deze pagina) | met de hand geschreven, alleen meegenomen |
+
+Bewerk dus nooit een pagina onder Machines of Diensten: de volgende run
+overschrijft hem. Een geschrapte route laat geen pagina achter: die wordt
+vanzelf opgeruimd, pas nadat de rest opnieuw gerenderd is.
+
+<Callout type="info">
+Draai dit na **elke** wijziging in de inventory. Een site die iets beweert wat
+niet meer waar is, is erger dan geen documentatie: je gelooft hem.
+</Callout>
+
+<Callout type="warning">
+Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
+niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
+er is dan niets geschreven. Zie [Guests en API-token](/runbooks/onderhoud/nakijken/#guests-en-api-token-checken).
+</Callout>
+
+## Goed om te weten
+
+### Waarom twee vault-wachtwoorden
+
+Een keuze over schade bij een lek:
+
+| Identiteit | Beschermt | Een lek betekent |
+| --- | --- | --- |
+| `infra` | inventory-vaults, `homelab.proxmox.yml`, Semaphore-config | controle over hypervisor, DNS en back-ups roteren |
+| `stacks` | `files/env/*.env` | applicatie-logins roteren |
+
+### Waarom je nooit een vault-wachtwoord moet typen
+
+`ansible.cfg` zegt dat `bin/vault-pass-client` de wachtwoorden levert. Dat
+script leest `~/.ansible/vault_pass_infra` en `~/.ansible/vault_pass_stacks`
+(aangemaakt in [Laptop klaarzetten](#laptop-klaarzetten)).
+Zijn die er niet, dan valt het terug op het oude `~/.ansible/vault_pass`, waar
+`ANSIBLE_VAULT_PASSWORD_FILE` in je `~/.zshrc` ook nog naar wijst.
+
+### Waarom de pre-commit hook
+
+Een gecommit geheim blijft in de git-historie staan, ook als je het bestand
+daarna weggooit. CI vangt het pas na de push, en dan staat het al op GitHub.
+De hook is de poort, CI het vangnet.
+
+### Waar de ssh-namen vandaan komen
+
+De dotfiles-rol loopt over de inventory-groep `linux` en schrijft per host een
+blok met zijn adres, de gebruiker `ansible` en `~/.ssh/ansible_ed25519`. Niets
+wordt met de hand bijgehouden: staat een host in de inventory, dan kan je hem
+na één run bij naam sshen. Bewerk `~/.ssh/config.d/homelab` dus niet zelf; de
+volgende run overschrijft het.
+
+### Waarom de rol soms de ssh-config niet aanraakt
+
+Op `pve01` na komen alle hosts uit de Proxmox-API. Is die even niet bereikbaar,
+dan krijgt Ansible geen foutmelding maar een lege groep, en zou het sjabloon
+een bijna lege config schrijven. Dat merk je pas de volgende dag. Daarom laat de
+rol het bestand dan staan zoals het was en zegt hij dat. De rest (git, zshrc)
+loopt gewoon door.
+
+### Waarom de `Include`-regel bovenaan staat
+
+ssh neemt de eerste waarde die hij vindt voor een host. Staat de `Include`
+onderaan of binnen een ander `Host`-blok, dan kunnen je eigen regels de
+homelab-regels overschaduwen of worden ze niet gelezen.

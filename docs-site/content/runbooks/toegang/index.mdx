@@ -1,29 +1,38 @@
 ---
-title: Toestellen en toegang
+title: Start hier
 ---
 
-import { Callout } from 'nextra/components'
+# Toegang en werkplek
 
-# Toestellen en toegang
-
-Toestellen op het netwerk, mensen toegang geven of afnemen, en sites
-blokkeren. Dit gebeurt met de hand in UniFi, Tailscale, NeoGate en AdGuard,
-niet via Ansible.
+Toestellen en mensen op het netwerk (toegang geven, afnemen, sites blokkeren), en alles op je laptop om met de homelab te werken.
 
 ## Welk geval ben jij?
 
 | Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
-| Een **nieuw toestel** moet op het netwerk, met een vast adres | een printer, een NAS | [Nieuw toestel](/runbooks/toegang/nieuw-toestel/) |
-| Een toestel is **kwijt of weg** | gestolen telefoon | [Toestel kwijt](/runbooks/toegang/toestel-kwijt/) |
-| Je wil **zelf van buitenaf** aan het homelab | op reis, over 4G | [Zelf van buitenaf](/runbooks/toegang/van-buitenaf/) |
-| Iemand wil een **dienst** gebruiken | je zus wil Immich en Plex | [Iemand diensten geven](/runbooks/toegang/diensten-geven/) |
-| Iemand moet aan het **hele thuisnetwerk** | iemand die mee beheert | [Iemand VPN geven](/runbooks/toegang/vpn-geven/) |
-| Er komt iemand **op bezoek** | wifi, bestanden delen | [Gast op bezoek](/runbooks/toegang/gast-op-bezoek/) |
-| Iemand moet er **niet meer bij** | een ex-huisgenoot | [Toegang afnemen](/runbooks/toegang/toegang-afnemen/) |
-| Een site **laadt niet** of moet **geblokkeerd** | een link in een mail doet niets | [Blokkeren](/runbooks/toegang/blokkeren/) |
+| Een **nieuw toestel** moet op het netwerk, met een vast adres | een printer, een NAS | [Nieuw toestel](/runbooks/toegang/toestellen/#een-nieuw-toestel-op-het-netwerk) |
+| Een toestel is **kwijt of weg** | gestolen telefoon | [Toestel kwijt](/runbooks/toegang/toestellen/#een-toestel-is-kwijt-of-weg) |
+| Je wil **zelf van buitenaf** aan het homelab | op reis, over 4G | [Zelf van buitenaf](/runbooks/toegang/toestellen/#zelf-van-buitenaf-binnen) |
+| Iemand wil een **dienst** gebruiken | je zus wil Immich en Plex | [Iemand diensten geven](/runbooks/toegang/toestellen/#iemand-diensten-geven) |
+| Iemand moet aan het **hele thuisnetwerk** | iemand die mee beheert | [Iemand VPN geven](/runbooks/toegang/toestellen/#iemand-vpn-geven) |
+| Een **apparaat met een commandline** moet op de tailnet, zonder persoon erachter | een Windows-pc, een NAS, een Raspberry Pi | [Tailscale-sleutel](/runbooks/toegang/toestellen/#tailscale-sleutel-voor-een-apparaat) |
+| Er komt iemand **op bezoek** | wifi, bestanden delen | [Gast op bezoek](/runbooks/toegang/toestellen/#gast-op-bezoek) |
+| Iemand moet er **niet meer bij** | een ex-huisgenoot | [Toegang afnemen](/runbooks/toegang/toestellen/#iemand-zijn-toegang-afnemen) |
+| Een site **laadt niet** of moet **geblokkeerd** | een link in een mail doet niets | [Blokkeren](/runbooks/toegang/toestellen/#een-site-blokkeren-of-deblokkeren) |
+| Je wil vanaf een **nieuwe laptop** playbooks draaien en `ssh caddy` typen | nieuwe MacBook, de `mbp` opnieuw geïnstalleerd, of `~/.zshrc` kwijt | [Laptop klaarzetten](/runbooks/toegang/werkplek/#laptop-klaarzetten) |
+| Er is een **nieuwe machine** bij en `ssh <naam>` werkt nog niet | net een LXC gebouwd met `new-guest.yml` | [Nieuwe machine bij naam](/runbooks/toegang/werkplek/#nieuwe-machine-bij-naam-bereiken) |
+| Je wil een **afkorting** toevoegen of aanpassen in je shell | een alias zoals `hl` of `ap` | [Shell-afkorting aanpassen](/runbooks/toegang/werkplek/#shell-afkorting-aanpassen) |
+| Je wil **snel iets weten** van een host, zonder in te loggen | welke Caddy-versie draait er, leven ze nog | [Snel iets vragen](/runbooks/toegang/werkplek/#snel-iets-vragen-aan-een-host) |
+| Je wil een playbook draaien, maar eerst **zien wat het doet** | `site.yml` na een wijziging in de inventory | [Veilig een playbook proberen](/runbooks/toegang/werkplek/#veilig-een-playbook-proberen) |
+| Je hebt net een playbook gedraaid: **wat nu?** | na `caddy.yml`, `update.yml`, `stacks.yml` | [Na een run](/runbooks/toegang/werkplek/#na-een-run) |
+| Je veranderde iets in de inventory of de runbooks en wil het **op de docs-site** | een nieuwe route, een aangepast runbook | [Docs-site bijwerken](/runbooks/toegang/werkplek/#de-docs-site-bijwerken) |
+
+Nieuwe machine of dienst op pve01? Dat is [Nieuwe machine](/runbooks/toevoegen/)
+en [Dienst toevoegen](/runbooks/toevoegen/).
 
 ## Woorden die je nodig hebt
+
+### Toestellen en mensen
 
 **NeoGate** — je eigen app op [neogate.neodata.be](https://neogate.neodata.be). Maakt accounts aan in Plex, Immich en de andere diensten, en haalt ze weer weg.
 
@@ -33,10 +42,14 @@ niet via Ansible.
 
 **Fixed IP** — een vast adres in UniFi, zodat een toestel na een herstart hetzelfde adres houdt.
 
-<Callout type="info">
-De knoppen in deze runbooks zijn uit de documentatie en de code gehaald, niet
-in het scherm nagelopen. Heet een knop anders, zoek hem in hetzelfde menu.
-</Callout>
+### Werkplek
 
-Nieuwe machine of dienst op pve01? Dat is [Nieuwe machine](/runbooks/nieuwe-guest/)
-en [Dienst toevoegen](/runbooks/dienst-toevoegen/).
+**Dotfiles** — je persoonlijke configbestanden (`~/.zshrc`, `~/.ssh/config`, `~/.gitconfig`). Het playbook `dotfiles.yml` schrijft ze voor je.
+
+**Inventory** — de lijst van alle machines, in `inventory/`. De Proxmox-guests komen automatisch uit de Proxmox-API.
+
+**Dynamische inventory** — `inventory/homelab.proxmox.yml`: haalt de lijst guests live uit Proxmox, via een API-token.
+
+**Vault-wachtwoord** — ontgrendelt de versleutelde bestanden in de repo. Er zijn er twee: `infra` en `stacks`.
+
+**Ad-hoc-commando** — één commando op een host via `ansible`, zonder playbook.

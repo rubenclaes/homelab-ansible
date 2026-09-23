@@ -10,7 +10,7 @@
 # container, want env geldt pas na een start.
 #
 # Dit is geen gewone guest: geen SSH, geen baseline, geen apt. Updaten is de
-# `version` ophogen. Zie de runbook "Een nieuwe guest", geval 4.
+# `version` ophogen. Zie de runbook "Iets toevoegen", pagina Nieuwe machine.
 - name: OCI containers on the hypervisor
   hosts: pve01
   gather_facts: false

@@ -1,0 +1,356 @@
+---
+title: Updates
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Updates
+
+Pakketten bijwerken op de Linux-machines, op `pve01` of op de Macs. Eerst zien
+wat er openstaat, zonder iets te veranderen? Dat staat in het
+[Gezondheidsrapport](/runbooks/onderhoud/nakijken/#gezondheidsrapport), tabblad **Updates**.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil **weten wat er openstaat**, zonder iets te veranderen | "Staan er security-updates klaar op `caddy`?" | [Gezondheidsrapport](/runbooks/onderhoud/nakijken/#gezondheidsrapport) |
+| Je wil de **guests patchen** (de gewone ronde) | `adguard`, `docker`, `pbs` bijwerken; Semaphore zelf patchen | [Guests patchen en herstarten](#guests-patchen-en-herstarten) |
+| Een guest meldt **`REBOOT NEEDED`** | `docker` kreeg een nieuwe kernel | [Guests patchen en herstarten](#guests-patchen-en-herstarten) |
+| Je wil **`pve01` zelf** bijwerken en herstarten | nieuwe Proxmox-kernel | [De hypervisor](#de-hypervisor) |
+| Je wil de **Macs** bijwerken | Homebrew-pakketten op `mbp`, apps op `macmini` | [De Macs](#de-macs) |
+| Je wil **Caddy** upgraden | een nieuwe Caddy-versie | [Caddy](#caddy) |
+| Je wil een **OCI-container** bijwerken | een nieuwe versie van `ntfy` | [OCI-containers](#oci-containers) |
+
+<Callout type="info">
+Wil je een pakket of app **weg** van een Mac? Dan ben je hier verkeerd: dat is
+`site.yml --tags macos`. Zie
+[Welke van de drie playbooks?](#welke-van-de-drie-playbooks).
+</Callout>
+
+## Guests patchen en herstarten
+
+Patchen gebeurt **vanzelf**: Semaphore draait de template "Update guests" elke
+zondag om 04:00, behalve op `semaphore` zelf. Herstarten gebeurt **nooit**
+vanzelf, ook niet in die zondagse run: jij kiest het moment.
+
+Met de hand doe je dit als je niet op zondag wil wachten, om Semaphore te
+patchen, of als een guest `REBOOT NEEDED` meldt.
+
+<Steps>
+
+#### Patch de guests
+
+```bash
+ansible-playbook playbooks/update.yml --limit guests
+```
+
+`apt full-upgrade`, één host na de andere. Er wordt **niet** herstart.
+
+#### Of: patch alleen Semaphore
+
+```bash
+ansible-playbook playbooks/update.yml --limit semaphore
+```
+
+Altijd vanaf je laptop, nooit vanuit Semaphore zelf.
+
+<Callout type="warning">
+Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
+run, dan is de job dood en weet je niet of de upgrade af is.
+</Callout>
+
+#### Kijk of er een herstart nodig is
+
+Zoek in de output naar `REBOOT NEEDED`. Staat die er niet, dan ben je klaar.
+
+#### Herstart één guest
+
+```bash
+ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true
+```
+
+Hij patcht eerst, en herstart alleen als het nodig is.
+
+<Callout type="warning">
+Herstart je `docker`, dan liggen alle stacks erop even plat.
+</Callout>
+
+#### Of: alle guests die het nodig hebben
+
+```bash
+ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true
+```
+
+</Steps>
+
+<Callout type="info">
+Alleen de **VM's** (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
+reboot. Een **LXC** heeft geen eigen kernel: hij gebruikt die van `pve01`. Een
+nieuwe kernel voor de LXC's betekent dus:
+[`pve01` herstarten](#de-hypervisor).
+</Callout>
+
+## De hypervisor
+
+`pve01` zelf bijwerken en herstarten, bijvoorbeeld voor een nieuwe
+Proxmox-kernel.
+
+<Callout type="error">
+**Nooit vanuit Semaphore.** Semaphore is een container **op** `pve01`. Een
+reboot van `pve01` doodt de job die hem gaf. Draai dit altijd vanaf je laptop.
+</Callout>
+
+<Steps>
+
+#### Kies een moment waarop alles even weg mag
+
+Een herstart van `pve01` legt **elke guest** plat: ook DNS (`adguard`) en alle
+`*.neodata.be`-adressen (`caddy`).
+
+#### Patch en herstart
+
+```bash
+ansible-playbook playbooks/update.yml --limit linux \
+  -e allow_reboot=true -e allow_hypervisor_reboot=true
+```
+
+Eerst worden de guests gepatcht, dan pas `pve01`. Je hebt **beide** vlaggen
+nodig.
+
+#### Controleer of alles terug is
+
+```bash
+ansible-playbook playbooks/smoketest.yml   # werkt elk adres nog, antwoordt AdGuard nog?
+```
+
+</Steps>
+
+<Callout type="info">
+Zonder de vlaggen patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
+krijgt dan een melding dat hij een reboot nodig heeft.
+</Callout>
+
+## De Macs
+
+Homebrew bijwerken op `mbp` en `macmini`. Semaphore doet de Macs **niet**
+([waarom](#waarom-semaphore-de-macs-niet-doet)).
+Draai dit altijd vanaf je MacBook.
+
+<Steps>
+
+#### Werk de pakketten bij
+
+```bash
+ansible-playbook playbooks/update.yml --limit macs   # beide Macs
+ansible-playbook playbooks/update.yml --limit mbp    # alleen je MacBook
+```
+
+Dit doet `brew upgrade --formula`: alleen pakketten, geen apps.
+
+#### Wil je ook de apps: zet de cask-vlag aan
+
+```bash
+ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
+```
+
+Doe dit als het niet erg is dat een open app even afgesloten wordt. Apps die
+zichzelf updaten (Spotify, Chromium) laat hij met rust.
+
+#### Kijk of elke Mac aan de beurt kwam
+
+Faalde er een Mac? Kijk dan in de output of de volgende nog gedraaid heeft.
+
+<Callout type="warning">
+Faalt één Mac, dan stopt de hele play: de Macs gaan één voor één. Op 23-09
+faalde de Mac mini op een cask, en daardoor is de MacBook nooit aan de beurt
+geweest. `google-chrome` bleef daar verouderd staan zonder dat het log iets
+over `mbp` zei.
+</Callout>
+
+</Steps>
+
+### De Mac mini krijgt geen pakket-upgrades
+
+In `inventory/host_vars/macmini.yml` staat `macos_brew_upgrade: false`. De
+playbook slaat zijn pakketten over en zegt dat elke run. Zijn **apps** kun je
+wel bijwerken:
+
+```bash
+ansible-playbook playbooks/update.yml --limit macmini -e allow_cask_upgrade=true
+```
+
+Waarom: zie [De Mac mini en Homebrew](#de-mac-mini-en-homebrew).
+
+### Een cask die faalt op `sudo`
+
+Zie je dit?
+
+```
+sudo: a terminal is required to read the password
+Error: <naam>: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
+```
+
+Doe die ene cask dan met de hand, mét terminal (`-t`):
+
+```bash
+ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask <naam>'   # of: upgrade --cask
+```
+
+Waarom `-K` niet helpt: zie [Casks die root nodig hebben](#casks-die-root-nodig-hebben).
+
+## Caddy
+
+`caddy` doet **niet** mee met `update.yml`: het pakket staat vast
+(`baseline_held_packages` in `inventory/host_vars/caddy/main.yml`). Upgraden
+doe je bewust, met een eigen playbook.
+[Waarom](#waarom-caddy-vaststaat).
+
+<Steps>
+
+#### Upgrade Caddy
+
+```bash
+ansible-playbook playbooks/caddy-upgrade.yml
+```
+
+Dit draait `caddy upgrade`, herstart Caddy en controleert dat de
+Cloudflare-module er nog in zit. Ontbreekt die, dan faalt hij en zegt hij
+welk commando het herstelt.
+
+#### Controleer de uitkomst
+
+De smoketest zit al in dit playbook. Is "Smoke test all Caddy sites" groen,
+dan werkt elk `*.neodata.be`-adres nog.
+
+</Steps>
+
+<Callout type="warning">
+Gebruik niet `ansible caddy -a "caddy upgrade"`. Dat vervangt de binary, maar
+herstart Caddy niet en controleert niets.
+</Callout>
+
+## OCI-containers
+
+`ntfy` en andere containers uit een OCI-image doen **niet** mee met
+`update.yml`: er zit geen apt in, alleen het programma. Bijwerken = een nieuwer
+image nemen = de container opnieuw bouwen.
+
+<Steps>
+
+#### Hoog de versie op
+
+```bash
+$EDITOR inventory/group_vars/proxmox/lxcs.yml
+```
+
+In `pve_oci_lxcs`, het veld `version`. Een vaste versie, nooit `latest`: dan
+weet je wat er draait, en een herbouw geeft je hetzelfde terug.
+
+#### Kijk eerst wat er zou gebeuren
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+Zonder vlag verandert er niets: de rol waarschuwt alleen, meldt welke versie
+draait en welke je vraagt, en alles blijft staan.
+
+#### Bouw hem opnieuw
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
+```
+
+De container **en zijn volumes** gaan weg en komen terug op het nieuwe image.
+
+<Callout type="warning">
+Daarom staat alles wat moet overleven in `env`, niet op de schijf. Voor ntfy
+is dat bewust aanvaard: gebruikers, rechten en tokens staan in `env` en zijn
+er na de start meteen weer. Alleen de berichtcache van de laatste uren is weg.
+</Callout>
+
+#### Commit en push
+
+```bash
+git add inventory/group_vars/proxmox/lxcs.yml
+git commit -m 'ntfy: nieuwe versie'
+git push
+```
+
+</Steps>
+
+Wat een OCI-container is en waarom hij anders werkt dan een gewone LXC: zie
+[Nieuwe machine → OCI-container](/runbooks/toevoegen/machine/#een-oci-container).
+
+## Goed om te weten
+
+### Welke van de drie playbooks?
+
+| Playbook | De vraag | Wat hij doet |
+| --- | --- | --- |
+| `site.yml` | staat alles er zoals beschreven? | installeert wat ontbreekt, haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
+| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt. |
+| `cleanup.yml` | valt er schijfruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+
+Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)
+is `site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
+niet over wat er hoort te staan.
+
+### Alle vlaggen
+
+Allemaal standaard **uit**. Zonder vlaggen wordt er gepatcht en verder niets.
+
+| Variabele | Waar | Doet |
+| --- | --- | --- |
+| `allow_reboot` | opdrachtregel | herstart guests die het nodig hebben |
+| `allow_hypervisor_reboot` | opdrachtregel | ook `pve01`; werkt alleen samen met `allow_reboot` |
+| `allow_cask_upgrade` | opdrachtregel | ook de apps op de Macs |
+| `macos_brew_upgrade` | `host_vars/<mac>.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
+
+`allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
+ongeluk `pve01` meenemen.
+
+### Waarom de volgorde: guests, dan `pve01`, dan de Macs
+
+`update.yml` heeft drie plays, elk met `serial: 1`: één host is klaar voor de
+volgende begint. Een mislukte upgrade sloopt zo één machine, niet alles. Guests
+gaan vóór `pve01`, anders kan `pve01` herstarten terwijl zijn guests nog bezig
+zijn.
+
+De Macs komen als laatste omdat op de MacBook `ansible` zelf uit Homebrew komt.
+Een upgrade vervangt het programma dat op dat moment draait. Achteraan is dat
+risico zo klein mogelijk.
+
+### Waarom Semaphore de Macs niet doet
+
+`mbp` heeft `ansible_connection: local`: "de machine die Ansible draait". Vanuit
+Semaphore is dat de Semaphore-container, niet je MacBook. Daarom draait de
+template "Update guests" met `--limit guests:!semaphore`.
+
+### De Mac mini en Homebrew
+
+De Mac mini draait macOS 14.6.1. Voor Homebrew is dat een *Tier 3*-configuratie:
+er worden geen kant-en-klare pakketten (bottles) meer gebouwd, dus alles moet
+vanaf broncode. Een volledige run duurde 22 minuten en faalde alsnog; dertien
+pakketten werden niet eens geprobeerd. Casks werken wel, want dat zijn
+kant-en-klare apps. De pakketten komen pas terug na een nieuwere macOS.
+
+### Casks die root nodig hebben
+
+Sommige casks zetten bestanden onder `/Library`. Bij een upgrade of
+verwijdering roept brew zélf `sudo` aan. Over SSH is er geen terminal, dus sudo
+kan geen wachtwoord vragen. `-K` helpt niet: dat is het sudo-wachtwoord van
+Ansible, en Ansible zit hier niet tussen.
+
+Het kan wel automatisch (`SUDO_ASKPASS` met een scriptje dat het wachtwoord
+uit de vault haalt), maar dat is bewust niet gedaan: dan krijgt elke brew-taak
+op die Mac je inlogwachtwoord, voor een handvol casks.
+
+### Waarom Caddy vaststaat
+
+Caddy is hier een eigen build met de plugin `caddy-dns/cloudflare`. Een gewone
+`apt full-upgrade` verving hem ooit door de standaardversie. Die weigert te
+starten met de Cloudflare-module in de Caddyfile, en elk `*.neodata.be`-adres
+lag plat. `apt full-upgrade` en `cleanup.yml` respecteren de hold, dus ze raken
+hem niet aan. `caddy upgrade` bouwt opnieuw mét de plugins.

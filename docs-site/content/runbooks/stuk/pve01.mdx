@@ -1,0 +1,535 @@
+---
+title: pve01 of alles
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# pve01 of alles
+
+De grote gevallen: `pve01` zelf is weg, de PBS-back-ups zijn onbruikbaar, of
+de `ansible`-sleutel is kwijt.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| `pve01` zelf is weg | bootschijf dood, Proxmox van USB opnieuw geïnstalleerd | [pve01 is weg](#pve01-is-weg) |
+| De back-ups op PBS zijn weg of onleesbaar | schijf `vm-hdd` kapot, of de sleutel kwijt | [Terugvallen op de tweede kopie](#terugvallen-op-de-tweede-kopie) |
+| De **`ansible`-sleutel is weg** en er is nergens nog een kopie | laptop kwijt, niet in de wachtwoordkluis | [De ansible-sleutel is kwijt](#de-ansible-sleutel-is-kwijt) |
+
+## pve01 is weg
+
+Proxmox opnieuw installeren en alles terugzetten. Dit is de lange weg.
+Hopelijk nooit nodig.
+
+<Callout type="warning">
+**De volgorde telt.** Elke stap heeft iets nodig dat de vorige achterlaat. Sla
+er een over en je loopt vast op iets dat er niet uitziet als het echte
+probleem.
+
+Zorg eerst dat je laptop klaarstaat (repo, Ansible, `ansible`-sleutel,
+vault-wachtwoorden), zie [Werkplek → Laptop](/runbooks/toegang/werkplek/#laptop-klaarzetten). Zonder
+sleutel en vault-wachtwoorden begint hier niets.
+</Callout>
+
+Wat je nodig hebt buiten deze repo:
+
+- een USB-stick met Proxmox VE
+- de **PBS-encryptiesleutel** (je papieren kopie, zie [Vooraf](/runbooks/stuk/#vooraf-doe-dit-nu))
+- het wachtwoord van `pve@pbs` (niet in de repo)
+- op de Mac mini: de gedeelde schijf `/Volumes/media01`
+
+### Deel 1 — pve01 zelf
+
+<Steps>
+
+#### Installeer Proxmox op hetzelfde adres
+
+Met de hand, van USB, met vast adres **`192.168.0.14`**. Dat adres staat hard
+in `inventory/00-static.yml` en in `pve_api_host`. Een ander adres breekt alles.
+
+#### Importeer de ZFS-pool `vm-hdd`
+
+Op pve01, als root:
+
+```bash
+zpool import vm-hdd      # "in use by another system"? dan: zpool import -f vm-hdd
+```
+
+- **Lukt het**: de VM-schijven en de PBS-datastore zijn er nog. Ga door.
+- **Lukt het niet**: de PBS-back-ups zijn weg. Doe deel 1, sla in deel 2 alles
+  over tot *Maak de map voor de tweede kopie*, doe deel 2 verder af, en ga dan
+  naar [Tweede kopie](#terugvallen-op-de-tweede-kopie).
+
+#### Maak het API-token
+
+Op pve01, als root:
+
+```bash
+pveum role add AnsibleAutomation --privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use,Sys.Audit,VM.Allocate,VM.Audit,VM.Config.CPU,VM.Config.Disk,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.PowerMgmt,VM.GuestAgent.Audit"
+pveum user add ansible@pve
+pveum acl modify / --user ansible@pve --role AnsibleAutomation
+pveum user token add ansible@pve automation --privsep 0   # toont het secret, maar één keer
+```
+
+Kopieer het secret meteen.
+
+<Callout type="info">
+Waarom met de hand? De inventory vindt de guests via dit token. Een playbook
+heeft het token dus al nodig om te draaien, en kan het niet zelf aanmaken.
+</Callout>
+
+#### Zet het secret in de twee vault-bestanden
+
+Op je laptop:
+
+```bash
+ansible-vault edit inventory/group_vars/proxmox/vault.yml   # vault_pve_api_token_secret
+ansible-vault edit inventory/homelab.proxmox.yml            # token_secret
+```
+
+<Callout type="warning">
+**Allebei.** `vault.yml` gebruiken de playbooks, `homelab.proxmox.yml` gebruikt
+de dynamische inventory. Die wordt gelezen vóór `group_vars`, en kan dus niet
+naar `vault_pve_api_token_secret` verwijzen: daarom is het hele bestand
+versleuteld en staat het secret er letterlijk in. Vergeet je de tweede, dan
+ziet Ansible geen enkele guest.
+</Callout>
+
+#### Commit en push
+
+```bash
+git add inventory/group_vars/proxmox/vault.yml inventory/homelab.proxmox.yml
+git commit -m 'Nieuw Proxmox API-token na herinstallatie pve01'
+git push
+```
+
+Semaphore draait vanuit git. Zonder push werkt hij straks met het oude token.
+
+#### Vertrouw de nieuwe hostkey van pve01
+
+```bash
+ssh-keygen -R 192.168.0.14      # vergeet de oude
+ssh root@192.168.0.14 exit      # accepteer de nieuwe, typ 'yes'
+```
+
+Een herinstallatie geeft pve01 een nieuwe hostkey. Zonder deze stap weigert
+SSH, en met een wachtwoord (`-k`) kan Ansible geen onbekende key accepteren.
+
+#### Geef Ansible toegang tot pve01
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k   # vraagt het root-wachtwoord
+```
+
+Een verse Proxmox laat root nog met een wachtwoord binnen. Na de baseline niet
+meer: dit is het enige moment waarop `-u root -k` werkt.
+
+<Callout type="warning">
+`-k` heeft het programma `sshpass` nodig op je laptop. Ontbreekt het, dan
+stopt Ansible met een melding daarover.
+</Callout>
+
+#### Controleer het token
+
+```bash
+ansible-playbook playbooks/proxmox-access.yml
+```
+
+Trekt de rechten van het token gelijk en bewijst dat het werkt. Groen = de
+inventory kan de guests zien.
+
+</Steps>
+
+### Deel 2 — Back-ups terug in beeld
+
+PBS is VM 100 en draait op pve01 zelf. Hij moet dus bestaan vóór je zijn
+opslag kan koppelen.
+
+<Steps>
+
+#### Maak `vm-hdd` bekend in Proxmox
+
+In het Proxmox-scherm: Datacenter → Storage → Add → ZFS.
+
+| Veld | Waarde |
+| --- | --- |
+| ID | `vm-hdd` |
+| ZFS Pool | `vm-hdd` |
+| Content | Disk image, Container |
+
+De pool is geïmporteerd, maar Proxmox weet nog niet dat hij hem mag gebruiken.
+De PBS-datastore staat op die pool.
+
+#### Maak de PBS-VM (100) met de hand
+
+Exact volgens `vmid: 100` in `pve_vms` (`inventory/group_vars/proxmox/vms.yml`).
+
+- **MAC-adres overnemen** (`BC:24:11:3D:B4:6A`): daar hangt de DHCP-reservering aan.
+- Systeemschijf `scsi0`: nieuw, 32G op `local-lvm`.
+- Datastore `scsi1`: **niet nieuw maken**. Koppel de bestaande schijf terug:
+
+```bash
+qm rescan --vmid 100     # vindt de oude schijf op vm-hdd als 'unused'
+```
+
+Hang die daarna in het scherm aan als `scsi1`, met backup uit.
+
+<Callout type="error">
+`scsi1` ís de datastore met al je back-ups. Een nieuwe 320G-schijf maken =
+een lege datastore. Je back-ups staan op de oude schijf, nergens anders. Dit
+stuk is nog nooit gelopen; ga langzaam.
+</Callout>
+
+#### Installeer PBS in de VM
+
+Van de ISO (`ide2` in `vms.yml`). De oude systeemschijf stond op `local-lvm`
+en is met de herinstallatie verdwenen.
+
+Zorg daarna dat de datastore van `scsi1` weer op `/mnt/datastore/store1` hangt.
+
+<Callout type="warning">
+Doe dat vóór `pbs.yml` draait. Vindt de rol geen `store1`, dan maakt hij er
+een nieuwe, lege aan.
+</Callout>
+
+#### Breng PBS onder Ansible
+
+```bash
+ssh-keygen -R <pbs-adres>
+ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
+ansible-playbook playbooks/pbs.yml
+```
+
+De inventory vindt het adres van een VM via de guest-agent (`agent: "1"` in
+`vms.yml`). Geen agent in de VM = geen adres = Ansible vindt `pbs` niet.
+
+#### Koppel PBS in Proxmox
+
+Met de hand: Datacenter → Storage → Add → Proxmox Backup Server.
+
+- ID: **`pbs`** (de back-upjob en de drills verwachten die naam)
+- datastore `store1`, gebruiker `pve@pbs` met zijn wachtwoord (niet in de repo; kwijt? zet een nieuw in het PBS-scherm)
+- de **encryptiesleutel** (je papieren kopie)
+
+<Callout type="warning">
+Dit staat met opzet in geen playbook: de definitie draagt de
+encryptiesleutel, en die hoort niet in git. Zonder die sleutel zijn je
+back-ups onleesbaar.
+</Callout>
+
+#### Maak de map voor de tweede kopie
+
+Op de **Mac mini**:
+
+```bash
+ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
+```
+
+Een NFS-export laat zich niet mounten op een pad dat er niet is. Zonder deze
+map komt `macmini-backup` er wel, maar blijft hij inactief.
+
+#### Zet de overige opslag en de back-upjobs terug
+
+```bash
+ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
+```
+
+Maakt `macmini-backup` en de twee back-upjobs uit
+`inventory/group_vars/proxmox/storage.yml` en `backup.yml`. Alleen hier de vlag
+`-e proxmox_datacenter_create=true`, zie
+[waarom](#waarom-proxmox_datacenter_create-niet-standaard-aan-staat).
+
+#### Trek pve01 gelijk
+
+```bash
+ansible-playbook playbooks/site.yml --limit pve01
+```
+
+Pas nu: `site.yml` controleert ook de opslag, en stopt met "Not found on the
+node" zolang die er niet is.
+
+</Steps>
+
+### Deel 3 — De machines en diensten
+
+Guests met data komen uit PBS, `caddy`, `tailscale` en `ntfy` bouw je nieuw.
+
+<Steps>
+
+#### Zet de guests met data terug uit PBS
+
+Volg [Terugzetten uit back-up](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up)
+voor `adguard` (107, als eerste: DNS), `semaphore` (104), `haos` (101),
+`docker-grafana-stack` (102) en `docker` (103). Ze bestaan nog niet, dus laat
+`--force` weg.
+
+`qmrestore` maakt de VM zelf aan, met de instellingen en het MAC-adres uit de
+back-up. Je hoeft 101 tot 103 niet eerst met de hand te maken.
+
+<Callout type="warning">
+Kijk na de restore van `adguard` of onderaan `/etc/pve/lxc/107.conf` de twee
+`/dev/net/tun`-regels nog staan (zie
+[Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen)).
+Ontbreken ze, zet ze erbij en doe `pct reboot 107`.
+</Callout>
+
+#### Haal het container-template op
+
+Op pve01, als root:
+
+```bash
+pveam update
+pveam download local debian-13-standard_13.1-2_amd64.tar.zst
+```
+
+Een verse Proxmox heeft het niet, en de rol haalt het niet zelf op. Het staat
+in `pve_lxc_defaults.template` (`lxcs.yml`).
+
+#### Bouw de rest opnieuw
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
+ansible-playbook playbooks/new-guest.yml -e guest=tailscale
+```
+
+Eén per keer. Vergeet de `/dev/net/tun`-regels voor `tailscale` niet (zie
+[Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen)).
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+Dat is `ntfy`. Hij komt niet uit PBS maar wordt nieuw gebouwd: gebruikers,
+rechten en tokens staan in `lxcs.yml` en de vault, dus er gaat niets verloren
+behalve de berichten van de laatste uren. Het image komt van Docker Hub, dus
+pve01 moet al internet hebben. Tot hij draait, komen de meldingen van Proxmox
+alleen in `mail-to-root` terecht.
+
+#### Zet de diensten op de nieuwe containers
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/tailscale.yml
+ansible-playbook playbooks/semaphore.yml   # niet site.yml --limit semaphore: die faalt
+```
+
+Een opnieuw aangemelde `tailscale` biedt `192.168.0.0/24` opnieuw aan. Keur die
+route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet.
+
+#### Trek alles gelijk
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff    # lees dit echt: back-up vs repo
+ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/docs.yml
+ansible-playbook playbooks/report.yml
+```
+
+<Callout type="info">
+Stopt `stacks.yml` met een deploy-key? Dat gebeurt alleen op een host die
+**nieuw** gebouwd is. Zet de getoonde publieke sleutel in GitHub onder
+Settings → Deploy keys (`docker` → `rubenclaes/containers`,
+`docker-grafana-stack` → `rubenclaes/monitoring-stack`) en draai opnieuw. Kwam
+de host uit PBS, dan staat de oude sleutel er nog.
+</Callout>
+
+</Steps>
+
+## Terugvallen op de tweede kopie
+
+Gebruik dit als de PBS-back-ups niet bruikbaar zijn: `vm-hdd` is weg, of je
+hebt de encryptiesleutel niet meer. De tweede kopie op de Mac mini is
+hoogstens een week oud en heeft **geen sleutel nodig**.
+
+<Steps>
+
+#### Zorg dat pve01 de opslag ziet
+
+```bash
+ssh pve01 'sudo pvesm status | grep macmini-backup'
+```
+
+Staat hij er niet (herbouwde node)? Doe dan eerst *Maak de map voor de tweede
+kopie* en *Zet de overige opslag en de back-upjobs terug* uit
+[pve01 is weg](#pve01-is-weg).
+
+#### Zoek de dump
+
+```bash
+ssh pve01 'sudo pvesm list macmini-backup'
+```
+
+Namen zoals `macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst`
+(container) of `…vzdump-qemu-103-….vma.zst` (VM). Neem de nieuwste.
+
+#### Zet de dump terug
+
+Precies zoals in [Terugzetten uit back-up](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up),
+alleen met deze naam:
+
+```bash
+sudo pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst --storage vm-hdd
+```
+
+#### Maak PBS opnieuw, leeg
+
+PBS (VM 100) zit niet in de tweede kopie, met opzet. Maak hem met de hand
+volgens `vms.yml` (MAC-adres overnemen), en dan:
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
+ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
+```
+
+Hij begint zonder back-ups. Koppel hem daarna als opslag `pbs` zoals in
+[pve01 is weg](#pve01-is-weg), met een
+**nieuwe** encryptiesleutel, en maak daar meteen een papieren kopie van (zie
+[Vooraf](/runbooks/stuk/#vooraf-doe-dit-nu)).
+
+</Steps>
+
+## De ansible-sleutel is kwijt
+
+Alleen als er echt nergens nog een kopie is: niet op een andere Mac, niet in
+de wachtwoordkluis. Heb je wel een kopie, zet die dan gewoon terug op
+`~/.ssh/ansible_ed25519` (zie [Werkplek → Laptop](/runbooks/toegang/werkplek/#laptop-klaarzetten)).
+
+<Callout type="error">
+`-u root -k` (inloggen met wachtwoord) helpt je hier **niet**. De baseline zet
+`PasswordAuthentication no`, dus elke host weigert wachtwoorden. Je komt er
+alleen nog in via de hypervisor of de console.
+</Callout>
+
+<Steps>
+
+#### Maak een nieuwe sleutel
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/ansible_ed25519 -C "ansible@homelab"
+```
+
+#### Zet hem in elke container
+
+Als root op `pve01` (via het Proxmox-scherm → Shell), per container:
+
+```bash
+pct exec <vmid> -- tee -a /home/ansible/.ssh/authorized_keys <<< "<inhoud van ansible_ed25519.pub>"
+```
+
+De vmids staan in `inventory/group_vars/proxmox/lxcs.yml` (104 semaphore,
+106 caddy, 107 adguard, 108 tailscale).
+
+#### Zet hem in de VM's, pve01 en de Mac mini
+
+- **VM's** (`pbs`, `docker`, `docker-grafana-stack`): via de console in het
+  Proxmox-scherm, in `/home/ansible/.ssh/authorized_keys`.
+- **`pve01`** zelf: via de Shell in het Proxmox-scherm, zelfde bestand.
+- **`macmini`**: Ansible logt daar in als `rubenclaes`, dus in
+  `~/.ssh/authorized_keys` van die gebruiker.
+
+#### Zet de nieuwe publieke sleutel in de inventory
+
+```bash
+$EDITOR inventory/group_vars/proxmox/lxcs.yml   # pve_lxc_defaults.pubkey
+```
+
+Anders krijgt elke nieuw gebouwde container de oude sleutel mee.
+
+#### Commit en push de nieuwe sleutel
+
+```bash
+git add inventory/group_vars/proxmox/lxcs.yml
+git commit -m 'Nieuwe ansible-sleutel'
+git push
+```
+
+#### Test
+
+```bash
+ansible all -m ping
+```
+
+#### Bewaar de nieuwe sleutel
+
+Zet een kopie in de wachtwoordkluis, zodat je dit nooit meer moet doen.
+
+</Steps>
+
+## Goed om te weten
+
+### De twee back-upjobs
+
+| | Dagelijks | Wekelijks |
+| --- | --- | --- |
+| Wanneer | elke nacht 02:30 | zondag 01:00 |
+| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
+| Welke guests | alle behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 |
+| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps |
+| Bewaart | 7 | 2 |
+| Versleuteld | ja | **nee** |
+| Redt je van | een kapotte guest | een pve01 die weg is |
+
+De dagelijkse is de hoofdkopie. Maar die staat op pve01 zelf: sterft die
+machine met zijn schijven, dan gaan guests en back-ups samen. Daarvoor is de
+wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
+
+### Het is geen off-site
+
+Beide kopieën staan in hetzelfde huis, aan dezelfde stroom, op hetzelfde
+netwerk. Tegen brand, diefstal of ransomware helpt dit niet. En de dumps op de
+Mini zijn niet versleuteld: iedereen die die NFS-share kan mounten, kan ze
+lezen.
+
+### Faalt de wekelijkse job, dan meldt niemand dat
+
+Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job stil. Kijk
+af en toe zelf:
+
+```bash
+ssh pve01 'sudo pvesm list macmini-backup'
+ssh pve01 'df -h /mnt/pve/macmini-backup'
+```
+
+### Waarom maar twee dumps bewaren
+
+`media01` op de Mini is bijna vol en draagt ook Time Machine en Duplicati.
+Daarom staat `prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je
+meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken alle
+drie de back-ups tegelijk.
+
+### Het API-token staat op twee plekken
+
+`inventory/group_vars/proxmox/vault.yml` (`vault_pve_api_token_secret`) voor de
+playbooks, en `inventory/homelab.proxmox.yml` (`token_secret`) voor de
+dynamische inventory. Een inventory-bron wordt gelezen vóór `group_vars`, dus
+kan hij niet naar een vault-variabele verwijzen. Daarom is dat hele bestand
+versleuteld onder `infra`. Nieuw token = beide aanpassen.
+
+### `bootstrap.yml` doet één host tegelijk
+
+Hij weigert meer dan één host. Zonder die grendel herschrijft een vergeten
+`--limit` `/etc/sudoers.d/ansible` op alle hosts. Er gaat niets stuk, maar een
+playbook voor één nieuwe machine hoort de rest niet te raken.
+
+### Waarom `proxmox-access.yml` via het token test
+
+Hij vraagt de guest-agent op dóór het token heen, niet met `pvesh`. `pvesh`
+draait als root en slaagt altijd, dus dat bewijst niets over wat de
+inventory straks ziet.
+
+### Waarom `proxmox_datacenter_create` niet standaard aan staat
+
+Op een gezonde node betekent ontbrekende opslag: "de inventory klopt niet". Op
+een herbouwde node: "de inventory is de waarheid, maak het aan". Alleen jij
+weet welke van de twee het is. Daarom zet je de vlag zelf, en alleen bij een
+herbouw.
+
+### Waarom VM's niet uit een playbook komen
+
+`vms.yml` beschrijft de vier VM's, maar niets leest dat bestand. Een VM
+opnieuw maken geeft een lege schijf, en de waarde zit in de schijf. Voor
+101–103 doet `qmrestore` het beter: die zet de schijf én de instellingen
+terug. `vms.yml` is er voor PBS (100) en voor als er geen back-up is. Neem dan
+zeker het MAC-adres over: daar hangt de DHCP-reservering aan, en `haos`
+herkent zichzelf eraan.

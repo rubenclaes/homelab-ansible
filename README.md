@@ -33,7 +33,7 @@ Verbinden gaat met `~/.ssh/ansible_ed25519`, als gebruiker `ansible`, op elke
 Linux-host. Dat pad staat vast in `ansible.cfg`, hernoemen kan dus niet.
 
 Na een herinstallatie van pve01, of als een sleutel kwijt is: zie
-[Herstellen](https://docs.neodata.be/runbooks/disaster-recovery/).
+[Er is iets stuk](https://docs.neodata.be/runbooks/stuk/).
 
 ---
 
@@ -45,14 +45,10 @@ stap voor stap en met het waarom erbij. De bron staat in
 
 | Runbook | Dekt |
 | --- | --- |
-| Toestellen en toegang | een toestel op het netwerk, toegang geven of afnemen |
-| Werkplek | laptop klaarzetten, `ssh <host>`, wat je na een run doet |
-| Nieuwe machine | een nieuwe container of VM op pve01 (`new-guest.yml`) |
-| Dienst toevoegen | `new-service.yml`, een eigen rol, een route in `caddy_sites` |
-| Updates | `update.yml`, de Macs, `caddy-upgrade.yml` |
-| Onderhoud | `report.yml`, `drift.yml`, `smoketest.yml`, `cleanup.yml`, `docs.yml` |
-| Netwerk en Proxmox | bridges, autostart, DNS, een Tailscale-sleutel |
-| Herstellen | een back-up terugzetten, `restore-drill.yml`, pve01 van nul |
+| Er is iets stuk | een back-up terugzetten, een container herbouwen, de Mac mini, pve01 van nul, `restore-drill.yml` |
+| Iets toevoegen | een nieuwe container of VM (`new-guest.yml`), `new-service.yml`, een eigen rol, een route |
+| Onderhoud | `update.yml`, `report.yml`, `drift.yml`, `smoketest.yml`, `cleanup.yml`, Semaphore, bridges en DNS |
+| Toegang en werkplek | toestellen en mensen, een Tailscale-sleutel, laptop klaarzetten, `docs.yml` |
 
 | Map | Wat |
 | --- | --- |

@@ -1,0 +1,51 @@
+---
+title: Start hier
+---
+
+import { Callout } from 'nextra/components'
+
+# Iets toevoegen
+
+Een extra machine op pve01, of een nieuwe dienst op `naam.neodata.be`: kies hieronder je geval.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil een **nieuwe app** draaien en die bestaat als Docker-image | Memos, Vaultwarden, Jellyfin | [Nieuwe Docker-app](/runbooks/toevoegen/dienst/#een-nieuwe-docker-app) |
+| Het ding **draait al** ergens, je wil er alleen een mooi adres voor | Shelfmark op de Mac mini, Home Assistant, de webpagina van je printer | [Alleen een adres](/runbooks/toevoegen/dienst/#alleen-een-adres) |
+| Je wil software **rechtstreeks op een machine** installeren, zonder Docker | AdGuard, Caddy, PBS | [Eigen rol](/runbooks/toevoegen/dienst/#een-eigen-rol-zonder-docker) |
+| Je wil een **nieuwe container** voor software die een eigen machine hoort te hebben | Vaultwarden op een eigen LXC | [Nieuwe container](/runbooks/toevoegen/machine/#een-nieuwe-container) |
+| Je wil **één programma uit een Docker-image** dat moet blijven werken als de docker-VM plat ligt | `ntfy` | [OCI-container](/runbooks/toevoegen/machine/#een-oci-container) |
+| Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Virtuele machine](/runbooks/toevoegen/machine/#een-virtuele-machine) |
+| Je container of VM staat er, en je wil hem **afwerken**: dienst erop, adres, back-up, commit, docs | `vaultwarden` na het bouwen | [Afwerken](/runbooks/toevoegen/machine/#afwerken) |
+| Een container die **al in de lijst staat** is weg en je wil hem opnieuw bouwen | `adguard` na een herinstallatie van pve01 | [Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
+
+Twijfel je bij een dienst: het is bijna altijd een **Docker-app**. Een eigen rol heb je zelden nodig.
+
+<Callout type="info">
+Een **Docker-app** heeft **geen nieuwe machine** nodig: die komt op de bestaande
+machine `docker`. Moet je dienst wel op een **nieuwe machine** (LXC) draaien?
+Bouw die dan eerst met [Nieuwe machine](/runbooks/toevoegen/machine/). Alle drie
+de dienst-gevallen gaan ervan uit dat de machine al bestaat.
+</Callout>
+
+Twijfel je tussen container en VM: kies de **container**. Die start in een
+seconde, kost nauwelijks geheugen, en het hele pad is geautomatiseerd. Een VM
+is voor als het echt niet anders kan, bv. een eigen besturingssysteem zoals
+Home Assistant OS.
+
+## Woorden die je nodig hebt
+
+- **Guest** — alles wat op pve01 draait: een container of een VM.
+- **vmid** — het unieke nummer van een guest in Proxmox (bv. `107` is `adguard`).
+- **`pve_lxcs`** — de lijst met containers in `inventory/group_vars/proxmox/lxcs.yml`. Wat daar niet in staat, kan het playbook niet bouwen.
+- **Baseline** — het minimum dat elke Linux-machine krijgt: tijdzone, basispakketten, automatische beveiligingsupdates, SSH dichtgetimmerd.
+- **Vault** — de versleutelde bestanden met wachtwoorden. Je hebt `~/.ansible/vault_pass_infra` en `~/.ansible/vault_pass_stacks` op je werkstation nodig (zie de README).
+- **Stack** — één Docker-app: een map in de `containers`-repo met een
+  `docker-compose.yml` en een `.env`. Alle stacks draaien op de machine `docker`.
+- **Route** — één regel in `caddy_sites` die zegt: "stuur `naam.neodata.be` door
+  naar deze machine op deze poort". Zonder route kan je de dienst alleen via zijn
+  IP-adres bereiken.
+- **Rol** — een installatierecept in `roles/` dat software direct op een machine
+  zet, zoals je met de hand `apt install` zou doen. Geen Docker.

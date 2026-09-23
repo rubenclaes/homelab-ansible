@@ -1,11 +1,7 @@
 export default {
   index: 'Overzicht',
-  toegang: 'Toestellen en toegang',
-  werkplek: 'Werkplek',
-  'nieuwe-guest': 'Nieuwe machine',
-  'dienst-toevoegen': 'Dienst toevoegen',
-  updates: 'Updates',
+  stuk: 'Er is iets stuk',
+  toevoegen: 'Iets toevoegen',
   onderhoud: 'Onderhoud',
-  netwerk: 'Netwerk en Proxmox',
-  'disaster-recovery': 'Herstellen'
+  toegang: 'Toegang en werkplek'
 }

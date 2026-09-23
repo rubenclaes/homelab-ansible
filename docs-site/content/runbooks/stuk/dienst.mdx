@@ -1,0 +1,327 @@
+---
+title: Eén dienst of container
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Eén dienst of container
+
+Eén container of VM is stuk, de rest van het huis draait nog. Hier zet je hem
+terug uit de back-up, bouw je hem opnieuw, of haal je de DNS terug.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Een container of VM is stuk, en **wat erop stond** moet terug | `adguard`, `semaphore`, `docker`, Home Assistant | [Terugzetten uit de back-up](#terugzetten-uit-de-back-up) |
+| Een container is stuk, en er staat niets op dat je niet opnieuw kan maken | `caddy`, `tailscale` | [Een container opnieuw bouwen](#een-container-opnieuw-bouwen) |
+| Niets resolvet meer: geen `*.home.arpa`, geen `*.neodata.be` | `adguard` (ct 107) ligt plat | [Geen DNS](#geen-dns) |
+
+Twijfel je tussen herbouwen en terugzetten: kies **terugzetten**. Een back-up
+terugzetten kan altijd.
+
+## Terugzetten uit de back-up
+
+Voor alles waarvan de schijf het punt is: `adguard` (filterinstellingen,
+upstreams), `semaphore` (projecten, geschiedenis), `docker`, Home Assistant.
+
+Voorbeeld: `adguard` (ct 107). Alle commando's met `pct`/`qm`/`pvesm` draai je
+op pve01 (`ssh pve01`).
+
+<Steps>
+
+#### Zoek de back-up die je wil
+
+```bash
+sudo pvesm list pbs | grep '/107/'
+```
+
+Je krijgt volledige namen zoals `pbs:backup/ct/107/2026-09-20T02:30:00Z`.
+Kopieer de **nieuwste van vóór de storing**, in zijn geheel.
+
+#### Twijfel je? Test hem eerst ernaast
+
+```bash
+sudo pct restore 199 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd
+sudo pct set 199 --delete net0     # netwerkkaart eraf: anders botst hij met het origineel
+sudo pct start 199
+sudo pct exec 199 -- ls /opt/AdGuardHome   # kijk of je data erin staat
+sudo pct stop 199; sudo pct destroy 199
+```
+
+Dit raakt het origineel niet aan. Of laat een playbook het doen:
+`ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=adguard`.
+
+<Callout type="warning">
+Vergeet `--delete net0` niet. De back-up draagt het IP en MAC-adres van het
+origineel: start je hem zo, dan heb je twee machines op hetzelfde adres.
+</Callout>
+
+#### Zet het origineel stil
+
+```bash
+sudo pct stop 107     # een VM: sudo qm stop 103
+```
+
+#### Zet de back-up terug
+
+**Een container:**
+
+```bash
+sudo pct restore 107 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd --force
+```
+
+**Een VM:**
+
+```bash
+sudo qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd --force
+```
+
+`--force` overschrijft wat er op dat nummer staat. Kijk dus twee keer naar
+het nummer. Bestaat de guest niet meer, dan mag `--force` weg.
+
+<Callout type="warning">
+De volgorde verschilt: bij `pct restore` komt **het nummer eerst**, bij
+`qmrestore` **de back-up eerst**. Dat is geen typefout.
+
+`--storage`: neem dezelfde als het origineel (zie
+[Welke guest is wat](/runbooks/stuk/#welke-guest-is-wat)).
+`semaphore` staat op `local-lvm`, de rest op `vm-hdd`.
+</Callout>
+
+#### Start hem
+
+```bash
+sudo pct start 107    # een VM: sudo qm start 103
+```
+
+#### Trek hem gelijk met de repo
+
+Terug op je werkstation:
+
+```bash
+ansible-playbook playbooks/site.yml --limit adguard
+```
+
+De back-up draait de configuratie van toen. Deze run brengt hem naar wat de
+repo nu zegt.
+
+<Callout type="info">
+Terugzetten van `semaphore`? Gebruik dan `ansible-playbook playbooks/semaphore.yml`
+in plaats van `site.yml --limit semaphore`. Die laatste faalt: Semaphore moet
+eerst de hostkeys van alle machines ophalen.
+</Callout>
+
+#### Krijg je "REMOTE HOST IDENTIFICATION HAS CHANGED"?
+
+```bash
+ssh-keygen -R 192.168.0.29    # het adres van de teruggezette guest
+```
+
+</Steps>
+
+## Een container opnieuw bouwen
+
+Voor een container die in `pve_lxcs` staat maar stuk of weg is, en waar niets
+unieks op staat: `caddy` en `tailscale`. Nieuw bouwen gaat sneller dan een
+back-up terugzetten, en is schoner.
+
+<Callout type="warning">
+Dit geeft je een **lege** container met de juiste instellingen. Heb je de data
+nodig (instellingen, databases), volg dan
+[Terugzetten uit back-up](#terugzetten-uit-de-back-up).
+Voor `adguard`, `semaphore` e.a. is dat bijna altijd wat je wil.
+</Callout>
+
+Voorbeeld: `caddy` (ct 106).
+
+<Steps>
+
+#### Gooi de oude weg (als hij nog half bestaat)
+
+```bash
+ssh pve01 'sudo pct stop 106; sudo pct destroy 106'
+```
+
+Het playbook maakt alleen wat ontbreekt. Een halve container blijft anders
+gewoon staan.
+
+#### Bouw hem opnieuw
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
+```
+
+Maakt de container, zet het `ansible`-account erop en doet de baseline.
+Meerdere tegelijk kwijt? Eén per keer, in deze volgorde: `adguard` (DNS),
+`caddy` (de voordeur), `tailscale`, `semaphore`.
+
+#### Doe de handwerkstappen uit `lxcs.yml`
+
+Sommige containers hebben instellingen die het API-token niet kan zetten. Die
+staan als commentaar bij hun blok in `inventory/group_vars/proxmox/lxcs.yml`.
+Nu: `tailscale` (108) en `adguard` (107), allebei voor `/dev/net/tun`.
+
+Zet als root op pve01 deze twee regels onderaan `/etc/pve/lxc/<vmid>.conf`
+(voorbeeld 108):
+
+```bash
+ssh -t pve01 'sudoedit /etc/pve/lxc/108.conf'
+```
+
+```
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+```
+
+```bash
+ssh pve01 'sudo pct reboot 108'   # een mount-entry geldt pas na een herstart
+```
+
+Zonder dit start `tailscaled` niet: hij faalt stil in een herstartlus. Geen
+playbook kan het voor je doen.
+
+<Callout type="warning">
+Niet met `pct set 108 -lxc.cgroup2.devices.allow …`: `pct set` weigert rauwe
+`lxc.`-sleutels op deze Proxmox-versie ("400 unable to parse option"). Schrijf
+de regels dus altijd rechtstreeks in het `.conf`-bestand.
+</Callout>
+
+#### Zet de dienst terug
+
+```bash
+ansible-playbook playbooks/site.yml --limit caddy
+```
+
+Voor `semaphore`: `ansible-playbook playbooks/semaphore.yml`, niet
+`site.yml --limit semaphore` (die faalt).
+
+#### Alleen bij `tailscale`: keur de route goed
+
+Een opnieuw aangemelde `tailscale` biedt `192.168.0.0/24` opnieuw aan. Keur die
+route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet.
+
+#### Alleen bij `caddy`: zet de docs en het rapport terug
+
+```bash
+ansible-playbook playbooks/smoketest.yml --tags caddy
+ansible-playbook playbooks/docs.yml       # docs.neodata.be staat op caddy
+ansible-playbook playbooks/report.yml     # report.neodata.be ook
+```
+
+Een nieuwe `caddy` is leeg: de routes werken, maar deze site en het rapport
+staan er pas weer na deze twee.
+
+#### Laat Semaphore de nieuwe machine vertrouwen
+
+```bash
+ansible-playbook playbooks/semaphore.yml
+```
+
+De nieuwe container heeft een nieuwe SSH-hostkey. Semaphore weigert hem tot
+deze run. Niet met `--limit semaphore`: dan faalt hij.
+
+</Steps>
+
+<Callout type="info">
+`adguard` herbouwen heeft nog extra handwerk (setup-wizard, upstreams, de
+wildcard-rewrite). Volg daarvoor [Geen DNS](#geen-dns).
+</Callout>
+
+## Geen DNS
+
+Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Alle DNS van het
+huis loopt via één container: `adguard`, ct 107, `192.168.0.29`.
+
+**Ansible werkt nog.** De inventory gebruikt IP-adressen, geen namen.
+
+<Steps>
+
+#### Kijk of hij gewoon uit staat
+
+```bash
+ssh pve01 'sudo pct status 107'
+ssh pve01 'sudo pct start 107'     # als hij "stopped" zegt
+```
+
+#### Is hij stuk: zet hem terug uit de back-up
+
+Volg [Terugzetten uit back-up](#terugzetten-uit-de-back-up)
+met vmid 107. Dat is de snelle en volledige weg.
+
+<Callout type="warning">
+Liever **niet** opnieuw bouwen. Een nieuwe AdGuard mist alles wat alleen in de
+container staat: je login, de upstream-resolvers, en de wildcard
+`*.neodata.be → 192.168.0.25`, die met de hand in AdGuard staat. Bovendien
+vraagt een nieuwe container zijn DNS aan pve01, en die vraagt het aan…
+de AdGuard die er niet is. Dan faalt de installatie.
+</Callout>
+
+#### Geen back-up? Dan toch opnieuw bouwen
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
+```
+
+Loopt dit vast op het downloaden van pakketten, geef de container dan zijn
+eigen DNS en draai het opnieuw:
+
+```bash
+ssh pve01 'sudo pct set 107 --nameserver 1.1.1.1; sudo pct reboot 107'
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
+```
+
+Daarna, met de hand:
+
+1. zet de `/dev/net/tun`-regels onderaan `/etc/pve/lxc/107.conf`, zoals in [Container herbouwen](#een-container-opnieuw-bouwen), en `pct reboot 107`
+2. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
+3. zet in AdGuard de upstream-DNS en de rewrite `*.neodata.be` → `192.168.0.25`
+
+```bash
+ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + filterlijsten
+```
+
+#### Test de DNS
+
+```bash
+ansible-playbook playbooks/smoketest.yml --tags dns
+```
+
+Vraagt elke naam uit de inventory op bij AdGuard, plus één publieke naam
+(`google.com`) om te zien of doorvragen werkt.
+
+#### Kwam hij terug op een ander adres?
+
+Pas dan de DNS-server aan in UniFi (DHCP). Anders blijft het huis zoeken naar
+`192.168.0.29`.
+
+</Steps>
+
+<Callout type="info">
+Zet in UniFi altijd `1.1.1.1` als tweede DNS-server naast `192.168.0.29`.
+Zonder tweede heeft het hele huis geen internet als ct 107 stilstaat, ook het
+toestel waarmee je het wil repareren niet.
+</Callout>
+
+## Goed om te weten
+
+### `new-guest.yml` maakt alleen wat je noemt
+
+De container-rol zelf maakt élke container uit `pve_lxcs` die ontbreekt.
+`new-guest.yml` geeft hem alleen de genoemde, zodat de nummers die nog uit
+PBS terug moeten vrij blijven.
+
+### `/dev/net/tun` gaat met de hand
+
+`tailscale` (108) en `adguard` (107, sinds 23-09 op de tailnet als globale
+nameserver) hebben `/dev/net/tun` nodig. Het API-token kan geen rauwe
+`lxc.`-sleutels zetten, en `pct set` weigert ze op deze Proxmox-versie. Dus:
+twee regels onderaan `/etc/pve/lxc/<vmid>.conf` en `pct reboot`. De bron is het
+commentaar in `inventory/group_vars/proxmox/lxcs.yml`.
+
+### Niet alles komt uit een playbook terug
+
+`macmini` en `docker-grafana-stack` draaien diensten die deze repo nog niet
+kan terugbouwen: daar is PBS het herstelpad. Ook de AdGuard-instellingen
+(`AdGuardHome.yaml`) en de database van Semaphore zet geen
+rol terug.

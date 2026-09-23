@@ -1,0 +1,167 @@
+---
+title: Start hier
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Er is iets stuk
+
+Er is iets stuk en je wil het terug. Kies in de tabel wat er stuk is en volg
+dan alleen dat geval, stap voor stap.
+
+<Callout type="info">
+Deze site draait op `docs.neodata.be`, en dat is de container `caddy`. Is die
+weg, dan is deze site ook weg. Dezelfde tekst staat in elke clone van de repo:
+`docs-site/content/runbooks/stuk/`.
+</Callout>
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Er is **nu niets stuk** | je wil voorbereid zijn | [Vooraf: doe dit nu](#vooraf-doe-dit-nu) |
+| Een container is stuk, en er staat niets op dat je niet opnieuw kan maken | `caddy`, `tailscale` | [Een container opnieuw bouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
+| Een container of VM is stuk, en **wat erop stond** moet terug | `adguard`, `semaphore`, `docker`, Home Assistant | [Terugzetten uit de back-up](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up) |
+| Niets resolvet meer: geen `*.home.arpa`, geen `*.neodata.be` | `adguard` (ct 107) ligt plat | [Geen DNS](/runbooks/stuk/dienst/#geen-dns) |
+| De media-apps draaien, maar hun mappen zijn leeg | Sonarr of Radarr ziet geen bestanden | [De shares van de Mac mini](/runbooks/stuk/mac-mini/#de-shares-van-de-mac-mini) |
+| De Mac mini is kapot of opnieuw geïnstalleerd | nieuwe schijf, macOS opnieuw | [De Mac mini is weg](/runbooks/stuk/mac-mini/#de-mac-mini-is-weg) |
+| `pve01` zelf is weg | bootschijf dood, Proxmox van USB opnieuw geïnstalleerd | [pve01 is weg](/runbooks/stuk/pve01/#pve01-is-weg) |
+| De back-ups op PBS zijn weg of onleesbaar | schijf `vm-hdd` kapot, of de sleutel kwijt | [Terugvallen op de tweede kopie](/runbooks/stuk/pve01/#terugvallen-op-de-tweede-kopie) |
+| De **`ansible`-sleutel is weg** en er is nergens nog een kopie | laptop kwijt, niet in de wachtwoordkluis | [De ansible-sleutel is kwijt](/runbooks/stuk/pve01/#de-ansible-sleutel-is-kwijt) |
+| Je wil weten of herstellen echt werkt | na wijzigingen aan de back-upjobs | [Herstellen testen](#herstellen-testen) |
+
+Twijfel je tussen herbouwen en terugzetten: kies **terugzetten**. Een back-up
+terugzetten kan altijd.
+
+**Is er nu niets stuk?** Doe dan eerst [Vooraf: doe dit nu](#vooraf-doe-dit-nu).
+Zonder die stappen werkt geen enkel geval hierboven.
+
+Wil je weten of herstellen echt werkt? Zie [Herstellen testen](#herstellen-testen).
+
+## Woorden die je nodig hebt
+
+**Node** — de fysieke machine `pve01` (`192.168.0.14`), met Proxmox erop.
+
+**Guest** — een container (LXC, commando's `pct`) of virtuele machine (VM,
+commando's `qm`) op die node. Elke guest heeft een nummer, de *vmid*.
+
+**PBS** — Proxmox Backup Server, VM 100. Hij bewaart de dagelijkse back-ups,
+versleuteld, op de schijf `vm-hdd` van pve01 zelf.
+
+**Tweede kopie** — de wekelijkse back-up naar de Mac mini (`macmini-backup`).
+Niet versleuteld.
+
+**Vault-wachtwoord** — ontgrendelt de versleutelde bestanden in de repo. Er
+zijn er twee: `infra` en `stacks`.
+
+**API-token** — de login waarmee Ansible aan Proxmox vraagt welke machines er zijn.
+
+**Dynamische inventory** — `inventory/homelab.proxmox.yml`: haalt de lijst
+guests live uit Proxmox, via dat token.
+
+**Bootstrap** — de eerste keer inloggen als root en de gebruiker `ansible` aanmaken.
+
+**Baseline** — de basisinstellingen die elke Linux-host krijgt (o.a. inloggen
+met wachtwoord uit).
+
+## Welke guest is wat
+
+| Guest | vmid | Soort | Opslag | Bij verlies |
+| --- | --- | --- | --- | --- |
+| `pbs` | 100 | VM | `local-lvm` + `vm-hdd` | met de hand, zie [pve01 is weg](/runbooks/stuk/pve01/#pve01-is-weg) |
+| `haos` (Home Assistant) | 101 | VM | `vm-hdd` | [terugzetten](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up) |
+| `docker-grafana-stack` | 102 | VM | `vm-hdd` | [terugzetten](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up) |
+| `docker` | 103 | VM | `vm-hdd` | [terugzetten](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up) |
+| `semaphore` | 104 | LXC | `local-lvm` | [terugzetten](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up) |
+| `caddy` | 106 | LXC | `vm-hdd` | [herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
+| `adguard` | 107 | LXC | `vm-hdd` | [terugzetten](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up) of [geen DNS](/runbooks/stuk/dienst/#geen-dns) |
+| `tailscale` | 108 | LXC | `vm-hdd` | [herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
+| `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/runbooks/toevoegen/machine/#een-oci-container) |
+
+Bron: `inventory/group_vars/proxmox/lxcs.yml` en `vms.yml`.
+
+## Vooraf: doe dit nu
+
+Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
+
+<Steps>
+
+#### Maak een papieren kopie van de PBS-sleutel
+
+```bash
+ssh pve01
+sudo ls /etc/pve/priv/storage/                                         # hier hoort pbs.enc te staan
+sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text
+```
+
+Print wat eruit komt, en bewaar het **buiten het huis** (bv. ook in de
+wachtwoordkluis). Zonder deze sleutel zijn de back-ups op PBS niet terug te
+zetten.
+
+<Callout type="warning">
+`proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,
+niet de sleutel zelf. Daar kan je niets mee terugzetten.
+</Callout>
+
+#### Bewaar de twee vault-wachtwoorden op dezelfde plek
+
+```bash
+cat ~/.ansible/vault_pass_infra
+cat ~/.ansible/vault_pass_stacks
+```
+
+Ze openen alles wat de repo versleuteld bewaart: API-tokens, logins, de
+`.env`-bestanden van de stacks. Ze staan niet in git, met opzet.
+
+<Callout type="error">
+Kwijt = de repo is compleet maar onbruikbaar. Bijna elk playbook leest een
+vault-bestand. Ze zijn nergens uit af te leiden: de enige weg terug is elk
+vault-bestand opnieuw maken en elk secret opnieuw zetten.
+</Callout>
+
+</Steps>
+
+## Herstellen testen
+
+### Af en toe: bewijs dat herstellen werkt
+
+Een herstelpad dat nooit gedraaid heeft, is een aanname.
+
+```bash
+ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
+```
+
+Bewijst dat je je **data** terugkrijgt uit PBS: de sleutel werkt en het archief
+is heel. Draait vanzelf op de 1e van de maand; met de hand na wijzigingen aan
+de back-upjobs.
+
+Hij zet de back-up terug op vmid 199 en sloopt die op het eind.
+
+<Callout type="warning">
+**Faalt de drill, dan blijft 199 staan**, zodat je kan kijken wat er misging.
+Opruimen: `ssh pve01 'sudo pct destroy 199'`.
+</Callout>
+
+`restore-drill.yml --check` zegt alleen welke back-up hij zou pakken, zonder
+iets te doen.
+
+Het bouwpad zelf (`new-guest.yml`, `bootstrap.yml`, de baseline) bewijs je
+gewoon door het te gebruiken: elke nieuwe container loopt het van begin tot
+eind.
+
+## Goed om te weten
+
+### Waarom twee vault-wachtwoorden
+
+Een keuze over schade bij een lek:
+
+| Identiteit | Beschermt | Een lek betekent |
+| --- | --- | --- |
+| `infra` | inventory-vaults, `homelab.proxmox.yml`, Semaphore-config | controle over hypervisor, DNS en back-ups roteren |
+| `stacks` | `files/env/*.env` | applicatie-logins roteren |
+
+### De vault-wachtwoorden staan ook op Semaphore
+
+De `semaphore`-rol kopieert ze naar de Semaphore-container, zodat die zijn
+geplande jobs kan draaien. Een back-up van `semaphore` (ct 104) bevat ze dus
+ook. Handig als je werkstation weg is, maar bewaar ze toch apart.

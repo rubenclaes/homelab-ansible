@@ -1,0 +1,222 @@
+---
+title: Wat draait er vanzelf
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Wat draait er vanzelf
+
+Alles wat loopt zonder dat jij iets typt, en hoe je een schema in Semaphore
+toevoegt of wijzigt.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil weten **wat er vanzelf draait en wanneer** | "Wanneer loopt Drift check?", "Waar staan de back-ups?" | [Wat draait er vanzelf, en wanneer?](#wat-draait-er-vanzelf-en-wanneer) |
+| Je wil een schema in Semaphore toevoegen of wijzigen | Drift check een uur later laten lopen | [Een schema in Semaphore aanpassen](#een-schema-in-semaphore-aanpassen) |
+| Je wil weten waarom de tijden en limits zijn wat ze zijn | "Waarom `!mbp` in elke template?" | [Goed om te weten](#goed-om-te-weten) |
+
+## Wat draait er vanzelf, en wanneer?
+
+Tijden zijn lokale tijd (Europe/Brussels).
+
+### In Semaphore, met schema
+
+| Template | Wanneer | Waarom dan |
+| --- | --- | --- |
+| Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
+| Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
+| Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
+| Stacks | dagelijks 05:30 | ná de converge van zondag, vóór Drift check |
+| Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
+| Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
+| Docs | dagelijks 07:00 | de site volgt de repo |
+| Homelab Report | zondag 08:00 | traag, dus wekelijks |
+| Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
+
+### In Semaphore, zonder schema (klik ze zelf)
+
+| Template | Doet |
+| --- | --- |
+| Baseline (dry run) | `baseline.yml --check --diff`: droogloop, verandert niets |
+| Caddy | `caddy.yml` |
+| Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
+
+Daarmee staan alle twaalf templates van het project in git. Maak je er een in
+de UI, zet hem dan ook in `semaphore_templates_list`, anders is dat bestand
+weer een deellijst en geloof je hem ten onrechte. Hoe:
+[Schema in Semaphore](#een-schema-in-semaphore-aanpassen).
+
+### Op pve01, niet in Semaphore
+
+De back-ups draaien op de cron van Proxmox. Ze staan in `pve_backup_jobs` in
+`inventory/group_vars/proxmox/backup.yml`.
+
+| Job | Wanneer | Waarheen | Waarom |
+| --- | --- | --- | --- |
+| dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
+| wekelijks | zondag 01:00 | de Mac mini, over NFS | tweede kopie, voor als pve01 zelf weg is |
+
+Terugzetten: [Herstellen](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/runbooks/stuk/pve01/#terugvallen-op-de-tweede-kopie).
+
+<Callout type="warning">
+**Niets hiervan meldt zichzelf als het faalt**, niet in Semaphore en niet op
+Proxmox. De wekelijkse back-up schrijft naar een Mac die kan slapen. Tot er
+meldingen zijn, is elk schema een aanname: kijk af en toe zelf in de
+taaklijst. Staat bovenaan `TODO.md`.
+</Callout>
+
+Waarom de tijden en limits zijn wat ze zijn:
+[Goed om te weten → Semaphore](#goed-om-te-weten).
+
+## Een schema in Semaphore aanpassen
+
+De templates en hun schema's staan in `semaphore_templates_list` in
+`inventory/host_vars/semaphore/main.yml`. `playbooks/semaphore-templates.yml`
+zet ze via de API in Semaphore.
+
+<Steps>
+
+#### Kijk eerst wat er in de UI staat
+
+Open Semaphore en noteer de **exacte** naam van de template, met hoofdletters.
+
+<Callout type="error">
+`name` is de sleutel waarop gezocht wordt. `Cleanup (apply)` is niet
+`Cleanup (Apply)`: een andere schrijfwijze maakt een **tweede** template in
+plaats van de bestaande te wijzigen. Zo stonden er op 23-09 drie dubbele jobs,
+waaronder een site-converge zonder zijn limit.
+</Callout>
+
+#### Pas de lijst aan
+
+```bash
+$EDITOR inventory/host_vars/semaphore/main.yml
+```
+
+```yaml
+- name: "Drift check"
+  playbook: playbooks/drift.yml
+  description: "Wat zou site.yml veranderen? Faalt als het antwoord niet 'niets' is."
+  arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
+  schedule: "0 6 * * *"   # lokale tijd (Europe/Brussels)
+```
+
+Laat de limits staan. Waarom: zie
+[De limits in de templates](#de-limits-in-de-templates).
+
+#### Probeer droog
+
+```bash
+ansible-playbook playbooks/semaphore-templates.yml --check
+```
+
+Lees de rapportageregel. Staat een template die je wilde **wijzigen** onder
+`create`? Dan wijkt de naam af. Stop en verbeter de naam.
+
+#### Zet het echt
+
+```bash
+ansible-playbook playbooks/semaphore-templates.yml
+```
+
+#### Commit en push
+
+```bash
+git add inventory && git commit -m 'Semaphore: schema Drift check' && git push
+```
+
+#### Werk de lijst op de docs-site bij
+
+Pas de tabel in [Wat draait er vanzelf?](#wat-draait-er-vanzelf-en-wanneer)
+aan: die is met de hand geschreven.
+
+</Steps>
+
+<Callout type="info">
+Eerste keer op een nieuwe controller? De API-login staat in
+`inventory/host_vars/semaphore/vault.yml` (`vault_semaphore_api_user`,
+`vault_semaphore_api_password`). Ontbreekt dat bestand, dan faalt de rol met
+een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
+</Callout>
+
+### Wat de rol wel en niet doet
+
+| Doet | Doet niet |
+| --- | --- |
+| templates aanmaken en bijwerken | templates verwijderen: wat je uit de lijst haalt, blijft in de UI staan, mét schema |
+| de cron zetten | een gepauzeerd schema weer aanzetten |
+| naam, playbook, argumenten, beschrijving | surveys, views, vaults en de vlaggen onder *Advanced* |
+
+`site.yml` draait `semaphore-templates.yml` ook mee, maar alleen als je hem
+**met de hand en zonder limit** draait. De geplande `Site converge` slaat hem
+over; zie
+[Een schema herschrijft zichzelf niet](#een-schema-herschrijft-zichzelf-niet).
+
+## Goed om te weten
+
+### De limits in de templates
+
+- **`!semaphore`** — houdt een job van zijn eigen container af. Herstart
+  Semaphore halverwege, dan is de job dood en weet je niet of hij af is. Die
+  machine patch je met de hand.
+- **`!mbp`** — `mbp` heeft `ansible_connection: local`. Vanuit Semaphore
+  betekent dat "de container die de job draait", niet je MacBook. Die zit in
+  `macs` en krijgt dan macOS-taken: zo liep `Cleanup (report)` op 23-09 vast
+  op "Measure the Homebrew cache" in een Debian-container. Aan je bureau klopt
+  `mbp` wel; daar draai je zonder limit.
+- **Geen limit** bij `Homelab Report`, met opzet. `report.yml` slaat de
+  macOS-taken zelf over als hij geen Mac ziet. En `all` telt de impliciete
+  `localhost` niet mee: met een kale `all:!mbp` is de run groen maar
+  verschijnt er niets op report.neodata.be. Een limit die te veel wegsnijdt
+  maakt een job niet rood, alleen stil.
+- **`drift_limit`** in plaats van `--limit` bij `Drift check` — `drift.yml`
+  draait zelf op `localhost`; een `--limit` zou die play raken, niet de
+  droogloop eronder.
+
+### Een schema herschrijft zichzelf niet
+
+`Site converge` draait met `--limit all:!mbp:!semaphore`, dus de play
+`semaphore-templates.yml` in `site.yml` valt daar weg. Dat is met opzet: een
+schema dat zijn eigen schema's herschrijft terwijl het draait, wil je niet.
+
+### Waarom de tijden lokale tijd zijn
+
+Tot 23-09 las Semaphore elke cron als UTC (`Drift check` met `0 6 * * *`
+eindigde op `06:00:37Z`, dus 08:00 hier). UTC schuift mee met de zomertijd.
+De `semaphore`-rol zet nu `SEMAPHORE_SCHEDULE_TIMEZONE` uit
+`semaphore_schedule_timezone` (`Europe/Brussels`), als omgevingsvariabele en
+niet in de gevaulte `config.json`, zodat je hem kunt nalezen.
+
+### Baseline (dry run) deed vroeger echt iets
+
+Tot 23-09 draaide hij `baseline.yml` **zonder** `--check`: wie ging kijken,
+paste de baseline toe op elke Linux-host. Nu met `--check --diff`. Niet
+hernoemd, want een nieuwe naam maakt een tweede template en laat de
+geschiedenis achter.
+
+### Waarom `Stacks` dagelijks draait
+
+Na een herstart van OrbStack komen `duplicati` en `shelfmark` op de Mac mini
+niet terug: ze koppelen een schijf onder `/Volumes` aan die OrbStack pas later
+doorgeeft, en `restart: unless-stopped` helpt niet tegen een start die mislukt.
+Een dagelijkse run herstelt dat binnen een dag. De eerste beheerde run is op
+23-09 met de hand gedaan en was schoon (`changed=0`): een schema dat zijn
+eerste run onbewaakt doet, is een gok.
+
+### De Semaphore-API kent geen gedeeltelijke update
+
+Een `UPDATE` zet élke kolom uit het verzoek; wat je weglaat wordt leeg. Daarom
+bouwt de rol het verzoek op uit wat de server nu heeft, met alleen onze velden
+erover. Om dezelfde reden stuurt hij `environment_ids` mee: laat je dat weg,
+dan draait de template zonder environment. Denk hieraan voor je de rol
+"vereenvoudigt".
+
+### Een template hernoemen
+
+`name` is de sleutel waarop de rol zoekt. Hernoem je hem alleen in
+`semaphore_templates_list`, dan maakt de rol een tweede template en blijft de
+oude staan, met zijn schema. Hernoem hem dus eerst in de UI, en draai dan
+`semaphore-templates.yml --check`: de template moet onder `update` staan, niet
+onder `create`. Zo werd `DNS smoketest` op 23-09 `Smoketest`.

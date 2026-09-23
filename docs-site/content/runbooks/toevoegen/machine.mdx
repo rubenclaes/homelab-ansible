@@ -1,0 +1,508 @@
+---
+title: Nieuwe machine
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Nieuwe machine
+
+Gebruik dit als je een **extra machine** op pve01 nodig hebt: een container
+(LXC) of een virtuele machine (VM). Na een container of VM ga je verder met
+[Afwerken](#afwerken): dienst erop, adres, back-up, commit, docs. Een
+OCI-container heeft zijn eigen, kortere pad: de dienst ís de container.
+
+<Callout type="info">
+Wil je gewoon een **Docker-app** draaien (Memos, Jellyfin…)? Dan heb je **geen
+nieuwe machine** nodig. Die komt op de bestaande machine `docker`. Volg
+[Dienst toevoegen → Nieuwe Docker-app](/runbooks/toevoegen/dienst/#een-nieuwe-docker-app).
+</Callout>
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil een **nieuwe container** voor software die een eigen machine hoort te hebben | Vaultwarden op een eigen LXC | [Nieuwe container](#een-nieuwe-container) |
+| Je wil **één programma uit een Docker-image** dat moet blijven werken als de docker-VM plat ligt | `ntfy` | [OCI-container](#een-oci-container) |
+| Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Virtuele machine](#een-virtuele-machine) |
+| Je container of VM staat er en heeft de baseline | `vaultwarden` na het bouwen | [Afwerken](#afwerken) |
+| Een container die **al in de lijst staat** is weg en je wil hem opnieuw bouwen | `adguard` na een herinstallatie van pve01 | [Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
+
+Twijfel je tussen container en VM: kies de **container**. Die start in een
+seconde, kost nauwelijks geheugen, en het hele pad is geautomatiseerd. Een VM
+is voor als het echt niet anders kan, bv. een eigen besturingssysteem zoals
+Home Assistant OS.
+
+## Een nieuwe container
+
+Voorbeeld: Vaultwarden op een eigen LXC. Alles gebeurt vanaf je werkstation,
+het Proxmox-scherm heb je niet nodig.
+
+<Steps>
+
+#### Zoek een vrij nummer
+
+```bash
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, naam, status
+```
+
+Kies een nummer dat daar niet in staat.
+
+<Callout type="warning">
+Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
+nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
+gereserveerd voor de restore-drill.
+</Callout>
+
+#### Zoek een vrij adres
+
+Kijk in `inventory/group_vars/proxmox/lxcs.yml` welke adressen al gebruikt
+worden, en test of het adres echt vrij is:
+
+```bash
+ping -c 2 192.168.0.31   # geen antwoord = waarschijnlijk vrij
+```
+
+#### Zet de container in de lijst
+
+```bash
+$EDITOR inventory/group_vars/proxmox/lxcs.yml
+```
+
+Voeg onderaan in `pve_lxcs` een blok toe:
+
+```yaml
+  - vmid: 111
+    hostname: vaultwarden
+    cores: 1
+    memory: 512
+    swap: 512
+    disk: { storage: vm-hdd, size: 8 }
+    ip: 192.168.0.31/24
+    features: [nesting=1]
+```
+
+| Veld | Wat je invult |
+| --- | --- |
+| `vmid` | het vrije nummer |
+| `hostname` | kleine letters, geen spaties. Wordt ook zijn naam in de inventory |
+| `cores` / `memory` / `swap` | geheugen in MB. Begin klein, ophogen kan later |
+| `disk` | opslag + grootte in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
+| `ip` | het vrije adres, met `/24` erachter |
+| `features` | `nesting=1` zet je er altijd bij (Docker heeft het nodig, de rest heeft er geen last van) |
+
+Gateway, template en de Ansible-sleutel komen uit `pve_lxc_defaults` bovenaan
+hetzelfde bestand. Die hoef je niet in te vullen.
+
+#### Bouw de container
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=vaultwarden
+```
+
+Dit maakt de container, wacht tot SSH luistert, vertrouwt zijn hostkey, zet
+het `ansible`-account erop en past de baseline toe. Aan het eind staat in beeld
+wat je hierna doet.
+
+#### Werk de container af
+
+De machine staat er, maar is nog leeg. Ga verder met
+[Afwerken](#afwerken).
+
+</Steps>
+
+## Een OCI-container
+
+Sinds Proxmox 9.1 kan een Docker-image rechtstreeks een container worden,
+zonder Docker ertussen. Er zit geen Debian in, geen SSH en geen apt: alleen
+het programma. Proxmox noemt dit nog een tech preview.
+
+**Wanneer wel:** voor iets kleins dat moet blijven werken als de docker-VM
+plat ligt. `ntfy` is het voorbeeld: wie meldt dat de docker-VM stuk is, mag er
+niet zelf op draaien.
+
+**Wanneer niet:** voor al de rest. Iets met meerdere containers (Immich), of
+iets waarvan de data belangrijk is, hoort op de docker-host. Daar heb je
+compose, healthchecks en `docker compose pull`.
+
+<Steps>
+
+#### Zet hem in `pve_oci_lxcs`
+
+In `inventory/group_vars/proxmox/lxcs.yml`, met een vaste `version`, nooit
+`latest`. Kijk naar `ntfy` als voorbeeld. Twee dingen die je bij een nieuw
+image moet nakijken:
+
+- **`entrypoint`**: veel images hebben een `ENTRYPOINT` zonder argumenten.
+  Kaal start dat de help en stopt meteen, zonder melding.
+- **`volumes`**: elke map waar het programma naar schrijft en die niet in het
+  image zit. Ontbreekt er een, dan stopt de container.
+
+Zet alles wat moet blijven bestaan in `env`, niet op de schijf. Zie
+[Updaten is opnieuw bouwen](#updaten-is-opnieuw-bouwen).
+
+#### Bouw de OCI-container
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+De rol haalt het image op, maakt de container, zet `entrypoint` en `env`, en
+start hem. Een tweede run doet niets.
+
+#### Geef hem een naam (optioneel)
+
+Zoals bij een gewone container, in `caddy_sites`: zie
+[Afwerken → Geef hem een adres](#geef-hem-een-adres-optioneel).
+Geef hem een vaste `upstream` in plaats van alleen `host`: een gestopte
+OCI-container heeft geen adres in de inventory, en dan faalt de Caddyfile
+voor elke site. De container staat na de eerste run in de inventory, onder
+`appliances`.
+
+</Steps>
+
+### Waarom anders dan een gewone container
+
+- **Geen `new-guest.yml`**: er is geen SSH, dus geen bootstrap en geen
+  baseline. De tag `oci` houdt hem buiten `linux`, anders zou `site.yml` er
+  vergeefs de baseline op proberen.
+- **Proxmox negeert `entrypoint` en `env` bij het aanmaken** en neemt die van
+  het image over. Daarom zet de rol ze er achteraf op, en herstart hij de
+  container als ze veranderen: env wordt alleen bij het starten gelezen.
+- **`env` gaat via de API, niet via `pct`**: Proxmox wil de variabelen
+  gescheiden door NUL-tekens, en een shell kan die niet doorgeven. Alles plakt
+  dan aan elkaar, `PATH` verdwijnt, en de container stopt zonder uitleg. Wie
+  `env` zet, vervangt trouwens alles, ook de `PATH` van het image; de rol zet
+  die daarom altijd zelf mee.
+- **Het image ophalen gebeurt als root**, alles daarna met de API-token van
+  Ansible. Ophalen vraagt het recht om pve01 van eender waar te laten
+  downloaden, en dat hoort die token niet te hebben voor één `pull`.
+
+### Updaten is opnieuw bouwen
+
+Een OCI-container kun je niet `apt upgrade`n: je hoogt `version` op en bouwt
+hem opnieuw. Dat sloopt de container **en zijn volumes**, daarom staat alles
+wat moet overleven in `env`. Voor ntfy zijn dat de gebruikers, rechten en
+tokens; je verliest alleen de berichtcache van de laatste uren.
+
+De stappen staan in [Updates → OCI-containers](/runbooks/onderhoud/updates/#oci-containers).
+
+### ntfy op je iPhone
+
+Installeer de app **ntfy**. Onder Instellingen → Standaardserver:
+`https://ntfy.neodata.be`, gebruiker `ruben`. Het wachtwoord staat in de vault:
+
+```bash
+ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_password
+```
+
+Abonneer op het topic `homelab`. Proxmox en PBS sturen daar hun
+waarschuwingen en fouten heen, elk met een eigen token (een mislukte back-up bijvoorbeeld), rechtstreeks naar
+`192.168.0.32` en dus niet via Caddy: een melding over een storing mag niet
+afhangen van Caddy of AdGuard. Geslaagde back-ups komen er bewust niet: wie
+elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
+
+Een mislukte back-up stuurt de hele log mee, en dat is al snel meer dan de
+4 KB die in één bericht past. Die komt binnen als "You received a file:
+attachment.txt": de titel zegt wat er misging, de bijlage is de log. Daarvoor
+staat `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n bericht
+en krijg je niets.
+
+Buitenshuis zonder VPN krijg je wel het seintje, maar kan de app de inhoud
+niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.
+
+## Een virtuele machine
+
+Een VM maak je **met de hand** in het Proxmox-scherm
+([waarom](#waarom-vms-niet-automatisch)).
+Daarna neemt Ansible het over, net als bij een container.
+
+Voorbeeld: een VM `nieuwehost` met Debian.
+
+### Het grote plaatje
+
+| Stap | Waar | Wat |
+| --- | --- | --- |
+| 1–3 | Proxmox-scherm | Debian-ISO ophalen, VM aanmaken, Debian installeren |
+| 4 | in de VM | guest agent aanzetten |
+| 5 | UniFi | adres vastzetten |
+| 6–8 | je werkstation | Ansible hem laten zien, sleutel erop, `bootstrap` + `baseline` |
+| 9 | je werkstation | opschrijven in `vms.yml` |
+
+<Callout type="info">
+Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Neem cores,
+geheugen, schijfgrootte en vooral het **MAC-adres** exact over uit
+`inventory/group_vars/proxmox/vms.yml`. Aan het MAC-adres hangt zijn vaste
+adres in UniFi. Meestal wil je dan geen nieuwe VM maar een back-up terugzetten:
+zie [Herstellen](/runbooks/stuk/).
+</Callout>
+
+<Steps>
+
+#### Haal de Debian-installer op
+
+Eén keer; staat hij er al, sla dit over.
+
+1. Open het Proxmox-scherm: `https://192.168.0.14:8006`.
+2. Links: **pve01 → local (pve01) → ISO Images → Download from URL**.
+3. Plak de link naar het nieuwste `debian-…-amd64-netinst.iso` van
+   [cdimage.debian.org/debian-cd/current/amd64/iso-cd](https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/)
+   en klik **Query URL**, dan **Download**.
+
+#### Maak de VM aan
+
+Kies een vrij nummer en een naam zoals bij
+[een container](#zoek-een-vrij-nummer).
+Klik rechtsboven op **Create VM** en vul per tabblad in. Alles wat hier niet
+staat laat je op de standaardwaarde.
+
+| Tabblad | Veld | Waarde | Waarom |
+| --- | --- | --- | --- |
+| General | VM ID | het vrije nummer | |
+| | Name | `nieuwehost` | wordt zijn naam in de inventory: kleine letters, geen spaties |
+| | Start at boot | aan | komt terug na een herstart van pve01 |
+| OS | ISO image | het Debian-ISO | |
+| System | Machine | `q35` | zoals de andere VM's |
+| | BIOS | `OVMF (UEFI)` | |
+| | EFI Storage | `vm-hdd` | |
+| | Qemu Agent | **aan** | zonder dit vindt Ansible zijn adres niet |
+| Disks | Storage | `vm-hdd` | |
+| | Disk size | bv. `32` | in GB, groter maken kan later |
+| | Discard, SSD emulation | aan | geeft vrije ruimte terug aan de opslag |
+| CPU | Cores | bv. `2` | |
+| | Type | `host` | volle snelheid van de processor |
+| Memory | Memory | bv. `2048` | in MB. Zie [hoeveel geheugen](#hoeveel-geheugen-een-vm-krijgt) |
+| Network | Bridge | `vmbr0` | het thuisnetwerk |
+| | Model | `VirtIO` | |
+
+Klik **Finish**. Selecteer daarna de VM en klik **Start**, dan **Console**.
+
+#### Installeer Debian
+
+In de console kies je **Install** (niet Graphical install) en volg je de
+vragen. Alleen deze zijn belangrijk:
+
+| Vraag | Antwoord | Waarom |
+| --- | --- | --- |
+| Netwerk | laat DHCP zijn werk doen | het adres zet je straks vast in UniFi |
+| Hostname | `nieuwehost` | dezelfde naam als de VM |
+| Domain name | leeg | |
+| Root password | **leeg laten** (twee keer Enter) | dan krijgt de gebruiker hieronder `sudo`, en dat heeft Ansible straks nodig |
+| Gebruiker | bv. `ruben` + wachtwoord | alleen voor de eerste keer, daarna gebruikt Ansible zijn eigen account |
+| Partitioning | Guided – use entire disk, alles op één partitie | |
+| Software selection | **alleen** SSH server + standard system utilities | geen desktop |
+
+Na de herstart log je in de console in met je gebruiker.
+
+#### Zet de guest agent aan
+
+In de VM:
+
+```bash
+sudo apt install -y qemu-guest-agent
+sudo systemctl enable --now qemu-guest-agent
+ip -4 addr show   # onthoud het adres, bv. 192.168.0.99
+```
+
+De guest agent vertelt Proxmox het adres van de VM. Via die weg vindt Ansible
+hem: een VM zet je **nooit** met de hand in de inventory.
+
+#### Zet zijn adres vast in UniFi
+
+In UniFi: zoek het toestel `nieuwehost` bij de clients en zet **Fixed IP** aan
+op het adres dat hij nu heeft. Zo krijgt hij na een herstart hetzelfde adres,
+en blijven routes in Caddy kloppen.
+
+#### Controleer dat Ansible hem ziet
+
+Terug op je werkstation:
+
+```bash
+ansible-inventory --host nieuwehost | grep ansible_host
+```
+
+Zie je `"ansible_host": "192.168.0.99"`, dan is het goed. Niets? Kijk in het
+Proxmox-scherm bij de VM → **Summary**: staat bij IPs "Guest Agent not
+running", dan is stap 4 of het vinkje **Qemu Agent** niet gelukt (dat vinkje
+vraagt een volledige stop en start van de VM, geen reboot van binnenuit).
+
+#### Zet de Ansible-sleutel op je gebruiker
+
+```bash
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub ruben@192.168.0.99
+```
+
+Hij vraagt eerst of je de hostkey vertrouwt (`yes`), dan het wachtwoord van
+`ruben`. Daarna kan Ansible zonder wachtwoord binnen.
+
+#### Zet het ansible-account erop en pas de baseline toe
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit nieuwehost -u ruben -K
+ansible-playbook playbooks/baseline.yml --limit nieuwehost
+```
+
+`-u ruben` logt de eerste keer in als jouw gebruiker, `-K` vraagt zijn
+sudo-wachtwoord. `bootstrap` maakt het `ansible`-account; vanaf `baseline`
+gebruikt alles dat account.
+
+#### Schrijf hem op in `vms.yml`
+
+Op pve01 (bv. via **pve01 → Shell** in het Proxmox-scherm):
+
+```bash
+qm config <vmid>
+```
+
+Neem die waarden over in `inventory/group_vars/proxmox/vms.yml`, in dezelfde
+vorm als de VM's die er al staan. Geen playbook leest dit bestand: het is je
+geheugen voor als pve01 ooit weg is.
+
+#### Werk de VM af
+
+Ga verder met [Afwerken](#afwerken).
+
+</Steps>
+
+## Afwerken
+
+Je machine staat er en heeft de baseline, via
+[Nieuwe container](#een-nieuwe-container) of
+[Virtuele machine](#een-virtuele-machine). Nu zet je er iets op
+en zorg je dat hij overal meetelt. Voorbeeld: `vaultwarden`.
+
+<Steps>
+
+#### Installeer de dienst
+
+Voor software zonder Docker schrijf je een rol. Dat staat in
+[Dienst toevoegen → Eigen rol](/runbooks/toevoegen/dienst/#een-eigen-rol-zonder-docker).
+
+#### Geef hem een adres (optioneel)
+
+Wil je hem op `https://vaultwarden.neodata.be`, zet dan een route in
+`inventory/host_vars/caddy/main.yml` onder `caddy_sites`:
+
+```yaml
+  - { name: vaultwarden, host: vaultwarden, port: 8080, desc: "Wachtwoordkluis" }
+```
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
+```
+
+Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/runbooks/toevoegen/dienst/#alle-velden-van-een-route).
+
+#### Zet hem in de wekelijkse back-up
+
+De dagelijkse back-up naar PBS neemt elke guest vanzelf mee. De wekelijkse
+kopie naar de Mac mini **niet**: die heeft een vaste lijst.
+
+```bash
+$EDITOR inventory/group_vars/proxmox/backup.yml   # vmid toevoegen aan "101,102,…,108"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+#### Commit en push
+
+```bash
+git add inventory/ roles/ playbooks/
+git commit -m "vaultwarden erbij"
+git push
+```
+
+<Callout type="error">
+Sla dit niet over. Semaphore draait zijn geplande runs vanuit git, niet vanaf
+je laptop. Een route of rol die niet gepusht is, bestaat voor Semaphore niet
+en kan bij de volgende run weer verdwijnen.
+</Callout>
+
+#### Controleer
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff --limit vaultwarden
+```
+
+Verandert niets, toont alleen wat er nog zou veranderen. Staat er niets open,
+dan klopt alles.
+
+#### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina's met hosts en containers op deze site worden uit de inventory
+gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
+
+</Steps>
+
+## Als het misgaat
+
+| Wat je ziet | Wat het is |
+| --- | --- |
+| Het playbook stopt meteen met een lijst namen | Je naam staat niet in `pve_lxcs`. Zet hem erbij en draai opnieuw |
+| Het blijft hangen bij "Wait for SSH" (3 minuten) | De container start niet, of het adres klopt niet. Kijk in het Proxmox-scherm of hij draait en welk adres hij heeft |
+| Een fout over een hostkey | Er stond al een andere machine op dat adres. `ssh-keygen -R <adres>` en opnieuw |
+| Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet. Zie de README |
+| Een VM staat niet in de inventory | De guest agent draait niet. Zie [Virtuele machine](#controleer-dat-ansible-hem-ziet) |
+| Een OCI-container staat meteen weer op `stopped` | Meestal een ontbrekend `entrypoint`-argument of een map die niet bestaat. Zet `lxc.console.logfile: /tmp/ct.log` onderaan `/etc/pve/lxc/<vmid>.conf`, start hem, en lees dat bestand. Haal de regel daarna weer weg |
+
+Een half gebouwde container is niet erg: het playbook mag altijd opnieuw. Wat
+al bestaat wordt niet nog eens gemaakt.
+
+## Goed om te weten
+
+### Waar het adres van een container vandaan komt
+
+Zolang de container niet bestaat, is `lxcs.yml` de enige plek met zijn adres.
+Zodra hij bestaat, haalt de inventory het live uit Proxmox. Je schrijft het
+adres dus nergens anders op, en zet een guest **nooit** in `00-static.yml`:
+dat overschaduwt de live gegevens.
+
+### Bestaande containers worden nooit aangepast
+
+De rol kijkt alleen welke vmid ontbreekt. Pas je later `memory` of `cores` aan
+in `lxcs.yml`, dan verandert er niets aan een draaiende container. Doe dat in
+het Proxmox-scherm en zet het ook in `lxcs.yml`, zodat een herbouw klopt.
+
+### Hoeveel geheugen een VM krijgt
+
+Geef een VM wat zijn diensten echt gebruiken, plus wat ruimte voor pieken, en
+niet "zoveel als er vrij is". Linux vult elk vrij geheugen in de VM met
+bestandscache. Zonder balloon geeft een VM dat nooit terug, dus voor pve01 is
+het gewoon bezet.
+
+De `docker`-VM had tot 23-09 28 GB. Proxmox zag 26 GB in gebruik, maar de
+containers zelf gebruikten er samen maar ~4,2 GB van. De rest was cache. Op
+pve01 bleef daardoor maar ~9 GB over voor alle andere guests en de ZFS-cache.
+Nu heeft hij 16 GB, genoeg voor de pieken van Immich.
+
+Wat een VM echt gebruikt, zie je **binnen** de VM, niet in Proxmox:
+
+```bash
+free -m                   # kijk naar "used", niet naar "buff/cache"
+docker stats --no-stream  # per container
+```
+
+Aanpassen doe je op pve01, en daarna ook in `vms.yml`:
+
+```bash
+qm set <vmid> --memory 16384   # gaat pas in na een herstart
+qm pending <vmid>              # toont wat er nog wacht
+qm reboot <vmid>               # herstart hem netjes, alle diensten erop gaan even plat
+```
+
+### Waarom de hostkey via Proxmox gelezen wordt
+
+Een nieuwe container heeft een hostkey die niemand kent, en Ansible kan die
+niet zomaar accepteren. `new-guest.yml` leest de sleutel via `pct exec`
+rechtstreeks van de schijf van de container. Zo vertrouw je de echte machine,
+en niet wat er toevallig op dat adres antwoordt.
+
+### Waarom VM's niet automatisch
+
+Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
+instellingen. Hem opnieuw aanmaken uit een lijst geeft je een correcte, maar
+lege machine. Het echte herstel is een back-up terugzetten uit PBS. Daarom
+staat `vms.yml` er alleen als naslag.
