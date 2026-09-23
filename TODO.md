@@ -50,13 +50,6 @@ runbook *Onderhoud*.
       wijzigt. Zoek uit of iets die Cloudflare-record bijwerkt; zo niet, zet
       Dynamic DNS aan.
 
-- [ ] **Wie komt via Tailscale op het hele thuisnetwerk?** De subnet-route
-      van ct 108 (`192.168.0.0/24`) is goedgekeurd, en je iPhone komt er
-      onderweg mee op het LAN (getest 23-09). Wie je via NeoGate op de tailnet
-      zet, krijgt dat misschien ook: dat hangt af van de toegangsregels in de
-      Tailscale-console (Access controls). Staat daar de standaardregel "alles
-      mag alles", dan wel. Beperk de route tot jezelf, en pas daarna "Iemand
-      VPN geven" aan.
 
 ---
 

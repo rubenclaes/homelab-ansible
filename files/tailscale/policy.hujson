@@ -1,0 +1,68 @@
+// De toegangsregels van de tailnet (brill-atlas.ts.net), zoals ze op 23-09 in
+// de Tailscale-console staan onder Access controls.
+//
+// GEEN PLAYBOOK LEEST DIT BESTAND. De console is de bron; dit is het afschrift,
+// zodat de regels niet alleen daar bestaan en een wijziging een diff heeft.
+// Pas je ze aan in de console, plak de nieuwe versie hier en commit.
+//
+// Waarom deze regels: ct 108 biedt het hele thuisnetwerk aan (192.168.0.0/24)
+// en die route is goedgekeurd. Met de standaardregel "alles mag alles" kreeg
+// iedereen die je via NeoGate op de tailnet zet, dus ook pve01, Proxmox, SSH en
+// de Mac mini. Nu mag jij alles, en de anderen alleen wat ze nodig hebben: de
+// diensten, die allemaal via Caddy lopen, en DNS om hun namen op te lossen.
+{
+	"tagOwners": {
+		"tag:ci":      [],
+		"tag:homelab": ["rubes.claes@gmail.com"],
+	},
+
+	// Namen voor adressen, zodat de regels leesbaar blijven.
+	"hosts": {
+		"caddy": "192.168.0.25",
+	},
+
+	"acls": [
+		// Jij: alles, ook het hele thuisnetwerk via de subnet-route van ct 108.
+		{
+			"action": "accept",
+			"src":    ["rubes.claes@gmail.com"],
+			"dst":    ["*:*"],
+		},
+		// Iedereen op de tailnet: de diensten, en die gaan allemaal via Caddy.
+		{
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			"dst":    ["caddy:80,443"],
+		},
+		// En DNS bij adguard (tag:homelab), anders lost *.neodata.be niet op.
+		{
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			"dst":    ["tag:homelab:53"],
+		},
+	],
+
+	"ssh": [
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+
+	"nodeAttrs": [
+		{
+			"target": ["autogroup:member"],
+			"attr":   ["funnel"],
+		},
+	],
+
+	// Tailscale weigert op te slaan als een van deze niet klopt.
+	"tests": [
+		{
+			"src":    "rubes.claes@gmail.com",
+			"accept": ["192.168.0.14:8006", "192.168.0.25:443", "100.84.46.18:53"],
+		},
+	],
+}
