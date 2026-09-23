@@ -83,9 +83,6 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
       DNS aan. Een VPN die stil kapot gaat bij een IP-wijziging ontdek je op
       het slechtst denkbare moment.
 
-- [ ] **`openbooks` draait zonder route**, alleen op `192.168.0.15:8080`.
-      Geef hem een naam of zet hem uit, maar kies.
-
 - [ ] **`shelfmark` draait zonder route**, op `192.168.0.26:8084`. Zelfde
       keuze. Hij staat nu in `docker_ports_without_route` zodat report.yml
       hem niet elke run meldt, maar dat is uitstel, geen besluit.
@@ -100,6 +97,22 @@ zaterdag 03:00, Restore drill de 1e van de maand, en Update guests met
 ---
 
 ## Grotere projecten
+
+- [ ] **AdGuard is maar voor een tiende beschreven.** De rol beheert alleen
+      de rewrites onder `home.arpa`. Alles wat hem tot een filter maakt staat
+      enkel in die container: vier actieve blocklists van samen ruim 420.000
+      regels (AdGuard DNS filter, HaGeZi Normal, HaGeZi Badware, PhishTank),
+      de Quad9-upstream over DoH, en de clientinstellingen.
+
+      Bouw je ct 107 opnieuw, dan krijg je je namen terug en verder niets -
+      geen filtering, en een upstream die terugvalt op de standaardwaarde.
+      Dat is nu een groter gat dan het was, want sinds 22-09 loopt *alle* DNS
+      van het huis hierlangs.
+
+      Zelfde vorm als de rewrites: lijst in de inventory, via de API gezet,
+      en wat je met de hand in de UI toevoegt blijft met rust. Let bij het
+      opschrijven op `AdAway Default Blocklist`: die staat uit en heeft 0
+      regels, dus hij laadt niet. Weghalen in plaats van overnemen.
 
 - [ ] **De AdGuard op de Mac mini uitzetten.** Al het andere is af: sinds
       22-09 loopt de hele estate via de LXC op `192.168.0.29`, die Ansible
