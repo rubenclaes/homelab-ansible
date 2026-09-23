@@ -2,5 +2,24 @@
 caddy_keyring: /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 caddy_repo_uri: https://dl.cloudsmith.io/public/caddy/stable/deb/debian
 
+# Rechten op de logbestanden die Caddy zelf aanmaakt. Caddy's default is 0600,
+# en dat is prima zolang niemand anders ze hoeft te lezen. Sinds 23-09 leest
+# Grafana Alloy ze en duwt ze naar Loki; die draait als gebruiker `alloy`, niet
+# als root, en komt er via groep `caddy` bij. Op 0600 heeft die groep er niets
+# aan - vandaar 0640 en niet alleen het groepslidmaatschap.
+#
+# Blijft 0640 en wordt het geen 0644: de toegangslogs dragen IP-adressen en
+# volledige paden van elk verzoek aan het huis. Wie ze mag lezen is een
+# beslissing, geen bijkomstigheid.
+#
+# LET OP: Caddy past deze mode toe bij het OPENEN van een logbestand, en een
+# reload opent niets opnieuw. Op 23-09 gemeten: na `systemctl reload caddy`
+# stonden access.log en runtime.log nog op 0600, na `systemctl restart caddy`
+# op 0640. De Caddyfile-taak van deze rol meldt bewust `Reload caddy` - dat is
+# de variant zonder onderbreking - dus een verandering aan deze waarde landt
+# pas bij de eerstvolgende herstart of bij de rotatie om middernacht. Wil je
+# hem meteen, herstart dan met de hand.
+caddy_log_mode: "0640"
+
 # Provides the DNS-01 challenge used for the *.neodata.be wildcard certificate.
 caddy_dns_module: github.com/caddy-dns/cloudflare

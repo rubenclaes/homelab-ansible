@@ -1,0 +1,64 @@
+---
+# Grafana Alloy: de agent die logbestanden van een host naar Loki duwt.
+#
+# De defaults dragen de uitleg van deze rol. Wat een variabele betekent en
+# waarom hij die waarde heeft, staat hier.
+#
+# Waarom een agent op de host en niet iets centraals: Loki trekt niet, hij
+# wordt geduwd. De logs van Caddy staan als bestand op de caddy-host, dus daar
+# moet iets staan dat ze leest. Op de docker-hosts doet de Alloy ín de
+# monitoring-stack dat al voor containerlogs; deze rol is voor hosts die geen
+# container zijn.
+alloy_keyring: /usr/share/keyrings/grafana-archive-keyring.gpg
+alloy_repo_uri: https://apt.grafana.com
+
+# Grafana publiceert één suite voor alle Debian-releases, dus hier géén
+# ansible_facts['distribution_release'] zoals bij caddy en tailscale.
+alloy_repo_suite: stable
+alloy_repo_component: main
+
+# Waar Alloy naartoe schrijft. Dit is de Loki in de monitoring-stack op
+# docker-grafana-stack, die zijn 3100 op het LAN aanbiedt - dat staat ook zo
+# in docker_ports_without_route in host_vars/docker-grafana-stack.yml, met
+# "push/query api voor alloy en grafana" als reden. Nagekeken op 23-09: een
+# lege POST naar dit adres geeft 400, dus hij luistert en antwoordt.
+#
+# Op hostnaam en niet op IP zou mooier zijn, maar deze host valt terug op de
+# resolver van het huis en dat is AdGuard op ct 107. Een agent die zijn
+# bestemming niet kan vinden omdat de DNS stuk is, is precies de agent die je
+# op dat moment nodig had.
+alloy_loki_url: http://192.168.0.17:3100/loki/api/v1/push
+
+# Hoe spraakzaam Alloy zelf is. Op info schrijft hij per doelbestand een regel
+# per herlaadbeurt naar de journal; warn houdt `journalctl -u alloy` leesbaar
+# voor wat er echt mis is.
+alloy_log_level: warn
+
+# --- Wat er verstuurd wordt ------------------------------------------------
+# Per host in host_vars. Leeg gelaten betekent: Alloy draait en stuurt niets,
+# en dat is geen fout - het is een host die de agent heeft maar nog geen
+# bronnen. Per doel:
+#
+#   name   een id binnen de config, [a-z_]. Wordt géén label.
+#   job    het `job`-label in Loki. Hierop zoek je: {job="caddy"}.
+#   paths  een lijst globs. Alleen de levende bestanden opnemen, niet de
+#          geroteerde .gz - die leest loki.source.file niet, en ze zijn al
+#          verstuurd toen ze nog open stonden.
+#
+# Het `host`-label wordt automatisch de inventory-naam; dat hoeft hier niet.
+#
+# Bewust weinig labels. Loki indexeert op labels en niet op inhoud, dus een
+# label per statuscode of per pad maakt de index groot en de query traag.
+# Caddy schrijft JSON, dus in Grafana pel je de rest er bij het zoeken af met
+# `| json` - bijvoorbeeld {job="caddy"} | json | status >= 500.
+alloy_log_targets: []
+
+# Groepen waar de `alloy`-gebruiker bij moet, om de bestanden hierboven te
+# mogen lezen. Het pakket maakt die gebruiker aan en de dienst draait als hem,
+# niet als root - en dat hoort zo: een logverzamelaar die alles mag lezen is
+# een leuke eerste stap voor iemand anders.
+#
+# Voor Caddy betekent dit groep `caddy` én `caddy_log_mode: "0640"` in de
+# host_vars van die host. De rol zet de groep; zonder die mode staan de
+# bestanden op 0600 en heeft ook de groep er niets aan.
+alloy_extra_groups: []

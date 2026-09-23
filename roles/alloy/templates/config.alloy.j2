@@ -1,0 +1,31 @@
+// Beheerd door Ansible - pas alloy_log_targets aan in de host_vars, niet dit
+// bestand. Zie roles/alloy/defaults/main.yml voor wat de velden betekenen.
+
+logging {
+	level  = "{{ alloy_log_level }}"
+	format = "logfmt"
+}
+{% for target in alloy_log_targets %}
+
+// --- {{ target.job }} ---
+local.file_match "{{ target.name }}" {
+	path_targets = [
+{% for path in target.paths %}
+		{"__path__" = "{{ path }}", "job" = "{{ target.job }}", "host" = "{{ inventory_hostname }}"},
+{% endfor %}
+	]
+}
+
+loki.source.file "{{ target.name }}" {
+	targets    = local.file_match.{{ target.name }}.targets
+	forward_to = [loki.write.default.receiver]
+}
+{% endfor %}
+
+// Eén schrijver voor alles hierboven. Alloy onthoudt hoe ver hij in elk
+// bestand was in /var/lib/alloy, dus een herstart stuurt niet alles opnieuw.
+loki.write "default" {
+	endpoint {
+		url = "{{ alloy_loki_url }}"
+	}
+}

@@ -1,0 +1,18 @@
+---
+# Logverzameling: Grafana Alloy duwt bestanden naar de Loki in de
+# monitoring-stack.
+#
+#   ansible-playbook playbooks/alloy.yml
+#
+# Een dunne wrapper, net als caddy.yml en adguard.yml. Welke hosts een agent
+# krijgen staat in de groep `alloy_hosts` in inventory/00-static.yml; wat die
+# agent verstuurt staat per host in alloy_log_targets.
+#
+# In site.yml staat dit NA caddy.yml, en dat is geen willekeurige volgorde:
+# de caddy-rol zet de logbestanden op 0640, en zonder die stap heeft het
+# groepslidmaatschap dat deze rol regelt geen effect.
+- name: Log shipping
+  hosts: alloy_hosts
+  roles:
+    - alloy
+  tags: [alloy, monitoring]

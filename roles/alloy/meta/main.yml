@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: alloy
+  author: rubenclaes
+  description: >-
+    Installs Grafana Alloy and points it at the Loki on the monitoring stack.
+    Which files it ships is per host, in alloy_log_targets.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - monitoring
+    - logging
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

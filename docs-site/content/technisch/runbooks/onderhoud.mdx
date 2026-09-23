@@ -249,6 +249,52 @@ weg geïnstalleerd werd. Een playbook dat leest en tóch iets weghaalt is een
 verrassing — het staat als zodanig in `TODO.md`.
 </Callout>
 
+## Wie klopte er aan? De logs van Caddy
+
+Elk verzoek van buiten komt langs `caddy`, en die schrijft er sinds altijd een
+regel JSON over weg. Het probleem was waar die regel bleef: op één container,
+waar niemand keek, en na veertien dagen weg met de rotatie.
+
+Sinds 23-09 duwt **Grafana Alloy** ze naar de Loki van de monitoring-stack.
+Zoeken doe je in Grafana, op `monitoring.neodata.be`, met twee labels:
+
+| Query | Wat je ziet |
+| --- | --- |
+| `{job="caddy"}` | elk verzoek dat de reverse proxy afhandelde |
+| `{job="caddy-runtime"}` | wat Caddy zélf te melden had: certificaten, herladen, fouten |
+
+De regels zijn JSON, en dat is expres: Loki indexeert op labels en niet op
+inhoud, dus een label per statuscode of per pad zou de index opblazen. Pel af
+bij het zoeken in plaats van bij het schrijven:
+
+```
+{job="caddy"} | json | status >= 500
+{job="caddy"} | json | request_host = "plex.neodata.be"
+```
+
+```bash
+ansible-playbook playbooks/alloy.yml
+```
+
+Welke hosts een agent krijgen staat in de groep `alloy_hosts` in
+`inventory/00-static.yml`; wát die agent verstuurt staat per host in
+`alloy_log_targets`. Nu is dat alleen `caddy`. De Docker-hosts staan er bewust
+niet bij: daar haalt de Alloy ín de monitoring-stack de containerlogs al via
+de Docker-socket op, en een tweede agent zou dezelfde regels dubbel sturen.
+
+<Callout type="info">
+Alloy draait als gebruiker `alloy`, niet als root — een logverzamelaar die
+alles mag lezen is een prettige eerste stap voor iemand anders. Hij komt bij de
+bestanden via groep `caddy`, en dáárom staat `caddy_log_mode` op `0640`: op
+Caddy's eigen default van `0600` heeft die groep niets te zoeken.
+
+Caddy past die mode toe bij het **openen** van een logbestand, en een reload
+opent niets opnieuw. Verander je `caddy_log_mode`, dan landt dat pas bij de
+eerstvolgende herstart of bij de rotatie om middernacht. Op 23-09 gemeten: na
+`systemctl reload caddy` stonden de bestanden nog op `0600`, na
+`systemctl restart caddy` op `0640`.
+</Callout>
+
 ## De documentatiesite bijwerken
 
 ```bash

@@ -88,3 +88,35 @@ caddy_sites:
   - { name: duplicati, host: macmini, port: 8200, desc: "Back-ups vanaf de Mac mini" }
   - { name: auth, host: macmini, port: 1411, desc: "Pocket ID — oude instantie, wordt uitgefaseerd" } # TODO: old Pocket ID instance
   - { name: books, host: macmini, port: 6061, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
+
+# --- Logverzameling -------------------------------------------------------
+# Deze host is sinds 23-09 de eerste met een Grafana Alloy erop. Reden: hij
+# schrijft al JSON met rotatie naar /var/log/caddy, en dat is het enige
+# volledige beeld dat er is van wie er van buiten aanklopt. Dat beeld stond
+# tot nu toe alleen op deze container, waar niemand kijkt, en verdween na
+# veertien dagen met de rotatie.
+#
+# Alleen de levende bestanden. De geroteerde staan als .gz naast ze, en die
+# leest loki.source.file niet - ze zijn ook al verstuurd toen ze nog open
+# stonden, dus meelezen zou dubbel zijn.
+#
+# Twee bronnen, twee job-labels, zodat je toegangsverkeer en het gedrag van
+# Caddy zelf apart kunt bekijken: {job="caddy"} tegenover {job="caddy-runtime"}.
+# In dat eerste zit per regel de hele request als JSON, dus in Grafana pel je
+# af met `| json` - bijvoorbeeld {job="caddy"} | json | status >= 500.
+alloy_log_targets:
+  - name: caddy_access
+    job: caddy
+    paths:
+      - /var/log/caddy/access.log
+  - name: caddy_runtime
+    job: caddy-runtime
+    paths:
+      - /var/log/caddy/runtime.log
+
+# Alloy draait als gebruiker `alloy` en niet als root; via deze groep mag hij
+# de bestanden hierboven lezen. Werkt alleen samen met caddy_log_mode (0640,
+# zie roles/caddy/defaults/main.yml) - op Caddy's eigen default van 0600 heeft
+# een groep niets te zoeken.
+alloy_extra_groups:
+  - caddy

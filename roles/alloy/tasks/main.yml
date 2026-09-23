@@ -1,0 +1,74 @@
+---
+# Installeert Grafana Alloy en laat hem de bestanden uit alloy_log_targets
+# naar Loki duwen. Het patroon van caddy en tailscale: keyring, repo, pakket,
+# config met een validatie ervoor, dienst aan.
+- name: Install the Grafana archive keyring
+  ansible.builtin.copy:
+    src: grafana-archive-keyring.gpg
+    dest: "{{ alloy_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Define the Grafana apt repository
+  ansible.builtin.deb822_repository:
+    name: grafana
+    types: [deb]
+    uris: "{{ alloy_repo_uri }}"
+    suites: ["{{ alloy_repo_suite }}"]
+    components: ["{{ alloy_repo_component }}"]
+    signed_by: "{{ alloy_keyring }}"
+    state: present
+    enabled: true
+  register: alloy_repo
+
+# noqa: no-handler - een handler is hier juist fout. Handlers draaien aan het
+# eind van de play, dus ná `Install Alloy`, en dan zoekt apt een pakket in een
+# cache die de Grafana-repo nog niet kent. De andere rollen hier doen exact
+# hetzelfde met een inline `when`; bij docker_engine, pbs en tailscale vraagt
+# de regel er alleen niet naar omdat hun voorwaarde twee repo's bevat.
+- name: Refresh the package list when the repository changed # noqa: no-handler
+  ansible.builtin.apt:
+    update_cache: true
+  when: alloy_repo is changed
+
+- name: Install Alloy
+  ansible.builtin.apt:
+    name: alloy
+    state: present
+
+# Het pakket maakt de gebruiker `alloy` aan en draait de dienst als hem. Dat
+# is het hele punt - een logverzamelaar als root is een leesrecht op alles -
+# maar het betekent wel dat hij per bron in de juiste groep moet zitten.
+#
+# append: true, want deze rol is niet de enige die iets over deze gebruiker te
+# zeggen mag hebben. Zonder append gooit hij groepen weg die hij niet kent.
+- name: Put the alloy user in the groups that own the logs
+  ansible.builtin.user:
+    name: alloy
+    groups: "{{ alloy_extra_groups }}"
+    append: true
+  when: alloy_extra_groups | length > 0
+  notify: Restart alloy
+
+# `alloy fmt` en niet `alloy validate`: fmt parseert het bestand en faalt op
+# een syntaxfout, en bestaat in elke versie. validate kwam later en zou een
+# versie-eis toevoegen voor iets wat fmt hier al afvangt.
+#
+# De prijs van validate: is de config kapot, dan belandt hij niet op schijf en
+# blijft de draaiende Alloy staan met wat hij had.
+- name: Write the Alloy configuration
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: /etc/alloy/config.alloy
+    owner: root
+    group: alloy
+    mode: "0640"
+    validate: alloy fmt %s
+  notify: Restart alloy
+
+- name: Ensure Alloy is enabled and running
+  ansible.builtin.systemd_service:
+    name: alloy
+    enabled: true
+    state: started

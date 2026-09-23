@@ -46,6 +46,17 @@ all:
         tailscale: {}
         adguard: {}
 
+    # Welke hosts een logagent krijgen. Ook dat weet Proxmox niet, dus staat
+    # het hier, net als docker_hosts en tailnet.
+    #
+    # De docker-hosts staan er bewust NIET bij: daar draait al een Alloy in de
+    # monitoring-stack zelf, die de containerlogs via de Docker-socket ophaalt.
+    # Een tweede agent op dezelfde host zou dezelfde regels een tweede keer
+    # naar Loki duwen.
+    alloy_hosts:
+      hosts:
+        caddy: {}
+
     # Hosts that are not Debian and cannot take the baseline role.
     # Declared here so site.yml can reason about the group even when the
     # dynamic inventory contributes every member.

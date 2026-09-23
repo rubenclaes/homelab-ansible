@@ -29,6 +29,11 @@
 - name: Reverse proxy
   ansible.builtin.import_playbook: caddy.yml
 
+# Na caddy.yml, want die rol zet de logbestanden op 0640 en pas daarna heeft
+# het groepslidmaatschap dat de alloy-rol regelt effect.
+- name: Log shipping
+  ansible.builtin.import_playbook: alloy.yml
+
 - name: DNS
   ansible.builtin.import_playbook: adguard.yml
 
