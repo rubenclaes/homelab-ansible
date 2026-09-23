@@ -4,8 +4,12 @@
 # the version means bumping the checksum with it, deliberately - this host is
 # the network's DNS, and replacing the binary interrupts resolution for
 # everything.
-adguard_version: v0.107.71
-adguard_checksum: sha256:b4b01a5da971a67bc2458ba0fc075de1b356cf6a37843e900177f329777cc5db
+# Bijgewerkt op 23-09 van v0.107.71 naar wat er draait. AdGuard werkt zichzelf
+# bij, dus de pin liep achter en de rol wilde hem terugzetten - een downgrade
+# van de DNS van het hele huis. Zie TODO.md: pin en zelf-bijwerken kunnen niet
+# allebei waar zijn, daar moet je kiezen.
+adguard_version: v0.107.79
+adguard_checksum: sha256:c48f4a43000665484c5ec28177de11a004759b620dae8f77b2aabefc9ef3687f
 
 adguard_dir: /opt/AdGuardHome
 adguard_url: >-
@@ -36,3 +40,9 @@ adguard_rewrite_domain: home.arpa
 # (http.address) at run time, so the role follows whatever the setup wizard
 # chose; override this only if the API is not on the host itself.
 adguard_api_url: "http://127.0.0.1:{{ adguard_http_port }}"
+
+# Blocklists. Leeg betekent "niet beheren", niet "alles weghalen": een lege
+# lijst met een rol die de lijst bezit zou bij de eerste run elke blocklist
+# verwijderen, en dat is een dure manier om erachter te komen. De echte lijst
+# staat in inventory/host_vars/adguard/main.yml.
+adguard_filters: []

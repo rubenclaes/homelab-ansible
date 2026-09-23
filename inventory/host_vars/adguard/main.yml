@@ -10,3 +10,23 @@ adguard_api_password: "{{ vault_adguard_api_password }}"
 # host. The role has the same default; it is repeated here as a plain value so
 # a reader of the inventory sees it without opening the role.
 adguard_rewrite_domain: home.arpa
+
+# De blocklists, op 23-09 van de draaiende instantie afgelezen. De rol bezit
+# deze lijst: wat hier niet staat wordt weggehaald. Voeg je er een toe in de
+# web-UI, zet hem dan ook hier neer, anders haalt de volgende run hem weg.
+#
+# Dat is met opzet streng. Sinds de DNS van het hele huis hierlangs loopt, is
+# een filterlijst die alleen in de container bestaat iets wat je bij een
+# herbouw stil kwijtraakt - je namen komen dan terug en je filtering niet.
+#
+# `AdAway Default Blocklist` staat hier bewust NIET tussen: die stond uit en
+# laadde 0 regels, dus hij deed niets. De eerste run haalt hem weg.
+adguard_filters:
+  - name: AdGuard DNS filter
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+  - name: HaGeZi's Normal Blocklist
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_34.txt
+  - name: HaGeZi's Badware Hoster Blocklist
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_55.txt
+  - name: Phishing URL Blocklist (PhishTank and OpenPhish)
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_30.txt

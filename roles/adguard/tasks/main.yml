@@ -27,12 +27,24 @@
         group: root
         mode: "0755"
 
-    - name: Download and unpack the release
+    # In twee stappen, en niet met één unarchive vanaf de URL: `unarchive`
+    # kent geen `checksum`-parameter. Dat stond er wel, en Ansible faalt
+    # daarop - alleen kwam dat nooit uit, omdat het hele blok werd
+    # overgeslagen zolang de geinstalleerde versie klopte. `get_url` doet de
+    # controle wel, en dat is de enige plek waar de pin iets waard is.
+    - name: Download the release
+      ansible.builtin.get_url:
+        url: "{{ adguard_url }}"
+        dest: "/tmp/AdGuardHome_{{ adguard_version }}.tar.gz"
+        checksum: "{{ adguard_checksum }}"
+        mode: "0600"
+      register: adguard_tarball
+
+    - name: Unpack the release
       ansible.builtin.unarchive:
-        src: "{{ adguard_url }}"
+        src: "{{ adguard_tarball.dest }}"
         dest: "{{ adguard_dir }}"
         remote_src: true
-        checksum: "{{ adguard_checksum }}"
         extra_opts: [--strip-components=1]
         owner: root
         group: root
@@ -73,3 +85,7 @@
 
 - name: Sync the DNS rewrites
   ansible.builtin.import_tasks: rewrites.yml
+
+- name: Sync the blocklists
+  ansible.builtin.import_tasks: filters.yml
+  when: adguard_filters | length > 0

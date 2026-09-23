@@ -1,0 +1,89 @@
+---
+# Syncs the blocklists over the REST API.
+#
+# Same contract as rewrites.yml: the inventory says which lists belong here,
+# and this task makes AdGuard match. A list the inventory does not name is
+# removed, so adding one by hand in the UI means adding it here too - that is
+# the point, because a blocklist that only exists in the container is one a
+# rebuild loses silently.
+#
+# Matched on url, not on name. The name is a label AdGuard fills in from the
+# list itself and it changes when upstream renames the list; the url is what
+# actually identifies it.
+#
+# Deliberately NOT managed here: upstream_dns. Getting that wrong takes DNS
+# down for the whole house at once, and it is one POST away from the rest of
+# this file. It deserves its own change, made on purpose.
+
+- name: Find the AdGuard API
+  ansible.builtin.import_tasks: api.yml
+  when: adguard_http_port is not defined
+
+- name: Read the current blocklists
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/filtering/status"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+    return_content: true
+  register: adguard_filter_status
+  check_mode: false
+  no_log: true
+
+# A disabled list counts as absent: it is removed and, if the inventory still
+# wants it, added back enabled. Without that an entry could sit there switched
+# off forever while the inventory says it is on - which is exactly what
+# AdAway Default Blocklist was doing, loading zero rules.
+- name: Work out what differs
+  ansible.builtin.set_fact:
+    adguard_filters_remove: "{{ adguard_filters_present | difference(adguard_filters_wanted) | union(adguard_filters_off) | unique | sort }}"
+    adguard_filters_add: "{{ adguard_filters_wanted | difference(adguard_filters_present | difference(adguard_filters_off)) | sort }}"
+  vars:
+    adguard_filter_entries: "{{ adguard_filter_status.json.filters | default([]) }}"
+    adguard_filters_present: "{{ adguard_filter_entries | map(attribute='url') | list }}"
+    adguard_filters_off: >-
+      {{ adguard_filter_entries | selectattr('enabled', 'defined') | rejectattr('enabled')
+         | map(attribute='url') | list }}
+    adguard_filters_wanted: "{{ adguard_filters | map(attribute='url') | list }}"
+
+# The API tasks below run with no_log because they carry the password, so this
+# is the only place the run says what changes, and the only thing visible
+# under --check.
+- name: Report the blocklists that will change
+  ansible.builtin.debug:
+    msg:
+      remove: "{{ adguard_filters_remove }}"
+      add: "{{ adguard_filters_add }}"
+  changed_when: true
+  when: adguard_filters_remove | length > 0 or adguard_filters_add | length > 0
+
+- name: Remove blocklists the inventory no longer asks for
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/filtering/remove_url"
+    method: POST
+    body_format: json
+    body:
+      url: "{{ item }}"
+      whitelist: false
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ adguard_filters_remove }}"
+  changed_when: true
+  no_log: true
+
+- name: Add the blocklists that are missing
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/filtering/add_url"
+    method: POST
+    body_format: json
+    body:
+      name: "{{ (adguard_filters | selectattr('url', 'eq', item) | first).name }}"
+      url: "{{ item }}"
+      whitelist: false
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ adguard_filters_add }}"
+  changed_when: true
+  no_log: true
