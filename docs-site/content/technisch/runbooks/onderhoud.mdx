@@ -153,8 +153,8 @@ werken — Caddy praat met adressen, niet met namen — terwijl
 erbij moet.
 </Callout>
 
-Niet in `site.yml`: het controleert, het convergeert niet. Hij hoort op een
-schema, naast `drift.yml`.
+Niet in `site.yml`: het controleert, het convergeert niet. Hij draait sinds
+23-09 dagelijks om 06:30 in Semaphore, een half uur na `drift.yml`.
 
 ## Schijfruimte vrijmaken
 
@@ -308,10 +308,26 @@ eventuele argumenten en een cron:
 | Template | Wanneer | Waarom dan |
 | --- | --- | --- |
 | Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
-| Drift check | dagelijks 06:00 | ná de wekelijkse converge, zodat je ziet wat er tussendoor afwijkt |
 | Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
+| Drift check | dagelijks 06:00 | ná de wekelijkse converge, zodat je ziet wat er tussendoor afwijkt |
+| DNS smoketest | dagelijks 06:30 | tussen Drift check en Docs in; twee jobs op dezelfde minuut vechten om dezelfde controller |
 | Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
 | Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
+
+<Callout type="info">
+**Die tijden zijn lokale tijd, sinds 23-09.** Daarvoor las Semaphore elke cron
+als UTC — zijn `Schedule.Timezone` heeft `UTC` als default, los van de tijdzone
+van de container. Gemeten en niet aangenomen: `Drift check` met `0 6 * * *`
+eindigde op `06:00:37Z` terwijl het Ansible-log binnenin `08:00:37 +0200`
+schreef.
+
+Dat is niet alleen verwarrend. Een cron in UTC schuift mee met de zomertijd:
+zaterdag 03:00 wordt 05:00 in de zomer en 04:00 in de winter. De unit van de
+`semaphore`-rol zet daarom `SEMAPHORE_SCHEDULE_TIMEZONE`, uit
+`semaphore_schedule_timezone`. Als omgevingsvariabele en niet als sleutel in
+de gevaulte `config.json`, want een instelling die je alleen na ontsleutelen
+kunt lezen kijkt niemand na.
+</Callout>
 
 <Callout type="error">
 **De namen zijn niet vrij te kiezen.** Ze zijn overgenomen uit wat er al in de

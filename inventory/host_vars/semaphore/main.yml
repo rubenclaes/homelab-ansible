@@ -64,6 +64,22 @@ semaphore_templates_list:
     arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
     schedule: "0 6 * * *"
 
+  # Vraagt elke <host>.home.arpa bij AdGuard op en vergelijkt met het adres uit
+  # de inventory. Sinds 22-09 loopt de hele estate via één LXC, dus dit is
+  # precies het soort ding dat je niet wil ontdekken op het moment dat je het
+  # nodig hebt.
+  #
+  # 06:30 en niet 06:00 of 07:00: die twee zijn al bezet door Drift check en
+  # Docs, en twee jobs op dezelfde minuut vechten om dezelfde controller.
+  #
+  # Geen limit nodig. Het playbook draait op `adguard` en delegeert de dig
+  # naar de host die de job draait - de Semaphore-container, en die heeft dig
+  # (gecontroleerd op 23-09, /usr/bin/dig).
+  - name: "DNS smoketest"
+    playbook: playbooks/dns-smoketest.yml
+    description: "Antwoordt AdGuard nog wat de inventory zegt? Plus één publieke naam voor de forwarding."
+    schedule: "30 6 * * *"
+
   # De hoofdletter A is die van de bestaande template. Naast deze staat
   # `Cleanup (report)` in de UI, zonder schema - die rapporteert alleen en
   # staat hier bewust niet in.

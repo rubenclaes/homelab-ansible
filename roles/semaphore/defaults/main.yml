@@ -31,6 +31,24 @@ semaphore_pip_packages:
 # Ansible virtualenv - and so docs.yml stays portable to a workstation.
 semaphore_npm_cache: "{{ semaphore_home }}/.npm"
 
+# De tijdzone waarin Semaphore zijn cron-schema's leest. Zonder deze regel is
+# dat UTC: de Go-code doet `time.LoadLocation(Config.Schedule.Timezone)` en de
+# default van dat veld is "UTC", ongeacht de tijdzone van de container zelf.
+#
+# Dat is op 23-09 gemeten en niet aangenomen: de template "Drift check" met
+# cron `0 6 * * *` eindigde op 06:00:37Z, terwijl het Ansible-log binnenin
+# 08:00:37 +0200 schreef.
+#
+# Waarom dit uitmaakt en niet alleen verwarrend is: een cron in UTC schuift mee
+# met de zomertijd. Zaterdag 03:00 wordt 05:00 in de zomer en 04:00 in de
+# winter, en dan draait je opruimjob ineens een uur eerder zonder dat iemand
+# iets veranderd heeft.
+#
+# Als omgevingsvariabele in de unit en niet als sleutel in config.json: dat
+# bestand is gevault, en een instelling die je alleen na ontsleutelen kunt
+# lezen is een instelling die niemand nakijkt.
+semaphore_schedule_timezone: Europe/Brussels
+
 # Hosts whose SSH host key Semaphore must trust before it can reach them.
 # Each one needs gathered facts (ssh_host_key_ed25519_public); the first play
 # in playbooks/semaphore.yml collects them. See the assert in tasks/main.yml.

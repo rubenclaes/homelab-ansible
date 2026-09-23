@@ -59,6 +59,7 @@
       Environment=HOME={{ semaphore_home }}
       Environment=PATH={{ semaphore_venv }}/bin:/usr/local/bin:/usr/bin:/bin
       Environment=npm_config_cache={{ semaphore_npm_cache }}
+      Environment=SEMAPHORE_SCHEDULE_TIMEZONE={{ semaphore_schedule_timezone }}
       ExecStart=/usr/bin/semaphore server --config {{ semaphore_config_dir }}/config.json
       Restart=on-failure
 
