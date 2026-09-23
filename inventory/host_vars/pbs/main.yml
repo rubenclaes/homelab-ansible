@@ -28,3 +28,35 @@ pbs_verify_jobs:
     schedule: sat 05:00
     outdated_after: 30
     ignore_verified: true
+
+# Waar PBS zijn meldingen heen stuurt, naast mail-to-root. Zelfde opzet als
+# pve_notification_webhooks in group_vars/proxmox/notifications.yml: rechtstreeks
+# naar het IP van ntfy, niet via Caddy, en alleen waarschuwingen en fouten.
+#
+# pbs zit niet in de groep proxmox, dus het IP en het token komen via
+# hostvars['pve01']. Het token is een eigen token, apart van dat van Proxmox.
+#
+# {{ title }}, {{ message }}, {{ severity }} en {{ secrets.token }} zijn
+# Handlebars van PBS zelf, geen Jinja; vandaar de raw-blokken.
+pbs_notification_webhooks:
+  - name: ntfy
+    url: "http://{{ (hostvars['pve01'].pve_oci_lxcs | selectattr('hostname', 'eq', 'ntfy') | first).ip | split('/') | first }}/homelab"
+    method: post
+    headers:
+      Authorization: "Bearer {% raw %}{{ secrets.token }}{% endraw %}"
+      Title: "{% raw %}{{ title }}{% endraw %}"
+      Tags: "{% raw %}{{ severity }}{% endraw %}"
+    body: "{% raw %}{{ message }}{% endraw %}"
+    secrets:
+      token: "{{ hostvars['pve01'].vault_ntfy_pbs_token }}"
+    comment: "ntfy op ct 109, topic homelab"
+
+# match-severity is één regel "warning,error", niet twee: met mode all moeten
+# alle regels kloppen, en een melding is nooit tegelijk warning én error.
+pbs_notification_matchers:
+  - name: ntfy-warnings
+    params:
+      target: ntfy
+      match-severity: "warning,error"
+      mode: all
+      comment: "Waarschuwingen en fouten naar de telefoon"

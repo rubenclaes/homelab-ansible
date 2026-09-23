@@ -1,0 +1,98 @@
+---
+# Meldingen van PBS: webhook-doelen en matchers, aangemaakt of bijgewerkt,
+# nooit verwijderd. mail-to-root en de standaard-matcher blijven staan.
+#
+# Hetzelfde als roles/proxmox_datacenter/tasks/notifications.yml, maar met
+# proxmox-backup-manager in plaats van pvesh: PBS heeft geen pvesh. Beide
+# gebruiken hetzelfde meldingssysteem, dus dezelfde vorm voor headers,
+# secrets en matchers.
+#
+# Secrets zijn niet terug te lezen (de API geeft alleen hun naam), dus een
+# gewijzigd token valt hier niet op. Roteren: haal het doel weg in het
+# PBS-scherm en draai opnieuw.
+- name: Read the webhook endpoints
+  ansible.builtin.command: proxmox-backup-manager notification endpoint webhook list --output-format json
+  register: pbs_webhooks_raw
+  changed_when: false
+  check_mode: false
+
+- name: Read the notification matchers
+  ansible.builtin.command: proxmox-backup-manager notification matcher list --output-format json
+  register: pbs_matchers_raw
+  changed_when: false
+  check_mode: false
+
+# Header- en secretwaarden gaan base64 mee, als `name=<n>,value=<b64>`.
+- name: Create or update each webhook endpoint
+  vars:
+    live: >-
+      {{ pbs_webhooks_raw.stdout | from_json
+         | selectattr('name', 'eq', hook.name) | list | first | default({}) }}
+    want_headers: >-
+      {%- set h = [] -%}
+      {%- for k, v in hook.headers.items() -%}
+      {%-   set _ = h.append('name=' ~ k ~ ',value=' ~ (v | b64encode)) -%}
+      {%- endfor -%}
+      {{ h }}
+    want_body: "{{ hook.body | b64encode }}"
+    differs: >-
+      {{ live | length == 0
+         or live.url | default('') != hook.url
+         or live.method | default('') != hook.method
+         or live.body | default('') != want_body
+         or (live.header | default([]) | sort) != (want_headers | sort) }}
+  ansible.builtin.command:
+    argv: >-
+      {%- set a = ['proxmox-backup-manager', 'notification', 'endpoint', 'webhook',
+                   'create' if live | length == 0 else 'update', hook.name,
+                   '--url', hook.url, '--method', hook.method, '--body', want_body,
+                   '--comment', hook.comment | default('')] -%}
+      {%- for h in want_headers -%}
+      {%-   set _ = a.extend(['--header', h]) -%}
+      {%- endfor -%}
+      {%- for k, v in hook.secrets.items() -%}
+      {%-   set _ = a.extend(['--secret', 'name=' ~ k ~ ',value=' ~ (v | b64encode)]) -%}
+      {%- endfor -%}
+      {{ a }}
+  loop: "{{ pbs_notification_webhooks | default([]) }}"
+  loop_control:
+    loop_var: hook
+    label: "{{ hook.name }}"
+  when: differs | bool
+  changed_when: true
+  no_log: true
+
+# `target` staat komma-gescheiden in de inventory en wordt hier gesplitst:
+# één --target per doel. match-severity NIET: dat is één regel, zie de
+# inventory.
+- name: Create or update each notification matcher
+  vars:
+    live: >-
+      {{ pbs_matchers_raw.stdout | from_json
+         | selectattr('name', 'eq', matcher.name) | list | first | default({}) }}
+    differs: >-
+      {{ live | length == 0
+         or ([live.target | default([])] | flatten | join(',')) != matcher.params.target
+         or ([live['match-severity'] | default([])] | flatten | join(',')) != matcher.params['match-severity']
+         or live.mode | default('all') != matcher.params.mode
+         or live.comment | default('') != matcher.params.comment | default('') }}
+  ansible.builtin.command:
+    argv: >-
+      {%- set a = ['proxmox-backup-manager', 'notification', 'matcher',
+                   'create' if live | length == 0 else 'update', matcher.name] -%}
+      {%- for k, v in matcher.params.items() -%}
+      {%-   if k == 'target' -%}
+      {%-     for item in (v | string).split(',') -%}
+      {%-       set _ = a.extend(['--' ~ k, item]) -%}
+      {%-     endfor -%}
+      {%-   else -%}
+      {%-     set _ = a.extend(['--' ~ k, v | string]) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ a }}
+  loop: "{{ pbs_notification_matchers | default([]) }}"
+  loop_control:
+    loop_var: matcher
+    label: "{{ matcher.name }}"
+  when: differs | bool
+  changed_when: true

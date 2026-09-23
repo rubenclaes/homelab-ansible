@@ -125,7 +125,9 @@ pve_oci_lxcs:
       NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
       NTFY_AUTH_USERS: "ruben:{{ vault_ntfy_ruben_hash }}:admin,proxmox:{{ vault_ntfy_proxmox_hash }}:user"
       NTFY_AUTH_ACCESS: "proxmox:homelab:wo"
-      NTFY_AUTH_TOKENS: "proxmox:{{ vault_ntfy_proxmox_token }}:proxmox"
+      # Twee tokens voor hetzelfde schrijf-account: één voor Proxmox, één voor
+      # PBS. Zo trek je het ene in zonder het andere.
+      NTFY_AUTH_TOKENS: "proxmox:{{ vault_ntfy_proxmox_token }}:proxmox,proxmox:{{ vault_ntfy_pbs_token }}:pbs"
 
 # The vmid playbooks/recovery-drill.yml builds and destroys. It is declared
 # here, not guessed at run time, so a glance at this file shows the one id a

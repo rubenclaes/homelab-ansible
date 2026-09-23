@@ -68,5 +68,8 @@
 - name: Datastore and job configuration
   ansible.builtin.import_tasks: config.yml
 
+- name: Notification targets and matchers
+  ansible.builtin.import_tasks: notifications.yml
+
 - name: Report and verify
   ansible.builtin.import_tasks: verify.yml

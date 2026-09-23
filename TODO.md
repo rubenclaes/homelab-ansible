@@ -2,9 +2,9 @@
 
 ## Nu — hier kan iets misgaan
 
-- [ ] **Een geplande job die faalt meldt zichzelf niet — voor Proxmox opgelost.**
-      Sinds 23-09 stuurt Proxmox waarschuwingen en fouten naar ntfy (ct 109,
-      topic `homelab`), dus een mislukte back-up komt op je telefoon. Getest
+- [ ] **Een geplande job die faalt meldt zichzelf niet — voor Proxmox en PBS opgelost.**
+      Sinds 23-09 sturen Proxmox en PBS waarschuwingen en fouten naar ntfy (ct
+      109, topic `homelab`), dus een mislukte back-up komt op je telefoon. Getest
       met een vzdump die faalde. Nog open, en allemaal kunnen ze naar dezelfde
       ntfy:
 
@@ -12,7 +12,6 @@
         06:00 en dat is pas twee uur later bij toeval gezien, door met de hand
         in de taaklijst te kijken. Zolang dit er niet is, is elk schema een
         aanname.
-      - **PBS** heeft een eigen meldingssysteem en meldt nog nergens heen.
       - **Een Alertmanager** naast Prometheus, Grafana, Loki en Alloy op VM
         102 dekt in één keer de schijven, de hosts en de certificaten.
 
