@@ -2,35 +2,73 @@
 title: Dienst toevoegen
 ---
 
-import { Callout } from 'nextra/components'
+import { Steps, Callout } from 'nextra/components'
 
 # Een dienst toevoegen
 
-## Eerst even de woorden
+Je wil iets nieuws bereikbaar maken op `naam.neodata.be`. Hoe je dat doet,
+hangt af van één vraag: **wat heb je al?**
 
-**Stack** — een Docker-dienst zoals hij in de `containers`-repo staat: een map
-met een `docker-compose.yml` en een `.env`. Draait op `docker`, naast de
-andere stacks.
+## Welk geval ben jij?
 
-**Rol** — een map onder `roles/` die een dienst installeert en configureert
-zonder Docker. `caddy`, `adguard`, `pbs` en `semaphore` zijn rollen.
-
-**Route** — een regel in `caddy_sites` die `naam.neodata.be` naar een host en
-een poort stuurt. Zonder route is een dienst alleen op zijn IP te bereiken.
-
-## Welke van de twee
-
-| Je hebt | Gebruik | Wat je krijgt |
+| Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
-| een Docker-image | `new-service.yml` | een compose-stack op `docker`, mét route |
-| een pakket dat op een eigen machine hoort | `new-role.yml` | een lege rol met het huispatroon erin |
-| al een draaiende dienst, alleen geen naam | niets — alleen `caddy_sites` | een route |
+| Je wil een **nieuwe app** draaien en die bestaat als Docker-image | Memos, Vaultwarden, Jellyfin | [Geval 1 — Nieuwe Docker-app](#geval-1--nieuwe-docker-app) |
+| Het ding **draait al** ergens, je wil er alleen een mooi adres voor | Shelfmark op de Mac mini, Home Assistant, de webpagina van je printer | [Geval 2 — Alleen een adres](#geval-2--alleen-een-adres) |
+| Je wil software **rechtstreeks op een machine** installeren, zonder Docker | AdGuard, Caddy, PBS | [Geval 3 — Eigen rol](#geval-3--eigen-rol-zonder-docker) |
 
-Draait je dienst op een nieuwe LXC, bouw die dan eerst met
-[Nieuwe machine](/technisch/runbooks/nieuwe-guest/). De twee playbooks
-hieronder gaan ervan uit dat de host al bestaat.
+Twijfel je: het is bijna altijd **geval 1**. Geval 3 heb je zelden nodig.
 
-## Een Docker-dienst
+<Callout type="info">
+Moet je dienst op een **nieuwe machine** (LXC) draaien? Bouw die dan eerst met
+[Nieuwe machine](/technisch/runbooks/nieuwe-guest/). Alles hieronder gaat
+ervan uit dat de machine al bestaat.
+</Callout>
+
+### Drie woorden die je nodig hebt
+
+**Stack** — één Docker-app: een map in de `containers`-repo met een
+`docker-compose.yml` en een `.env`. Alle stacks draaien op de machine `docker`.
+
+**Route** — één regel in `caddy_sites` die zegt: "stuur `naam.neodata.be` door
+naar deze machine op deze poort". Zonder route kan je de dienst alleen via zijn
+IP-adres bereiken.
+
+**Rol** — een installatierecept in `roles/` dat software direct op een machine
+zet, zoals je met de hand `apt install` zou doen. Geen Docker.
+
+---
+
+## Geval 1 — Nieuwe Docker-app
+
+<Callout type="info">
+**Moet je eerst zelf een `docker-compose.yml` schrijven? Nee.** Het playbook
+`new-service.yml` schrijft hem voor je. Jij geeft alleen de naam, het image en
+de poort op. Daarna kijk je hem na en vul je aan wat de app extra nodig heeft.
+</Callout>
+
+We gebruiken Memos als voorbeeld.
+
+<Steps>
+
+### Zoek drie dingen op
+
+Kijk in de documentatie of op de GitHub-pagina van de app. Daar staat bijna
+altijd een voorbeeld-`docker-compose.yml` waar je dit uit haalt:
+
+| Wat | Voorbeeld Memos | Waar vind je het |
+| --- | --- | --- |
+| **Image met versie** | `ghcr.io/usememos/memos:0.24.4` | de regel `image:` — neem een vaste versie, niet `latest` |
+| **Poort** | `5230` | de regel `ports:`, het getal rechts van de `:` |
+| **Datamap in de container** | `/var/opt/memos` | de regel `volumes:`, het pad rechts van de `:` |
+
+Kies ook een **poort die nog vrij is** op `docker`. Kijk in
+`inventory/host_vars/caddy/main.yml` welke al gebruikt worden. Het playbook
+weigert trouwens als je een bezette kiest.
+
+### Laat het playbook alles aanmaken
+
+Vanuit de root van deze repo:
 
 ```bash
 ansible-playbook playbooks/new-service.yml \
@@ -41,52 +79,193 @@ ansible-playbook playbooks/new-service.yml \
   -e '{"svc_desc": "Memos - snelle notities"}'
 ```
 
+Dit maakt vijf dingen voor je:
+
+1. `stacks/memos/docker-compose.yml` in de `containers`-repo
+2. een `.env` ernaast (tijdzone, IP, datamap…)
+3. een versleutelde kopie van die `.env` in `files/env/memos.env`, in deze repo
+4. de stack in de lijst van `docker` (`inventory/host_vars/docker.yml`)
+5. de route in `caddy_sites` (`inventory/host_vars/caddy/main.yml`)
+
 <Callout type="warning">
-Een waarde met spaties **moet** als JSON binnenkomen. Ansible leest
-`-e key=value` als een spatie-gescheiden lijst van paren, dus
-`-e 'svc_desc=a b c'` wordt stilletjes `svc_desc=a` plus twee losse woorden.
-Aanhalingstekens in de shell helpen niet — die haalt de shell er al af voordat
-Ansible kijkt.
+Een waarde **met spaties** (zoals `svc_desc`) moet je als JSON meegeven, zoals
+hierboven: `-e '{"svc_desc": "..."}'`. Schrijf je `-e 'svc_desc=a b c'`, dan
+houdt Ansible alleen `a` over.
 </Callout>
 
-Het playbook doet in één keer wat vroeger vijf handmatige stappen waren:
+Extra opties, als je ze nodig hebt:
 
-1. `stacks/<naam>/docker-compose.yml` in de `containers`-repo
-2. een `.env` ernaast
-3. diezelfde `.env` versleuteld in `files/env/<naam>.env`, onder de
-   vault-identiteit `stacks`
-4. de stack in `docker_stacks_list` (host_vars van `docker`)
-5. de route in `caddy_sites` (host_vars van `caddy`)
+| Optie | Wanneer |
+| --- | --- |
+| `svc_container_port` | de app luistert binnen de container op een andere poort dan `svc_port` |
+| `svc_subdomain` | het adres moet anders heten dan de stack (standaard: `svc_name`) |
+| `svc_env` | extra omgevingsvariabelen, bv. `-e '{"svc_env": ["MEMOS_MODE=prod"]}'` |
 
-De `.env` staat dus op twee plekken. Die in de containers-repo is gitignored;
-de versleutelde kopie in deze repo is de blijvende. Zou de versleuteling
-mislukken, dan faalt het playbook daar meteen op in plaats van een leesbaar
-geheim te laten staan.
+### Kijk de compose-file na
 
-### Waarom het weigert te overschrijven
+```bash
+$EDITOR ~/Development/containers/stacks/memos/docker-compose.yml
+```
 
-Voor het iets schrijft controleert het of de naam én de poort nog vrij zijn.
-Dat is geen netheid: een dubbele poort bindt stilletjes niet en een dubbele
-naam overschrijft. Beide merk je pas ná een deploy, en dan sta je te zoeken in
-een stack die het gisteren nog deed. Hier kost het je een foutmelding.
+Voor een simpele app klopt hij meteen. Vergelijk hem met het voorbeeld uit de
+documentatie van de app en vul aan wat ontbreekt, bijvoorbeeld:
 
-### Daarna, met de hand
+- extra omgevingsvariabelen
+- een tweede volume (bv. een map met media)
+- een database-container ernaast
+
+Heeft de app een **wachtwoord of sleutel** nodig? Zet dat niet in de
+compose-file, maar in de versleutelde `.env`:
+
+```bash
+ansible-vault edit files/env/memos.env
+```
+
+en verwijs ernaar in de compose-file met `${NAAM_VAN_DE_VARIABELE}`.
+
+<Callout type="info">
+Het is die versleutelde `files/env/memos.env` die op de server terechtkomt. De
+`.env` in de containers-repo is maar een lokale kopie en gaat niet mee in git.
+</Callout>
+
+### Push de containers-repo
 
 ```bash
 cd ~/Development/containers
-git add stacks/memos && git commit -m 'Add memos stack' && git push
+git add stacks/memos
+git commit -m 'Add memos stack'
+git push
+```
 
-ansible-playbook playbooks/stacks.yml
+Dit moet **vóór** de volgende stap. De server haalt de compose-file uit git,
+niet van je laptop. Wat niet gepusht is, bestaat voor de server niet.
+
+### Commit en push ook deze repo
+
+```bash
+cd ~/Development/homelab-ansible
+git add inventory files/env/memos.env
+git commit -m 'Memos toegevoegd'
+git push
+```
+
+Semaphore draait elke nacht vanuit git. Push je dit niet, dan kent Semaphore
+je nieuwe dienst niet.
+
+### Zet hem live
+
+```bash
+ansible-playbook playbooks/stacks.yml     # start de container op docker
+ansible-playbook playbooks/caddy.yml      # maakt memos.neodata.be aan
+```
+
+### Test
+
+```bash
+ansible-playbook playbooks/caddy-smoketest.yml
+```
+
+en open [memos.neodata.be](https://memos.neodata.be) in je browser.
+
+### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De servicepagina's op deze site worden gemaakt uit `caddy_sites`. Sla je dit
+over, dan werkt de dienst wel maar staat hij hier niet.
+
+</Steps>
+
+---
+
+## Geval 2 — Alleen een adres
+
+De dienst **draait al**, je wil hem alleen bereiken op `naam.neodata.be` in
+plaats van op `192.168.0.26:8084`. Je hoeft niets te installeren. Je voegt
+alleen een route toe.
+
+Voorbeeld: Shelfmark draait op de Mac mini op poort 8084.
+
+<Steps>
+
+### Voeg één regel toe aan `caddy_sites`
+
+```bash
+$EDITOR inventory/host_vars/caddy/main.yml
+```
+
+Zet onder `caddy_sites:`:
+
+```yaml
+  - { name: shelfmark, host: macmini, port: 8084, desc: "Shelfmark — metadata voor boeken" }
+```
+
+- `name` — wordt het adres: `shelfmark.neodata.be`
+- `host` — de naam van de machine **zoals in de inventory** (niet het IP)
+- `port` — de poort waar de dienst op luistert
+- `desc` — korte uitleg, komt op deze docs-site
+
+<Callout type="info">
+Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
+`upstream: "192.168.0.50:80"` in plaats van `host` en `port`.
+</Callout>
+
+### Zet hem live en test
+
+```bash
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/caddy-smoketest.yml
 ansible-playbook playbooks/docs.yml
 ```
 
-Pushen eerst, en niet uit gewoonte: `stacks.yml` haalt de compose-files op de
-host uit de git-repo, niet vanaf je laptop. Wat je niet gepusht hebt bestaat
-voor de host niet.
+### Commit en push
 
-## Een dienst die geen container is
+```bash
+git add inventory && git commit -m 'Route voor shelfmark' && git push
+```
+
+</Steps>
+
+### Alle velden van een route
+
+| Veld | Doet |
+| --- | --- |
+| `name` | wordt `name.neodata.be` |
+| `host` | een **inventory-hostnaam**; zijn adres wordt de bestemming |
+| `port` | de poort waar de dienst luistert |
+| `upstream` | alternatief voor `host` + `port`, voor iets dat niet in de inventory staat |
+| `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
+| `host_header` | stuur de oorspronkelijke `Host`-header door |
+| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij (Home Assistant wil dit) |
+| `auth` | zet een login (tinyauth) voor de dienst |
+
+Waarom `host` en niet gewoon een IP? Verhuist een machine naar een ander adres,
+dan pas je dat op één plek aan en volgen alle routes vanzelf.
+
+---
+
+## Geval 3 — Eigen rol (zonder Docker)
+
+Dit is voor software die je **rechtstreeks op een machine** installeert, zonder
+Docker. Denk aan dingen die laag in het netwerk zitten of een eigen machine
+horen te hebben: DNS (AdGuard), de reverse proxy (Caddy), de backupserver (PBS).
+
+<Callout type="warning">
+Bestaat er een Docker-image van je app? Dan wil je [geval 1](#geval-1--nieuwe-docker-app).
+Een rol is meer werk: jij schrijft zelf de installatiestappen.
+</Callout>
+
+Voorbeeld: Vaultwarden op een eigen LXC.
+
+<Steps>
+
+### Zorg dat de machine bestaat
+
+Maak de LXC met [Nieuwe machine](/technisch/runbooks/nieuwe-guest/).
+
+### Laat het playbook een lege rol aanmaken
 
 ```bash
 ansible-playbook playbooks/new-role.yml \
@@ -96,82 +275,71 @@ ansible-playbook playbooks/new-role.yml \
   -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
 ```
 
-Dit zet `roles/<naam>/` op plus een wrapper-playbook. De taken zijn leeg, maar
-het patroon van `adguard`, `caddy` en `pbs` staat er als commentaar in:
-installeren op versie, config schrijven mét `validate`, dienst aanzetten,
-handler bij wijziging.
+- `svc_name` — naam van de rol; alleen kleine letters, cijfers en `_`
+- `svc_host` — op welke machine hij moet draaien
+- `svc_tag` — een label om hem apart te kunnen draaien
 
-Dat is waarom dit playbook bestaat. Die vijf rollen zijn allemaal volgens
-hetzelfde patroon gebouwd, maar dat patroon stond nergens opgeschreven — je
-moest het uit een bestaande rol afkijken en hopen dat je de goede koos. Nu
-staat het in de gegenereerde bestanden, als commentaar dat je overschrijft
-terwijl je het leest.
+Dit maakt `roles/vaultwarden/` en `playbooks/vaultwarden.yml`. De rol is nog
+**leeg**: er staat alleen commentaar in dat uitlegt wat er moet komen.
 
-De naam moet kleine letters, cijfers en underscores zijn. Niet willekeurig:
-dat is wat Ansible als rolnaam accepteert.
-
-<Callout type="info">
-Het zet je rol **niet** in `site.yml`. De volgorde daar is
-afhankelijkheidsvolgorde — na waar je dienst van afhangt, vóór wat van hem
-afhangt — en geen enkel playbook weet waar jouw dienst hoort. De twee regels
-om te plakken staan aan het eind van de run.
-</Callout>
-
-Daarna:
+### Schrijf de installatiestappen
 
 ```bash
-$EDITOR roles/vaultwarden/tasks/main.yml    # de TODO's wijzen naar de dichtstbijzijnde rol
-$EDITOR playbooks/site.yml                  # zet hem op zijn plek in de volgorde
-ansible-playbook playbooks/vaultwarden.yml --check --diff
+$EDITOR roles/vaultwarden/tasks/main.yml
 ```
 
-## Alleen een route
+Volg de TODO's. Ze beschrijven het vaste patroon dat alle rollen hier volgen:
 
-Staat de dienst er al en wil je hem alleen een naam geven, dan hoef je geen
-van beide playbooks. Eén regel in `caddy_sites`:
+1. installeer een vaste versie
+2. schrijf de configuratie (en laat die controleren vóór ze actief wordt)
+3. zet de dienst aan
+4. herstart hem als de configuratie verandert
+
+Kijk bij twijfel naar een bestaande rol, zoals `roles/adguard/`.
+
+### Zet hem in `site.yml`
 
 ```bash
-$EDITOR inventory/host_vars/caddy/main.yml
-ansible-playbook playbooks/caddy.yml
-ansible-playbook playbooks/caddy-smoketest.yml
-ansible-playbook playbooks/docs.yml
+$EDITOR playbooks/site.yml
 ```
 
-Een regel ziet er zo uit:
+Het playbook doet dit bewust niet zelf: de volgorde in `site.yml` telt (eerst
+waar je dienst van afhangt, daarna je dienst), en dat moet jij beslissen. De
+regels om te plakken staan aan het eind van de run.
 
-```yaml
-- { name: memos, host: docker, port: 5230, desc: "Memos - snelle notities" }
+### Probeer droog, dan echt
+
+```bash
+ansible-playbook playbooks/vaultwarden.yml --check --diff   # toont wat er zou veranderen
+ansible-playbook playbooks/vaultwarden.yml                  # doet het echt
 ```
 
-| Veld | Doet |
-| --- | --- |
-| `name` | wordt `name.neodata.be` |
-| `host` | een **inventory-hostnaam**; zijn adres wordt de upstream |
-| `port` | de poort waar de dienst luistert |
-| `upstream` | noodgreep voor iets dat niet in de inventory staat |
-| `https` | de upstream praat zelf TLS, met een zelfondertekend certificaat |
-| `host_header` | stuur de oorspronkelijke `Host` door |
-| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij |
-| `auth` | zet tinyauth ervoor |
+### Geef hem een adres
 
-Upstreams staan op hostnaam en niet op IP, en dat is met opzet. Verhuist een
-host naar een ander adres, dan verandert dat op één plek — in Proxmox voor een
-guest, of in `inventory/00-static.yml` voor de rest — en volgt de Caddyfile
-mee. Met IP's in deze lijst zou je hem elke keer moeten natrekken.
+Volg [geval 2](#geval-2--alleen-een-adres) om een route toe te voegen.
 
-`docs.yml` staat er telkens bij omdat de servicepagina's op deze site
-gegenereerd worden uit `caddy_sites`. Sla je hem over, dan klopt de route wel
-en de documentatie niet.
+</Steps>
 
-## De smoketest
+---
+
+## Goed om te weten
+
+### Waarom `new-service.yml` weigert te overschrijven
+
+Voor het iets schrijft, controleert het of de naam én de poort nog vrij zijn.
+Een dubbele poort start stilletjes niet en een dubbele naam overschrijft een
+bestaande dienst. Dat merk je pas na een deploy. Nu krijg je meteen een
+foutmelding.
+
+### De smoketest
 
 ```bash
 ansible-playbook playbooks/caddy-smoketest.yml
 ```
 
-Vraagt elke site uit `caddy_sites` echt op en faalt als er een stuk is. Een
-5xx of een verbinding die niet tot stand komt telt als stuk. Een 401 of een
-redirect niet — dat is tinyauth die precies doet wat er van hem gevraagd wordt.
+Bezoekt elk adres uit `caddy_sites` en faalt als er één stuk is (een 5xx of
+geen verbinding). Een 401 of een redirect telt niet als stuk: dat is de login
+die gewoon zijn werk doet.
 
-Hij zit bewust niet in `site.yml`: hij controleert, hij convergeert niet.
+Hij zit niet in `site.yml` omdat hij alleen controleert en niets verandert.
 Draai hem na `caddy.yml` en na `caddy-upgrade.yml`.
