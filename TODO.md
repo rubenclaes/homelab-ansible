@@ -8,10 +8,6 @@
       met een vzdump die faalde. Nog open, en allemaal kunnen ze naar dezelfde
       ntfy:
 
-      - **Semaphore.** Het begon hiermee: `Drift check` faalde op 23-09 om
-        06:00 en dat is pas twee uur later bij toeval gezien, door met de hand
-        in de taaklijst te kijken. Zolang dit er niet is, is elk schema een
-        aanname.
       - **Een Alertmanager** naast Prometheus, Grafana, Loki en Alloy op VM
         102 dekt in één keer de schijven, de hosts en de certificaten.
 
