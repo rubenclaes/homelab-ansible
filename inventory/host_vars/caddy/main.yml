@@ -5,6 +5,13 @@ baseline_held_packages:
 caddy_email: ruben.claes@neodata.be
 caddy_domain: neodata.be
 
+# Extra IPs that may read Caddy's site list on :2020, next to the docker host
+# NeoGate runs on (which is always allowed). The Mac is here for NeoGate
+# development (pnpm dev / go run). Only the routes path is exposed, never the
+# rest of the config.
+caddy_config_readers:
+  - 192.168.0.86 # Mac (NeoGate dev)
+
 # Upstreams are named by inventory host, not by IP. Re-addressing a host means
 # changing it in one place - in Proxmox for a guest, or ansible_host in
 # inventory/00-static.yml for a host the hypervisor does not know about.
