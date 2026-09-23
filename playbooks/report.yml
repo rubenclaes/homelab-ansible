@@ -348,10 +348,22 @@
       # skips under --check and rendering dies on an undefined variable.
       check_mode: false
 
+    # Het adres van de caddy-host, met de naam er alleen als SNI bij. Niet de
+    # naam als `host`, en dat is op 23-09 met schade geleerd: deze play draait
+    # op `localhost`, en dat is bij een Semaphore-run de Semaphore-container.
+    # Proxmox zet in de /etc/hosts van elke guest een regel
+    # `<ip> <hostnaam>.<searchdomain> <hostnaam>`, dus daar wijst
+    # `semaphore.neodata.be` naar de container zelf. Die luistert op 3000 en
+    # niet op 443, en de taak faalde met "Connection refused" - terwijl DNS het
+    # goede antwoord gaf. /etc/hosts wint van DNS.
+    #
+    # Zo gevraagd maakt het niet meer uit waar deze play draait, en of de naam
+    # toevallig botst met een hostnaam.
     - name: Read the wildcard certificate
       community.crypto.get_certificate:
-        host: "{{ report_cert_host }}"
+        host: "{{ hostvars['caddy'].ansible_host }}"
         port: 443
+        server_name: "{{ report_cert_host }}"
       register: report_cert
       check_mode: false
 

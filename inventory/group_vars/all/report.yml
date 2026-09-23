@@ -3,8 +3,14 @@
 # playbook so the domain, datastore and publish location are changeable in one
 # place, and overridable per host or with -e.
 
-# Any host serving the wildcard cert; used only to read its expiry date.
-# Read from the caddy host's own vars so it tracks a domain change there.
+# De naam waarmee het rapport het wildcard-certificaat opvraagt, alleen om de
+# vervaldatum te lezen. Uit de vars van de caddy-host, zodat een domeinwijziging
+# daar vanzelf doorwerkt.
+#
+# Dit is de SNI-naam, niet het adres waar verbinding mee wordt gemaakt: dat is
+# de caddy-host zelf. Zie de taak in report.yml voor waarom dat onderscheid er
+# moet zijn - de naam hieronder botst op de Semaphore-container met zijn eigen
+# /etc/hosts.
 report_cert_host: "semaphore.{{ hostvars['caddy']['caddy_domain'] }}"
 
 # Proxmox Backup Server datastore and API token identity.
