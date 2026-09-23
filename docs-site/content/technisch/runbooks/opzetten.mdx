@@ -419,7 +419,43 @@ node" zolang die er niet is.
 
 **Deel 3 — De machines**
 
+Twee soorten. Guests met **data** zet je terug uit PBS: een nieuwe zou zijn
+instellingen of database kwijt zijn. Guests **zonder data** bouw je nieuw.
+
+| Guest | vmid | Hoe |
+| --- | --- | --- |
+| `adguard` | 107 | terugzetten (eerst: DNS) |
+| `semaphore` | 104 | terugzetten |
+| `haos` | 101 | terugzetten |
+| `docker-grafana-stack` | 102 | terugzetten |
+| `docker` | 103 | terugzetten |
+| `caddy` | 106 | nieuw bouwen |
+| `tailscale` | 108 | nieuw bouwen |
+
 <Steps>
+
+### Zet de guests met data terug uit PBS
+
+Volg [Herstellen, geval 2](/technisch/runbooks/disaster-recovery/#geval-2--terugzetten-uit-de-back-up)
+voor elke guest, in de volgorde van de tabel. Kort, op `pve01`:
+
+```bash
+sudo pvesm list pbs | grep '/107/'                                    # zoek de nieuwste back-up
+sudo pct restore 107 pbs:backup/ct/107/<datum> --storage vm-hdd        # een container
+sudo qmrestore pbs:backup/vm/103/<datum> 103 --storage vm-hdd          # een VM
+sudo pct start 107                                                     # of: sudo qm start 103
+```
+
+- `semaphore` gaat naar `--storage local-lvm`, de rest naar `vm-hdd`.
+- `--force` is niet nodig: de guests bestaan nog niet.
+- De VM's hoef je niet eerst met de hand te maken. `qmrestore` maakt ze zelf,
+  met het MAC-adres uit de back-up.
+
+<Callout type="warning">
+Kijk na de restore of onderaan `/etc/pve/lxc/107.conf` de twee `/dev/net/tun`-regels
+nog staan (zie de stap voor tailscale hieronder). Ontbreken ze, zet ze erbij en
+doe `pct reboot 107`.
+</Callout>
 
 ### Haal het container-template op
 
@@ -431,108 +467,68 @@ pveam download local debian-13-standard_13.1-2_amd64.tar.zst
 ```
 
 Een verse Proxmox heeft het niet, en de rol haalt het niet zelf op. Het staat
-in `pve_lxc_defaults.template` (`lxcs.yml`).
+in `pve_lxc_defaults.template` (`lxcs.yml`). Nodig voor de guests die je nieuw bouwt.
 
-### Bouw de containers
-
-Eén per keer, in deze volgorde:
+### Bouw caddy en tailscale nieuw
 
 ```bash
-ansible-playbook playbooks/new-guest.yml -e guest=adguard     # DNS van het netwerk
-ansible-playbook playbooks/new-guest.yml -e guest=caddy       # de voordeur
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ansible-playbook playbooks/new-guest.yml -e guest=tailscale
-ansible-playbook playbooks/new-guest.yml -e guest=semaphore
 ```
 
 Elke run maakt de container, bootstrapt hem en zet de baseline. De dienst zelf
 nog niet.
 
-<Callout type="info">
-Liever terugzetten dan nieuw bouwen? Staat PBS weer, dan kan dat ook. Zie
-[Herstellen](/technisch/runbooks/disaster-recovery/).
+<Callout type="error">
+Pas **na** het terugzetten. `new-guest.yml` maakt élke container uit `pve_lxcs`
+die nog ontbreekt, ook `adguard` en `semaphore`, maar dan leeg. Staat er dan
+al een lege op 107, dan moet je hem eerst weggooien voor de restore.
 </Callout>
 
-### Geef adguard en tailscale een tun-apparaat
+### Geef tailscale een tun-apparaat
 
-Als root op `pve01`, onderaan `/etc/pve/lxc/107.conf` én `/etc/pve/lxc/108.conf`:
+Als root op `pve01`, onderaan `/etc/pve/lxc/108.conf`:
 
 ```
 lxc.cgroup2.devices.allow: c 10:200 rwm
 lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
 ```
 
-Daarna herstarten, want een mount geldt pas na een start:
-
 ```bash
-pct reboot 107
-pct reboot 108
+pct reboot 108     # een mount geldt pas na een start
 ```
 
-Zonder dit start `tailscaled` niet en hangt hij stil in een herstartlus. Het
-API-token mag deze regels niet zetten, dus dit blijft handwerk.
-
-### Maak de virtuele machines
-
-Met de hand in het scherm, vorm uit `vms.yml`, **MAC-adres overnemen**:
-
-| vmid | naam |
-| --- | --- |
-| 101 | `haos` |
-| 102 | `docker-grafana-stack` |
-| 103 | `docker` |
-
-Hun waarde is hun schijf, niet hun vorm: de data komt uit PBS. Zie
-[Herstellen](/technisch/runbooks/disaster-recovery/).
+Zonder dit start `tailscaled` niet. Het API-token mag deze regels niet zetten,
+dus dit blijft handwerk.
 
 </Steps>
 
-**Deel 4 — Diensten en handwerk**
-
-Sommige rollen stoppen met opzet tot jij iets met de hand gedaan hebt. Draai
-ze los, los de stop op, draai opnieuw.
+**Deel 4 — Diensten en controle**
 
 <Steps>
 
-### AdGuard: loop de setup-wizard af
+### Zet de diensten op de nieuwe containers
 
 ```bash
-ansible-playbook playbooks/adguard.yml   # installeert, en stopt dan: "has not been through its setup wizard"
-```
-
-Open `http://192.168.0.29:3000` en loop de wizard af. Kies dezelfde login als
-in `inventory/host_vars/adguard/vault.yml` (`ansible-vault view` om te kijken).
-
-```bash
-ansible-playbook playbooks/adguard.yml   # nu loopt hij door
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/tailscale.yml
 ```
 
 ### Tailscale: keur de route opnieuw goed
 
-```bash
-ansible-playbook playbooks/tailscale.yml
-```
+Een opnieuw aangemelde node biedt `192.168.0.0/24` opnieuw aan. Keur die route
+goed in de Tailscale admin console, anders werkt toegang van buitenaf niet.
 
 De OAuth-client staat al gevault in `inventory/group_vars/tailnet/vault.yml`.
-Een opnieuw aangemelde node biedt `192.168.0.0/24` opnieuw aan: keur die route
-goed in de Tailscale admin console, anders werkt remote toegang niet.
 
-### Docker: zet de deploy-keys in GitHub
+### Semaphore: trek hem gelijk
 
 ```bash
-ansible-playbook playbooks/stacks.yml
+ansible-playbook playbooks/semaphore.yml
 ```
 
-Op een nieuw gebouwde host maakt de rol een deploy-key en toont de publieke
-helft. Zet die in de juiste repo onder Settings → Deploy keys:
-
-| Host | Repo |
-| --- | --- |
-| `docker` | `rubenclaes/containers` |
-| `docker-grafana-stack` | `rubenclaes/monitoring-stack` |
-| `macmini` | `rubenclaes/homelab` |
-
-Tot die sleutel erin staat faalt de clone en komt geen enkele stack omhoog.
-Kwam de host uit PBS, dan staat de oude sleutel er nog en hoef je niets te doen.
+Niet `site.yml --limit semaphore`: die faalt, want Semaphore moet eerst de
+hostkeys van alle machines ophalen.
 
 ### Kijk eerst wat er zou veranderen
 
@@ -540,14 +536,22 @@ Kwam de host uit PBS, dan staat de oude sleutel er nog en hoef je niets te doen.
 ansible-playbook playbooks/site.yml --check --diff
 ```
 
-En lees het ook echt. De helft staat nu met de hand gezet; je wil zien wat de
-repo daarvan vindt vóór hij het rechttrekt.
+En lees het echt. De teruggezette guests draaien de configuratie van de
+back-up; je wil zien wat de repo daarvan vindt vóór hij het rechttrekt.
 
 ### Trek alles gelijk
 
 ```bash
 ansible-playbook playbooks/site.yml
 ```
+
+<Callout type="info">
+Stopt `stacks.yml` met een deploy-key? Dat gebeurt alleen op een host die
+**nieuw** gebouwd is. Zet de getoonde publieke sleutel in GitHub onder
+Settings → Deploy keys (`docker` → `rubenclaes/containers`,
+`docker-grafana-stack` → `rubenclaes/monitoring-stack`) en draai opnieuw. Kwam
+de host uit PBS, dan staat de oude sleutel er nog.
+</Callout>
 
 ### Werk de docs en het rapport bij
 
@@ -593,12 +597,13 @@ inventory straks ziet.
 
 De container-rol maakt élke container uit `pve_lxcs` die nog ontbreekt, niet
 alleen de genoemde. Bootstrappen en baselinen doet hij wel alleen op de
-genoemde. Na de eerste run bestaan ze dus al; de volgende runs maken ze
-alleen nog bruikbaar.
+genoemde. Daarom zet je bij een herbouw eerst terug uit PBS en bouw je pas daarna nieuw:
+anders staan er lege containers op de nummers die je wilde terugzetten.
 
 ### Niet alles komt uit een playbook terug
 
 `macmini` en `docker-grafana-stack` draaien diensten die deze repo nog niet
 kan terugbouwen: daar is PBS het herstelpad. Wat ze draaien zie je met
 `discover.yml`, zie [Onderhoud](/technisch/runbooks/onderhoud/). Ook de
-AdGuard-instellingen (`AdGuardHome.yaml`) zet geen rol terug.
+AdGuard-instellingen (`AdGuardHome.yaml`) en de database van Semaphore zet geen
+rol terug. Daarom komen die twee uit PBS en niet uit `new-guest.yml`.

@@ -239,13 +239,13 @@ Zie je dit?
 
 ```
 sudo: a terminal is required to read the password
-Error: multipass: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
+Error: <naam>: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
 ```
 
 Doe die ene cask dan met de hand, mét terminal (`-t`):
 
 ```bash
-ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask multipass'
+ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask <naam>'   # of: upgrade --cask
 ```
 
 Waarom `-K` niet helpt: zie [Casks die root nodig hebben](#casks-die-root-nodig-hebben).
@@ -339,14 +339,14 @@ kant-en-klare apps. De pakketten komen pas terug na een nieuwere macOS.
 
 ### Casks die root nodig hebben
 
-Sommige casks, zoals `multipass`, zetten bestanden onder `/Library`. Bij een
+Sommige casks zetten bestanden onder `/Library`. Bij een
 upgrade of verwijdering roept brew zélf `sudo` aan. Over SSH is er geen
 terminal, dus sudo kan geen wachtwoord vragen. `-K` helpt niet: dat is het
 sudo-wachtwoord van Ansible, en Ansible zit hier niet tussen.
 
 Het kan wel automatisch (`SUDO_ASKPASS` met een scriptje dat het wachtwoord
 uit de vault haalt), maar dat is bewust niet gedaan: dan krijgt elke brew-taak
-op die Mac je inlogwachtwoord, voor één cask die toch weg moet.
+op die Mac je inlogwachtwoord, voor een handvol casks. `multipass` was er zo één; die is met de hand verwijderd.
 
 ### Waarom Caddy vaststaat
 

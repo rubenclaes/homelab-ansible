@@ -229,11 +229,11 @@ ansible-playbook playbooks/site.yml --tags macos --limit macmini
 # en noemt hij de namen. Anders zou hij hem elke run installeren en de
 # volgende run weer weggooien.
 #
-# Een cask die bestanden onder /Library heeft (multipass) krijgt Ansible er
+# Een cask die bestanden onder /Library heeft (zoals multipass) krijgt Ansible er
 # niet af: zijn uninstall draait `sudo /bin/rm` en over SSH is er geen
 # terminal waar sudo een wachtwoord kan vragen. -K helpt niet, brew roept
 # sudo zelf aan. Die doe je met de hand, met een tty:
-ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask multipass'
+ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask <naam>'
 # Uitleg en de reden om dit niet te automatiseren: docs-site runbook
 # "Updates", kopje "Een cask die root nodig heeft".
 #
