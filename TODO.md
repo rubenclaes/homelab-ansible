@@ -45,11 +45,6 @@ runbook *Onderhoud*.
 
 ## Opruimen in de estate
 
-- [ ] **Pocket ID draait dubbel.** `id` op docker is de huidige instantie,
-      `auth` op de Mini de oude - allebei op 1411, allebei 200. Zet `auth` uit
-      en haal zijn route weg, anders weet je bij een storing niet welke stuk
-      is. Daarna kan `pocketid` in `docker_stacks_list` van de Mini.
-
 - [ ] **`vpn.neodata.be` hangt aan een dynamisch WAN-adres.** De VPN-server
       staat op "Existing IP Address" en UniFi waarschuwt zelf dat dat adres
       wijzigt. Zoek uit of iets die Cloudflare-record bijwerkt; zo niet, zet
