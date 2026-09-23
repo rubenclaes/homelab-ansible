@@ -388,6 +388,12 @@ fouten heen (een mislukte back-up bijvoorbeeld), rechtstreeks naar
 afhangen van Caddy of AdGuard. Geslaagde back-ups komen er bewust niet: wie
 elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
 
+Een mislukte back-up stuurt de hele log mee, en dat is al snel meer dan de
+4 KB die in één bericht past. Die komt binnen als "You received a file:
+attachment.txt": de titel zegt wat er misging, de bijlage is de log. Daarvoor
+staat `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n bericht
+en krijg je niets.
+
 Buitenshuis zonder VPN krijg je wel het seintje, maar kan de app de inhoud
 niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.
 

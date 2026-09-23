@@ -105,6 +105,13 @@ pve_oci_lxcs:
       NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
       NTFY_AUTH_FILE: /var/lib/ntfy/user.db
       NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      # Een mislukte vzdump stuurt de hele log van elke guest mee, al snel
+      # 15 KB of meer. Boven 4 KB maakt ntfy er een bijlage van, en zonder
+      # deze map weigert hij het bericht (400): de ene melding waar het om
+      # draait kwam dan nooit aan. Proxmox kapt zelf af op 1 MiB.
+      NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+      NTFY_ATTACHMENT_FILE_SIZE_LIMIT: 2M
+      NTFY_ATTACHMENT_TOTAL_SIZE_LIMIT: 200M
       # Voor de iPhone: Apple laat een app alleen via hun eigen push wekken.
       # ntfy.sh stuurt enkel een seintje door, de inhoud haalt de app hier.
       NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
