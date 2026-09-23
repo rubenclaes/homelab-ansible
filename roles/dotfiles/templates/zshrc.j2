@@ -41,6 +41,9 @@ export PATH="$PATH:$HOME/.lmstudio/bin"
 # 8. AsyncAPI CLI Autocomplete
 ASYNCAPI_AC_ZSH_SETUP_PATH=$HOME/Library/Caches/@asyncapi/cli/autocomplete/zsh_setup && test -f $ASYNCAPI_AC_ZSH_SETUP_PATH && source $ASYNCAPI_AC_ZSH_SETUP_PATH
 
+# 9. Homelab helpers: ap (playbook menu), iTerm colors per host
+[ -f ~/.config/homelab/homelab.zsh ] && source ~/.config/homelab/homelab.zsh
+
 # BEGIN ANSIBLE MANAGED (dotfiles role)
 {{ dotfiles_zsh_block | trim }}
 # END ANSIBLE MANAGED (dotfiles role)

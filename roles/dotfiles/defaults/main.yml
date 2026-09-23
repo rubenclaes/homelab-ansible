@@ -1,3 +1,19 @@
 ---
 dotfiles_git_config: {}
 dotfiles_zsh_block: ""
+
+# Where the repo lives on the workstation; `ap` runs playbooks from here.
+dotfiles_homelab_repo: "~/Development/homelab-ansible"
+
+# iTerm tab color per host, grouped by how much breaks if you slip up there.
+# A host that is not listed keeps the normal tab color (it still gets a badge).
+dotfiles_host_colors:
+  red: [pve01, pbs]                              # everything, or the backups
+  orange: [adguard, caddy, tailscale]            # the network: DNS, the front door, the VPN
+  purple: [semaphore]                            # the scheduler
+  blue: [docker, docker-grafana-stack]           # the apps
+dotfiles_color_rgb:
+  red: "200 40 40"
+  orange: "230 130 20"
+  purple: "140 80 200"
+  blue: "40 110 220"

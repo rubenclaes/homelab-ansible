@@ -54,6 +54,20 @@
   loop_control:
     label: "{{ item.key }}"
 
+- name: Ensure ~/.config/homelab exists
+  ansible.builtin.file:
+    path: ~/.config/homelab
+    state: directory
+    mode: "0755"
+
+# ap (playbook menu) and the iTerm colors per host. A file of its own so
+# ~/.zshrc stays readable; zshrc.j2 sources it.
+- name: Deploy the homelab shell helpers
+  ansible.builtin.template:
+    src: homelab.zsh.j2
+    dest: ~/.config/homelab/homelab.zsh
+    mode: "0644"
+
 - name: Deploy ~/.zshrc
   ansible.builtin.template:
     src: zshrc.j2

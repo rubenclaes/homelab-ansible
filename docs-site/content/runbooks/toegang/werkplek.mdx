@@ -17,6 +17,8 @@ playbooks draaien en de docs-site bijwerken.
 | Je wil vanaf een **nieuwe laptop** playbooks draaien en `ssh caddy` typen | nieuwe MacBook, de `mbp` opnieuw geïnstalleerd, of `~/.zshrc` kwijt | [Laptop klaarzetten](#laptop-klaarzetten) |
 | Er is een **nieuwe machine** bij en `ssh <naam>` werkt nog niet | net een LXC gebouwd met `new-guest.yml` | [Nieuwe machine bij naam](#nieuwe-machine-bij-naam-bereiken) |
 | Je wil een **afkorting** toevoegen of aanpassen in je shell | een alias zoals `hl` of `ap` | [Shell-afkorting aanpassen](#shell-afkorting-aanpassen) |
+| Je weet niet meer **hoe een playbook heet** of wat het doet | "was het `smoketest.yml` of `dns-smoketest.yml`?" | [Een playbook kiezen met `ap`](#een-playbook-kiezen-met-ap) |
+| Je wil in iTerm **zien op welke host** je zit | typ je nu in `pve01` of in `docker`? | [Kleur per host in iTerm](#kleur-per-host-in-iterm) |
 | Je wil **snel iets weten** van een host, zonder in te loggen | welke Caddy-versie draait er, leven ze nog | [Snel iets vragen](#snel-iets-vragen-aan-een-host) |
 | Je wil een playbook draaien, maar eerst **zien wat het doet** | `site.yml` na een wijziging in de inventory | [Veilig een playbook proberen](#veilig-een-playbook-proberen) |
 | Je hebt net een playbook gedraaid: **wat nu?** | na `caddy.yml`, `update.yml`, `stacks.yml` | [Na een run](#na-een-run) |
@@ -186,9 +188,10 @@ Verhuist een host naar een ander adres, dan volgt `ssh <naam>` na de volgende ru
 | Typ dit | Doet |
 | --- | --- |
 | `hl` | `cd ~/Development/homelab-ansible` |
-| `ap` | `ansible-playbook` |
+| `ap` | een menu van alle playbooks, zie [Een playbook kiezen met `ap`](#een-playbook-kiezen-met-ap) |
+| `ap playbooks/site.yml` | `ansible-playbook playbooks/site.yml`, vanuit elke map |
 
-Dus `hl && ap playbooks/site.yml` werkt vanuit elke map. Zelf een toevoegen:
+`ap` draait altijd vanuit de repo, dus je hoeft er niet eerst naartoe. Zelf een toevoegen:
 [Shell-afkorting aanpassen](#shell-afkorting-aanpassen).
 
 ## Nieuwe machine bij naam bereiken
@@ -273,6 +276,48 @@ bestand. Ansible zet de oude wel als back-up ernaast (`~/.zshrc.<datum>~`).
 Wil je iets buiten het afkortingenblok veranderen, pas dan het sjabloon
 `roles/dotfiles/templates/zshrc.j2` aan.
 </Callout>
+
+## Een playbook kiezen met `ap`
+
+Typ `ap` zonder iets erachter en je krijgt een lijst van alle playbooks.
+
+<Steps>
+
+#### Open het menu
+
+```bash
+ap
+```
+
+Typ een paar letters om te filteren (`smo` vindt `smoketest.yml`). Rechts zie
+je het commentaar bovenaan het playbook: wat het doet en hoe je het draait.
+
+#### Kies er een
+
+Pijltjes en Enter. Het menu draait **niets**: het zet
+`ap playbooks/<keuze>.yml ` op je commandoregel.
+
+#### Vul aan en draai
+
+Zet er `--check`, `--limit <host>` of `-e ...` achter, en druk dan pas op
+Enter. `Esc` sluit het menu zonder iets te doen.
+
+</Steps>
+
+## Kleur per host in iTerm
+
+Dit doet niets zelf: het werkt vanzelf zodra je `ssh <host>` typt in iTerm.
+
+| Kleur | Hosts | Waarom |
+| --- | --- | --- |
+| rood | `pve01`, `pbs` | een fout hier raakt alles, of de back-ups |
+| oranje | `adguard`, `caddy`, `tailscale` | het netwerk: DNS, de voordeur, de VPN |
+| paars | `semaphore` | de planner |
+| blauw | `docker`, `docker-grafana-stack` | de apps |
+
+Het tabblad krijgt de kleur, en de naam van de host staat groot in de hoek van
+het venster (de "badge"). Log je uit, dan wordt het tabblad weer gewoon. Een
+host die niet in de lijst staat krijgt alleen de badge.
 
 ## Snel iets vragen aan een host
 
@@ -469,3 +514,17 @@ loopt gewoon door.
 ssh neemt de eerste waarde die hij vindt voor een host. Staat de `Include`
 onderaan of binnen een ander `Host`-blok, dan kunnen je eigen regels de
 homelab-regels overschaduwen of worden ze niet gelezen.
+
+### Waarom het `ap`-menu niets draait
+
+Sommige playbooks herstarten of slopen iets (`update.yml`, `restore-drill.yml`).
+Eén Enter te veel mag dat niet doen. Daarom zet het menu het commando alleen
+klaar, en kies jij de vlaggen.
+
+### De kleuren aanpassen
+
+De lijst staat in `dotfiles_host_colors` in `roles/dotfiles/defaults/main.yml`.
+Pas hem aan en draai `ap playbooks/dotfiles.yml`; een nieuwe terminal pakt het
+op. Het werkt met een `ssh`-functie in `~/.config/homelab/homelab.zsh`, die
+iTerm-escapecodes stuurt voor en na de echte `ssh`. Buiten iTerm is het gewone
+`ssh`.

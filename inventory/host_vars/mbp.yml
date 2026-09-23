@@ -8,6 +8,7 @@ macos_brew_packages_extra:
   - ansible-lint
   - caddy
   - ffmpeg
+  - fzf              # het menu van `ap`
   - gh
   - git
   - git-filter-repo
@@ -68,4 +69,3 @@ dotfiles_zsh_block: |-
   # "Invalid -W option ignored: invalid module name" en waarschuwt alsnog.
   export PYTHONWARNINGS="ignore:Unverified HTTPS request"
   alias hl='cd ~/Development/homelab-ansible'
-  alias ap='ansible-playbook'

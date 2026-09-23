@@ -1,0 +1,76 @@
+# Managed by Ansible (dotfiles role): edit roles/dotfiles/templates/homelab.zsh.j2
+# Sourced from ~/.zshrc. Homelab helpers for the workstation.
+
+HOMELAB_REPO="{{ dotfiles_homelab_repo | regex_replace('^~', '$HOME') }}"
+
+# --- ap: ansible-playbook, from anywhere, with a menu -----------------------
+#   ap                     menu of every playbook, with its header as preview
+#   ap playbooks/x.yml -C  plain ansible-playbook, run from the repo
+#
+# The menu does not run anything. It puts `ap playbooks/<pick>.yml ` on your
+# command line, so you can add --check, --limit or -e before pressing Enter.
+# Some playbooks reboot or destroy; one Enter too many should not do that.
+ap() {
+  if [[ $# -gt 0 ]]; then
+    (cd "$HOMELAB_REPO" && ansible-playbook "$@")
+    return
+  fi
+  local pick
+  pick=$(cd "$HOMELAB_REPO" && ls playbooks/*.yml | fzf \
+    --prompt='playbook> ' --height=80% --layout=reverse \
+    --preview "sed -n '2,/^[^#]/p' {} | sed '\$d' | cut -c3-" \
+    --preview-window=right,65%,wrap) || return
+  print -z "ap $pick "
+}
+
+# --- ssh: iTerm tab color and badge per host --------------------------------
+# The color says how much breaks if you type in the wrong window:
+{% for color, hosts in dotfiles_host_colors | dictsort %}
+#   {{ color }}: {{ hosts | join(', ') }}
+{% endfor %}
+# The badge is the big host name in the corner of the window.
+# Only in iTerm; anywhere else this is plain ssh.
+typeset -A HOMELAB_HOST_RGB
+HOMELAB_HOST_RGB=(
+{% for color, hosts in dotfiles_host_colors | dictsort %}
+{% for host in hosts %}
+  {{ host }} "{{ dotfiles_color_rgb[color] }}"
+{% endfor %}
+{% endfor %}
+)
+
+_homelab_tab() {  # _homelab_tab "r g b" | _homelab_tab reset
+  if [[ $1 == reset ]]; then
+    printf '\e]6;1;bg;*;default\a'
+    return
+  fi
+  local rgb=(${=1})
+  printf '\e]6;1;bg;red;brightness;%s\a' $rgb[1]
+  printf '\e]6;1;bg;green;brightness;%s\a' $rgb[2]
+  printf '\e]6;1;bg;blue;brightness;%s\a' $rgb[3]
+}
+
+ssh() {
+  if [[ $TERM_PROGRAM != iTerm.app ]]; then
+    command ssh "$@"
+    return
+  fi
+  # The host is the first argument that is not an option, and not the value
+  # of one: in `ssh -o BatchMode=yes pve01` the host is pve01.
+  local host arg skip=0
+  for arg in "$@"; do
+    if (( skip )); then skip=0; continue; fi
+    case $arg in
+      -[BbcDEeFIiJLlmOoPpQRSWw]) skip=1 ;;
+      -*) ;;
+      *) host=${arg#*@}; break ;;
+    esac
+  done
+  [[ -n ${HOMELAB_HOST_RGB[$host]} ]] && _homelab_tab "${HOMELAB_HOST_RGB[$host]}"
+  printf '\e]1337;SetBadgeFormat=%s\a' "$(printf '%s' "$host" | base64)"
+  command ssh "$@"
+  local rc=$?
+  _homelab_tab reset
+  printf '\e]1337;SetBadgeFormat=\a'
+  return $rc
+}
