@@ -32,6 +32,42 @@ Alles waar iets op draait, op één pagina. Per machine zie je het adres, welke
 welke stack elke dienst zit. Een stack is één compose-bestand met één of meer
 diensten erin.
 
+{#- Het schema: Proxmox als doos met zijn guests erin, de Macs ernaast, en in
+    elke Docker-machine zijn stacks. Een stack of machine met hooguit drie
+    diensten toont de namen, daarboven alleen het aantal - anders wordt
+    `media` een kolom van acht regels en leest niemand het schema nog. #}
+{%- set g = namespace(lines=['flowchart TB']) %}
+{%- macro nid(x) %}{{ x | regex_replace('[^A-Za-z0-9]', '_') }}{% endmacro %}
+{%- macro label(names) %}{{ names | join(', ') if names | length <= 3 else names | length ~ ' diensten' }}{% endmacro %}
+{%- macro box(h, kind, ind) %}
+{%- set hv = hostvars[h] %}
+{%- set svcs = docs_all_services | selectattr('host', 'equalto', h) | sort(attribute='name') | list %}
+{%- if hv.docker_stacks_list | default([]) | length > 0 %}
+{%- set g.lines = g.lines + [ind ~ 'subgraph ' ~ nid(h) ~ '["' ~ h ~ ' · ' ~ kind ~ '"]'] %}
+{%- for st in hv.docker_stacks_list | sort(attribute='name') %}
+{%- set members = svcs | selectattr('stack', 'defined') | selectattr('stack', 'equalto', st.name) | map(attribute='name') | list %}
+{%- set g.lines = g.lines + [ind ~ '  ' ~ nid(h ~ '_' ~ st.name) ~ '["<b>' ~ st.name ~ '</b><br/>' ~ (label(members) if members else 'achtergrond') ~ '"]'] %}
+{%- endfor %}
+{%- set loose = svcs | rejectattr('stack', 'defined') | map(attribute='name') | list %}
+{%- if loose %}
+{%- set g.lines = g.lines + [ind ~ '  ' ~ nid(h ~ '_loose') ~ '["' ~ label(loose) ~ '<br/><i>buiten een stack</i>"]'] %}
+{%- endif %}
+{%- set g.lines = g.lines + [ind ~ 'end'] %}
+{%- else %}
+{%- set g.lines = g.lines + [ind ~ nid(h) ~ '["<b>' ~ h ~ '</b> · ' ~ kind ~ (('<br/>' ~ label(svcs | map(attribute='name') | list)) if svcs else '') ~ '"]'] %}
+{%- endif %}
+{%- endmacro %}
+{%- for k in kinds if k.one == 'Proxmox-host' %}{% for pve in k.hosts %}
+{%- set g.lines = g.lines + ['  subgraph ' ~ nid(pve) ~ '["' ~ pve ~ ' · Proxmox"]', '    direction TB'] %}
+{%- for k2 in kinds if k2.one in ['VM', 'LXC-container'] %}{% for h in k2.hosts | sort %}{{ box(h, k2.one, '    ') }}{% endfor %}{% endfor %}
+{%- set g.lines = g.lines + ['  end'] %}
+{%- endfor %}{% endfor %}
+{%- for k in kinds if k.one == 'Mac' %}{% for h in k.hosts | sort %}{{ box(h, 'Mac', '  ') }}{% endfor %}{% endfor %}
+
+```mermaid
+{{ g.lines | join('\n') }}
+```
+
 | Machine | Soort | Adres | Diensten |
 | --- | --- | --- | --- |
 {% for k in kinds %}{% for h in k.hosts | sort -%}
