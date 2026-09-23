@@ -10,6 +10,12 @@
 #   ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
 proxmox_oci_recreate: false
 
+# Every API call carries the automation token, which can create and destroy
+# guests, and some carry the env with hashes and the ntfy token. So their
+# output is hidden. To see why a call fails, re-run with
+# -e proxmox_oci_no_log=false - and do not paste that output anywhere.
+proxmox_oci_no_log: true
+
 proxmox_oci_node: "{{ inventory_hostname }}"
 proxmox_oci_template_storage: local
 proxmox_oci_api: "https://{{ pve_api_host }}:8006/api2/json"

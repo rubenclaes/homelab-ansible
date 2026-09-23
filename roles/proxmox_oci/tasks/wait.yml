@@ -13,6 +13,7 @@
   until: proxmox_oci_task_status.json.data.status == 'stopped'
   retries: 60
   delay: 5
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Require that task to have succeeded
   ansible.builtin.assert:

@@ -63,7 +63,7 @@
   become: false
   register: proxmox_oci_before
   when: proxmox_oci_exists | bool
-  no_log: true
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Decide whether the running version differs - {{ oci.hostname }}
   ansible.builtin.set_fact:
@@ -97,6 +97,7 @@
       become: false
       register: proxmox_oci_stop
       changed_when: true
+      no_log: "{{ proxmox_oci_no_log }}"
 
     - name: Wait for the stop
       ansible.builtin.include_tasks: wait.yml
@@ -113,6 +114,7 @@
       become: false
       register: proxmox_oci_destroy
       changed_when: true
+      no_log: "{{ proxmox_oci_no_log }}"
 
     - name: Wait for the destroy
       ansible.builtin.include_tasks: wait.yml
@@ -153,6 +155,7 @@
   register: proxmox_oci_create
   when: not (proxmox_oci_exists | bool)
   changed_when: true
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Wait for the create
   ansible.builtin.include_tasks: wait.yml
@@ -169,7 +172,7 @@
   delegate_to: localhost
   become: false
   register: proxmox_oci_live
-  no_log: true
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Compare entrypoint and env for {{ oci.hostname }}
   ansible.builtin.set_fact:
@@ -195,7 +198,7 @@
   become: false
   when: proxmox_oci_config_differs | bool
   changed_when: true
-  no_log: true
+  no_log: "{{ proxmox_oci_no_log }}"
 
 # --- running --------------------------------------------------------------
 - name: Read the state of {{ oci.hostname }}
@@ -206,6 +209,7 @@
   delegate_to: localhost
   become: false
   register: proxmox_oci_state
+  no_log: "{{ proxmox_oci_no_log }}"
 
 # env is read at start, so a changed env on a running container means a
 # reboot. A stopped container is started either way: onboot says it should run.
@@ -222,6 +226,7 @@
   register: proxmox_oci_power
   when: proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
   changed_when: true
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Wait for the start
   ansible.builtin.include_tasks: wait.yml

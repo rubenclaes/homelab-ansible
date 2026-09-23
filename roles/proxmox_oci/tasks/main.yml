@@ -11,6 +11,7 @@
   delegate_to: localhost
   become: false
   register: proxmox_oci_templates
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Read the existing guests
   ansible.builtin.uri:
@@ -20,6 +21,7 @@
   delegate_to: localhost
   become: false
   register: proxmox_oci_guests
+  no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Converge each OCI container
   ansible.builtin.include_tasks: container.yml
