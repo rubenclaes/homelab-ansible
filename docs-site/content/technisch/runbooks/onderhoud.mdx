@@ -430,6 +430,26 @@ dood en weet je niet of hij af is. En `!mbp` staat er omdat die host
 MacBook" maar "de container die dit draait". Aan je eigen bureau klopt hij
 wel, en daar draai je zonder limit.
 
+Op 23-09 bleek dat `!mbp` op meer plekken hoorde te staan. `Cleanup (report)`
+en `Cleanup (Apply)` hadden helemaal geen limit, en `cleanup.yml` heeft een
+play `hosts: macs`. Vanuit Semaphore viel de container daar dus zelf in, kreeg
+de macOS-taken, en liep vast op "Measure the Homebrew cache" op een Debian
+zonder Homebrew. `Homelab Report` had hetzelfde probleem en was er alleen nog
+niet op gestrand, want zijn schema van zondag 08:00 was nog niet langsgekomen.
+Alle drie hebben nu een limit.
+
+<Callout type="warning">
+**`Homelab Report` krijgt `all:!mbp:localhost`, met die `localhost` erbij.**
+Dat is geen slordigheid: `report.yml` rendert de HTML in een
+`hosts: localhost`-play en ruimt daar ook op, en Ansible telt de impliciete
+localhost niet mee in `all`. Met een kaal `all:!mbp` vallen die twee plays op
+nul hosts, wordt de run **groen**, en verschijnt er niets op
+`report.neodata.be`. Nagemeten met `--list-hosts` voor het werd toegepast.
+
+Dat is de gevaarlijkste soort fout in deze lijst: een limit die te veel
+wegsnijdt maakt een job niet rood, alleen stil.
+</Callout>
+
 `Drift check` geeft die limit door als `-e drift_limit=...` en niet als
 `--limit`. Dat playbook draait zelf op `localhost` en start de droogloop als
 los commando; een `--limit` zou die ene play raken in plaats van de converge
