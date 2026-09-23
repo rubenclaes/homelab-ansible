@@ -35,6 +35,11 @@ caddy_sites:
   # de enige plek waar hij nog bestond, en die geloof je tijdens een storing.
   - { name: monitoring, host: docker-grafana-stack, port: 3001, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
   - { name: prometheus, host: docker-grafana-stack, port: 9090, desc: "Metrics-store die Grafana scrapet" }
+  # Meldingen voor de telefoon. Een OCI-container op pve01 (vmid 109), niet op
+  # de docker-host: wie meldt dat de docker-VM plat ligt, mag er niet zelf op
+  # draaien. Proxmox stuurt NIET via deze naam maar rechtstreeks naar het IP,
+  # zodat een melding niet van Caddy of AdGuard afhangt.
+  - { name: ntfy, host: ntfy, port: 80, desc: "ntfy — meldingen van de homelab naar je telefoon" }
 
   # --- Beheer ---
   # De vier webinterfaces van de infrastructuur zelf. Ze draaiden alleen op
