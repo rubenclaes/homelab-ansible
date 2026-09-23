@@ -13,7 +13,7 @@
 
 - name: Work out which containers are missing
   ansible.builtin.set_fact:
-    proxmox_lxc_missing: "{{ pve_lxcs | default([]) | rejectattr('vmid', 'in', proxmox_lxc_existing.proxmox_vms | map(attribute='vmid') | list) | list }}"
+    proxmox_lxc_missing: "{{ proxmox_lxc_list | rejectattr('vmid', 'in', proxmox_lxc_existing.proxmox_vms | map(attribute='vmid') | list) | list }}"
 
 - name: Report
   ansible.builtin.debug:

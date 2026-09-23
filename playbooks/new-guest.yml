@@ -45,7 +45,7 @@
       ansible.builtin.include_role:
         name: proxmox_lxc
       vars:
-        pve_lxcs: ["{{ new_guest_entry }}"]
+        proxmox_lxc_list: ["{{ new_guest_entry }}"]
 
     - name: Wait for SSH on {{ guest }}
       ansible.builtin.wait_for:
