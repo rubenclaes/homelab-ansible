@@ -8,12 +8,18 @@ import { Steps, Callout } from 'nextra/components'
 
 | | WireGuard | Tailscale |
 | --- | --- | --- |
-| Geeft | het hele thuisnetwerk (`192.168.0.0/24`) | de tailnet |
+| Geeft | het hele thuisnetwerk (`192.168.0.0/24`) | de tailnet, en misschien ook het hele thuisnetwerk (zie hieronder) |
 | Per | toestel: één profiel per toestel | persoon: hij logt zelf in |
 | Beheer | UniFi | NeoGate + Tailscale-console |
 | Kies als | iemand je diensten van buitenaf moet kunnen gebruiken | iemand alleen bij een machine op de tailnet moet |
 
-Twijfel je: **WireGuard**. Tailscale komt nu niet op het LAN.
+<Callout type="warning">
+Tailscale geeft niet alleen de tailnet. ct 108 biedt het hele thuisnetwerk aan,
+en op je eigen iPhone werkt dat (getest 23-09). Of iemand anders dat ook
+krijgt, hangt af van de toegangsregels van je tailnet. Dat is nog niet
+nagekeken en staat op de TODO. Tot dan: geef iemand anders **WireGuard**, of
+ga ervan uit dat Tailscale hem op je hele netwerk laat.
+</Callout>
 
 ## WireGuard-profiel
 

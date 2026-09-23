@@ -415,11 +415,23 @@ toestellen die de subnet-route accepteren. Onderweg heb je dan helemaal geen
 DNS. Daarom zit ct 107 zelf op de tailnet, met `--accept-dns=false` zodat hij
 zijn DNS niet via een omweg bij zichzelf gaat halen.
 
-### De Tailscale-weg komt nu niet op het LAN
+### Hoe de Tailscale-weg op het LAN komt
 
-ct 108 biedt `192.168.0.0/24` aan, maar `--accept-routes` staat overal uit.
-Onderweg bereik je via Tailscale dus geen `192.168.0.x`. Voor LAN-toegang van
-buitenaf is WireGuard nu de weg. Staat op de TODO.
+ct 108 is een subnet router: hij biedt `192.168.0.0/24` aan, en die route is
+goedgekeurd in de Tailscale-console. Wie de route aanneemt, komt onderweg via
+Tailscale bij elk `192.168.0.x`-adres, en dus bij alle diensten. Getest op
+23-09: de iPhone, over 4G, opende `ntfy.neodata.be` met alleen Tailscale aan.
+
+Aannemen gebeurt per toestel. Op iOS en Android heet het "Use Tailscale
+subnets", op de Mac `RouteAll` (`--accept-routes` op de commandline).
+
+| Toestel | Neemt de route aan | Waarom |
+| --- | --- | --- |
+| iPhone, MacBook | ja | ze reizen mee |
+| Mac mini, ct 107, ct 108 | nee, met opzet | ze zitten zelf al op `192.168.0.0/24`. Een route naar je eigen LAN via Tailscale laat het verkeer een omweg maken en breekt verbindingen die rechtstreeks moeten |
+
+Een verloren of gestolen toestel met Tailscale komt daardoor ook op het LAN.
+Trek het in via de Tailscale-console, net als een WireGuard-profiel.
 
 ### Het WAN-adres is dynamisch
 

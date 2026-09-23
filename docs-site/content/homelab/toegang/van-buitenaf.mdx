@@ -11,17 +11,18 @@ Tailscale.
 
 | Je wil… | Neem | Waarom |
 | --- | --- | --- |
-| `*.neodata.be`, `*.home.arpa` of een `192.168.0.x`-adres | **WireGuard** "Neodata VPN" | Tailscale komt nu niet op het LAN |
+| `*.neodata.be`, `*.home.arpa` of een `192.168.0.x`-adres | **Tailscale** of **WireGuard** | allebei komen op het LAN. Getest op 23-09: Tailscale op de iPhone, over 4G |
 | een machine op de tailnet, via zijn `100.x`-adres | **Tailscale** | |
-| erbij terwijl WireGuard niet werkt (bv. WAN-adres gewijzigd) | **Tailscale** | hangt niet af van `vpn.neodata.be`. Je komt dan alleen op `100.x`-adressen, bv. SSH naar pve01 om te kijken wat er mis is, niet op de diensten |
+| erbij terwijl de ene niet werkt | **de andere** | ze hangen aan verschillende dingen, zie hieronder |
 
-In de praktijk: **WireGuard**, tenzij die niet werkt.
+Zet er altijd maar **één** aan. iOS houdt trouwens maar één VPN tegelijk actief.
 
 <Steps>
 
-### Zet WireGuard aan
+### Zet één VPN aan
 
-Op je iPhone: WireGuard-app → **Neodata VPN** aan.
+Op je iPhone: de **Tailscale**-app aan, of de **WireGuard**-app → **Neodata VPN**
+aan. Niet allebei.
 
 ### Test
 
@@ -31,15 +32,16 @@ VPN, de route en de DNS.
 
 ### Werkt het niet?
 
-Volg [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/#geval-5--de-vpn-nakijken).
-Meestal is je WAN-adres veranderd.
+Zet hem uit en probeer de andere. Werkt Tailscale wel en WireGuard niet, volg
+dan [Netwerk → De VPN nakijken](/technisch/runbooks/netwerk/#geval-5--de-vpn-nakijken):
+meestal is je WAN-adres veranderd.
 
 </Steps>
 
 <Callout type="warning">
-De VPN breekt stil als je provider je een ander WAN-adres geeft. Dat staat op
-de TODO. Tot dan: werkt WireGuard onderweg ineens niet meer, neem Tailscale en
-kijk thuis het adres na.
+WireGuard breekt stil als je provider je een ander WAN-adres geeft. Dat staat
+op de TODO. Tot dan: werkt WireGuard onderweg ineens niet meer, neem Tailscale
+en kijk thuis het adres na.
 </Callout>
 
 ## Goed om te weten
@@ -51,7 +53,9 @@ precies wanneer je erbij wil, dan werkt WireGuard nog. Breekt WireGuard (meestal
 het WAN-adres), dan werkt Tailscale nog. Meer in
 [Netwerk → Twee wegen naar binnen](/technisch/runbooks/netwerk/#twee-wegen-naar-binnen).
 
-### Waarom Tailscale niet op het LAN komt
+### Hoe Tailscale op het LAN komt
 
-ct 108 biedt `192.168.0.0/24` aan, maar `--accept-routes` staat uit op de
-machines. Zie [Netwerk](/technisch/runbooks/netwerk/#de-tailscale-weg-komt-nu-niet-op-het-lan).
+ct 108 biedt `192.168.0.0/24` aan de tailnet aan, en die route is goedgekeurd.
+Een toestel dat meereist neemt ze aan: op iOS is dat "Use Tailscale subnets"
+(staat standaard aan), op de MacBook staat het ook aan. De servers thuis nemen
+ze met opzet niet aan. Zie [Netwerk](/technisch/runbooks/netwerk/#hoe-de-tailscale-weg-op-het-lan-komt).
