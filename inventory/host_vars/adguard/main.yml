@@ -30,3 +30,14 @@ adguard_filters:
     url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_55.txt
   - name: Phishing URL Blocklist (PhishTank and OpenPhish)
     url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_30.txt
+
+# Deze node gaat de tailnet op zodat hij een 100.x-adres krijgt en als globale
+# nameserver gebruikt kan worden. Maar hij mag zijn eigen DNS NIET van de
+# tailnet aannemen: die wijst straks naar hemzelf, en dan zoekt hij zijn
+# antwoorden bij zichzelf op via een omweg. `--accept-dns=false` houdt zijn
+# /etc/resolv.conf zoals hij is (127.0.0.1 met 1.1.1.1 erachter).
+#
+# ct 108 staat wel op accept-dns; die is een gewone client en heeft er baat
+# bij. Het verschil zit daarom hier en niet in de rol-defaults.
+tailscale_up_extra_args:
+  - --accept-dns=false

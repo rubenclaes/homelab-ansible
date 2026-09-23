@@ -15,7 +15,8 @@
 # Run it from the workstation, not from Semaphore: the key is printed, and a
 # Semaphore task log would keep it.
 #
-# hosts: tailscale is only there for that host's variables - the OAuth client
+# hosts: tailscale is only there for the OAuth client, which since 23-09 lives
+# in group_vars/tailnet/ and reaches this host through the group
 # in its vault. Nothing connects to it: the play vars below make every task
 # run locally, and override the linux group's ansible_become, which would
 # otherwise sudo on the workstation. A play-level var overriding inventory is

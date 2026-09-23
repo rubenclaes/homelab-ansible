@@ -1,15 +1,6 @@
 ---
-# OAuth client for the Tailscale API, made in the admin console with the
-# single scope auth_keys and the tag tag:homelab. With it, roles/tailscale
-# joins this node by itself after a rebuild, and playbooks/tailscale-key.yml
-# mints a key for anything else that needs one. Defined in the encrypted
-# vault.yml next to this file; until that exists the role only reports, which
-# is the old behaviour.
-#
-# The client can make auth keys and nothing else. Leaking it means someone
-# can add tagged nodes to the tailnet, not read or change anything on it.
-tailscale_oauth_client_id: "{{ vault_tailscale_oauth_client_id }}"
-tailscale_oauth_client_secret: "{{ vault_tailscale_oauth_client_secret }}"
+# Alleen wat voor DEZE node geldt. De OAuth-client staat in
+# group_vars/tailnet/, want adguard gebruikt hem sinds 23-09 ook.
 
 # Wat deze node aanbiedt aan de rest van de tailnet. Op 22-09 van de draaiende
 # node afgelezen (`tailscale debug prefs`): hij adverteert het hele LAN, is

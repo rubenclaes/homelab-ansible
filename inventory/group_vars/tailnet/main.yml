@@ -1,0 +1,10 @@
+---
+# De OAuth-client waarmee een node zichzelf aanmeldt. Stond tot 23-09 in
+# host_vars/tailscale/, toen er nog één node was. Nu hoort hij bij de groep:
+# adguard heeft hem net zo goed nodig, en een tweede kopie in host_vars is een
+# tweede plek om te vergeten bij het roteren.
+#
+# De client kan alleen auth keys maken. Lekt hij, dan kan iemand getagde nodes
+# aan de tailnet toevoegen - niets lezen of wijzigen.
+tailscale_oauth_client_id: "{{ vault_tailscale_oauth_client_id }}"
+tailscale_oauth_client_secret: "{{ vault_tailscale_oauth_client_secret }}"

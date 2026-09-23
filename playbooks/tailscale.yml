@@ -1,6 +1,6 @@
 ---
 - name: Tailscale client
-  hosts: tailscale
+  hosts: tailnet
   roles:
     - tailscale
   tags: [tailscale, vpn]

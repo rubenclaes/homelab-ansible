@@ -28,6 +28,24 @@ all:
         docker: {}
         docker-grafana-stack: {}
 
+    # Welke guests op de tailnet horen. Dat wist Proxmox ook niet, dus staat
+    # het hier, net als docker_hosts.
+    #
+    # adguard staat erbij sinds 23-09, en dat heeft één reden: hij is de DNS
+    # van het huis, en een nameserver die je vanaf de tailnet wil gebruiken
+    # moet een tailnet-adres hebben. Een LAN-adres als globale nameserver
+    # werkt alleen voor toestellen die de subnet-route accepteren, en dat doet
+    # er hier geen enkele (`RouteAll: False` op de Mini en op ct 108). Dan heb
+    # je onderweg geen DNS in plaats van half - erger dan de instelling
+    # uitzetten.
+    #
+    # Alleen ct 108 adverteert routes. Dat staat in zijn eigen host_vars, dus
+    # adguard krijgt de lege default en biedt niets aan.
+    tailnet:
+      hosts:
+        tailscale: {}
+        adguard: {}
+
     # Hosts that are not Debian and cannot take the baseline role.
     # Declared here so site.yml can reason about the group even when the
     # dynamic inventory contributes every member.
