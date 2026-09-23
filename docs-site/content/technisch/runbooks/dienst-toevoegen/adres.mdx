@@ -23,13 +23,17 @@ $EDITOR inventory/host_vars/caddy/main.yml
 Zet onder `caddy_sites:`:
 
 ```yaml
-  - { name: shelfmark, host: macmini, port: 8084, desc: "Shelfmark — metadata voor boeken" }
+  - { name: shelfmark, host: macmini, port: 8084, stack: shelfmark, desc: "Shelfmark — metadata voor boeken" }
 ```
 
 - `name` — wordt het adres: `shelfmark.neodata.be`
 - `host` — de naam van de machine **zoals in de inventory** (niet het IP)
 - `port` — de poort waar de dienst op luistert
 - `desc` — korte uitleg, komt op deze docs-site
+- `stack` — de stack uit `docker_stacks_list` waar de container in zit. Laat
+  weg als het geen beheerde stack is (Plex, een VM). Hiermee linkt de site
+  dienst en stack aan elkaar: een stack als `media` zegt op zichzelf niet
+  wat erin draait.
 
 <Callout type="info">
 Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan

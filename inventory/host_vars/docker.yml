@@ -3,7 +3,7 @@ docker_stacks_list:
   - { name: memos, path: memos }
   - { name: utils, path: utils }
   - { name: homepage, path: homepage }
-  - { name: metrics, path: metrics }
+  - { name: metrics, path: metrics, desc: "Alloy — stuurt logs en metrics van deze host naar docker-grafana-stack" }
   - { name: rustdesk, path: apps/rustdesk }
   - { name: portainer, path: portainer, env: false }
   - { name: neogate, path: neogate }
@@ -71,3 +71,19 @@ docker_ports_without_route:
   - { port: 21116, why: "rustdesk hbbs - raw TCP, not HTTP" }
   - { port: 21117, why: "rustdesk hbbr - raw TCP, not HTTP" }
   - { port: 8000, why: "portainer edge agent tunnel, not the UI" }
+
+# Diensten die je wél gebruikt maar die geen webroute hebben, en dus niet in
+# caddy_sites staan. docs.yml maakt er toch een pagina voor onder Services,
+# anders bestaan ze in de docs alleen als een regel in de stack-tabel en weet
+# je niet dat ze er zijn. De poorten staan ook in docker_ports_without_route
+# hierboven; dat is voor report.yml, dit is voor een lezer.
+docker_services_without_route:
+  - name: rustdesk
+    stack: rustdesk
+    ports: ["21115/tcp", "21116/tcp", "21116/udp", "21117/tcp"]
+    desc: "RustDesk — eigen server voor remote support (ID en relay)"
+    how: >-
+      Geen webpagina: de RustDesk-app praat rechtstreeks met de server. Zet in
+      de app bij Netwerk de ID-server op het adres van deze host en vul de
+      publieke sleutel in (`id_ed25519.pub` in de datamap van de stack).
+      Buiten het LAN werkt hij alleen als de router deze poorten doorstuurt.

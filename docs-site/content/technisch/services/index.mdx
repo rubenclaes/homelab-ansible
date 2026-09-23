@@ -1,94 +1,96 @@
 ---
-title: Services
+title: Diensten
 ---
 
 import { Callout } from 'nextra/components'
 
-# Services
+# Diensten
 
 <Callout type="warning">
-Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`.
-Bewerk de inventory, niet deze pagina.
+Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus
+`docker_services_without_route` voor diensten zonder webadres. Bewerk de
+inventory, niet deze pagina.
 </Callout>
 
-Elke service draait op `https://<naam>.neodata.be`. Klik de naam voor
-het upstream-adres en de instellingen.
+Wat er draait, per machine. Een dienst met een webroute staat op
+`https://<naam>.neodata.be`; klik de naam voor het adres, de poort en
+de instellingen. De stack linkt naar de machine waar hij op staat.
 
-## adguard <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+## adguard
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [dns](/technisch/services/dns/) | `80` | AdGuard Home — DNS voor de hele estate, en filtering |  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [dns](/technisch/services/dns/) | AdGuard Home — DNS voor de hele estate, en filtering | — |
 
-## docker <span style={{ opacity: 0.5, fontWeight: 400 }}>— 20 services</span>
+## docker
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [audiobooks](/technisch/services/audiobooks/) | `13378` | Audiobookshelf — luisterboeken en podcasts |  |
-| [code](/technisch/services/code/) | `8443` | code-server — VS Code in de browser |  |
-| [home](/technisch/services/home/) | `8085` | Homepage — startpagina met alle diensten |  |
-| [id](/technisch/services/id/) | `1411` | Pocket ID — OIDC-provider (huidige instantie) |  |
-| [memos](/technisch/services/memos/) | `5230` | Memos - snelle notities |  |
-| [metube](/technisch/services/metube/) | `8081` | MeTube — webinterface voor yt-dlp |  |
-| [neogate](/technisch/services/neogate/) | `4000` | NeoGate — toegangsbeheer voor het homelab (eigen app) |  |
-| [openbooks](/technisch/services/openbooks/) | `8080` | OpenBooks — e-books zoeken en downloaden via IRC |  |
-| [overseerr](/technisch/services/overseerr/) | `5055` | Aanvragen voor films en series |  |
-| [pairdrop](/technisch/services/pairdrop/) | `3000` | Bestanden tussen toestellen in huis, zoals AirDrop |  |
-| [pdf](/technisch/services/pdf/) | `8084` | BentoPDF — PDF's samenvoegen, splitsen en omzetten |  |
-| [photos](/technisch/services/photos/) | `2283` | Immich — foto- en videobibliotheek |  |
-| [portainer](/technisch/services/portainer/) | `9443` | Docker-beheer voor de docker-host | TLS-upstream.  |
-| [prowlarr](/technisch/services/prowlarr/) | `9696` | Indexerbeheer voor Sonarr en Radarr |  |
-| [radarr](/technisch/services/radarr/) | `7878` | Beheer van films |  |
-| [sonarr](/technisch/services/sonarr/) | `8989` | Beheer van series |  |
-| [spullen](/technisch/services/spullen/) | `7745` | Homebox — wat ligt waar, met QR-labels |  |
-| [termix](/technisch/services/termix/) | `8086` | SSH in de browser |  |
-| [tools](/technisch/services/tools/) | `8082` | IT-Tools — ontwikkelaarsgereedschap, offline |  |
-| [torrent](/technisch/services/torrent/) | `8089` | qBittorrent — schrijft naar de NFS-share van de Mac mini |  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [audiobooks](/technisch/services/audiobooks/) | Audiobookshelf — luisterboeken en podcasts | [media](/technisch/machines/#docker) |
+| [code](/technisch/services/code/) | code-server — VS Code in de browser | [utils](/technisch/machines/#docker) |
+| [home](/technisch/services/home/) | Homepage — startpagina met alle diensten | [homepage](/technisch/machines/#docker) |
+| [id](/technisch/services/id/) | Pocket ID — OIDC-provider (huidige instantie) | [infra](/technisch/machines/#docker) |
+| [memos](/technisch/services/memos/) | Memos - snelle notities | [memos](/technisch/machines/#docker) |
+| [metube](/technisch/services/metube/) | MeTube — webinterface voor yt-dlp | [utils](/technisch/machines/#docker) |
+| [neogate](/technisch/services/neogate/) | NeoGate — toegangsbeheer voor het homelab (eigen app) | [neogate](/technisch/machines/#docker) |
+| [openbooks](/technisch/services/openbooks/) | OpenBooks — e-books zoeken en downloaden via IRC | [media](/technisch/machines/#docker) |
+| [overseerr](/technisch/services/overseerr/) | Aanvragen voor films en series | [media](/technisch/machines/#docker) |
+| [pairdrop](/technisch/services/pairdrop/) | Bestanden tussen toestellen in huis, zoals AirDrop | [utils](/technisch/machines/#docker) |
+| [pdf](/technisch/services/pdf/) | BentoPDF — PDF's samenvoegen, splitsen en omzetten | [utils](/technisch/machines/#docker) |
+| [photos](/technisch/services/photos/) | Immich — foto- en videobibliotheek | [media](/technisch/machines/#docker) |
+| [portainer](/technisch/services/portainer/) | Docker-beheer voor de docker-host | [portainer](/technisch/machines/#docker) |
+| [prowlarr](/technisch/services/prowlarr/) | Indexerbeheer voor Sonarr en Radarr | [media](/technisch/machines/#docker) |
+| [radarr](/technisch/services/radarr/) | Beheer van films | [media](/technisch/machines/#docker) |
+| [rustdesk](/technisch/services/rustdesk/) | RustDesk — eigen server voor remote support (ID en relay) _(geen webroute)_ | [rustdesk](/technisch/machines/#docker) |
+| [sonarr](/technisch/services/sonarr/) | Beheer van series | [media](/technisch/machines/#docker) |
+| [spullen](/technisch/services/spullen/) | Homebox — wat ligt waar, met QR-labels | [homebox](/technisch/machines/#docker) |
+| [termix](/technisch/services/termix/) | SSH in de browser | [utils](/technisch/machines/#docker) |
+| [tools](/technisch/services/tools/) | IT-Tools — ontwikkelaarsgereedschap, offline | [utils](/technisch/machines/#docker) |
+| [torrent](/technisch/services/torrent/) | qBittorrent — schrijft naar de NFS-share van de Mac mini | [media](/technisch/machines/#docker) |
 
-## docker-grafana-stack <span style={{ opacity: 0.5, fontWeight: 400 }}>— 2 services</span>
+## docker-grafana-stack
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [monitoring](/technisch/services/monitoring/) | `3001` | Grafana — dashboards op Prometheus en Loki | Host-header doorgegeven.  |
-| [prometheus](/technisch/services/prometheus/) | `9090` | Metrics-store die Grafana scrapet |  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [monitoring](/technisch/services/monitoring/) | Grafana — dashboards op Prometheus en Loki | [monitoring](/technisch/machines/#docker-grafana-stack) |
+| [prometheus](/technisch/services/prometheus/) | Metrics-store die Grafana scrapet | [monitoring](/technisch/machines/#docker-grafana-stack) |
 
-## haos <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+## haos
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [haos](/technisch/services/haos/) | `8123` | Home Assistant — domotica | Forwarded headers.  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [haos](/technisch/services/haos/) | Home Assistant — domotica | — |
 
-## macmini <span style={{ opacity: 0.5, fontWeight: 400 }}>— 5 services</span>
+## macmini
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [auth](/technisch/services/auth/) | `1411` | Pocket ID — oude instantie, wordt uitgefaseerd |  |
-| [books](/technisch/services/books/) | `6061` | Grimmory — bibliotheek voor e-books, strips en luisterboeken |  |
-| [duplicati](/technisch/services/duplicati/) | `8200` | Back-ups vanaf de Mac mini |  |
-| [plex](/technisch/services/plex/) | `32400` | Plex — de hoofdtaak van de Mac mini |  |
-| [shelfmark](/technisch/services/shelfmark/) | `8084` | Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht |  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [books](/technisch/services/books/) | Grimmory — bibliotheek voor e-books, strips en luisterboeken | [grimmory](/technisch/machines/#macmini) |
+| [duplicati](/technisch/services/duplicati/) | Back-ups vanaf de Mac mini | [duplicati](/technisch/machines/#macmini) |
+| [plex](/technisch/services/plex/) | Plex — de hoofdtaak van de Mac mini | — |
+| [shelfmark](/technisch/services/shelfmark/) | Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht | [shelfmark](/technisch/machines/#macmini) |
 
-## ntfy <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+## ntfy
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [ntfy](/technisch/services/ntfy/) | `80` | ntfy — meldingen van de homelab naar je telefoon |  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [ntfy](/technisch/services/ntfy/) | ntfy — meldingen van de homelab naar je telefoon | — |
 
-## pbs <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+## pbs
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [backup](/technisch/services/backup/) | `8007` | Proxmox Backup Server — de back-ups en hun verificatie | TLS-upstream.  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [backup](/technisch/services/backup/) | Proxmox Backup Server — de back-ups en hun verificatie | — |
 
-## pve01 <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+## pve01
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [proxmox](/technisch/services/proxmox/) | `8006` | Proxmox VE — de hypervisor | TLS-upstream.  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [proxmox](/technisch/services/proxmox/) | Proxmox VE — de hypervisor | — |
 
-## semaphore <span style={{ opacity: 0.5, fontWeight: 400 }}>— 1 service</span>
+## semaphore
 
-| Service | Poort | Wat het is | Opmerkingen |
-| --- | --- | --- | --- |
-| [semaphore](/technisch/services/semaphore/) | `3000` | Ansible control plane — draait de playbooks volgens schema |  |
+| Dienst | Wat het is | Stack |
+| --- | --- | --- |
+| [semaphore](/technisch/services/semaphore/) | Ansible control plane — draait de playbooks volgens schema | — |
 

@@ -1,0 +1,25 @@
+{% set s = item -%}
+{% set h = hostvars[s.host] -%}
+---
+title: {{ s.name }}
+---
+
+# {{ s.name }}
+
+{{ s.desc | default('Niet gedocumenteerd.') }}
+
+| Eigenschap | Waarde |
+| --- | --- |
+| URL | — geen webroute |
+| Adres | `{{ h.ansible_host | default('?') }}` |
+| Host | [{{ s.host }}](/technisch/machines/#{{ s.host }}) |
+| Poorten | {% for p in s.ports %}`{{ p }}`{{ ', ' if not loop.last }}{% endfor %} |
+| Stack | [{{ s.stack }}](/technisch/machines/#{{ s.host }}) |
+
+{% if s.how is defined %}
+## Gebruiken
+
+{{ s.how }}
+
+{% endif %}
+Gegenereerd uit `docker_services_without_route` in `inventory/host_vars/{{ s.host }}.yml`.

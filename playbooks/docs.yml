@@ -3,8 +3,9 @@
 #
 #   ansible-playbook playbooks/docs.yml
 #
-# De pagina's onder technisch/ worden uit de inventory gegenereerd - hosts,
-# containers, stacks, en één pagina per route in caddy_sites - en kunnen dus
+# De pagina's onder technisch/ worden uit de inventory gegenereerd - de
+# machinepagina, en één pagina per route in caddy_sites (plus de diensten
+# zonder route uit docker_services_without_route) - en kunnen dus
 # niet uit de pas lopen. De runbooks zijn met de hand geschreven en worden
 # alleen meegenomen. Een geschrapte route laat geen pagina achter: die wordt
 # opgeruimd nadat de rest opnieuw gerenderd is.
@@ -21,7 +22,12 @@
   gather_facts: false
   vars:
     docs_site: "{{ playbook_dir }}/../docs-site"
-    docs_pages: [hosts, containers, stacks]
+    # Eén pagina voor alle machines. Tot 23-09 waren dat er drie - hosts,
+    # containers en stacks - die elk één laag toonden (Ansible, Proxmox,
+    # Docker), zodat je ze moest combineren om te zien wat er op één machine
+    # staat. De oude .mdx-bestanden ruimt de taak hieronder op.
+    docs_pages: [machines]
+    docs_retired_pages: [hosts, containers, stacks]
     docs_services: "{{ docs_site }}/content/technisch/services"
     # Read straight off the caddy host. Safe here because none of these values
     # contain a template themselves. A var whose VALUE is a hostvars template -
@@ -40,6 +46,18 @@
     docs_stack_hosts: >-
       {{ ((groups['docker_hosts'] | default([])) + (groups['macs'] | default([])))
          | unique | sort }}
+    # Diensten zonder webroute (RustDesk) staan niet in caddy_sites maar in
+    # docker_services_without_route van hun eigen host. Hier krijgt elk item
+    # zijn host erbij, zodat de templates ze naast caddy_sites kunnen zetten.
+    docs_unrouted: >-
+      {%- set out = [] -%}
+      {%- for h in docs_stack_hosts -%}
+      {%- for s in hostvars[h].docker_services_without_route | default([]) -%}
+      {%- set _ = out.append(s | combine({'host': h})) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ out }}
+    docs_all_services: "{{ caddy_sites + docs_unrouted }}"
   pre_tasks:
     # De helft van deze pagina's komt uit hosts die homelab.proxmox.yml live
     # ophaalt. Laadt die bron niet - API plat, geen route, token verlopen -
@@ -60,6 +78,19 @@
           bereikbaar is. Er is niets geschreven.
         quiet: true
 
+    # Beide lijsten schrijven naar services/<naam>.mdx. Heet een dienst zonder
+    # route hetzelfde als een route, dan overschrijft de ene pagina de andere
+    # zonder dat iets faalt.
+    - name: Check that no unrouted service shares a name with a route
+      ansible.builtin.assert:
+        that: >-
+          docs_all_services | map(attribute='name') | list | length
+          == docs_all_services | map(attribute='name') | unique | list | length
+        fail_msg: >-
+          Een naam staat zowel in caddy_sites als in
+          docker_services_without_route. Er is niets geschreven.
+        quiet: true
+
   tasks:
     - name: Render the generated reference pages
       ansible.builtin.template:
@@ -67,6 +98,12 @@
         dest: "{{ docs_site }}/content/technisch/{{ item }}.mdx"
         mode: "0644"
       loop: "{{ docs_pages }}"
+
+    - name: Remove the pages that machines.mdx replaced
+      ansible.builtin.file:
+        path: "{{ docs_site }}/content/technisch/{{ item }}.mdx"
+        state: absent
+      loop: "{{ docs_retired_pages }}"
 
     - name: Ensure the per-service page directory exists
       ansible.builtin.file:
@@ -86,6 +123,15 @@
         dest: "{{ docs_services }}/{{ item.name }}.mdx"
         mode: "0644"
       loop: "{{ caddy_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Render one page per service without a web route
+      ansible.builtin.template:
+        src: docs/service-unrouted.md.j2
+        dest: "{{ docs_services }}/{{ item.name }}.mdx"
+        mode: "0644"
+      loop: "{{ docs_unrouted }}"
       loop_control:
         label: "{{ item.name }}"
 
@@ -120,7 +166,7 @@
         label: "{{ item.path | basename }}"
       when: >-
         (item.path | basename | splitext | first)
-        not in (['index'] + (caddy_sites | map(attribute='name') | list))
+        not in (['index'] + (docs_all_services | map(attribute='name') | list))
 
     # `npm ci` installs exactly what package-lock.json pins, and fails rather
     # than silently resolving something newer. Nextra is pinned to 4.5.0 on

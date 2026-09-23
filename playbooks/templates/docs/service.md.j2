@@ -23,8 +23,9 @@ title: {{ s.name }}
 | --- | --- |
 | URL | [{{ s.name }}.{{ caddy_domain }}](https://{{ s.name }}.{{ caddy_domain }}) |
 | Upstream | `{{ up }}` |
-| Host | {{ ('[' ~ s.host ~ '](/technisch/hosts/)') if s.host is defined else '— (vaste upstream)' }} |
+| Host | {{ ('[' ~ s.host ~ '](/technisch/machines/#' ~ s.host ~ ')') if s.host is defined else '— (vaste upstream)' }} |
 | Poort | {{ ('`' ~ s.port ~ '`') if s.port is defined else '—' }} |
+| Stack | {{ ('[' ~ s.stack ~ '](/technisch/machines/#' ~ s.host ~ ')') if s.stack is defined else '— (geen beheerde stack)' }} |
 | Groepen | {{ grps | join(', ') if grps else '—' }} |
 | Eigenschappen | {{ flags | join(' · ') if flags else '—' }} |
 

@@ -133,7 +133,7 @@
       ansible.builtin.lineinfile:
         path: "{{ caddy_vars }}"
         insertafter: '^caddy_sites:'
-        line: '  - { name: {{ svc_subdomain }}, host: {{ svc_host }}, port: {{ svc_port }}, desc: "{{ svc_desc }}" }'
+        line: '  - { name: {{ svc_subdomain }}, host: {{ svc_host }}, port: {{ svc_port }}, stack: {{ svc_name }}, desc: "{{ svc_desc }}" }'
 
     - name: What happens next
       ansible.builtin.debug:

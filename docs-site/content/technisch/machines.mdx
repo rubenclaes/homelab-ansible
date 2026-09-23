@@ -1,0 +1,159 @@
+---
+title: Machines
+---
+
+import { Callout } from 'nextra/components'
+
+# Machines
+
+<Callout type="warning">
+Gegenereerd door `playbooks/docs.yml` uit de inventory: `00-static.yml`, de
+Proxmox-guests die `homelab.proxmox.yml` live ophaalt, `pve_lxcs` en elke
+`docker_stacks_list`. Bewerk de inventory, niet deze pagina.
+</Callout>
+
+Alles waar iets op draait, op één pagina. Per machine zie je het adres, welke
+[diensten](/technisch/services/) erop staan en - bij een Docker-machine - in
+welke stack elke dienst zit. Een stack is één compose-bestand met één of meer
+diensten erin.
+
+| Machine | Soort | Adres | Diensten |
+| --- | --- | --- | --- |
+| [pve01](#pve01) | Proxmox-host | `192.168.0.14` | 1 |
+| [docker](#docker) | VM | `192.168.0.15` | 21 |
+| [docker-grafana-stack](#docker-grafana-stack) | VM | `192.168.0.17` | 2 |
+| [haos](#haos) | VM | `192.168.0.31` | 1 |
+| [pbs](#pbs) | VM | `192.168.0.181` | 1 |
+| [adguard](#adguard) | LXC-container | `192.168.0.29` | 1 |
+| [caddy](#caddy) | LXC-container | `192.168.0.25` | — |
+| [ntfy](#ntfy) | LXC-container | `192.168.0.32` | 1 |
+| [semaphore](#semaphore) | LXC-container | `192.168.0.30` | 1 |
+| [tailscale](#tailscale) | LXC-container | `192.168.0.50` | — |
+| [macmini](#macmini) | Mac | `192.168.0.26` | 4 |
+| [mbp](#mbp) | Mac | lokaal | — |
+
+Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
+in zijn config staat.
+
+## Proxmox-host
+
+De hypervisor waar alle VM's en containers hieronder op draaien.
+
+### pve01
+
+`192.168.0.14` · Debian 13.7
+
+Diensten: [proxmox](/technisch/services/proxmox/)
+
+## VM's
+
+Volwaardige virtuele machines op Proxmox. Een VM met Docker draait stacks.
+
+### docker
+
+`192.168.0.15` · Debian 12.15
+
+| Stack | Wat erin draait | Pad op de host | Secrets |
+| --- | --- | --- | --- |
+| **homebox** | [spullen](/technisch/services/spullen/) | `/opt/containers/stacks/homebox` | `.env` in vault |
+| **homepage** | [home](/technisch/services/home/) | `/opt/containers/stacks/homepage` | `.env` in vault |
+| **infra** | [id](/technisch/services/id/) | `/opt/containers/stacks/infra` | `.env` in vault |
+| **media** | [audiobooks](/technisch/services/audiobooks/), [openbooks](/technisch/services/openbooks/), [overseerr](/technisch/services/overseerr/), [photos](/technisch/services/photos/), [prowlarr](/technisch/services/prowlarr/), [radarr](/technisch/services/radarr/), [sonarr](/technisch/services/sonarr/), [torrent](/technisch/services/torrent/) | `/opt/containers/stacks/media` (project `media-stack`) | `.env` in vault |
+| **memos** | [memos](/technisch/services/memos/) | `/opt/containers/stacks/memos` | `.env` in vault |
+| **metrics** | _Alloy — stuurt logs en metrics van deze host naar docker-grafana-stack_ | `/opt/containers/stacks/metrics` | `.env` in vault |
+| **neogate** | [neogate](/technisch/services/neogate/) | `/opt/containers/stacks/neogate` | `.env` in vault |
+| **portainer** | [portainer](/technisch/services/portainer/) | `/opt/containers/stacks/portainer` | geen |
+| **rustdesk** | [rustdesk](/technisch/services/rustdesk/) | `/opt/containers/stacks/apps/rustdesk` | `.env` in vault |
+| **utils** | [code](/technisch/services/code/), [metube](/technisch/services/metube/), [pairdrop](/technisch/services/pairdrop/), [pdf](/technisch/services/pdf/), [termix](/technisch/services/termix/), [tools](/technisch/services/tools/) | `/opt/containers/stacks/utils` | `.env` in vault |
+
+Compose-bestanden uit [rubenclaes/containers](https://github.com/rubenclaes/containers). Docker wacht bij het opstarten op `/mnt/ssdnas`, `/mnt/media01`, `/mnt/faststore`.
+
+### docker-grafana-stack
+
+`192.168.0.17` · Debian 12.15
+
+| Stack | Wat erin draait | Pad op de host | Secrets |
+| --- | --- | --- | --- |
+| **monitoring** | [monitoring](/technisch/services/monitoring/), [prometheus](/technisch/services/prometheus/) | `/opt/containers/stacks/monitoring` | `.env` in vault |
+
+Compose-bestanden uit [rubenclaes/monitoring-stack](https://github.com/rubenclaes/monitoring-stack).
+
+### haos
+
+`192.168.0.31`
+
+Diensten: [haos](/technisch/services/haos/)
+
+### pbs
+
+`192.168.0.181` · Debian 13.7
+
+Diensten: [backup](/technisch/services/backup/)
+
+## LXC-containers
+
+Lichte containers op Proxmox, één taak per container.
+
+### adguard
+
+`192.168.0.29` · Debian 13.7 · VMID 107 · 1 core · 512 MB · 2 GB
+
+Diensten: [dns](/technisch/services/dns/)
+
+### caddy
+
+`192.168.0.25` · VMID 106 · 1 core · 512 MB · 6 GB
+
+Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+
+### ntfy
+
+`192.168.0.32`
+
+Diensten: [ntfy](/technisch/services/ntfy/)
+
+### semaphore
+
+`192.168.0.30` · Debian 13.7 · VMID 104 · 2 cores · 2.0 GB · 16 GB
+
+Diensten: [semaphore](/technisch/services/semaphore/)
+
+### tailscale
+
+`192.168.0.50` · Debian 12.15 · VMID 108 · 4 cores · 1.0 GB · 8 GB
+
+Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+
+## Macs
+
+Fysieke machines buiten Proxmox.
+
+### macmini
+
+`192.168.0.26` · macOS 14.6.1
+
+| Stack | Wat erin draait | Pad op de host | Secrets |
+| --- | --- | --- | --- |
+| **alloy** | _Alloy — stuurt logs en metrics van de Mac mini naar docker-grafana-stack_ | `/Users/rubenclaes/Container/Alloy` | geen |
+| **duplicati** | [duplicati](/technisch/services/duplicati/) | `/Users/rubenclaes/Container/Duplicati` | `.env` in vault |
+| **grimmory** | [books](/technisch/services/books/) | `/Users/rubenclaes/Container/Grimmory` | `.env` in vault |
+| **portainer** | _Portainer-agent — laat de portainer op docker deze host beheren_ | `/Users/rubenclaes/Container/Portainer` | geen |
+| **recyclarr** | _Recyclarr — zet de kwaliteitsprofielen van Sonarr en Radarr gelijk_ | `/Users/rubenclaes/Container/recyclarr` | geen |
+| **shelfmark** | [shelfmark](/technisch/services/shelfmark/) | `/Users/rubenclaes/Container/Shelfmark` | geen |
+
+Buiten een stack: [plex](/technisch/services/plex/).
+
+Compose-bestanden uit [rubenclaes/homelab](https://github.com/rubenclaes/homelab).
+
+### mbp
+
+lokaal · macOS 27.0
+
+Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+
+---
+
+Een verdwenen LXC-container wordt opnieuw gemaakt uit `pve_lxcs` in
+`inventory/group_vars/proxmox/lxcs.yml`, met template
+`local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst` op bridge `vmbr0`. Een
+bestaande container wordt nooit aangeraakt.

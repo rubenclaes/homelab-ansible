@@ -138,7 +138,13 @@ en open [memos.neodata.be](https://memos.neodata.be) in je browser.
 ansible-playbook playbooks/docs.yml
 ```
 
-De servicepagina's op deze site worden gemaakt uit `caddy_sites`. Sla je dit
+De dienstpagina's op deze site worden gemaakt uit `caddy_sites`. Sla je dit
 over, dan werkt de dienst wel maar staat hij hier niet.
+
+Heeft de dienst **geen webpagina** (zoals RustDesk, waar een app rechtstreeks
+mee praat)? Dan hoort hij niet in `caddy_sites` maar in
+`docker_services_without_route` in de host_vars van zijn machine, met `name`,
+`stack`, `ports`, `desc` en eventueel `how`. Zo krijgt hij toch een pagina
+onder Diensten.
 
 </Steps>

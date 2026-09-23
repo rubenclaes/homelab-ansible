@@ -13,6 +13,11 @@ caddy_domain: neodata.be
 #   port:  the upstream port
 #   upstream: escape hatch for a target that is not in the inventory;
 #             overrides host/port when present
+#   stack: de naam in docker_stacks_list van die host waar de container in
+#          zit. Caddy doet er niets mee; docs.yml linkt er stack en dienst
+#          mee aan elkaar, want een stack als `media` of `utils` zegt op
+#          zichzelf niet wat erin draait. Laat hem weg als de dienst geen
+#          beheerde stack is (Plex, Proxmox, een VM).
 #
 # Flags: https (upstream speaks TLS with a self-signed cert), host_header
 # (pass the original Host through), forwarded (add X-Real-IP / X-Forwarded-*).
@@ -25,16 +30,16 @@ caddy_domain: neodata.be
 # geen snippet.
 
 caddy_sites:
-  - { name: memos, host: docker, port: 5230, desc: "Memos - snelle notities" }
+  - { name: memos, host: docker, port: 5230, stack: memos, desc: "Memos - snelle notities" }
   # --- Infra ---
-  - { name: portainer, host: docker, port: 9443, https: true, desc: "Docker-beheer voor de docker-host" }
+  - { name: portainer, host: docker, port: 9443, stack: portainer, https: true, desc: "Docker-beheer voor de docker-host" }
   - { name: semaphore, host: semaphore, port: 3000, desc: "Ansible control plane — draait de playbooks volgens schema" }
   # Poort 3001 is Grafana, niet Uptime Kuma: `docker ps` op die host geeft
   # monitoring-grafana 192.168.0.17:3001->3000/tcp, gecontroleerd 22-09.
   # Uptime Kuma draait nergens in deze estate. De oude omschrijving hier was
   # de enige plek waar hij nog bestond, en die geloof je tijdens een storing.
-  - { name: monitoring, host: docker-grafana-stack, port: 3001, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
-  - { name: prometheus, host: docker-grafana-stack, port: 9090, desc: "Metrics-store die Grafana scrapet" }
+  - { name: monitoring, host: docker-grafana-stack, port: 3001, stack: monitoring, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
+  - { name: prometheus, host: docker-grafana-stack, port: 9090, stack: monitoring, desc: "Metrics-store die Grafana scrapet" }
   # Meldingen voor de telefoon. Een OCI-container op pve01 (vmid 109), niet op
   # de docker-host: wie meldt dat de docker-VM plat ligt, mag er niet zelf op
   # draaien. Proxmox stuurt NIET via deze naam maar rechtstreeks naar het IP,
@@ -66,25 +71,25 @@ caddy_sites:
   - { name: haos, host: haos, port: 8123, forwarded: true, desc: "Home Assistant — domotica" }
 
   # --- docker ---
-  - { name: home, host: docker, port: 8085, desc: "Homepage — startpagina met alle diensten" }
-  - { name: pairdrop, host: docker, port: 3000, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }
-  - { name: code, host: docker, port: 8443, desc: "code-server — VS Code in de browser" }
-  - { name: tools, host: docker, port: 8082, desc: "IT-Tools — ontwikkelaarsgereedschap, offline" }
-  - { name: metube, host: docker, port: 8081, desc: "MeTube — webinterface voor yt-dlp" }
-  - { name: pdf, host: docker, port: 8084, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
-  - { name: termix, host: docker, port: 8086, desc: "SSH in de browser" }
-  - { name: torrent, host: docker, port: 8089, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
-  - { name: openbooks, host: docker, port: 8080, desc: "OpenBooks — e-books zoeken en downloaden via IRC" }
-  - { name: neogate, host: docker, port: 4000, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }
-  - { name: photos, host: docker, port: 2283, desc: "Immich — foto- en videobibliotheek" }
-  - { name: id, host: docker, port: 1411, desc: "Pocket ID — OIDC-provider (huidige instantie)" }
-  - { name: spullen, host: docker, port: 7745, desc: "Homebox — wat ligt waar, met QR-labels" }
+  - { name: home, host: docker, port: 8085, stack: homepage, desc: "Homepage — startpagina met alle diensten" }
+  - { name: pairdrop, host: docker, port: 3000, stack: utils, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }
+  - { name: code, host: docker, port: 8443, stack: utils, desc: "code-server — VS Code in de browser" }
+  - { name: tools, host: docker, port: 8082, stack: utils, desc: "IT-Tools — ontwikkelaarsgereedschap, offline" }
+  - { name: metube, host: docker, port: 8081, stack: utils, desc: "MeTube — webinterface voor yt-dlp" }
+  - { name: pdf, host: docker, port: 8084, stack: utils, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
+  - { name: termix, host: docker, port: 8086, stack: utils, desc: "SSH in de browser" }
+  - { name: torrent, host: docker, port: 8089, stack: media, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
+  - { name: openbooks, host: docker, port: 8080, stack: media, desc: "OpenBooks — e-books zoeken en downloaden via IRC" }
+  - { name: neogate, host: docker, port: 4000, stack: neogate, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }
+  - { name: photos, host: docker, port: 2283, stack: media, desc: "Immich — foto- en videobibliotheek" }
+  - { name: id, host: docker, port: 1411, stack: infra, desc: "Pocket ID — OIDC-provider (huidige instantie)" }
+  - { name: spullen, host: docker, port: 7745, stack: homebox, desc: "Homebox — wat ligt waar, met QR-labels" }
 
-  - { name: prowlarr, host: docker, port: 9696, desc: "Indexerbeheer voor Sonarr en Radarr" }
-  - { name: overseerr, host: docker, port: 5055, desc: "Aanvragen voor films en series" }
-  - { name: audiobooks, host: docker, port: 13378, desc: "Audiobookshelf — luisterboeken en podcasts" }
-  - { name: sonarr, host: docker, port: 8989, desc: "Beheer van series" }
-  - { name: radarr, host: docker, port: 7878, desc: "Beheer van films" }
+  - { name: prowlarr, host: docker, port: 9696, stack: media, desc: "Indexerbeheer voor Sonarr en Radarr" }
+  - { name: overseerr, host: docker, port: 5055, stack: media, desc: "Aanvragen voor films en series" }
+  - { name: audiobooks, host: docker, port: 13378, stack: media, desc: "Audiobookshelf — luisterboeken en podcasts" }
+  - { name: sonarr, host: docker, port: 8989, stack: media, desc: "Beheer van series" }
+  - { name: radarr, host: docker, port: 7878, stack: media, desc: "Beheer van films" }
 
 
   # --- Mac mini ---
@@ -94,9 +99,9 @@ caddy_sites:
   # routes stonden hier nog wel, en een route die een 502 teruggeeft is erger
   # dan geen route: tijdens een storing kost hij je de eerste tien minuten.
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
-  - { name: duplicati, host: macmini, port: 8200, desc: "Back-ups vanaf de Mac mini" }
-  - { name: books, host: macmini, port: 6061, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
-  - { name: shelfmark, host: macmini, port: 8084, desc: "Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht" }
+  - { name: duplicati, host: macmini, port: 8200, stack: duplicati, desc: "Back-ups vanaf de Mac mini" }
+  - { name: books, host: macmini, port: 6061, stack: grimmory, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
+  - { name: shelfmark, host: macmini, port: 8084, stack: shelfmark, desc: "Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht" }
 
 # --- Logverzameling -------------------------------------------------------
 # Deze host is sinds 23-09 de eerste met een Grafana Alloy erop. Reden: hij

@@ -151,11 +151,11 @@ docker_stacks_docker_cli: /Applications/OrbStack.app/Contents/MacOS/xbin/docker
 # env: false betekent "deze stack heeft geen .env", niet "de secrets doen er
 # niet toe". Grimmory en Duplicati staan gevault onder files/env/.
 docker_stacks_list:
-  - { name: alloy, path: Alloy, env: false }
+  - { name: alloy, path: Alloy, env: false, desc: "Alloy — stuurt logs en metrics van de Mac mini naar docker-grafana-stack" }
   - { name: duplicati, path: Duplicati }   # .env gevault onder `stacks`
   - { name: grimmory, path: Grimmory }
-  - { name: portainer, path: Portainer, env: false }
-  - { name: recyclarr, path: recyclarr, env: false }
+  - { name: portainer, path: Portainer, env: false, desc: "Portainer-agent — laat de portainer op docker deze host beheren" }
+  - { name: recyclarr, path: recyclarr, env: false, desc: "Recyclarr — zet de kwaliteitsprofielen van Sonarr en Radarr gelijk" }
   - { name: shelfmark, path: Shelfmark, env: false }
   # De oude Pocket ID (pocketid, poort 1411, route `auth`) is op 23-09
   # uitgefaseerd; `id` op de docker-host is de enige. Niets hing er nog aan:

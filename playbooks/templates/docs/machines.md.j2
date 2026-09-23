@@ -1,0 +1,102 @@
+{#- Eén pagina voor "waarop draait het?". Vervangt hosts, containers en stacks,
+    die elk één laag toonden (Ansible, Proxmox, Docker) zodat je drie pagina's
+    moest combineren om te zien wat er op één machine staat. -#}
+{% set all_hosts = (groups['linux'] + groups['macs'] | default([]) + groups['appliances'] | default([])) | unique | list -%}
+{% set kinds = [
+  {'title': 'Proxmox-host', 'one': 'Proxmox-host', 'what': 'De hypervisor waar alle VM\'s en containers hieronder op draaien.',
+   'hosts': all_hosts | select('in', groups['proxmox'] | default([])) | list},
+  {'title': 'VM\'s', 'one': 'VM', 'what': 'Volwaardige virtuele machines op Proxmox. Een VM met Docker draait stacks.',
+   'hosts': all_hosts | select('in', groups['proxmox_all_qemu'] | default([])) | list},
+  {'title': 'LXC-containers', 'one': 'LXC-container', 'what': 'Lichte containers op Proxmox, één taak per container.',
+   'hosts': all_hosts | select('in', groups['proxmox_all_lxc'] | default([])) | list},
+  {'title': 'Macs', 'one': 'Mac', 'what': 'Fysieke machines buiten Proxmox.',
+   'hosts': all_hosts | select('in', groups['macs'] | default([])) | list},
+] -%}
+{% set lxc_names = pve_lxcs | map(attribute='hostname') | list -%}
+---
+title: Machines
+---
+
+import { Callout } from 'nextra/components'
+
+# Machines
+
+<Callout type="warning">
+Gegenereerd door `playbooks/docs.yml` uit de inventory: `00-static.yml`, de
+Proxmox-guests die `homelab.proxmox.yml` live ophaalt, `pve_lxcs` en elke
+`docker_stacks_list`. Bewerk de inventory, niet deze pagina.
+</Callout>
+
+Alles waar iets op draait, op één pagina. Per machine zie je het adres, welke
+[diensten](/technisch/services/) erop staan en - bij een Docker-machine - in
+welke stack elke dienst zit. Een stack is één compose-bestand met één of meer
+diensten erin.
+
+| Machine | Soort | Adres | Diensten |
+| --- | --- | --- | --- |
+{% for k in kinds %}{% for h in k.hosts | sort -%}
+{% set n = docs_all_services | selectattr('host', 'equalto', h) | list | length -%}
+| [{{ h }}](#{{ h }}) | {{ k.one }} | {{ '`' ~ hostvars[h].ansible_host ~ '`' if hostvars[h].ansible_host is defined else 'lokaal' }} | {{ n if n > 0 else '—' }} |
+{% endfor %}{% endfor %}
+
+Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
+in zijn config staat.
+
+{% for k in kinds if k.hosts | length > 0 %}
+## {{ k.title }}
+
+{{ k.what }}
+
+{% for h in k.hosts | sort %}
+{%- set hv = hostvars[h] %}
+{%- set f = hv.ansible_facts | default({}) %}
+{%- set is_mac = h in groups['macs'] | default([]) %}
+{#- `mbp` is ansible_connection: local, dus zijn facts beschrijven de machine
+    die de build draaide. Alleen een macOS-versie tonen als de facts echt
+    Darwin zeggen; vanaf een Linux-controller blijft het leeg. #}
+{%- set os = '' %}
+{%- if is_mac and f.system | default('') == 'Darwin' %}{% set os = 'macOS ' ~ f.distribution_version %}
+{%- elif not is_mac and f.distribution is defined %}{% set os = f.distribution ~ ' ' ~ f.distribution_version %}{% endif %}
+{%- set svcs = docs_all_services | selectattr('host', 'equalto', h) | sort(attribute='name') | list %}
+### {{ h }}
+
+{{ '`' ~ hv.ansible_host ~ '`' if hv.ansible_host is defined else 'lokaal' }}{{ ' · ' ~ os if os }}{% if h in lxc_names %}{% set l = pve_lxcs | selectattr('hostname', 'equalto', h) | first %} · VMID {{ l.vmid }} · {{ l.cores }} core{{ 's' if l.cores != 1 }} · {{ (l.memory / 1024) | round(1) ~ ' GB' if l.memory >= 1024 else l.memory ~ ' MB' }} · {{ l.disk.size }} GB{% endif +%}
+
+{% if hv.docker_stacks_list | default([]) | length > 0 %}
+{%- set repo = hv.docker_stacks_repo | default('git@github.com:rubenclaes/containers.git') %}
+{%- set root = hv.docker_stacks_root | default('/opt/containers/stacks') %}
+{%- set slug = repo | regex_replace('^git@github\.com:', '') | regex_replace('\.git$', '') %}
+{%- set mounts = hv.docker_stacks_wait_for_mounts | default([]) %}
+| Stack | Wat erin draait | Pad op de host | Secrets |
+| --- | --- | --- | --- |
+{% for st in hv.docker_stacks_list | sort(attribute='name') -%}
+{%- set members = svcs | selectattr('stack', 'defined') | selectattr('stack', 'equalto', st.name) | map(attribute='name') | list %}
+{%- set runs = (members | map('regex_replace', '^(.*)$', '[\\1](/technisch/services/\\1/)') | join(', ')) if members
+               else ('_' ~ st.desc ~ '_' if st.desc is defined else '—') %}
+| **{{ st.name }}** | {{ runs }} | `{{ root }}/{{ st.path }}`{{ ' (project `' ~ st.project ~ '`)' if st.project is defined }} | {{ '`.env` in vault' if st.env | default(true) else 'geen' }} |
+{% endfor %}
+{%- set loose = svcs | rejectattr('stack', 'defined') | map(attribute='name') | list %}
+{%- if loose | length > 0 %}
+
+Buiten een stack: {% for s in loose %}[{{ s }}](/technisch/services/{{ s }}/){{ ', ' if not loop.last }}{% endfor %}.
+{% endif %}
+
+Compose-bestanden uit [{{ slug }}](https://github.com/{{ slug }}).{% if mounts | length > 0 %} Docker wacht bij het opstarten op {% for m in mounts %}`{{ m }}`{{ ', ' if not loop.last }}{% endfor %}.{% endif +%}
+
+{% elif svcs | length > 0 %}
+Diensten: {% for s in svcs %}[{{ s.name }}](/technisch/services/{{ s.name }}/){{ ', ' if not loop.last }}{% endfor +%}
+
+{% else %}
+Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% if pve_lxc_defaults is defined %}
+---
+
+Een verdwenen LXC-container wordt opnieuw gemaakt uit `pve_lxcs` in
+`inventory/group_vars/proxmox/lxcs.yml`, met template
+`{{ pve_lxc_defaults.template }}` op bridge `{{ pve_lxc_defaults.bridge }}`. Een
+bestaande container wordt nooit aangeraakt.
+{% endif %}
