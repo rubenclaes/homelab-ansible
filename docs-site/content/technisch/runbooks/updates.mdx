@@ -2,194 +2,356 @@
 title: Updates
 ---
 
-import { Callout } from 'nextra/components'
+import { Steps, Callout } from 'nextra/components'
 
 # Updates
 
-## Eerst even de woorden
+Gebruik deze pagina als je pakketten wil bijwerken op de Linux-machines, op
+`pve01` of op de Macs. Of als je eerst wil zien wat er openstaat.
 
-Vier begrippen die overal terugkomen. Ken je ze al, sla dit over.
+## Welk geval ben jij?
 
-**Hypervisor** — de fysieke machine waar virtuele machines op draaien. Hier is
-dat `pve01`: één kast met Proxmox erop. Zet je die uit, dan gaat alles uit.
-
-**Guest** — een virtuele machine of container *op* die hypervisor. `caddy`,
-`adguard`, `pbs` en `docker` zijn guests. Ze voelen als losse servertjes, maar
-ze delen één stuk hardware. Vandaar de volgorde verderop: guests eerst, de
-hypervisor als laatste.
-
-**Formula** — een Homebrew-*pakket* op een Mac. Commandoregel-gereedschap:
-`jq`, `ffmpeg`, `node`. Klein en onzichtbaar.
-
-**Cask** — een Homebrew-*applicatie* op een Mac. Dingen met een venster:
-Spotify, VLC, Chromium. Die upgraden vervangt een app die misschien openstaat,
-dus dat gebeurt alleen als je er expliciet om vraagt.
-
-## Welke van de drie?
-
-`site.yml`, `update.yml` en `cleanup.yml` lijken op elkaar en zijn het niet.
-Ze beantwoorden drie verschillende vragen.
-
-| Playbook | De vraag | Wat hij doet |
+| Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
-| `site.yml` | staat alles er zoals beschreven? | zet neer en configureert wat in de inventory staat, en haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
-| `update.yml` | zijn de versies nog actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt. |
-| `cleanup.yml` | valt er ruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+| Je wil **weten wat er openstaat**, zonder iets te veranderen | "Staan er security-updates klaar op `caddy`?" | [Geval 1 — Kijken wat er openstaat](#geval-1--kijken-wat-er-openstaat) |
+| Je wil de **guests patchen** (de gewone ronde) | `adguard`, `docker`, `pbs` bijwerken; Semaphore zelf patchen | [Geval 2 — Guests patchen](#geval-2--guests-patchen) |
+| Een guest meldt **`REBOOT NEEDED`** | `docker` kreeg een nieuwe kernel | [Geval 3 — Guests herstarten](#geval-3--guests-herstarten) |
+| Je wil **`pve01` zelf** bijwerken en herstarten | nieuwe Proxmox-kernel | [Geval 4 — De hypervisor](#geval-4--de-hypervisor) |
+| Je wil de **Macs** bijwerken | Homebrew-pakketten op `mbp`, apps op `macmini` | [Geval 5 — De Macs](#geval-5--de-macs) |
+| Je wil **Caddy** upgraden | een nieuwe Caddy-versie | [Geval 6 — Caddy](#geval-6--caddy) |
 
-De valkuil zit tussen de eerste en de derde, en het is de naam die hem legt.
-Wil je een pakket of app *weg* van een machine — iets in
-`macos_brew_packages_absent` of `macos_casks_absent` — dan is dat
-`site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
-niet over wat er hoort te staan.
+<Callout type="info">
+Wil je een pakket of app **weg** van een Mac? Dan ben je hier verkeerd: dat is
+`site.yml --tags macos`. Zie [Welke van de drie playbooks?](#welke-van-de-drie-playbooks).
+</Callout>
 
-Andersom net zo: `site.yml` installeert wat ontbreekt en laat staan wat er
-staat, hoe oud ook. Versies zijn van `update.yml` alleen.
+### Woorden die je nodig hebt
 
-## Wat staat er open?
+**Hypervisor** — de fysieke machine waar de rest op draait: `pve01`. Gaat die
+uit, dan gaat alles uit.
 
-`playbooks/report.yml` publiceert naar [report.neodata.be](https://report.neodata.be),
-en dat rapport heeft twee tabbladen. **Overzicht** is de gezondheid van de
-vloot: schijf, uptime, reboots, back-ups, drift. **Updates** is de lijst
-waar je hier iets aan hebt — per host één regel per pakket, met de versie die
-er nu staat en de versie die klaarligt.
+**Guest** — een VM of LXC *op* `pve01`: `adguard`, `caddy`, `docker`, `pbs`,
+`semaphore`, `tailscale`, `docker-grafana-stack`. Dat is de groep `guests`.
 
-Wat apt uit een security-repo haalt staat bovenaan bij zijn host en is als
-`security` gemarkeerd. De LXC's staan er gewoon tussen: die zitten in de groep
-`linux`, dus ze worden net zo gemeten en net zo gepatcht als de rest.
+**Formula** — een Homebrew-*pakket* op een Mac, commandoregel-gereedschap
+zoals `jq` of `ffmpeg`.
 
-Het rapport verandert niets. Het vertelt alleen wat `update.yml` zou doen.
+**Cask** — een Homebrew-*app* op een Mac, iets met een venster zoals Spotify
+of VLC.
 
-## Wat het playbook doet
+---
 
-`playbooks/update.yml` draait `apt full-upgrade` met `serial: 1`: één host is
-helemaal klaar voordat de volgende begint. Een mislukte upgrade sloopt één
-machine, niet de vloot.
+## Geval 1 — Kijken wat er openstaat
 
-Het playbook bestaat uit **drie plays**, en die volgorde is het punt. Eerst alle
-guests, daarna de hypervisor, en als laatste de Macs. In één play zou `pve01`
-kunnen herstarten terwijl de guests die erop draaien nog bezig zijn — en die
-gaan dan mee.
+<Steps>
 
-De Macs staan achteraan om een andere reden: op de MacBook komt `ansible` zélf
-uit Homebrew, en de verbinding is `local`. Een upgrade daar vervangt dus het
-programma dat op dat moment de playbook draait. Achteraan is dat venster zo
-klein mogelijk.
-
-## Reboots zijn opt-in
-
-Standaard meldt het playbook alleen dát een reboot nodig is. Twee losse
-schakelaars, allebei uit:
-
-| Variabele | Doet |
-|---|---|
-| `allow_reboot` | herstart guests die het nodig hebben |
-| `allow_hypervisor_reboot` | staat daarbovenop toe dat ook `pve01` herstart |
-
-Alles staat standaard uit. Zonder vlaggen wordt er gepatcht en verder niets.
+### Draai het rapport
 
 ```bash
-# De wekelijkse ronde. Semaphore draait dit zondag om 04:00.
+ansible-playbook playbooks/report.yml   # leest alleen, verandert niets
+```
+
+Draai hem **zonder** `--limit`. Semaphore doet dit ook elke zondag om 08:00.
+
+### Open het tabblad Updates
+
+Ga naar [report.neodata.be](https://report.neodata.be) → tabblad **Updates**.
+Per host één regel per pakket: de versie die er nu staat en de versie die
+klaarligt. Security-updates staan bovenaan bij hun host.
+
+Daar staat ook welke hosts een **herstart nodig** hebben.
+
+</Steps>
+
+<Callout type="warning">
+Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
+Die doet `update.yml` níét: het playbook werkt alleen Homebrew bij. macOS zelf
+update je met de hand op de Mac.
+</Callout>
+
+---
+
+## Geval 2 — Guests patchen
+
+Dit gebeurt **vanzelf**: Semaphore draait de template "Update guests" elke
+zondag om 04:00. Alleen `semaphore` zelf slaat hij over. Met de hand doe je dit
+als je niet op zondag wil wachten, of om Semaphore te patchen.
+
+<Steps>
+
+### Patch de guests
+
+```bash
 ansible-playbook playbooks/update.yml --limit guests
+```
 
-# Met reboots waar nodig, guests alleen.
-ansible-playbook playbooks/update.yml -e allow_reboot=true
+`apt full-upgrade`, één host na de andere. Er wordt **niet** herstart.
 
-# Inclusief de hypervisor. Beide vlaggen nodig; dit legt elke guest plat.
-ansible-playbook playbooks/update.yml \
+### Of: patch alleen Semaphore
+
+```bash
+ansible-playbook playbooks/update.yml --limit semaphore
+```
+
+Altijd vanaf je laptop, nooit vanuit Semaphore zelf (zie de waarschuwing hieronder).
+
+### Kijk of er een herstart nodig is
+
+Zoek in de output naar `REBOOT NEEDED`. Staat die er, ga naar
+[geval 3](#geval-3--guests-herstarten).
+
+</Steps>
+
+<Callout type="warning">
+Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
+run, dan is de job dood en weet je niet of de upgrade af is.
+</Callout>
+
+---
+
+## Geval 3 — Guests herstarten
+
+Herstarten gebeurt nooit vanzelf. Ook de zondagse run van Semaphore herstart
+niets. Jij kiest het moment.
+
+<Steps>
+
+### Herstart één guest
+
+```bash
+ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true
+```
+
+Hij patcht eerst, en herstart alleen als het nodig is.
+
+### Of: alle guests die het nodig hebben
+
+```bash
+ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true
+```
+
+</Steps>
+
+<Callout type="info">
+Alleen de **VM's** (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
+reboot. Een **LXC** heeft geen eigen kernel: hij gebruikt die van `pve01`. Een
+nieuwe kernel voor de LXC's betekent dus: [`pve01` herstarten](#geval-4--de-hypervisor).
+</Callout>
+
+<Callout type="warning">
+Herstart je `docker`, dan liggen alle stacks erop even plat.
+</Callout>
+
+---
+
+## Geval 4 — De hypervisor
+
+<Callout type="error">
+**Nooit vanuit Semaphore.** Semaphore is een container **op** `pve01`. Een
+reboot van `pve01` doodt de job die hem gaf. Draai dit altijd vanaf je laptop.
+</Callout>
+
+<Steps>
+
+### Kies een moment waarop alles even weg mag
+
+Een herstart van `pve01` legt **elke guest** plat: ook DNS (`adguard`) en alle
+`*.neodata.be`-adressen (`caddy`).
+
+### Patch en herstart
+
+```bash
+ansible-playbook playbooks/update.yml --limit linux \
   -e allow_reboot=true -e allow_hypervisor_reboot=true
 ```
 
-`allow_hypervisor_reboot` op zichzelf doet niets — `allow_reboot` moet er ook
-staan. Zo kan een gewone run nooit per ongeluk de hypervisor meenemen.
+Eerst worden de guests gepatcht, dan pas `pve01`. Je hebt **beide** vlaggen
+nodig.
 
-<Callout type="error">
-Draai de `pve01`-upgrade nooit vanuit Semaphore. Semaphore is een container
-**op** `pve01`, dus een reboot doodt de job die hem gaf. Een controller
-herstart de machine waar hij zelf op draait niet.
-</Callout>
-
-## De Macs
-
-Linux gaat via `apt`, de Macs via Homebrew. Zelfde playbook, andere gereedschap.
-
-| Variabele | Waar | Doet |
-|---|---|---|
-| `allow_cask_upgrade` | op de opdrachtregel | upgradet ook de **apps**, niet alleen de pakketten |
-| `macos_brew_upgrade` | in `host_vars/<mac>.yml` | zet `false` en deze Mac krijgt geen pakket-upgrades meer |
+### Controleer of alles terug is
 
 ```bash
-# Alleen de Macs, alleen pakketten.
-ansible-playbook playbooks/update.yml --limit macs
-
-# Ook de apps. Doe dit als je een herstart van Spotify of VLC kunt hebben.
-ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
-
-# Eén machine.
-ansible-playbook playbooks/update.yml --limit mbp
+ansible-playbook playbooks/dns-smoketest.yml     # antwoordt AdGuard nog?
+ansible-playbook playbooks/caddy-smoketest.yml   # werkt elk adres nog?
 ```
 
-<Callout type="warning">
-De **Mac mini** krijgt geen pakket-upgrades meer. Hij draait macOS 14.6.1, en
-dat is voor Homebrew een *Tier 3*-configuratie: er worden geen kant-en-klare
-bottles meer gebouwd, dus elk pakket moet vanaf broncode gecompileerd worden.
-Een volledige run duurde 22 minuten en faalde alsnog — dertien pakketten
-worden niet eens geprobeerd.
+</Steps>
 
-Daarom staat `macos_brew_upgrade: false` in zijn host_vars. De playbook slaat
-hem over en zégt dat ook, elke run. Zijn **apps** kun je wel gewoon bijwerken.
-Wil je de pakketten terug, dan moet die Mac eerst naar een nieuwere macOS.
+<Callout type="info">
+Zonder de vlaggen patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
+krijgt dan een melding dat hij een reboot nodig heeft.
 </Callout>
 
-### Een cask die root nodig heeft
+---
 
-Sommige casks zijn meer dan een app in `/Applications`. `multipass` zet ook
-bestanden onder `/Library` neer, en bij een upgrade gooit brew de oude eerst
-weg met `sudo /bin/rm`. Over SSH is er geen terminal, dus sudo kan geen
-wachtwoord vragen en de taak faalt:
+## Geval 5 — De Macs
+
+Semaphore doet de Macs **niet**. Draai dit altijd vanaf je MacBook.
+
+<Steps>
+
+### Werk de pakketten bij
+
+```bash
+ansible-playbook playbooks/update.yml --limit macs   # beide Macs
+ansible-playbook playbooks/update.yml --limit mbp    # alleen je MacBook
+```
+
+Dit doet `brew upgrade --formula`: alleen pakketten, geen apps.
+
+### Wil je ook de apps: zet de cask-vlag aan
+
+```bash
+ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
+```
+
+Doe dit als het niet erg is dat een open app even afgesloten wordt. Apps die
+zichzelf updaten (Spotify, Chromium) laat hij met rust.
+
+### Kijk of elke Mac aan de beurt kwam
+
+Faalde er een Mac? Kijk dan in de output of de volgende nog gedraaid heeft.
+
+<Callout type="warning">
+Faalt één Mac, dan stopt de hele play: de Macs gaan één voor één. Op 23-09
+faalde de Mac mini op een cask, en daardoor is de MacBook nooit aan de beurt
+geweest. `google-chrome` bleef daar verouderd staan zonder dat het log iets
+over `mbp` zei.
+</Callout>
+
+</Steps>
+
+### De Mac mini krijgt geen pakket-upgrades
+
+In `inventory/host_vars/macmini.yml` staat `macos_brew_upgrade: false`. De
+playbook slaat zijn pakketten over en zegt dat elke run. Zijn **apps** kun je
+wel bijwerken:
+
+```bash
+ansible-playbook playbooks/update.yml --limit macmini -e allow_cask_upgrade=true
+```
+
+Waarom: zie [De Mac mini en Homebrew](#de-mac-mini-en-homebrew).
+
+### Een cask die faalt op `sudo`
+
+Zie je dit?
 
 ```
 sudo: a terminal is required to read the password
 Error: multipass: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
 ```
 
-`-K` lost dit niet op. Dat zet het become-wachtwoord van Ansible, terwijl brew
-sudo zélf aanroept — Ansible zit er niet tussen. Doe zo'n cask met de hand, met
-een echte terminal erachter:
+Doe die ene cask dan met de hand, mét terminal (`-t`):
 
 ```bash
 ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask multipass'
 ```
 
-Die `-t` is het hele verschil: daarmee krijgt sudo een terminal en mag hij
-vragen.
+Waarom `-K` niet helpt: zie [Casks die root nodig hebben](#casks-die-root-nodig-hebben).
 
-<Callout type="warning">
-Eén Mac die hierop faalt stopt de hele play. `update.yml` draait met
-`serial: 1`, dus toen dit op 23-09 op de Mac mini gebeurde is de MacBook nooit
-aan de beurt geweest — `google-chrome` bleef daar gewoon verouderd staan,
-zonder dat er iets over de mbp in het log stond. Faalt er een Mac, kijk dan
-altijd of de volgende nog gedraaid heeft.
-</Callout>
+---
 
-Het is wél te automatiseren: zet `SUDO_ASKPASS` naar een scriptje dat het
-wachtwoord uit de vault echoot, dan draait Homebrew `sudo -A` en komt hij er
-zelf uit. Bewust niet gedaan — dat zet een inlogwachtwoord in de vault en geeft
-het aan elke brew-taak op die machine, voor één cask die toch weg moet. Zo'n
-handeling hoort zichtbaar handwerk te blijven.
+## Geval 6 — Caddy
 
-## Caddy staat vast
+`caddy` doet **niet** mee met `update.yml`: het pakket staat vast
+(`baseline_held_packages` in `inventory/host_vars/caddy/main.yml`). Upgraden
+doe je bewust, met een eigen playbook.
 
-`caddy` is gepind via `baseline_held_packages`, want het is een custom build met
-de plugin `caddy-dns/cloudflare`. Een gewone `apt full-upgrade` verving hem ooit
-door het standaardbinary, dat weigert te starten tegen een Caddyfile met de
-Cloudflare DNS-module — waarmee elke `*.neodata.be`-naam onderuit ging.
+<Steps>
 
-`dist-upgrade` respecteert dpkg-holds, dus een update-run raakt hem niet aan.
-Upgraden doe je bewust, en dat behoudt de plugins:
+### Upgrade Caddy
 
 ```bash
-ansible caddy -a "caddy upgrade"
+ansible-playbook playbooks/caddy-upgrade.yml
 ```
 
-Daarna `playbooks/caddy.yml` en `playbooks/caddy-smoketest.yml` om te
-controleren dat er niets stuk is.
+Dit draait `caddy upgrade`, herstart Caddy en controleert dat de
+Cloudflare-module er nog in zit. Ontbreekt die, dan faalt hij en zegt hij
+welk commando het herstelt.
+
+### Controleer de uitkomst
+
+De smoketest zit al in dit playbook. Kijk of de laatste play groen is: dan
+werkt elk `*.neodata.be`-adres nog.
+
+</Steps>
+
+<Callout type="warning">
+Gebruik niet `ansible caddy -a "caddy upgrade"`. Dat vervangt de binary, maar
+herstart Caddy niet en controleert niets.
+</Callout>
+
+---
+
+## Goed om te weten
+
+### Welke van de drie playbooks?
+
+| Playbook | De vraag | Wat hij doet |
+| --- | --- | --- |
+| `site.yml` | staat alles er zoals beschreven? | installeert wat ontbreekt, haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
+| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt. |
+| `cleanup.yml` | valt er schijfruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+
+Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)
+is `site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
+niet over wat er hoort te staan.
+
+### Alle vlaggen
+
+Allemaal standaard **uit**. Zonder vlaggen wordt er gepatcht en verder niets.
+
+| Variabele | Waar | Doet |
+| --- | --- | --- |
+| `allow_reboot` | opdrachtregel | herstart guests die het nodig hebben |
+| `allow_hypervisor_reboot` | opdrachtregel | ook `pve01`; werkt alleen samen met `allow_reboot` |
+| `allow_cask_upgrade` | opdrachtregel | ook de apps op de Macs |
+| `macos_brew_upgrade` | `host_vars/<mac>.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
+
+`allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
+ongeluk `pve01` meenemen.
+
+### Waarom de volgorde: guests, dan `pve01`, dan de Macs
+
+`update.yml` heeft drie plays, elk met `serial: 1`: één host is klaar voor de
+volgende begint. Een mislukte upgrade sloopt zo één machine, niet alles. Guests
+gaan vóór `pve01`, anders kan `pve01` herstarten terwijl zijn guests nog bezig
+zijn.
+
+De Macs komen als laatste omdat op de MacBook `ansible` zelf uit Homebrew komt.
+Een upgrade vervangt het programma dat op dat moment draait. Achteraan is dat
+risico zo klein mogelijk.
+
+### Waarom Semaphore de Macs niet doet
+
+`mbp` heeft `ansible_connection: local`: "de machine die Ansible draait". Vanuit
+Semaphore is dat de Semaphore-container, niet je MacBook. Daarom draait de
+template "Update guests" met `--limit guests:!semaphore`.
+
+### De Mac mini en Homebrew
+
+De Mac mini draait macOS 14.6.1. Voor Homebrew is dat een *Tier 3*-configuratie:
+er worden geen kant-en-klare pakketten (bottles) meer gebouwd, dus alles moet
+vanaf broncode. Een volledige run duurde 22 minuten en faalde alsnog; dertien
+pakketten werden niet eens geprobeerd. Casks werken wel, want dat zijn
+kant-en-klare apps. De pakketten komen pas terug na een nieuwere macOS.
+
+### Casks die root nodig hebben
+
+Sommige casks, zoals `multipass`, zetten bestanden onder `/Library`. Bij een
+upgrade of verwijdering roept brew zélf `sudo` aan. Over SSH is er geen
+terminal, dus sudo kan geen wachtwoord vragen. `-K` helpt niet: dat is het
+sudo-wachtwoord van Ansible, en Ansible zit hier niet tussen.
+
+Het kan wel automatisch (`SUDO_ASKPASS` met een scriptje dat het wachtwoord
+uit de vault haalt), maar dat is bewust niet gedaan: dan krijgt elke brew-taak
+op die Mac je inlogwachtwoord, voor één cask die toch weg moet.
+
+### Waarom Caddy vaststaat
+
+Caddy is hier een eigen build met de plugin `caddy-dns/cloudflare`. Een gewone
+`apt full-upgrade` verving hem ooit door de standaardversie. Die weigert te
+starten met de Cloudflare-module in de Caddyfile, en elk `*.neodata.be`-adres
+lag plat. `apt full-upgrade` en `cleanup.yml` respecteren de hold, dus ze raken
+hem niet aan. `caddy upgrade` bouwt opnieuw mét de plugins.

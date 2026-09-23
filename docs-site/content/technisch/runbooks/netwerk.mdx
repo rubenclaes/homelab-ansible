@@ -2,246 +2,429 @@
 title: Netwerk en Proxmox
 ---
 
-import { Callout } from 'nextra/components'
+import { Steps, Callout } from 'nextra/components'
 
 # Netwerk en Proxmox
 
-Drie dingen die je aan de node zelf doet, en die daarom geen van drieën in
-`site.yml` zitten.
+Gebruik deze pagina als je iets aan het netwerk of aan de Proxmox-node zelf
+doet. Geen van deze dingen zit in `site.yml`: je draait ze bewust, met de hand.
 
-## De bridges van pve01 wijzigen
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil een **IP-adres of bridge** van de hypervisor aanpassen | `vmbr1` krijgt een ander adres | [Geval 1 — Bridges van pve01 wijzigen](#geval-1--bridges-van-pve01-wijzigen) |
+| Na een herbouw starten guests **niet mee op** als pve01 opstart | na een restore staat de helft op `onboot: 0` | [Geval 2 — Guests mee laten opstarten](#geval-2--guests-mee-laten-opstarten) |
+| Je wil een **pc of NAS** op Tailscale zetten | de pc van je ouders, een Raspberry Pi | [Geval 3 — Tailscale-sleutel voor een apparaat](#geval-3--tailscale-sleutel-voor-een-apparaat) |
+| Een host moet een **andere DNS-server** gebruiken | `caddy` wijst nog naar een oude resolver | [Geval 4 — DNS-server van een host omzetten](#geval-4--dns-server-van-een-host-omzetten) |
+| Je wil nakijken of je **van buitenaf** nog binnenkomt | de VPN op je iPhone doet niets meer | [Geval 5 — De VPN nakijken](#geval-5--de-vpn-nakijken) |
+
+Hoe DNS en de VPN nu in elkaar zitten staat onderaan, in
+[Hoe het netwerk nu staat](#hoe-het-netwerk-nu-staat).
+
+### Woorden die je nodig hebt
+
+**Bridge** — de virtuele netwerkkaart van pve01 (`vmbr0`, `vmbr1`) waar de guests en de node zelf aan hangen.
+
+**Resolver** — de DNS-server die een toestel vraagt "welk adres hoort bij deze naam?". Hier is dat AdGuard in ct 107 (`192.168.0.29`).
+
+**Tailnet** — alle toestellen die via Tailscale met elkaar verbonden zijn.
+
+---
+
+## Geval 1 — Bridges van pve01 wijzigen
 
 <Callout type="error">
 Dit is het gevaarlijkste playbook in de repo. Ansible bereikt `pve01` op
-`192.168.0.14`, en dat ís `vmbr1`. Een verkeerde waarde levert geen mislukte
-taak op — het levert een onbereikbare hypervisor op en een ritje naar waar de
-machine fysiek staat. Weet dus wáár hij staat voordat je de vlag gebruikt.
+`192.168.0.14`, en dat ís `vmbr1`. Een fout geeft geen rode taak, maar een
+onbereikbare hypervisor. **Weet waar de machine fysiek staat** voor je begint.
 </Callout>
 
-```bash
-ansible-playbook playbooks/proxmox-network.yml                          # schrijft alleen
-ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
-```
+<Steps>
 
-De bridges staan in `inventory/group_vars/proxmox/network.yml` als
-`pve_node_interfaces`. Zonder vlag schrijft het playbook ze naar
-`/etc/network/interfaces.new` en raakt het niets aan wat draait. Dat stagen is
-Proxmox' eigen gedrag, en het is de reden dat je dit zonder vlag gerust kunt
-draaien om te zien wat er zou veranderen.
-
-`proxmox_network_apply` staat op `false` in de rol-defaults en mag nergens in
-de inventory op `true`. Een converge-run die de bridges van de hypervisor kan
-herschrijven is een converge-run die de hele estate kan beëindigen.
-
-### Kijk eerst wat er nú staat
-
-De waarden in `network.yml` zijn één keer overgetikt van
-`/etc/network/interfaces` en sindsdien niet opnieuw nagelopen. Blind toepassen
-gaat ervan uit dat er in de tussentijd niemand met de hand aan die node gezeten
-heeft. Vergelijk dus eerst:
+### Kijk wat er nu echt staat
 
 ```bash
 ssh pve01 cat /etc/network/interfaces
 ```
 
-### De dodemansknop
+Vergelijk dit met `inventory/group_vars/proxmox/network.yml`. Die waarden zijn
+één keer overgetikt en sindsdien niet opnieuw nagelopen. Verschillen ze al vóór
+jouw wijziging? Zet eerst de inventory recht.
 
-Gebruik je de vlag wél, dan loopt dit af:
-
-1. de draaiende config wordt gekopieerd naar
-   `/etc/network/interfaces.before-ansible`
-2. een `systemd-run`-timer wordt gewapend die die kopie over **180 seconden**
-   terugzet en `ifreload -a` draait
-3. de nieuwe config wordt via de API toegepast
-4. vanaf de controller wordt elk adres uit `pve_node_interfaces` op poort 22
-   geprobeerd
-5. lukt dat, dan wordt de timer gestopt
-
-Valt de playbook er op welk moment dan ook tussenuit, dan komt de node vanzelf
-terug op een configuratie die aantoonbaar werkte. De stappen die moeten
-doorlopen staan bewust op de node zelf; het toepassen en de bereikbaarheidstest
-draaien vanaf je laptop — een test die op de node zelf draait bewijst niets,
-die slaagt zolang de node zijn eigen userspace nog heeft.
-
-De 180 seconden zijn geen gok: kopiëren en wapenen kosten elk ongeveer een
-seconde, de API-apply met `ifreload` ongeveer vijftien, en de test is in het
-slechtste geval twee adressen van twintig seconden. Dat is een kleine tachtig,
-met marge. Te lang is veiliger dan te kort: een timer die afgaat terwijl een
-goede config nog gecontroleerd wordt draait alleen iets terug dat je opnieuw
-kunt toepassen — een timer die te laat afgaat laat je wachten met een
-onbereikbare hypervisor.
-
-<Callout type="warning">
-Staat er nog een revert-timer gewapend van een eerdere run, dan **weigert** het
-playbook. De draaiende config is dan mogelijk de config die die vorige run stuk
-maakte, en die kopiëren als terugvalpunt laat je zonder weg terug.
-
-Wacht tot de timer afgaat, of — als je zeker weet dat wat er draait goed is —
-zet hem bewust stop:
+### Pas de inventory aan
 
 ```bash
-ssh pve01 systemctl stop ansible-network-revert.timer
+$EDITOR inventory/group_vars/proxmox/network.yml
+```
+
+De bridges staan onder `pve_node_interfaces`:
+
+| Veld | Voorbeeld | Doet |
+| --- | --- | --- |
+| `iface` | `vmbr1` | naam van de bridge |
+| `cidr` | `192.168.0.14/24` | adres van de node op die bridge |
+| `gateway` | `192.168.0.1` | alleen op `vmbr0`, daar zit de default route |
+| `bridge_ports` | `nic0` | de fysieke poort eronder |
+
+### Kijk droog wat er zou veranderen
+
+```bash
+ansible-playbook playbooks/proxmox-network.yml --check --diff
+```
+
+`changed=0` betekent: de inventory en de node zijn het eens.
+
+### Zet de wijziging klaar (nog niet actief)
+
+```bash
+ansible-playbook playbooks/proxmox-network.yml                        # schrijft alleen interfaces.new
+ssh pve01 diff /etc/network/interfaces /etc/network/interfaces.new    # dit gaat er veranderen
+```
+
+Zonder vlag schrijft het playbook alleen `/etc/network/interfaces.new`. Wat
+draait blijft ongemoeid.
+
+### Pas toe
+
+```bash
+ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
+```
+
+Nu herlaadt de node zijn netwerk. Gaat er iets mis, dan zet de
+[dodemansknop](#de-dodemansknop) de oude config na 180 seconden vanzelf terug.
+
+<Callout type="warning">
+Weigert het playbook met `ansible-network-revert.timer is still armed`? Dan
+loopt er nog een terugzet-timer van een vorige run. De config die nu draait is
+misschien net de kapotte. Wacht tot de timer afgaat (max. 3 minuten), of, als
+je **zeker** weet dat wat draait goed is:
+
+```bash
+ssh pve01 sudo systemctl stop ansible-network-revert.timer
 ```
 </Callout>
 
-## Guests mee laten opstarten
+### Controleer
+
+```bash
+ssh pve01 systemctl is-active ansible-network-revert.timer   # moet 'inactive' zijn
+ssh pve01 cat /etc/network/interfaces                          # jouw nieuwe waarden?
+```
+
+Is de timer afgegaan en staat de oude config terug? Kijk waarom:
+
+```bash
+ssh pve01 journalctl -u ansible-network-revert.service
+```
+
+### Commit en push
+
+```bash
+git add inventory/group_vars/proxmox/network.yml
+git commit -m 'pve01: bridges aangepast'
+git push
+```
+
+</Steps>
+
+---
+
+## Geval 2 — Guests mee laten opstarten
+
+<Steps>
+
+### Bedenk welke guests níét mogen meestarten
+
+Het playbook zet `onboot` aan op **elke** guest die het uit heeft staan, ook op
+een guest die je bewust uit liet.
+
+### Draai het playbook
 
 ```bash
 ansible-playbook playbooks/proxmox-autostart.yml
 ```
 
-Zet `onboot` aan op elke guest die hem uit heeft staan. Meer niet.
+De uitvoer toont per aangepaste guest `<vmid> <naam>`.
 
-Niet in `site.yml`, met opzet: een guest die bewust níét mee opstart wordt
-hierdoor stilletjes aangezet. Dit is iets wat je kiest, meestal na een herbouw
-waarin je guests met de hand hebt teruggezet en de helft nog op `onboot: 0`
-staat.
+### Zet de uitzonderingen terug uit
 
-## Een Tailscale-sleutel voor een pc of NAS
+```bash
+ssh pve01 sudo pct set <vmid> --onboot 0    # voor een LXC
+ssh pve01 sudo qm set <vmid> --onboot 0     # voor een VM
+```
+
+</Steps>
+
+---
+
+## Geval 3 — Tailscale-sleutel voor een apparaat
+
+Voor alles met een commandline: een Windows-pc, een NAS, een Raspberry Pi.
+**Niet voor telefoons**: de iOS- en Android-app loggen in via de browser en
+hebben geen plek om een sleutel te plakken.
+
+<Steps>
+
+### Maak de sleutel, vanaf je werkstation
 
 ```bash
 ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 ```
 
-Maakt één eenmalige, vooraf goedgekeurde sleutel en drukt hem één keer af. Het
-apparaat komt binnen met:
+`label` mag alleen kleine letters, cijfers en koppeltekens bevatten. In de
+Tailscale-console wordt het `device-pc-ouders`: het enige spoor dat de
+sleutel achterlaat. Kies dus iets wat je over een half jaar nog herkent.
+
+<Callout type="warning">
+Draai dit **niet** vanuit Semaphore. De sleutel wordt afgedrukt en een
+Semaphore-tasklog bewaart hem.
+</Callout>
+
+### Gebruik hem binnen 10 minuten op het apparaat
 
 ```bash
 tailscale up --auth-key=<sleutel>
 ```
 
-`label` is vrije tekst, kleine letters, cijfers en koppeltekens. Het wordt de
-omschrijving van de sleutel in de Tailscale-console en is het enige spoor dat
-de sleutel achterlaat — maak er dus iets van dat je over een half jaar nog
-herkent.
+De sleutel is eenmalig en al goedgekeurd. Na 600 seconden verloopt hij.
 
-| Wel | Niet |
-| --- | --- |
-| een Windows-pc, een NAS, een Raspberry Pi | telefoons |
+### Controleer in de Tailscale-console
 
-Telefoons niet, omdat de iOS- en Android-apps via een browser inloggen en
-nergens een sleutel kwijt kunnen.
+Het apparaat staat erbij met de tag `tag:homelab`.
 
-<Callout type="warning">
-Draai dit vanaf je werkstation, **niet** vanuit Semaphore. De sleutel wordt
-afgedrukt, en een Semaphore-tasklog bewaart hem.
+Sleutel kwijt of verlopen? Draai stap 1 opnieuw. De API kan een sleutel geen
+tweede keer tonen, en een ongebruikte verloopt vanzelf.
 
-Kwijtgeraakt? Draai het opnieuw. Een ongebruikte sleutel verloopt vanzelf; de
-API kan hem geen tweede keer laten zien.
-</Callout>
+</Steps>
 
-## DNS: wie vraagt wat aan wie
+---
 
-Sinds 22-09 loopt alle naamresolutie via de AdGuard in **ct 107**
-(`192.168.0.29`). Daarvoor deed een tweede AdGuard op de Mac mini
-(`192.168.0.26`) het werk, en die stond in geen enkel playbook.
+## Geval 4 — DNS-server van een host omzetten
 
-Dat was het probleem: de DNS van de hele estate hing aan de machine die deze
-repo niet kan terugbouwen — dezelfde die de drie NFS-shares exporteert. Viel
-hij om, dan verloor je naamresolutie én media-opslag tegelijk. De AdGuard die
-Ansible wél beheert en die PBS meeneemt, deed ondertussen niets.
+Voorbeeld: `caddy` (ct 106) moet `192.168.0.29` gebruiken.
 
-### Hoe het nu staat
+<Steps>
 
-| Host | Resolver | Waarom |
-| --- | --- | --- |
-| pve01, pbs, caddy, semaphore | `192.168.0.29` | gewone `/etc/resolv.conf` |
-| docker, docker-grafana-stack | `192.168.0.29` | via netplan, zie hieronder |
-| adguard zelf | `127.0.0.1` + `1.1.1.1` | hij ís de resolver; het vangnet is er zodat hij nog kan apt-updaten als hij stilstaat |
-| tailscale (ct 108) | `100.100.100.100` | **niet aankomen** — tailscaled beheert dit zelf voor MagicDNS |
-| telefoons, laptops | `192.168.0.29` | via DHCP in UniFi |
-
-<Callout type="warning">
-Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
-`1.1.1.1`. Staat ct 107 stil en is er geen tweede, dan heeft het hele huis geen
-internet meer — inclusief het toestel waarmee je het zou repareren.
-</Callout>
-
-### Twee soorten namen
-
-- `*.home.arpa` — één regel per host, door `roles/adguard` uit de inventory
-  gezet. Dit is het enige wat de rol beheert.
-- `*.neodata.be` — één wildcard naar Caddy (`192.168.0.25`), met de hand
-  gezet. De rol raakt rewrites buiten `home.arpa` nooit aan, dus die blijft
-  staan.
-
-### Voor je ergens de resolver omzet: kijk eerst
-
-Dit is de val waar drie verschillende mechanismen in zaten:
+### Kijk eerst hoe de host zijn DNS regelt
 
 ```bash
-ssh <host> 'ls -l /etc/resolv.conf'
+ssh caddy 'ls -l /etc/resolv.conf'
 ```
 
-Staat er een `->` in, dan is het bestand een symlink naar systemd-resolved en
-zegt het zelf "Do not edit" — een `sed` daarop is bij de eerstvolgende
-netwerkwijziging weg. De echte plek is dan `/etc/netplan/90-default.yaml`,
-gevolgd door `netplan apply`.
+- **Een pijl `->` in de uitvoer?** Dan beheert systemd-resolved het bestand. Ga naar de stap *Via netplan*.
+- **Geen pijl?** Dan is het een gewoon bestand. Ga naar de stap *Gewoon bestand*.
 
-Bij een LXC hoort het ook in de container-config, anders draait een herstart
-het terug. Geef `--searchdomain` expliciet mee, want die verschilt per
-container:
+<Callout type="warning">
+Een `sed` op een gesymlinkte `resolv.conf` lijkt te werken, maar is bij de
+volgende netwerkwijziging weer weg. Kijk dus altijd eerst welk van de
+mechanismen de host gebruikt.
+</Callout>
+
+### Via netplan (bij een symlink)
 
 ```bash
+ssh -t docker 'sudoedit /etc/netplan/90-default.yaml'   # zet 192.168.0.29 onder nameservers
+ssh docker 'sudo netplan apply'
+```
+
+Zo staat het op `docker` en `docker-grafana-stack`.
+
+### Gewoon bestand (zonder symlink)
+
+```bash
+ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
+```
+
+### Zet het ook in de LXC-config (alleen bij een LXC)
+
+```bash
+ssh pve01 'sudo pct config 106 | grep search'   # welk searchdomain heeft hij nu?
 ssh pve01 'sudo pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa'
 ```
 
-### Controleren
+Anders draait een herstart van de container je wijziging terug. Geef
+`--searchdomain` altijd mee (de waarde die je net zag), want die verschilt per
+container.
+
+<Callout type="error">
+Nooit op `tailscale` (ct 108): daar staat `100.100.100.100` en dat beheert
+tailscaled zelf voor MagicDNS.
+</Callout>
+
+### Controleer
 
 ```bash
-dig +short pve01.home.arpa     # 192.168.0.14 - kent alleen de nieuwe AdGuard
-dig +short books.neodata.be    # 192.168.0.25 - de wildcard naar Caddy
+ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.14 - vanaf de host zelf
+dig +short pve01.home.arpa                 # 192.168.0.14 - vanaf je werkstation
+dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Caddy
 ```
 
-Die eerste is de bewijzende: die naam bestaat nergens anders.
+`pve01.home.arpa` bewijst het: die naam kent alleen de AdGuard in ct 107.
 
-Wil je ze allemaal in één keer, in plaats van de twee die je toevallig
-intypt:
+### Controleer alle namen in één keer
 
 ```bash
 ansible-playbook playbooks/dns-smoketest.yml
 ```
 
-Die vraagt elke naam op die de inventory kent en vergelijkt het antwoord met
-het adres dat daar staat. Zie
-[Onderhoud](/technisch/runbooks/onderhoud/#antwoordt-dns-nog-wat-het-moet) voor
-wat hij precies dekt en wat niet.
+Vraagt elke naam uit de inventory op bij AdGuard en vergelijkt het antwoord.
+Zie [Onderhoud](/technisch/runbooks/onderhoud/#antwoordt-dns-nog-wat-het-moet)
+voor wat hij wel en niet dekt.
 
-## Van buitenaf naar binnen: twee wegen
+</Steps>
 
-Er zijn er twee, en ze vallen onafhankelijk om. Dat is met opzet nuttig, geen
-rommel.
+---
 
-| | draait op | weg als |
+## Geval 5 — De VPN nakijken
+
+WireGuard "Neodata VPN" staat in de **UniFi-controller**, niet in deze repo.
+
+<Steps>
+
+### Controleer of het adres nog klopt
+
+```bash
+dig +short vpn.neodata.be
+```
+
+Vergelijk met het WAN-adres in UniFi. Verschillen ze, dan is je provider van
+IP gewisseld en werkt de VPN niet meer. Zie
+[Het WAN-adres is dynamisch](#het-wan-adres-is-dynamisch).
+
+### Controleer de DNS die de VPN uitdeelt
+
+In UniFi, bij de VPN-server: de DNS-server moet `192.168.0.29` zijn.
+
+<Callout type="warning">
+Heb je de DNS-server gewijzigd? **Importeer het profiel opnieuw op de
+telefoon.** De waarde zit ingebakken in de clientconfig; alleen de server
+aanpassen is niet genoeg.
+</Callout>
+
+### Test via mobiele data
+
+Zet wifi uit op je telefoon, zet de VPN aan en open
+`pve01.home.arpa`, of ping het. Werkt die naam, dan werkt de hele keten:
+VPN, route én DNS.
+
+</Steps>
+
+---
+
+## Hoe het netwerk nu staat
+
+### DNS: wie vraagt wat aan wie
+
+Sinds 23-09 loopt alle naamresolutie via de AdGuard in **ct 107**
+(`192.168.0.29`). De oude AdGuard op de Mac mini (`192.168.0.26`) is weg.
+
+| Wie | Resolver | Hoe |
+| --- | --- | --- |
+| pve01, pbs, caddy, semaphore | `192.168.0.29` | gewone `/etc/resolv.conf` |
+| docker, docker-grafana-stack | `192.168.0.29` | via netplan |
+| adguard zelf | `127.0.0.1` + `1.1.1.1` | hij ís de resolver; `1.1.1.1` is het vangnet om nog te kunnen updaten als hij stilstaat |
+| tailscale (ct 108) | `100.100.100.100` | **niet aankomen**, tailscaled beheert dit |
+| de Mac mini | `192.168.0.29` | sinds zijn eigen AdGuard weg is |
+| telefoons, laptops thuis | `192.168.0.29` | via DHCP in UniFi |
+| via WireGuard | `192.168.0.29` | ingesteld in UniFi, ingebakken in het profiel |
+| via de tailnet | `100.84.46.18` | het tailnet-adres van ct 107, globale nameserver in de Tailscale-console |
+
+<Callout type="warning">
+Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
+`1.1.1.1`. Staat ct 107 stil en is er geen tweede, dan heeft het hele huis geen
+internet, ook het toestel waarmee je het zou repareren niet.
+</Callout>
+
+### Twee soorten namen
+
+| Namen | Wijst naar | Beheerd door |
+| --- | --- | --- |
+| `*.home.arpa` | één regel per host | `roles/adguard`, uit de inventory |
+| `*.neodata.be` | één wildcard naar Caddy (`192.168.0.25`) | met de hand in AdGuard |
+
+De rol raakt alleen rewrites onder `home.arpa` aan. De wildcard blijft dus staan.
+
+### Twee wegen naar binnen
+
+| Weg | Draait op | Weg als |
 | --- | --- | --- |
 | Tailscale, ct 108 | pve01 | pve01 eruit ligt |
 | WireGuard "Neodata VPN" | de UniFi-gateway | de gateway eruit ligt |
 
-Ligt pve01 eruit — precies wanneer je erbij wil — dan is de Tailscale-route
-weg en de WireGuard niet.
+Ze vallen los van elkaar om, en dat is met opzet. Ligt pve01 eruit (precies
+wanneer je erbij wil), dan werkt WireGuard nog.
 
-### WireGuard, zoals het staat
+WireGuard, zoals het staat:
 
-Beheerd in de UniFi-controller, niet in deze repo.
+| | |
+| --- | --- |
+| Endpoint | `vpn.neodata.be:51820` (WAN `94.111.99.122` op 22-09) |
+| VPN-subnet | `10.10.30.0/24`, gateway `10.10.30.1` |
+| Biedt aan | `192.168.0.0/24` (`Allowed IPs` op de client) |
+| Profielen | één: de iPhone, `10.10.30.2/32` |
 
-- Endpoint `vpn.neodata.be:51820`, WAN `94.111.99.122`
-- VPN-subnet `10.10.30.0/24`, gateway `10.10.30.1`
-- Biedt `192.168.0.0/24` aan (`Allowed IPs` op de client)
-- Eén profiel: de iPhone, `10.10.30.2/32`
+---
 
-<Callout type="warning">
-De DNS-server die de VPN uitdeelt moet `192.168.0.29` zijn, niet
-`192.168.0.26`. Die tweede is de oude AdGuard op de Mac mini; gaat die uit,
-dan heeft je VPN geen naamresolutie meer. De clientconfiguratie heeft de
-waarde ingebakken, dus na het wijzigen moet het profiel opnieuw
-geïmporteerd worden op de telefoon.
-</Callout>
+## Goed om te weten
+
+### Waarom de bridges niet in `site.yml` zitten
+
+`proxmox_network_apply` staat op `false` in de rol-defaults en mag nergens in de
+inventory op `true`. Een gewone run die de bridges van de hypervisor kan
+herschrijven, kan in één keer alles platleggen. Toepassen doe je alleen per
+run, met de vlag op de commandline.
+
+### De dodemansknop
+
+Met de vlag gebeurt dit:
+
+1. de draaiende config wordt gekopieerd naar `/etc/network/interfaces.before-ansible`
+2. een `systemd-run`-timer wordt gewapend die die kopie na **180 seconden** terugzet en `ifreload -a` draait
+3. de nieuwe config wordt via de Proxmox-API toegepast
+4. vanaf je werkstation wordt elk adres uit `pve_node_interfaces` op poort 22 geprobeerd
+5. lukt dat, dan wordt de timer gestopt
+
+Valt het playbook ergens tussenuit, dan komt de node vanzelf terug op een
+config die werkte. De test draait bewust vanaf je werkstation: op de node zelf
+slaagt hij altijd, dus bewijst hij niets.
+
+### Waarom 180 seconden
+
+Kopiëren en wapenen duren elk een seconde, toepassen ongeveer vijftien, en de
+test in het slechtste geval twee keer twintig. Samen zo'n tachtig, plus marge.
+Te lang is veiliger dan te kort: te vroeg terugzetten kost je een nieuwe poging,
+te laat laat je wachten met een onbereikbare hypervisor.
+
+### Waarom `proxmox-autostart.yml` niet in `site.yml` zit
+
+Een guest die bewust níét meestart, zou bij elke run stilletjes weer aangezet
+worden. Meestal draai je dit één keer, na een herbouw.
+
+### Waarom DNS naar ct 107 moest
+
+De DNS van het huis hing eerst aan de AdGuard op de Mac mini, die in geen enkel
+playbook stond. Dat is dezelfde machine die de NFS-shares exporteert: viel hij
+om, dan verloor je naamresolutie én media-opslag tegelijk. ct 107 beschrijft
+Ansible en neemt PBS mee in de back-up.
+
+### Waarom de tailnet een 100.x-adres als DNS heeft
+
+Een LAN-adres (`192.168.0.29`) als tailnet-nameserver werkt alleen voor
+toestellen die de subnet-route accepteren. Onderweg heb je dan helemaal geen
+DNS. Daarom zit ct 107 zelf op de tailnet, met `--accept-dns=false` zodat hij
+zijn DNS niet via een omweg bij zichzelf gaat halen.
+
+### De Tailscale-weg komt nu niet op het LAN
+
+ct 108 biedt `192.168.0.0/24` aan, maar `--accept-routes` staat overal uit.
+Onderweg bereik je via Tailscale dus geen `192.168.0.x`. Voor LAN-toegang van
+buitenaf is WireGuard nu de weg. Staat op de TODO.
 
 ### Het WAN-adres is dynamisch
 
-UniFi waarschuwt er zelf voor, en de server staat op "Existing IP Address" in
-plaats van Dynamic DNS. `vpn.neodata.be` wees op 22-09 naar het juiste adres,
-maar als niets die record bijwerkt breekt de VPN stil zodra je provider je een
-ander IP geeft — en dat merk je precies op het moment dat je van buitenaf naar
-binnen wil. Zet Dynamic DNS aan, of controleer wat die Cloudflare-record nu
-bijhoudt.
+De VPN-server staat op "Existing IP Address" in plaats van Dynamic DNS, en
+UniFi waarschuwt daar zelf voor. Krijg je van je provider een ander IP en
+werkt niets `vpn.neodata.be` bij, dan breekt de VPN stil, en dat merk je pas
+als je binnen wil. Zet Dynamic DNS aan, of zoek uit wat die Cloudflare-record
+bijhoudt. Staat op de TODO.

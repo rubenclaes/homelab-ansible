@@ -11,8 +11,8 @@
 # Wat het NIET doet: templates verwijderen. Wat je in de UI maakt blijft van
 # de UI. De lijst staat in inventory/host_vars/semaphore/main.yml.
 #
-# Nog niet in site.yml, met opzet. Eerst één echte run die groen is; pas dan
-# hoort een API-aanroep thuis in het playbook dat alles gelijktrekt.
+# Staat in site.yml, na de semaphore-rol: de templates hebben een draaiende
+# Semaphore nodig om tegen te praten.
 - name: Semaphore templates
   hosts: semaphore
   roles:

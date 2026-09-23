@@ -6,94 +6,155 @@ import { Steps, Callout } from 'nextra/components'
 
 # Herstellen
 
-Er is iets stuk. Begin hier, en kies daarna het stuk dat op jouw situatie
-slaat.
-
-<Callout type="error">
-**Lees dit eerst, nu het nog rustig is.** De back-ups op de PBS-opslag zijn
-versleuteld. Zonder de sleutel is er niets terug te zetten, en die sleutel
-staat niet in deze repo en hoort daar ook niet.
-
-```bash
-proxmox-backup-client key show
-```
-
-Draai dat één keer, print het resultaat, en leg het ergens buiten het huis.
-
-Sinds 23-09 is dat niet meer het enige pad: er staat een **tweede kopie op de
-Mac mini**, en die is niet versleuteld. Ben je de sleutel kwijt, dan ben je de
-PBS-kopie kwijt en val je terug op die tweede — hoogstens een week oud in
-plaats van hoogstens een dag. Zie [De tweede kopie](#de-tweede-kopie-op-de-mac-mini).
-Dat maakt de sleutel niet minder belangrijk, het maakt hem minder fataal.
-</Callout>
-
-<Callout type="error">
-**En dit er meteen bij.** Twee vault-wachtwoorden openen alles wat deze repo
-versleuteld bewaart — API-tokens, logins, de `.env`-bestanden van de stacks.
-Ze staan alleen op je werkstation:
-
-```bash
-~/.ansible/vault_pass_infra
-~/.ansible/vault_pass_stacks
-```
-
-Niet in git, en met opzet. Ben je ze kwijt, dan is de repo wél compleet maar
-onbruikbaar: geen playbook dat een vault-bestand aanraakt draait nog, en dat is
-zo ongeveer alles. Leg ze op dezelfde plek als de PBS-sleutel.
-
-Ze zijn nergens uit af te leiden. De enige weg terug is elk vault-bestand
-opnieuw aanmaken en elk secret opnieuw zetten.
-</Callout>
+Er is iets stuk en je wil het terug. Kies in de tabel wat er stuk is en volg
+dan alleen dat geval, stap voor stap.
 
 <Callout type="info">
-Deze pagina staat op `docs.neodata.be`, en die draait op `caddy` — een guest op
-`pve01`. Is dat weg, dan is deze pagina dat ook. De bron staat in git, op
-GitHub en in elke clone, als gewone Markdown:
-
-```
-docs-site/content/technisch/runbooks/
-```
+Deze pagina draait op `docs.neodata.be`, en dat is de container `caddy`. Is
+die weg, dan is deze pagina ook weg. Dezelfde tekst staat in elke clone van
+de repo: `docs-site/content/technisch/runbooks/disaster-recovery.mdx`.
 </Callout>
 
-## Eerst even de woorden
+## Welk geval ben jij?
 
-**Node** — de fysieke machine, `pve01`. Eén kast met Proxmox erop. Alles draait
-daarbovenop.
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Een container is stuk, en er staat niets op dat je niet opnieuw kan maken | `caddy`, `tailscale` | [Geval 1 — Container opnieuw bouwen](#geval-1--container-opnieuw-bouwen) |
+| Een container of VM is stuk, en **wat erop stond** moet terug | `adguard`, `semaphore`, `docker`, Home Assistant | [Geval 2 — Terugzetten uit de back-up](#geval-2--terugzetten-uit-de-back-up) |
+| Niets resolvet meer: geen `*.home.arpa`, geen `*.neodata.be` | `adguard` (ct 107) ligt plat | [Geval 3 — Geen DNS](#geval-3--geen-dns) |
+| De media-apps draaien, maar hun mappen zijn leeg | Sonarr of Radarr ziet geen bestanden | [Geval 4 — De shares van de Mac mini](#geval-4--de-shares-van-de-mac-mini) |
+| De Mac mini is kapot of opnieuw geïnstalleerd | nieuwe schijf, macOS opnieuw | [Geval 5 — De Mac mini is weg](#geval-5--de-mac-mini-is-weg) |
+| `pve01` zelf is weg | Proxmox opnieuw geïnstalleerd | [Geval 6 — pve01 is weg](#geval-6--pve01-is-weg) |
+| De back-ups op PBS zijn weg of onleesbaar | schijf `vm-hdd` kapot, of de sleutel kwijt | [Geval 7 — Terugvallen op de tweede kopie](#geval-7--terugvallen-op-de-tweede-kopie) |
 
-**Guest** — een container of virtuele machine *op* die node. `caddy`, `adguard`,
-`docker` zijn guests.
+Twijfel je tussen 1 en 2: kies **2**. Een back-up terugzetten kan altijd.
 
-**PBS** — Proxmox Backup Server, de machine die je back-ups bewaart. Draait hier
-zelf als guest, met zijn opslag op een aparte schijf.
+**Is er nu niets stuk?** Doe dan eerst [Vooraf: doe dit nu](#vooraf-doe-dit-nu).
+Zonder die stappen werkt geen enkel geval hieronder.
 
-## Wat ben je kwijt?
+### Woorden die je nodig hebt
 
-| Situatie | Ga naar |
-| --- | --- |
-| Een container is stuk, de data is niet belangrijk | [Opnieuw opbouwen](#opnieuw-opbouwen) |
-| Een container of VM is stuk, de data moet terug | [Back-up terugzetten](#back-up-terugzetten) |
-| pve01 zelf is weg | [De hele node](#de-hele-node) |
-| pve01 is weg *en* de encryptiesleutel ook | [De tweede kopie](#de-tweede-kopie-op-de-mac-mini) |
-| De media-stack ziet zijn bestanden niet meer | [De shares van de Mac mini](#de-shares-van-de-mac-mini) |
-| De Mac mini is weg | [De Mac mini is weg](#de-mac-mini-is-weg) |
-| Niets resolvet meer | [Geen DNS](#geen-dns) |
+**Node** — de fysieke machine `pve01` (`192.168.0.14`), met Proxmox erop.
 
-## Opnieuw opbouwen
+**Guest** — een container (LXC, commando's `pct`) of virtuele machine (VM,
+commando's `qm`) op die node. Elke guest heeft een nummer, de *vmid*.
 
-Voor iets dat zijn waarde niet op zijn schijf heeft staan: caddy, adguard,
-tailscale. Die bouw je sneller opnieuw dan je een back-up terugzet, en het
-resultaat is schoner.
+**PBS** — Proxmox Backup Server, VM 100. Hij bewaart de dagelijkse back-ups,
+versleuteld, op de schijf `vm-hdd` van pve01 zelf.
+
+**Tweede kopie** — de wekelijkse back-up naar de Mac mini (`macmini-backup`).
+Niet versleuteld.
+
+### Welke guest is wat
+
+| Guest | vmid | Soort | Opslag | Bij verlies |
+| --- | --- | --- | --- | --- |
+| `pbs` | 100 | VM | `local-lvm` + `vm-hdd` | met de hand, zie [geval 6](#geval-6--pve01-is-weg) |
+| `haos` (Home Assistant) | 101 | VM | `vm-hdd` | back-up (geval 2) |
+| `docker-grafana-stack` | 102 | VM | `vm-hdd` | back-up (geval 2) |
+| `docker` | 103 | VM | `vm-hdd` | back-up (geval 2) |
+| `semaphore` | 104 | LXC | `local-lvm` | back-up (geval 2) |
+| `caddy` | 106 | LXC | `vm-hdd` | opnieuw bouwen (geval 1) |
+| `adguard` | 107 | LXC | `vm-hdd` | back-up (geval 2 of 3) |
+| `tailscale` | 108 | LXC | `vm-hdd` | opnieuw bouwen (geval 1) |
+
+Bron: `inventory/group_vars/proxmox/lxcs.yml` en `vms.yml`.
+
+---
+
+## Vooraf: doe dit nu
+
+Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
 
 <Steps>
 
-### Bouw de container opnieuw
+### Maak een papieren kopie van de PBS-sleutel
+
+```bash
+ssh pve01
+sudo ls /etc/pve/priv/storage/                                         # hier hoort pbs.enc te staan
+sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text
+```
+
+Print wat eruit komt, en bewaar het **buiten het huis**. Zonder deze sleutel
+zijn de back-ups op PBS niet terug te zetten.
+
+<Callout type="warning">
+`proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,
+niet de sleutel zelf. Daar kan je niets mee terugzetten.
+</Callout>
+
+### Bewaar de twee vault-wachtwoorden op dezelfde plek
+
+```bash
+cat ~/.ansible/vault_pass_infra
+cat ~/.ansible/vault_pass_stacks
+```
+
+Ze openen alles wat de repo versleuteld bewaart: API-tokens, logins, de
+`.env`-bestanden van de stacks. Ze staan niet in git, met opzet.
+
+<Callout type="error">
+Kwijt = de repo is compleet maar onbruikbaar. Bijna elk playbook leest een
+vault-bestand. Ze zijn nergens uit af te leiden: de enige weg terug is elk
+vault-bestand opnieuw maken en elk secret opnieuw zetten.
+</Callout>
+
+</Steps>
+
+---
+
+## Geval 1 — Container opnieuw bouwen
+
+Voor een container waar niets unieks op staat: `caddy` en `tailscale`. Een
+nieuwe bouwen gaat sneller dan een back-up terugzetten, en is schoner.
+
+Voorbeeld: `caddy` (ct 106).
+
+<Steps>
+
+### Gooi de oude weg (als hij nog half bestaat)
+
+```bash
+ssh pve01 'sudo pct stop 106; sudo pct destroy 106'
+```
+
+Het playbook maakt alleen wat ontbreekt. Een halve container blijft anders
+gewoon staan.
+
+### Bouw hem opnieuw
 
 ```bash
 ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ```
 
-Bestaat de oude container nog half, gooi hem dan eerst weg in het
-Proxmox-scherm. Het playbook maakt alleen wat ontbreekt.
+Maakt de container, zet het `ansible`-account erop en doet de baseline.
+
+<Callout type="warning">
+`new-guest.yml` maakt **elke** container uit `pve_lxcs` die ontbreekt, niet
+alleen die je noemt. Bootstrappen en baselinen gebeurt wel alleen op de
+genoemde.
+</Callout>
+
+### Alleen bij `tailscale`: geef hem `/dev/net/tun`
+
+Zet als root op pve01 deze twee regels onderaan `/etc/pve/lxc/108.conf`:
+
+```bash
+ssh -t pve01 'sudoedit /etc/pve/lxc/108.conf'
+```
+
+```
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+```
+
+```bash
+ssh pve01 'sudo pct reboot 108'
+```
+
+Zonder dit start `tailscaled` niet. Het API-token mag deze regels niet zetten,
+dus geen playbook kan het voor je doen.
 
 ### Zet de dienst terug
 
@@ -101,377 +162,646 @@ Proxmox-scherm. Het playbook maakt alleen wat ontbreekt.
 ansible-playbook playbooks/site.yml --limit caddy
 ```
 
-Dat is het. De rol installeert de dienst en zet zijn configuratie.
+### Alleen bij `caddy`: zet de docs en het rapport terug
+
+```bash
+ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/docs.yml       # docs.neodata.be staat op caddy
+ansible-playbook playbooks/report.yml     # report.neodata.be ook
+```
+
+Een nieuwe `caddy` is leeg: de routes werken, maar deze site en het rapport
+staan er pas weer na deze twee.
+
+### Laat Semaphore de nieuwe machine vertrouwen
+
+```bash
+ansible-playbook playbooks/semaphore.yml
+```
+
+De nieuwe container heeft een nieuwe SSH-hostkey. Semaphore weigert hem tot
+deze run. Niet met `--limit semaphore`: dan faalt hij.
 
 </Steps>
 
-## Back-up terugzetten
+---
 
-Voor alles waarvan de schijf het punt is: de Docker-host, Immich, je foto's.
+## Geval 2 — Terugzetten uit de back-up
+
+Voor alles waarvan de schijf het punt is: `adguard` (filterinstellingen,
+upstreams), `semaphore` (projecten, geschiedenis), `docker`, Home Assistant.
+
+Voorbeeld: `adguard` (ct 107). Alle commando's met `pct`/`qm`/`pvesm` draai je
+op pve01 (`ssh pve01`).
 
 <Steps>
 
-### Kijk wat er is
-
-Op pve01:
+### Zoek de back-up die je wil
 
 ```bash
-pvesm list pbs
+sudo pvesm list pbs | grep '/107/'
 ```
 
-Dat toont elke back-up met zijn volledige naam, bijvoorbeeld
-`pbs:backup/ct/107/2026-09-20T01:00:00Z`. Die hele string heb je zo nodig.
-Kies de nieuwste die van vóór de storing is.
+Je krijgt volledige namen zoals `pbs:backup/ct/107/2026-09-20T02:30:00Z`.
+Kopieer de **nieuwste van vóór de storing**, in zijn geheel.
 
-### Zet hem terug
+### Twijfel je? Test hem eerst ernaast
+
+```bash
+sudo pct restore 199 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd
+sudo pct set 199 --delete net0     # netwerkkaart eraf: anders botst hij met het origineel
+sudo pct start 199
+sudo pct exec 199 -- ls /opt/AdGuardHome   # kijk of je data erin staat
+sudo pct stop 199; sudo pct destroy 199
+```
+
+Dit raakt het origineel niet aan. Of laat een playbook het doen:
+`ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=adguard`.
+
+<Callout type="warning">
+Vergeet `--delete net0` niet. De back-up draagt het IP en MAC-adres van het
+origineel: start je hem zo, dan heb je twee machines op hetzelfde adres.
+</Callout>
+
+### Zet het origineel stil
+
+```bash
+sudo pct stop 107     # een VM: sudo qm stop 103
+```
+
+### Zet de back-up terug
 
 **Een container:**
 
 ```bash
-pct restore 107 pbs:backup/ct/107/2026-09-20T01:00:00Z --storage vm-hdd
+sudo pct restore 107 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd --force
 ```
 
-**Een virtuele machine:**
+**Een VM:**
 
 ```bash
-qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd
+sudo qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd --force
 ```
+
+`--force` overschrijft wat er op dat nummer staat. Kijk dus twee keer naar
+het nummer. Bestaat de guest niet meer, dan mag `--force` weg.
 
 <Callout type="warning">
-De volgorde van de argumenten is bij die twee omgedraaid. Bij `pct restore`
-komt het nummer eerst, bij `qmrestore` de back-up. Dat is geen typefout in dit
-document, het is echt zo.
+De volgorde verschilt: bij `pct restore` komt **het nummer eerst**, bij
+`qmrestore` **de back-up eerst**. Dat is geen typefout.
+
+`--storage`: neem dezelfde als het origineel (zie [de tabel](#welke-guest-is-wat)).
+`semaphore` staat op `local-lvm`, de rest op `vm-hdd`.
 </Callout>
 
-Bestaat er nog iets op dat nummer, dan weigert het commando. Zet er
-`--force` achter om het te overschrijven, maar kijk eerst of je wel het goede
-nummer hebt.
-
-### Twijfel je? Zet hem ernaast
-
-Je hoeft het origineel niet te overschrijven om te kijken of een back-up
-deugt. Zet hem terug op een vrij nummer en start hem niet op het netwerk:
+### Start hem
 
 ```bash
-pct restore 199 pbs:backup/ct/107/2026-09-20T01:00:00Z --storage vm-hdd
-pct start 199
-pct exec 199 -- ls /var/lib/wat-je-zoekt
-pct destroy 199
+sudo pct start 107    # een VM: sudo qm start 103
 ```
 
-Dit is ook de manier om af en toe te controleren dat je back-ups echt werken,
-zonder iets te riskeren.
+### Trek hem gelijk met de repo
 
-### Start hem en trek hem gelijk
+Terug op je werkstation:
 
 ```bash
-pct start 107
 ansible-playbook playbooks/site.yml --limit adguard
 ```
 
-De teruggezette machine draait de configuratie van het moment van de back-up.
-De playbook-run brengt hem terug naar wat de repo zegt.
+De back-up draait de configuratie van toen. Deze run brengt hem naar wat de
+repo nu zegt.
+
+<Callout type="info">
+Terugzetten van `semaphore`? Gebruik dan `ansible-playbook playbooks/semaphore.yml`
+in plaats van `site.yml --limit semaphore`. Die laatste faalt: Semaphore moet
+eerst de hostkeys van alle machines ophalen.
+</Callout>
+
+### Krijg je "REMOTE HOST IDENTIFICATION HAS CHANGED"?
+
+```bash
+ssh-keygen -R 192.168.0.29    # het adres van de teruggezette guest
+```
 
 </Steps>
 
-<Callout type="warning">
-Een teruggezette machine heeft een **nieuwe SSH-hostkey**. Je werkstation
-weigert te verbinden tot je `ssh-keygen -R <adres>` draait. Semaphore
-repareert zichzelf bij de volgende run van `playbooks/semaphore.yml`.
-</Callout>
+---
 
-## De tweede kopie, op de Mac mini
+## Geval 3 — Geen DNS
 
-Er zijn twee back-upjobs, en ze doen expres niet hetzelfde.
+Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Alle DNS van het
+huis loopt via één container: `adguard`, ct 107, `192.168.0.29`.
 
-| | Dagelijks | Wekelijks |
-| --- | --- | --- |
-| Wanneer | 02:30, elke nacht | zondag 01:00 |
-| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
-| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`-dumps |
-| Bewaart | 7 snapshots | 2 dumps |
-| Versleuteld | ja | **nee** |
-| Wat het redt | een guest die stuk is | **pve01 die weg is** |
-
-De dagelijkse is de primaire: fijnmaziger, zuiniger, en dat is de job waar je
-negen van de tien keer uit terugzet. Maar hij schrijft naar een datastore die
-zelf op pve01 staat. Sterft die machine, dan gaan de guests en hun back-ups in
-één keer. Daar is de wekelijkse voor.
-
-<Callout type="warning">
-Dit is een tweede *machine*, geen off-site. Beide staan in hetzelfde huis, aan
-dezelfde stroom, op hetzelfde netwerk. Tegen brand, diefstal of ransomware die
-allebei bereikt helpt dit niet. En omdat deze dumps niet versleuteld zijn, kan
-iedereen die de NFS-share van de Mini kan mounten ze lezen.
-</Callout>
-
-### Terugzetten uit de tweede kopie
-
-Net als uit PBS, alleen een andere opslagnaam. Op pve01:
-
-```bash
-pvesm list macmini-backup
-```
-
-```bash
-pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_23-09_29_52.tar.zst --storage vm-hdd
-```
-
-Er is geen sleutel nodig. Dat is precies het punt van deze kopie, en meteen
-haar zwakte.
-
-### Als hij niet gedraaid heeft
-
-De job schrijft over NFS naar `/Volumes/media01/backups/proxmox` op de Mini.
-Slaapt die machine op zondagnacht, of is de share weg, dan faalt de job — en
-er is nog niets dat dat meldt. Controleer dus met het oog, tot dat er wel is:
-
-```bash
-pvesm list macmini-backup
-ssh ansible@192.168.0.14 'df -h /mnt/pve/macmini-backup'
-```
-
-<Callout type="warning">
-`media01` zat op 23-09 op 94% vol (400 GiB vrij) en draagt ook je Time Machine en
-Duplicati. Daarom staat de retentie op twee dumps (`prune-backups keep-last=2`
-op de opslag, ongeveer 50 GB) en niet hoger. Zet je dat getal omhoog, kijk dan
-eerst of die schijf het heeft — hij vol laten lopen breekt alle drie de
-back-uppaden tegelijk.
-</Callout>
-
-## De hele node
-
-pve01 opnieuw geïnstalleerd. Dit is de lange weg, en de volgorde doet ertoe.
+**Ansible werkt nog.** De inventory gebruikt IP-adressen, geen namen.
 
 <Steps>
 
-### Installeer Proxmox en zet het netwerk goed
-
-Met de hand, vanaf een USB-stick. Zorg dat de node weer op `192.168.0.14`
-zit, want de hele inventory verwijst daarnaar.
-
-### Geef het API-token zijn rechten terug
+### Kijk of hij gewoon uit staat
 
 ```bash
-ansible-playbook playbooks/proxmox-access.yml
+ssh pve01 'sudo pct status 107'
+ssh pve01 'sudo pct start 107'     # als hij "stopped" zegt
 ```
 
-Doe dit als eerste. De dynamische inventory haalt de guests via dat token op,
-dus zonder deze stap ziet Ansible een leeg huis.
+### Is hij stuk: zet hem terug uit de back-up
 
-### Koppel de PBS-opslag
-
-Met de hand, in het Proxmox-scherm, onder Datacenter → Storage. Je hebt de
-encryptiesleutel nodig en het wachtwoord van `pve@pbs`, dat alleen in het
-PBS-scherm staat.
-
-Deze stap staat met opzet niet in een playbook: de opslagdefinitie draagt de
-encryptiesleutel, en die hoort niet in Git.
-
-### Zet de overige opslag en de back-upjobs terug
-
-```bash
-ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
-```
+Volg [geval 2](#geval-2--terugzetten-uit-de-back-up) met vmid 107. Dat is de
+snelle en volledige weg.
 
 <Callout type="warning">
-Eén handgreep vooraf, op de **Mac mini**: de map waar de wekelijkse job in
-schrijft moet bestaan. Een NFS-export laat zich niet mounten op een pad dat er
-niet is, dus zonder deze regel komt `macmini-backup` er wel maar blijft hij
-inactief.
-
-```bash
-mkdir -p '/Volumes/media01/backups/proxmox'
-```
+Liever **niet** opnieuw bouwen. Een nieuwe AdGuard mist alles wat alleen in de
+container staat: je login, de upstream-resolvers, en de wildcard
+`*.neodata.be → 192.168.0.25`, die met de hand in AdGuard staat. Bovendien
+vraagt een nieuwe container zijn DNS aan pve01, en die vraagt het aan…
+de AdGuard die er niet is. Dan faalt de installatie.
 </Callout>
 
-De vlag staat er met opzet niet standaard op. Ontbrekende opslag betekent op
-een gezonde node "je transcriptie klopt niet", en op een herbouwde node "dit
-bestand is de waarheid". Alleen jij weet welke van de twee.
-
-### Bouw de containers
+### Geen back-up? Dan toch opnieuw bouwen
 
 ```bash
-ansible-playbook playbooks/proxmox-lxcs.yml
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
 ```
 
-Dit maakt alles uit `pve_lxcs` dat ontbreekt. Daarna per container
-bootstrappen en baselinen, of in één keer met `new-guest.yml` per stuk.
-
-### Maak de virtuele machines
-
-Met de hand, in het scherm. `inventory/group_vars/proxmox/vms.yml` noteert per
-VM het aantal cores, het geheugen, de schijfgrootte en het MAC-adres, zodat je
-ze in de juiste vorm terugbouwt zonder te gokken. Hun data komt daarna uit
-PBS, zie [Back-up terugzetten](#back-up-terugzetten).
-
-Het MAC-adres overnemen is belangrijk: daar hangt de DHCP-reservering aan.
-
-### Trek alles gelijk
+Loopt dit vast op het downloaden van pakketten, geef de container dan zijn
+eigen DNS en draai het opnieuw:
 
 ```bash
-ansible-playbook playbooks/site.yml --check --diff
-ansible-playbook playbooks/site.yml
+ssh pve01 'sudo pct set 107 --nameserver 1.1.1.1; sudo pct reboot 107'
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
 ```
+
+Daarna, met de hand:
+
+1. zet de `/dev/net/tun`-regels in `/etc/pve/lxc/107.conf`, zoals bij `tailscale` in [geval 1](#geval-1--container-opnieuw-bouwen), en `pct reboot 107`
+2. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
+3. zet in AdGuard de upstream-DNS en de rewrite `*.neodata.be` → `192.168.0.25`
+
+```bash
+ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + filterlijsten
+```
+
+### Test
+
+```bash
+ansible-playbook playbooks/dns-smoketest.yml
+```
+
+Vraagt elke naam uit de inventory op bij AdGuard, plus één publieke naam
+(`google.com`) om te zien of doorvragen werkt.
+
+### Kwam hij terug op een ander adres?
+
+Pas dan de DNS-server aan in UniFi (DHCP). Anders blijft het huis zoeken naar
+`192.168.0.29`.
 
 </Steps>
 
-## De Mac mini is weg
+<Callout type="info">
+Zet in UniFi altijd `1.1.1.1` als tweede DNS-server naast `192.168.0.29`.
+Zonder tweede heeft het hele huis geen internet als ct 107 stilstaat, ook het
+toestel waarmee je het wil repareren niet.
+</Callout>
 
-Niet de ergste storing, wel de meest onderschatte. Wat je kwijt bent:
+---
+
+## Geval 4 — De shares van de Mac mini
+
+De media-apps op `docker` draaien, de routes werken, maar de mappen zijn
+leeg. Dan mist `docker` de NFS-shares van de Mac mini. Dat is de stilste
+storing in dit huis.
+
+<Steps>
+
+### Zet de shares terug op de Mac mini
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+`-K` vraagt je sudo-wachtwoord van de Mini. Dat hoort zo.
+
+Fout `[Errno 1] Operation not permitted` op `/etc/exports`? Zie
+[TCC: sshd moet Volledige schijftoegang hebben](#tcc-sshd-moet-volledige-schijftoegang-hebben).
+
+### Mount ze opnieuw op `docker`
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker
+```
+
+Mount de drie shares (`/mnt/media01`, `/mnt/faststore`, `/mnt/ssdnas`) en
+zet de stacks op.
+
+### Herstart de media-stack
+
+```bash
+ssh docker 'sudo docker restart $(sudo docker ps -q --filter label=com.docker.compose.project=media-stack)'
+```
+
+Een container die startte toen de share er niet was, blijft in de lege map
+kijken tot hij herstart.
+
+</Steps>
+
+| Export op de Mini | Mount op `docker` |
+| --- | --- |
+| `/Volumes/media01` | `/mnt/media01` |
+| `/Volumes/FastStore` | `/mnt/faststore` |
+| `/Volumes/SSD Nas` | `/mnt/ssdnas` |
+
+Bron: `nfs_exports_shares` in `inventory/host_vars/macmini.yml` en
+`docker_stacks_nfs_mounts` in `inventory/host_vars/docker.yml`.
+
+---
+
+## Geval 5 — De Mac mini is weg
+
+Wat je kwijt bent:
 
 | Weg | Gevolg |
 | --- | --- |
 | de tweede back-upkopie (`macmini-backup`) | alleen PBS nog, en die staat op pve01 zelf |
 | de drie NFS-shares | de media-stack op `docker` valt om |
-| Plex en zes compose-stacks | draaien nergens anders |
+| Plex en zes compose-stacks | die draaien nergens anders |
 
-Wat je **niet** kwijt bent: pve01, PBS en de dagelijkse back-ups. De guests
-zijn ongemoeid.
+pve01, PBS en de guests zijn ongemoeid.
+
+<Callout type="error">
+Dit pad is **nooit volledig gelopen**. `nfs.yml` heeft één keer echt gedraaid,
+`stacks.yml --limit macmini` alleen droog. Reken op verrassingen, vooral rond
+Homebrew: de Mini draait macOS 14, waar alles vanaf broncode bouwt.
+</Callout>
 
 <Steps>
 
-### Zet macOS terug en geef Ansible toegang
+### Installeer macOS en geef hem hetzelfde adres
 
-Installeren, `ansible`-toegang via je SSH-sleutel, en `sshd` Volledige
-Schijftoegang geven — zonder dat laatste mag Ansible geen TCC-beschermd
-bestand aanraken en faalt `nfs.yml` meteen. Zie de Callout verderop.
+Hij moet weer op `192.168.0.26`. Dat adres staat vast in de inventory, in de
+mounts van `docker` en in de opslag `macmini-backup` op pve01.
 
-### Zet de shares terug, want daar wacht de docker-host op
+Geef de schijven **dezelfde namen**: `media01`, `FastStore`, `SSD Nas`.
 
-```bash
-ansible-playbook playbooks/nfs.yml -K
-```
+### Geef Ansible toegang
 
-### Zet brew, casks en de stacks terug
+Zet op de Mini *Extern inloggen* (SSH) aan. Dan, vanaf je werkstation:
 
 ```bash
-ansible-playbook playbooks/site.yml --limit macmini
-ansible-playbook playbooks/stacks.yml --limit macmini
+ssh-copy-id -i ~/.ssh/ansible_ed25519.pub rubenclaes@192.168.0.26
 ```
 
-Plex en OrbStack komen hier **niet** mee: allebei staan ze buiten Homebrew.
-Die zet je met de hand terug voor je verder gaat. Het waarom staat in
-`inventory/host_vars/macmini.yml`.
+Ansible logt op de Mini in als `rubenclaes`, niet als `ansible`.
 
-### Haal de tweede back-upkopie terug op pve01
+### Geef `sshd` Volledige schijftoegang
 
-Die opslag is een NFS-mount naar `192.168.0.26:/Volumes/media01/backups/proxmox`.
-Staat de export weer, dan komt hij vanzelf terug:
-
-```bash
-ansible-playbook playbooks/proxmox-datacenter.yml
-ssh ansible@192.168.0.14 'pvesm status | grep macmini-backup'
-```
-
-De oude dumps zijn weg met de schijf. Wacht tot zondag 01:00, of trek er met
-de hand één.
-
-</Steps>
-
-<Callout type="error">
-Dit pad is **beschreven maar nooit gelopen**. `stacks.yml --limit macmini` is
-groen in droogloop en `nfs.yml` heeft één keer echt gedraaid, maar een Mini die
-van nul terugkomt is nog niet geprobeerd. Reken op verrassingen rond Homebrew:
-die machine draait macOS 14 en bouwt daar alles vanaf broncode, en daarom staat
-`macos_brew_upgrade` er op `false`.
-</Callout>
-
-## Geen DNS
-
-Niets resolvet meer — `*.home.arpa` niet en `*.neodata.be` niet. Sinds 22-09
-loopt de hele estate via één LXC op `192.168.0.29`, dus dat is één container
-die het hele huis stil kan leggen.
-
-**Ansible blijft werken.** De inventory praat met adressen, niet met namen, dus
-je kunt gewoon herstellen terwijl DNS plat ligt.
-
-```bash
-ansible-playbook playbooks/new-guest.yml -e guest=adguard   # als de container weg is
-ansible-playbook playbooks/site.yml --limit adguard
-ansible-playbook playbooks/dns-smoketest.yml
-```
-
-Die laatste vraagt elke naam uit de inventory op bij AdGuard zelf en
-vergelijkt met het adres dat daar staat, plus één publieke naam om te zien of
-het doorvragen weer werkt.
-
-Clients krijgen `192.168.0.29` via DHCP uit UniFi. Komt de container met een
-ander adres terug, pas dat dan daar aan — anders blijft het huis een resolver
-zoeken die er niet is.
-
-## De shares van de Mac mini
-
-De Mac mini exporteert drie volumes over NFS, en de docker-host mount ze alle
-drie. De media-stack valt om zonder. Dat is de stilste afhankelijkheid in dit
-huis: de containers draaien, de routes werken, en toch is alles leeg.
-
-```bash
-ansible-playbook playbooks/nfs.yml -K
-```
-
-| Export | Waarheen |
-| --- | --- |
-| `/Volumes/media01` | de media-stack op `docker` |
-| `/Volumes/FastStore` | idem |
-| `/Volumes/SSD Nas` | idem |
-
-Ze staan in `nfs_exports_shares` in `inventory/host_vars/macmini.yml`. Het
-netwerk (`192.168.0.0/24`), `-alldirs` en `-mapall=1000:1000` zijn voor alle
-drie hetzelfde en staan als default in de rol. Die `mapall` is wat de
-containers hun eigen bestanden laat teruglezen: zij draaien als `1000:1000`,
-de bestanden op de Mini zijn van `rubenclaes`.
-
-<Callout type="warning">
-Die `-K` hoort erbij. `/etc/exports` schrijven vraagt root, en `sudo` op de
-Mini vraagt een wachtwoord — daar staat geen NOPASSWD-regel zoals op de
-Linux-hosts, die krijgen die van `bootstrap.yml`. Daarom staat dit playbook
-ook **niet** in `site.yml`: elke geplande run zou erop blijven hangen.
-
-Krijg je `[Errno 1] Operation not permitted` op de hernoeming naar
-`/etc/exports`, dan is dat géén sudo-probleem — het tijdelijke bestand kwam
-immers wél in `/etc`, en dat mag alleen root. Het is TCC: het bestand draagt
-`com.apple.macl`, en een proces dat onder `sshd` start mag zo'n bestand niet
-aanraken, ook niet als root.
-
-Dat is geen theorie. Exact hetzelfde commando dat over SSH `Operation not
-permitted` geeft, werkt lokaal in Terminal op de Mini. Het ligt dus aan het
-proces, niet aan het bestand, en de oplossing is `sshd` die toestemming geven:
+Op de Mini zelf:
 
 > Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `+`
 > → cmd-shift-G → `/usr/libexec/sshd-keygen-wrapper`
 
-Daarna opnieuw verbinden; een lopende sessie pakt het niet op.
+Zonder dit faalt de volgende stap. Uitleg: [TCC](#tcc-sshd-moet-volledige-schijftoegang-hebben).
 
-Drie dingen die je niet hoeft te proberen, want dat is op 23-09 al gedaan:
-`unsafe_writes: true` (springt in Ansible alleen in bij `EBUSY`, wij hebben
-`EPERM`), `xattr -d com.apple.macl` (geeft zelf `EPERM`, de vlag is
-kernel-beschermd) en in het bestand schrijven in plaats van het te vervangen
-(over SSH net zo goed geweigerd). Het staat uitgeschreven in
-`roles/nfs_exports/tasks/main.yml`.
+### Zet de shares terug
+
+```bash
+ansible-playbook playbooks/nfs.yml -K
+```
+
+Eerst dit: `docker` wacht erop. Volg daarna stap 2 en 3 van
+[geval 4](#geval-4--de-shares-van-de-mac-mini).
+
+### Installeer Plex en OrbStack met de hand
+
+Allebei staan ze buiten Homebrew en geen playbook zet ze terug. Zonder
+OrbStack is er geen Docker op de Mini. Het waarom staat in
+`inventory/host_vars/macmini.yml`.
+
+### Zet brew en casks terug
+
+```bash
+ansible-playbook playbooks/site.yml --limit macmini
+```
+
+### Maak het Docker-netwerk aan
+
+```bash
+ssh rubenclaes@192.168.0.26 '/Applications/OrbStack.app/Contents/MacOS/xbin/docker network create External'
+```
+
+De compose-files delen dit netwerk, en geen rol maakt het aan.
+
+### Zet de stacks terug
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit macmini
+```
+
+De eerste run **faalt op de git clone**, en dat hoort zo. Hij drukt een
+publieke sleutel af: zet die op GitHub bij `rubenclaes/homelab` → Settings →
+Deploy keys. Draai het daarna opnieuw.
+
+### Maak de back-upmap aan
+
+```bash
+ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
+ssh pve01 'sudo pvesm status | grep macmini-backup'    # moet "active" zeggen
+```
+
+Pas dan komt de tweede kopie terug. De oude dumps zijn weg met de schijf.
+Wacht tot zondag 01:00, of start de job met de hand in het Proxmox-scherm:
+Datacenter → Backup → de job naar `macmini-backup` → *Run now*.
+
+</Steps>
+
+---
+
+## Geval 6 — pve01 is weg
+
+Proxmox opnieuw installeren. Dit is de lange weg, en **de volgorde telt**:
+elke stap heeft iets nodig van de vorige. Meer uitleg per stap:
+[Van niets naar alles, geval 3](/technisch/runbooks/opzetten/#geval-3--pve01-opnieuw-opbouwen).
+
+<Steps>
+
+### Installeer Proxmox op hetzelfde adres
+
+Met de hand, van een USB-stick. Het adres moet `192.168.0.14` zijn: dat staat
+vast in `inventory/00-static.yml` en in `pve_api_host`.
+
+### Kijk of de schijf `vm-hdd` het overleefd heeft
+
+Op pve01, als root:
+
+```bash
+zpool import vm-hdd
+```
+
+- **Lukt het**: de VM-schijven en de PBS-back-ups zijn er nog. Ga door.
+- **Lukt het niet**: de PBS-back-ups zijn weg. Doe de stappen hieronder tot en
+  met *Zet de overige opslag terug*, en ga dan naar
+  [geval 7](#geval-7--terugvallen-op-de-tweede-kopie).
+
+### Maak het API-token
+
+Op pve01, als root. Geen playbook kan dit: een playbook heeft het token zelf
+nodig.
+
+```bash
+pveum role add AnsibleAutomation --privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use,Sys.Audit,VM.Allocate,VM.Audit,VM.Config.CPU,VM.Config.Disk,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.PowerMgmt,VM.GuestAgent.Audit"
+pveum user add ansible@pve
+pveum acl modify / --user ansible@pve --role AnsibleAutomation
+pveum user token add ansible@pve automation --privsep 0   # toont het secret, maar één keer
+```
+
+Zet het secret meteen in de vault, op je werkstation:
+
+```bash
+ansible-vault edit inventory/group_vars/proxmox/vault.yml   # vault_pve_api_token_secret
+```
+
+### Geef Ansible toegang tot pve01
+
+```bash
+ssh-keygen -R 192.168.0.14                                   # oude hostkey weg
+ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k
+ansible-playbook playbooks/proxmox-access.yml
+ansible-playbook playbooks/site.yml --limit pve01
+```
+
+`-u root -k` werkt alleen nu: na de baseline mag root niet meer met een
+wachtwoord binnen.
+
+### Maak PBS (VM 100) met de hand
+
+In het Proxmox-scherm, exact volgens `pve_vms` in
+`inventory/group_vars/proxmox/vms.yml`. Neem het **MAC-adres** over.
+
+<Callout type="error">
+`scsi1` ís de datastore met al je back-ups. Maak die schijf **niet** nieuw aan:
+koppel de bestaande uit `vm-hdd`. Een nieuwe schijf is een lege schijf. Dit
+stuk is nog nooit gelopen; ga langzaam.
 </Callout>
 
-<Callout type="info">
-macOS kan `/etc/exports` niet vooraf nakijken: `nfsd checkexports` leest het
-bestand zelf en neemt geen pad aan, dus de `validate:` die `caddy` en `sshd`
-wél hebben kan hier niet. De rol schrijft dus eerst en controleert daarna, en
-faalt luid als het mis is. Repareren doe je in `nfs_exports_shares`, niet in
-het bestand — de volgende run zet dat toch terug.
-</Callout>
+### Koppel de PBS-opslag
 
-## Controleer dat je herstelpad werkt
+Met de hand: Datacenter → Storage → Add → Proxmox Backup Server. Noem hem
+`pbs`. Je hebt nodig:
+
+- de encryptiesleutel (je papieren kopie, zie [Vooraf](#vooraf-doe-dit-nu))
+- het wachtwoord van `pve@pbs` (niet in de repo; kwijt? zet een nieuw in het PBS-scherm)
+
+Deze stap zit met opzet in geen playbook: de opslag draagt de sleutel, en die
+hoort niet in git.
+
+### Zet de overige opslag en de back-upjobs terug
+
+Eerst op de Mac mini (anders blijft `macmini-backup` inactief):
+
+```bash
+ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
+```
+
+Dan:
+
+```bash
+ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
+```
+
+Alleen hier de vlag `-e proxmox_datacenter_create=true`. Zie
+[waarom](#waarom-proxmox_datacenter_create-niet-standaard-aan-staat).
+
+### Zet de guests met data terug uit PBS
+
+Volg [geval 2](#geval-2--terugzetten-uit-de-back-up) voor `adguard` (107, als
+eerste: DNS), `semaphore` (104), `haos` (101), `docker-grafana-stack` (102) en
+`docker` (103). Bestaan ze nog niet, laat `--force` dan weg.
+
+`qmrestore` maakt de VM zelf aan, met de instellingen en het MAC-adres uit de
+back-up. Je hoeft 101 tot 103 niet eerst met de hand te maken.
+
+### Bouw de rest opnieuw
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
+ansible-playbook playbooks/new-guest.yml -e guest=tailscale
+```
+
+Vergeet de `/dev/net/tun`-regels voor `tailscale` niet (zie
+[geval 1](#geval-1--container-opnieuw-bouwen)).
+
+### Trek alles gelijk
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff    # lees dit echt
+ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/docs.yml
+ansible-playbook playbooks/report.yml
+```
+
+</Steps>
+
+---
+
+## Geval 7 — Terugvallen op de tweede kopie
+
+Gebruik dit als de PBS-back-ups niet bruikbaar zijn: `vm-hdd` is weg, of je
+hebt de encryptiesleutel niet meer. De tweede kopie op de Mac mini is
+hoogstens een week oud en heeft **geen sleutel nodig**.
+
+<Steps>
+
+### Zorg dat pve01 de opslag ziet
+
+```bash
+ssh pve01 'sudo pvesm status | grep macmini-backup'
+```
+
+Staat hij er niet (herbouwde node)? Doe dan eerst de stap
+*Zet de overige opslag en de back-upjobs terug* uit [geval 6](#geval-6--pve01-is-weg).
+
+### Zoek de dump
+
+```bash
+ssh pve01 'sudo pvesm list macmini-backup'
+```
+
+Namen zoals `macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst`
+(container) of `…vzdump-qemu-103-….vma.zst` (VM). Neem de nieuwste.
+
+### Zet hem terug
+
+Precies zoals in [geval 2](#geval-2--terugzetten-uit-de-back-up), alleen met
+deze naam:
+
+```bash
+sudo pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst --storage vm-hdd
+```
+
+### Maak PBS opnieuw, leeg
+
+PBS (VM 100) zit niet in de tweede kopie, met opzet. Maak hem met de hand
+volgens `vms.yml` (MAC-adres overnemen), en dan:
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
+ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
+```
+
+Hij begint zonder back-ups. Koppel hem daarna als opslag `pbs` zoals in
+[geval 6](#geval-6--pve01-is-weg), met een **nieuwe** encryptiesleutel, en maak
+daar meteen een papieren kopie van.
+
+</Steps>
+
+---
+
+## Af en toe: bewijs dat herstellen werkt
 
 Een herstelpad dat nooit gedraaid heeft, is een aanname.
 
 ```bash
 ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
+ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
 ```
 
-Dit bouwt een wegwerpcontainer, bootstrapt hem, baselinet hem, controleert of
-hij bruikbaar is en sloopt hem weer. Faalt het onderweg, dan blijft de
-container staan zodat je kunt kijken wat er misging.
+| Playbook | Bewijst | Wanneer |
+| --- | --- | --- |
+| `recovery-drill.yml` | je kan een container **bouwen** (maken, bootstrap, baseline) | na elke wijziging aan `proxmox_lxc`, `bootstrap.yml`, de baseline of `new-guest.yml` |
+| `restore-drill.yml` | je krijgt je **data** terug uit PBS (sleutel werkt, archief heel) | na wijzigingen aan de back-upjobs, en af en toe |
 
-Draai dit na elke wijziging aan `proxmox_lxc`, `bootstrap.yml`, de
-baseline-rol of `new-guest.yml`. En zet af en toe een echte back-up terug op
-een vrij nummer, zoals hierboven beschreven; dat is het enige wat bewijst dat
-je back-ups meer zijn dan een groen vinkje.
+Beide gebruiken vmid 199 en slopen die op het eind. **Faalt een drill, dan
+blijft 199 staan**, zodat je kan kijken wat er misging. Opruimen:
+`ssh pve01 'sudo pct destroy 199'`.
+
+`restore-drill.yml --check` zegt alleen welke back-up hij zou pakken, zonder
+iets te doen.
+
+---
+
+## Goed om te weten
+
+### De twee back-upjobs
+
+| | Dagelijks | Wekelijks |
+| --- | --- | --- |
+| Wanneer | elke nacht 02:30 | zondag 01:00 |
+| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
+| Welke guests | alle behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 |
+| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps |
+| Bewaart | 7 | 2 |
+| Versleuteld | ja | **nee** |
+| Redt je van | een kapotte guest | een pve01 die weg is |
+
+De dagelijkse is de hoofdkopie. Maar die staat op pve01 zelf: sterft die
+machine met zijn schijven, dan gaan guests en back-ups samen. Daarvoor is de
+wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
+
+### Het is geen off-site
+
+Beide kopieën staan in hetzelfde huis, aan dezelfde stroom, op hetzelfde
+netwerk. Tegen brand, diefstal of ransomware helpt dit niet. En de dumps op de
+Mini zijn niet versleuteld: iedereen die die NFS-share kan mounten, kan ze
+lezen.
+
+### Faalt de wekelijkse job, dan meldt niemand dat
+
+Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job stil. Kijk
+af en toe zelf:
+
+```bash
+ssh pve01 'sudo pvesm list macmini-backup'
+ssh pve01 'df -h /mnt/pve/macmini-backup'
+```
+
+### Waarom maar twee dumps bewaren
+
+`media01` op de Mini is bijna vol en draagt ook Time Machine en Duplicati.
+Daarom staat `prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je
+meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken alle
+drie de back-ups tegelijk.
+
+### Waarom `proxmox_datacenter_create` niet standaard aan staat
+
+Op een gezonde node betekent ontbrekende opslag: "de inventory klopt niet". Op
+een herbouwde node: "de inventory is de waarheid, maak het aan". Alleen jij
+weet welke van de twee het is. Daarom zet je de vlag zelf, en alleen bij een
+herbouw.
+
+### Waarom VM's niet uit een playbook komen
+
+`vms.yml` beschrijft de vier VM's, maar niets leest dat bestand. Een VM
+opnieuw maken geeft een lege schijf, en de waarde zit in de schijf. Voor
+101–103 doet `qmrestore` het beter: die zet de schijf én de instellingen
+terug. `vms.yml` is er voor PBS (100) en voor als er geen back-up is. Neem dan
+zeker het MAC-adres over: daar hangt de DHCP-reservering aan, en `haos`
+herkent zichzelf eraan.
+
+### Waarom `nfs.yml` niet in `site.yml` zit
+
+`/etc/exports` schrijven vraagt root, en `sudo` op de Mini vraagt een
+wachtwoord. De Linux-hosts hebben een NOPASSWD-regel van `bootstrap.yml`, de
+Mini niet. Een geplande run zou dus blijven hangen op dat wachtwoord.
+
+### TCC: sshd moet Volledige schijftoegang hebben
+
+Krijg je `[Errno 1] Operation not permitted` bij het vervangen van
+`/etc/exports`, dan is dat **geen** sudo-probleem. `/etc/exports` draagt het
+macOS-label `com.apple.macl`, en een proces dat onder `sshd` start mag zo'n
+bestand niet aanraken, ook niet als root. Hetzelfde commando werkt lokaal in
+Terminal. De oplossing is `sshd` Volledige schijftoegang geven (zie
+[geval 5](#geval-5--de-mac-mini-is-weg)) en daarna **opnieuw verbinden**.
+
+Al geprobeerd op 23-09, werkt niet: `unsafe_writes: true`, `xattr -d
+com.apple.macl` en in het bestand schrijven in plaats van het vervangen.
+Details in `roles/nfs_exports/tasks/main.yml`.
+
+### macOS kan `/etc/exports` niet vooraf nakijken
+
+`nfsd checkexports` leest alleen het echte bestand. De rol schrijft dus eerst
+en controleert daarna, en faalt luid als het mis is. Repareer in
+`nfs_exports_shares`, niet in het bestand: de volgende run zet dat toch terug.
+
+### De vault-wachtwoorden staan ook op Semaphore
+
+De `semaphore`-rol kopieert ze naar de Semaphore-container, zodat die zijn
+geplande jobs kan draaien. Een back-up van `semaphore` (ct 104) bevat ze dus
+ook. Handig als je werkstation weg is, maar bewaar ze toch apart.

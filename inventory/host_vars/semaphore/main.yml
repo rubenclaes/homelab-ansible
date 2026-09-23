@@ -105,6 +105,8 @@ semaphore_templates_list:
     playbook: playbooks/restore-drill.yml
     description: "Zet een PBS-back-up terug op een wegwerp-guest, leest er staat uit, sloopt hem."
     schedule: "0 4 1 * *"
+    # Zonder deze vlag stopt het playbook bij zijn eerste assert, elke maand.
+    arguments: ["-e", "drill_confirm=true"]
 
   # De limit houdt hem van zijn eigen container af; die machine patch je met
   # de hand. Herstart Semaphore halverwege een run, dan is de job dood en weet
@@ -154,20 +156,22 @@ semaphore_templates_list:
     description: "Bouwt docs.neodata.be uit de inventory en publiceert naar de caddy-host."
     schedule: "0 7 * * *"
 
-  # `all:!mbp:localhost` en NIET `all:!mbp`, en die localhost is load-bearing.
-  # report.yml rendert de HTML in een `hosts: localhost`-play en ruimt daar
-  # ook op. Ansible telt de impliciete localhost niet mee in `all`, dus
-  # `all:!mbp` laat die twee plays op nul hosts vallen: de run wordt groen,
-  # er verschijnt niets op report.neodata.be, en je merkt het pas als je gaat
-  # kijken. Gemeten met --list-hosts op 23-09, niet aangenomen.
+  # GEEN limit, met opzet. Op 23-09 is hier eerst `all:!mbp:localhost` gezet,
+  # in de veronderstelling dat deze job hetzelfde mbp-probleem had als de twee
+  # Cleanups. Dat was fout: report.yml lost het zelf al op, met
+  # `when: ansible_facts['system'] == 'Darwin'` op zijn macs-play. Draait hij
+  # vanuit Semaphore, dan ziet die guard een Debian-container en slaat de
+  # macOS-taken over. Bewijs stond in de taakgeschiedenis: deze template is op
+  # 23-09 om 10:04 zonder limit geslaagd.
   #
-  # Deze job had hetzelfde mbp-probleem als de twee Cleanups, maar was nog
-  # nooit gefaald: zijn schema is zondag 08:00 en dat is sinds het opzetten
-  # van deze lijst nog niet langsgekomen.
+  # En een limit hier is niet gratis. report.yml rendert de HTML in een
+  # `hosts: localhost`-play en ruimt daar ook op, en Ansible telt de
+  # impliciete localhost niet mee in `all`. Wie hier ooit een kale
+  # `all:!mbp` zet, laat die plays op nul hosts vallen: de run wordt groen en
+  # er verschijnt niets op report.neodata.be. Gemeten met --list-hosts.
   - name: "Homelab Report"
     playbook: playbooks/report.yml
     description: "Leest de hele vloot en publiceert naar report.neodata.be. Traag, vandaar wekelijks."
-    arguments: ["--limit", "all:!mbp:localhost"]
     schedule: "0 8 * * 0"
 
   # Dagelijks, en dat schema is de reparatie voor een concreet probleem: na een

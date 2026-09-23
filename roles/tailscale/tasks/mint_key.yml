@@ -14,7 +14,7 @@
       tailscale_oauth_client_id / tailscale_oauth_client_secret are not set.
       Make an OAuth client in the Tailscale admin console (scope auth_keys, tag
       {{ tailscale_tags | join(', ') }}) and put it in
-      inventory/host_vars/tailscale/vault.yml as vault_tailscale_oauth_client_id
+      inventory/group_vars/tailnet/vault.yml as vault_tailscale_oauth_client_id
       and vault_tailscale_oauth_client_secret.
     quiet: true
 

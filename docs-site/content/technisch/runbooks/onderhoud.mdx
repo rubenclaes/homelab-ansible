@@ -2,521 +2,673 @@
 title: Onderhoud
 ---
 
-import { Callout } from 'nextra/components'
+import { Steps, Callout } from 'nextra/components'
 
 # Onderhoud
 
-Playbooks die niets installeren. Ze kijken, ze ruimen op, of ze schrijven op
-wat er is. Geen van alle zit in `site.yml`, en per playbook staat hieronder
-waarom niet. Onderaan staat wat er vanzelf draait, zonder dat jij iets typt.
+Gebruik deze pagina als je wil **kijken, opruimen of opschrijven**, niet
+installeren. Onderaan staat wat er vanzelf draait, zonder dat jij iets typt.
 
-| Je vraagt je af | Draai |
-| --- | --- |
-| staat de vloot er goed bij? | `report.yml` |
-| is er iets met de hand gewijzigd? | `drift.yml` |
-| antwoordt DNS nog wat het moet? | `dns-smoketest.yml` |
-| waarom is die schijf vol? | `cleanup.yml` |
-| wat draait er eigenlijk op die host? | `discover.yml` |
-| welke guests draaien er nu écht? | `proxmox-info.yml` |
-| klopt deze site nog? | `docs.yml` |
-| wat draait er vanzelf, en wanneer? | `semaphore-templates.yml` |
+Alle commando's draai je vanuit de root van deze repo.
 
-## Staat alles er goed bij?
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil in één oogopslag zien of alles gezond is | openstaande updates, certificaat bijna verlopen, een poort zonder route | [Geval 1 — Gezondheidsrapport](#geval-1--gezondheidsrapport) |
+| Je vermoedt dat er iets met de hand gewijzigd is | iemand paste een config aan op `caddy` buiten de repo om | [Geval 2 — Drift zoeken](#geval-2--drift-zoeken) |
+| Je wil weten of DNS nog klopt | `ssh pve01.home.arpa` vindt de host niet meer | [Geval 3 — DNS controleren](#antwoordt-dns-nog-wat-het-moet) |
+| Een schijf loopt vol | oude kernels op `pve01`, oude images op `docker` | [Geval 4 — Schijfruimte vrijmaken](#geval-4--schijfruimte-vrijmaken) |
+| Je weet niet precies wat er op een host draait | `docker-grafana-stack`, de Mac mini | [Geval 5 — Een host in kaart brengen](#geval-5--een-host-in-kaart-brengen) |
+| Je wil weten welke guests er echt draaien, of het API-token nog werkt | Ansible ziet een host niet | [Geval 6 — Guests en API-token checken](#geval-6--guests-en-api-token-checken) |
+| Je wil zien wie er aanklopte bij de reverse proxy | 500-fouten op `plex.neodata.be` | [Geval 7 — Caddy-logs doorzoeken](#geval-7--caddy-logs-doorzoeken) |
+| Je veranderde iets in de inventory of de runbooks | nieuwe route, andere hostnaam | [Geval 8 — De docs-site bijwerken](#geval-8--de-docs-site-bijwerken) |
+| Je wil een schema in Semaphore toevoegen of wijzigen | Drift check een uur later laten lopen | [Geval 9 — Een schema in Semaphore aanpassen](#geval-9--een-schema-in-semaphore-aanpassen) |
+
+Wil je alleen weten **wat er vanzelf draait en wanneer**? Zie
+[Wat draait er vanzelf?](#wat-draait-er-vanzelf)
+
+### Woorden die je nodig hebt
+
+**Drift** — een host die niet meer overeenkomt met wat de repo beschrijft.
+
+**Converge** — `site.yml` draaien, zodat elke host weer gelijk is aan de repo.
+
+**Template** — een job in Semaphore: een playbook, argumenten en eventueel een schema (cron).
+
+**Demper** — een regel in de host_vars die een melding in het rapport bewust stilzet, mét reden.
+
+---
+
+## Geval 1 — Gezondheidsrapport
+
+<Steps>
+
+### Draai het rapport
 
 ```bash
-ansible-playbook playbooks/report.yml
+ansible-playbook playbooks/report.yml   # leest alleen, verandert niets
 ```
 
-Leest alleen, en publiceert naar
-[report.neodata.be](https://report.neodata.be). Per host: openstaande
-upgrades, of hij een herstart nodig heeft, schijfgebruik. Daarnaast de
-PBS-back-upgroepen, de vervaldatum van het wildcard-certificaat, en welke
-gepubliceerde Docker-poorten géén route hebben.
+Draai hem **zonder** `--limit`, of neem `localhost` erin mee
+(`--limit docker:localhost`). De HTML wordt op `localhost` gemaakt.
 
-Die laatste is de nuttigste: een poort zonder route is meestal een dienst die
-je vergeten bent af te maken. Wat bewust geen route heeft, demp je met
-`docker_ports_without_route` in de host_vars van die host — dan verdwijnt het
-uit de lijst in plaats van dat je eroverheen leert kijken.
+### Open het rapport
 
-### Wat hij tegenover elkaar zet
+Ga naar [report.neodata.be](https://report.neodata.be). Werkt alleen vanaf het
+LAN of de tailnet.
 
-Dit is het deel dat drift vindt die geen enkel playbook repareert, omdat het
-geen drift ís: het is je beschrijving die niet meer klopt met de
-werkelijkheid.
+Per host: openstaande updates, herstart nodig, schijfgebruik. Daarnaast de
+PBS-back-ups, de vervaldatum van het wildcard-certificaat en de vergelijkingen
+hieronder.
 
-| Vergelijking | Wat het betekent als er iets staat |
+### Lees de vergelijkingen
+
+| Vergelijking | Staat hier iets, dan betekent het |
 | --- | --- |
 | route → draaiende container | een naam die nergens heen wijst; tijdens een storing kost hij je tien minuten |
 | container → route | een dienst die je niet hebt afgemaakt, alleen bereikbaar als `host:poort` |
 | draaiend project → `docker_stacks_list` | draait wel, maar niets kan hem terugzetten |
 | `wait_for_mounts` → `nfs_mounts` | een herbouwde host blijft bij het opstarten hangen op een mount die nooit komt |
-| back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat, die ruimte kost en de lijst onleesbaar maakt |
+| back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat; kost ruimte |
 
-### Twee dempers, en waarom ze er zijn
+Een poort zonder route is meestal een dienst die je vergeten bent af te maken:
+volg dan [Dienst toevoegen](/technisch/runbooks/dienst-toevoegen/).
 
-Een rapport dat onterecht rood staat, leer je negeren. Daarom twee lijsten in
-de host_vars, die elkaars spiegelbeeld zijn:
+### Demp wat bewust zo is
+
+Is een melding gewild? Zet ze in de host_vars van die host, bijvoorbeeld
+`inventory/host_vars/docker.yml`:
+
+```yaml
+docker_ports_without_route:
+  - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
+
+docker_routes_without_container:
+  - { port: 8089, why: "qbittorrent draait met host-netwerk, geen poortmapping" }
+```
 
 | Var | Voor |
 | --- | --- |
 | `docker_ports_without_route` | een gepubliceerde poort die bewust geen route heeft |
-| `docker_routes_without_container` | een route waarvan de backend géén containerpoort is |
-
-Die tweede is nodig omdat `docker ps` niet alles ziet. `qbittorrent` draait met
-`network_mode: host` en heeft dan geen poortmapping, terwijl hij wél op 8089
-luistert en `torrent.neodata.be` gewoon 200 geeft. Plex op de Mac mini is
-helemaal geen container maar een macOS-app. Zonder die lijst meldt het rapport
-allebei elke run als kapot.
-
-Zet er altijd een `why:` bij. Een gedempte melding zonder reden is over een
-half jaar niet te onderscheiden van een vergissing.
+| `docker_routes_without_container` | een route waarvan de backend géén containerpoort is (qbittorrent met `network_mode: host`, Plex als macOS-app) |
 
 <Callout type="warning">
-Deze vergelijkingen lopen over **elke** host die containers draait — `docker`,
-`docker-grafana-stack` en de Mac mini. Tot 22-09 keken ze alleen naar `docker`,
-en daardoor zijn drie dode routes en een dienst zonder compose-bestand op de
-Mini maandenlang niet gemeld. Staat er ooit een vierde host bij, dan komt hij
-er vanzelf bij: de lijst komt uit `docker_hosts` plus `macs`, dezelfde regel
-die `stacks.yml` gebruikt.
+Zet er **altijd** een `why:` bij. Een gedempte melding zonder reden is over
+een half jaar niet te onderscheiden van een vergissing.
 </Callout>
 
-<Callout type="info">
-Draai hem zonder `--limit`, of neem `localhost` er expliciet in mee. De HTML
-wordt daar gerenderd; laat je `localhost` weg, dan is er niets om te
-publiceren en zegt de laatste play dat ook.
-</Callout>
-
-Niet in `site.yml`, want hij is traag en hij hoort op een schema — niet in
-elke converge.
-
-## Loopt er iets uit de pas?
+### Commit en push
 
 ```bash
-ansible-playbook playbooks/drift.yml
-ansible-playbook playbooks/drift.yml -e drift_fail=true   # rood bij drift
+git add inventory && git commit -m 'Rapport: poort 21115 gedempt' && git push
 ```
 
-Draait `site.yml --check --diff` en vat de uitkomst samen: één regel per host,
-plus de namen van de taken die iets zouden wijzigen. Het volledige log met de
-echte diffs blijft staan in `.drift/site-check.log`.
+</Steps>
 
-Waarom dit bestaat: `site.yml --check --diff` geeft een scherm vol dat je
-alleen leest als je er speciaal voor gaat zitten. Deze samenvatting past in een
-melding. Zet hem op een schema in Semaphore met `-e drift_fail=true` en drift
-wordt iets wat je ziet ontstaan, in plaats van iets wat je een half jaar later
-ontdekt.
+---
 
-`drift_fail` staat standaard uit, en dat is een afweging in twee richtingen:
-een samenvatting die altijd groen is leest niemand meer, maar een playbook dat
-rood wordt van normale drift is even nutteloos. Op een schema wil je hem aan,
-aan je bureau meestal niet.
+## Geval 2 — Drift zoeken
+
+<Steps>
+
+### Draai de driftcheck
+
+```bash
+ansible-playbook playbooks/drift.yml                     # samenvatting
+ansible-playbook playbooks/drift.yml -e drift_fail=true  # rood bij drift
+```
+
+Draait `site.yml --check --diff` en geeft één regel per host, plus de namen van
+de taken die iets zouden wijzigen. Verandert zelf niets.
+
+### Controleer of elke host bereikt is
+
+Staat er `NIET BEREIKT` in plaats van `gelijk aan de repo`? Dan is er op die
+host **niets gecontroleerd**.
 
 <Callout type="error">
-Een host die **niet bereikbaar** is telt hier als nul wijzigingen, want er viel
-niets te controleren. De regel eronder zegt het wel — er staat dan `NIET
-BEREIKT` in plaats van `gelijk aan de repo`. Een slapende Mac ziet er in een
-samenvatting uit als een host zonder drift, en dat is precies het verschil
-tussen "niets te doen" en "niet gekeken".
+Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
+er in het totaal uit als een host zonder drift. Lees dus de regel per host.
 </Callout>
 
-## Antwoordt DNS nog wat het moet?
+### Lees de echte diffs
+
+```bash
+less .drift/site-check.log
+```
+
+De samenvatting zegt wie en wat. Hoe precies, staat in dit log (gitignored).
+
+### Kies wie gelijk heeft
+
+- **De repo klopt** → trek de host gelijk:
+  `ansible-playbook playbooks/site.yml --limit <host>`
+- **De host klopt** → zet de wijziging in de repo (inventory of rol), commit
+  en push, en draai `drift.yml` opnieuw.
+
+</Steps>
+
+---
+
+## Geval 3 — DNS controleren [#antwoordt-dns-nog-wat-het-moet]
+
+<Steps>
+
+### Draai de DNS-test
 
 ```bash
 ansible-playbook playbooks/dns-smoketest.yml
 ```
 
-Vraagt elke naam op die de inventory kent — `<host>.home.arpa` voor elke host
-met een adres — rechtstreeks bij AdGuard op `192.168.0.29`, en vergelijkt het
-antwoord met het adres dat in de inventory staat. Eén naam die niets teruggeeft
-of naar een oud adres wijst maakt de run rood, met de naam en beide adressen
-erbij.
+Vraagt `<host>.home.arpa` op voor elke host met een adres, rechtstreeks bij
+AdGuard (`192.168.0.29`), en vergelijkt met het adres in de inventory. Daarna
+nog één publieke naam (`google.com`).
 
-Dat tweede is het punt. Een rewrite die ontbreekt merk je vanzelf; een rewrite
-die een oud adres teruggeeft is stiller en vervelender, want dan krijg je wél
-een antwoord en loop je tegen een dienst aan die er niet meer is.
+### Lees wat rood is
 
-Daarna vraagt hij één publieke naam op — standaard `google.com`, te zetten met
-`dns_smoketest_public_name`. Die hoort er niet bij voor de volledigheid: valt
-AdGuards upstream weg, dan blijven alle rewrites groen (die beantwoordt hij
-zelf) terwijl de rest van het huis geen enkele naam meer vindt.
+Je krijgt de naam en beide adressen te zien.
 
-Hij berekent de lijst op dezelfde manier als de `adguard`-rol hem wegschrijft,
-maar met opzet met een eigen kopie van die uitdrukking. Zou hij de lijst van de
-rol lenen, dan zou een fout in die lijst zichzelf goedkeuren.
+| Rood op | Betekent |
+| --- | --- |
+| een `.home.arpa`-naam | een rewrite ontbreekt of wijst naar een **oud adres** |
+| de publieke naam | AdGuards upstream is weg: het huis vindt geen enkele naam meer |
 
-<Callout type="info">
-Naast `caddy-smoketest.yml`, niet in plaats van. Die vraagt de `neodata.be`-
-routes op en faalt dus al als zo'n naam niet resolvet. Wat hij níét ziet is de
-zone die AdGuard zelf serveert: valt een rewrite om, dan blijven de routes
-werken — Caddy praat met adressen, niet met namen — terwijl
-`ssh pve01.home.arpa` stil stuk is. Dat merk je precies op het moment dat je
-erbij moet.
-</Callout>
+Een andere publieke naam kies je met `-e dns_smoketest_public_name=...`.
 
-Niet in `site.yml`: het controleert, het convergeert niet. Hij draait sinds
-23-09 dagelijks om 06:30 in Semaphore, een half uur na `drift.yml`.
-
-## Schijfruimte vrijmaken
+### Zet de rewrites opnieuw en test
 
 ```bash
-ansible-playbook playbooks/cleanup.yml                       # rapporteert alleen
-ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true # ruimt echt op
-ansible-playbook playbooks/cleanup.yml --limit macs          # alleen de brew-cache
+ansible-playbook playbooks/adguard.yml
+ansible-playbook playbooks/dns-smoketest.yml
 ```
 
-Zonder vlag verandert hij niets en zegt hij alleen wat hij zou kunnen
-vrijmaken — mét de namen erbij, niet alleen een aantal. Op `pve01` is dat waar
-oude `proxmox-kernel-*`-pakketten opduiken, en dat lijstje zien vóór je
-opruimt is het hele punt van een rapportage-run.
+Meer over DNS: [Netwerk](/technisch/runbooks/netwerk/).
 
-Wat dit playbook **niet** is: de plek waar je pakketten weghaalt die je niet
-meer wilt. Dat staat in de `*_absent`-lijsten in de host_vars en wordt gedaan
-door `site.yml`. Cleanup gaat over schijfruimte — zie
-[Updates](/technisch/runbooks/updates/) voor het verschil tussen de drie.
+</Steps>
 
-`cleanup_apply` heeft met opzet geen waarde in de inventory. Het is de
-schakelaar die een rapport in een verwijdering verandert, dus die zet je per
-run. Een default in `group_vars` zou elke run destructief maken.
+<Callout type="info">
+Draait ook vanzelf, dagelijks om 06:30. Het vult `caddy-smoketest.yml` aan en
+vervangt hem niet: Caddy praat met adressen, dus een kapotte rewrite laat de
+`neodata.be`-routes gewoon werken terwijl `ssh pve01.home.arpa` stil stuk is.
+</Callout>
 
-### Wat hij nooit aanraakt
+---
+
+## Geval 4 — Schijfruimte vrijmaken
+
+<Steps>
+
+### Kijk eerst wat er weg kan
+
+```bash
+ansible-playbook playbooks/cleanup.yml                 # rapporteert alleen
+ansible-playbook playbooks/cleanup.yml --limit macs    # alleen de Macs (brew-cache)
+```
+
+Zonder vlag verandert hij niets. Je krijgt de **namen** van wat weg zou gaan,
+niet alleen een aantal.
+
+### Lees het lijstje
+
+Let vooral op `pve01`: daar duiken oude `proxmox-kernel-*`-pakketten op. Dat
+lijstje zien vóór je opruimt, is het hele punt van deze stap.
+
+### Ruim echt op
+
+```bash
+ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true
+```
+
+<Callout type="warning">
+Zet `cleanup_apply` **nooit** in de inventory. Het is de schakelaar die een
+rapport in een verwijdering verandert; een default in `group_vars` maakt elke
+run destructief.
+</Callout>
+
+</Steps>
+
+Wat hij **nooit** aanraakt:
 
 | Blijft staan | Waarom |
 | --- | --- |
-| Docker-volumes | daar staat de data van de stacks in; die weggooien is een restore, geen cleanup |
+| Docker-volumes | daar staat de data van de stacks; weggooien is een restore, geen cleanup |
 | containers, ook gestopte | een gestopte container houdt zijn image buiten de prune, dus een `down`-stack overleeft dit |
 | gepinde pakketten | `autoremove` respecteert dpkg-holds, dus de custom Caddy-build blijft |
-| de geïnstalleerde Homebrew-versie | alleen verouderde versies en oude downloads gaan |
+| de geïnstalleerde Homebrew-versie | alleen oude versies en oude downloads gaan |
 
-Images hebben een leeftijdsgrens (`cleanup_docker_until`, 720 uur), build cache
-niet. Die twee kosten verschillend als je ze verkeerd weggooit: een image dat
-toch nodig blijkt moet opnieuw over het netwerk, build cache hoeft alleen
-opnieuw gebouwd te worden.
+De knoppen staan in `inventory/group_vars/all/cleanup.yml`:
 
-<Callout type="warning">
-`brew cleanup` zit hier en **niet** aan het eind van `update.yml`, waar het
-logischer lijkt. Op de MacBook komt `ansible` zelf uit Homebrew en is de
-verbinding `local`: een update-run heeft dan net de interpreter vervangen die
-op dat moment de playbook draait. `brew cleanup` zou vervolgens de
-Cellar-map weggooien waar dat draaiende proces nog uit leest. `update.yml` zet
-`HOMEBREW_NO_INSTALL_CLEANUP=1` om precies dat te voorkomen — een opruimtaak
-aan het eind zou dat weer ongedaan maken.
+| Var | Standaard | Doet |
+| --- | --- | --- |
+| `cleanup_journal_keep` | `14d` | hoeveel journal-geschiedenis blijft |
+| `cleanup_docker_until` | `720h` | ongebruikte images jonger dan dit blijven staan |
+| `cleanup_brew_prune` | `30` | brew-downloads ouder dan zoveel dagen gaan weg |
 
-Een losse run upgradet niets, dus daar is de gelinkte versie de huidige en
-heeft cleanup niets gevaarlijks te pakken.
+<Callout type="info">
+Pakketten weghalen die je niet meer wil, doe je **niet** hier: dat gaat via de
+`*_absent`-lijsten in de host_vars en `site.yml`. Zie
+[Updates](/technisch/runbooks/updates/) voor het verschil.
 </Callout>
 
-## Wat draait er op die host?
+---
+
+## Geval 5 — Een host in kaart brengen
+
+<Steps>
+
+### Lees de host uit
 
 ```bash
-ansible-playbook playbooks/discover.yml
 ansible-playbook playbooks/discover.yml --limit docker-grafana-stack
 ```
 
-Leest van een draaiende host af wat deze repo nodig zou hebben om hem terug te
-bouwen: compose-projecten, containers en poorten op een Docker-host,
-`brew leaves` en casks op een Mac.
+Leest compose-projecten, containers en poorten (Docker-hosts) of
+`brew leaves` en casks (Macs). Verandert niets.
 
-Verandert niets, op geen enkele host. Het resultaat komt in
-`.discovered/<host>.yml` en dat is **geen inventory** — het is een voorstel.
-Lees het, gooi eruit wat er niet in hoort, en zet de rest in
-`inventory/host_vars/<host>.yml`.
+### Lees het voorstel
 
-Waarom dit bestaat: twee hosts draaien diensten die deze repo nog niet kan
-terugbouwen — de Mac mini en `docker-grafana-stack` — en wat daar precies op
-staat weet niemand uit het hoofd. Een lijst die je uit je geheugen overtikt is
-een lijst die niet klopt. Dit haalt hem één keer op bij de machine zelf, zodat
-het volgende antwoord uit git komt in plaats van uit de host.
+```bash
+$EDITOR .discovered/docker-grafana-stack.yml
+```
 
-Zodra een host een `docker_stacks_list` in zijn host_vars heeft, pakt
-`stacks.yml` hem vanzelf op. Dat ene veld is wat een host beheerd maakt.
+Dit is **geen inventory**, het is een voorstel. Gooi eruit wat er niet in hoort.
 
-## Welke guests draaien er nu echt?
+### Zet de rest in de host_vars
+
+```bash
+$EDITOR inventory/host_vars/docker-grafana-stack.yml
+```
+
+Zodra een host een `docker_stacks_list` heeft, pakt `stacks.yml` hem vanzelf
+op. Dat ene veld maakt een host beheerd.
+
+### Probeer droog
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker-grafana-stack --check --diff
+```
+
+### Commit en push
+
+```bash
+git add inventory && git commit -m 'docker-grafana-stack beschreven' && git push
+```
+
+</Steps>
+
+---
+
+## Geval 6 — Guests en API-token checken
+
+<Steps>
+
+### Vraag de guests op
 
 ```bash
 ansible-playbook playbooks/proxmox-info.yml
 ```
 
-Elke guest op `pve01` met zijn vmid, type en status. Leest via het API-token,
-net als de dynamische inventory — dus dit is meteen de snelste manier om te
-zien of dat token nog werkt. Zie je hier niets, dan ziet Ansible ook niets, en
-dan is dát het probleem en niet de host die je zocht.
+Toont elke guest op `pve01` met vmid, type en status.
+
+### Lees de uitkomst
+
+Leeg of een fout? Dan werkt het API-token niet, en dan ziet de dynamische
+inventory ook niets. Dát is dan je probleem, niet de host die je zocht.
+
+</Steps>
 
 <Callout type="warning">
-Dit "leesplaybook" verwijdert `python3-proxmoxer` van de hypervisor. De
-modules eronder draaien gedelegeerd op `localhost` en hebben dat pakket op de
-node niet nodig; het staat er als opruiming van iets wat ooit langs een andere
-weg geïnstalleerd werd. Een playbook dat leest en tóch iets weghaalt is een
-verrassing — het staat als zodanig in `TODO.md`.
+Dit "leesplaybook" verwijdert `python3-proxmoxer` van `pve01`. Dat is
+opruiming van iets wat ooit anders geïnstalleerd werd; de modules draaien op
+`localhost` en hebben het op de node niet nodig. Het staat in `TODO.md`.
 </Callout>
 
-## Wie klopte er aan? De logs van Caddy
+---
 
-Elk verzoek van buiten komt langs `caddy`, en die schrijft er sinds altijd een
-regel JSON over weg. Het probleem was waar die regel bleef: op één container,
-waar niemand keek, en na veertien dagen weg met de rotatie.
+## Geval 7 — Caddy-logs doorzoeken
 
-Sinds 23-09 duwt **Grafana Alloy** ze naar de Loki van de monitoring-stack.
-Zoeken doe je in Grafana, op `monitoring.neodata.be`, met twee labels:
+Elk verzoek van buiten gaat langs `caddy`. Grafana Alloy stuurt die logs naar
+Loki in de monitoring-stack.
+
+<Steps>
+
+### Open Grafana
+
+Ga naar [monitoring.neodata.be](https://monitoring.neodata.be) en zoek in Loki.
+
+### Kies wat je wil zien
 
 | Query | Wat je ziet |
 | --- | --- |
 | `{job="caddy"}` | elk verzoek dat de reverse proxy afhandelde |
-| `{job="caddy-runtime"}` | wat Caddy zélf te melden had: certificaten, herladen, fouten |
+| `{job="caddy-runtime"}` | wat Caddy zelf meldt: certificaten, herladen, fouten |
 
-De regels zijn JSON, en dat is expres: Loki indexeert op labels en niet op
-inhoud, dus een label per statuscode of per pad zou de index opblazen. Pel af
-bij het zoeken in plaats van bij het schrijven:
+### Filter met `| json`
 
 ```
 {job="caddy"} | json | status >= 500
 {job="caddy"} | json | request_host = "plex.neodata.be"
 ```
 
+</Steps>
+
+Wil je **andere logbestanden** versturen:
+
+<Steps>
+
+### Pas de lijst aan
+
+```bash
+$EDITOR inventory/host_vars/caddy/main.yml   # alloy_log_targets
+```
+
+Welke hosts een agent krijgen, staat in de groep `alloy_hosts` in
+`inventory/00-static.yml`. Nu is dat alleen `caddy`.
+
+### Zet het live
+
 ```bash
 ansible-playbook playbooks/alloy.yml
 ```
 
-Welke hosts een agent krijgen staat in de groep `alloy_hosts` in
-`inventory/00-static.yml`; wát die agent verstuurt staat per host in
-`alloy_log_targets`. Nu is dat alleen `caddy`. De Docker-hosts staan er bewust
-niet bij: daar haalt de Alloy ín de monitoring-stack de containerlogs al via
-de Docker-socket op, en een tweede agent zou dezelfde regels dubbel sturen.
+### Commit en push
 
-<Callout type="info">
-Alloy draait als gebruiker `alloy`, niet als root — een logverzamelaar die
-alles mag lezen is een prettige eerste stap voor iemand anders. Hij komt bij de
-bestanden via groep `caddy`, en dáárom staat `caddy_log_mode` op `0640`: op
-Caddy's eigen default van `0600` heeft die groep niets te zoeken.
+```bash
+git add inventory && git commit -m 'Alloy: extra logbestand' && git push
+```
 
-Caddy past die mode toe bij het **openen** van een logbestand, en een reload
-opent niets opnieuw. Verander je `caddy_log_mode`, dan landt dat pas bij de
-eerstvolgende herstart of bij de rotatie om middernacht. Op 23-09 gemeten: na
-`systemctl reload caddy` stonden de bestanden nog op `0600`, na
-`systemctl restart caddy` op `0640`.
+</Steps>
+
+<Callout type="warning">
+Zet de Docker-hosts **niet** in `alloy_hosts`. De Alloy ín de monitoring-stack
+haalt hun containerlogs al via de Docker-socket; een tweede agent stuurt alles
+dubbel.
 </Callout>
 
-## De documentatiesite bijwerken
+---
+
+## Geval 8 — De docs-site bijwerken
+
+<Steps>
+
+### Commit en push je wijziging eerst
+
+```bash
+git add inventory docs-site && git commit -m '...' && git push
+```
+
+<Callout type="warning">
+Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
+lokaal hebt, staat de volgende ochtend weer niet online.
+</Callout>
+
+### Bouw en publiceer
 
 ```bash
 ansible-playbook playbooks/docs.yml
 ```
 
-Bouwt deze site en zet hem op de `caddy`-host. `npm ci` en `npm run build`
-draaien op de controller, niet op `caddy`; alleen het resultaat gaat erheen.
+`npm ci` en `npm run build` draaien op je eigen machine; alleen het resultaat
+gaat naar de `caddy`-host.
 
-De pagina's onder **Technisch** — hosts, LXC-containers, stacks, en één pagina
-per route in `caddy_sites` — worden uit de inventory gegenereerd en kunnen dus
-niet uit de pas lopen. De **runbooks** zijn met de hand geschreven en worden
-alleen meegenomen.
+### Kijk na
 
-Een geschrapte route laat geen pagina achter: die wordt opgeruimd nadat de rest
-opnieuw gerenderd is. Verwijder je een dienst, dan verdwijnt zijn pagina bij de
-volgende run vanzelf.
+Open [docs.neodata.be](https://docs.neodata.be). Werkt alleen vanaf het LAN of
+de tailnet.
 
-`docs.neodata.be` en `report.neodata.be` staan niet in `caddy_sites` maar als
-vaste blokken in de Caddyfile, en ze serveren van schijf in plaats van naar een
-upstream te proxyen. Allebei zijn ze afgeschermd op IP-bereik: alleen vanaf het
-LAN of de tailnet, daarbuiten een 403. Ze beschrijven de binnenkant van het
-netwerk, dus dat hoort niet op het open internet.
+</Steps>
+
+Wat waar vandaan komt:
+
+| Deel | Bron |
+| --- | --- |
+| **Technisch**: hosts, LXC's, stacks, één pagina per route | gegenereerd uit de inventory |
+| **Runbooks** (zoals deze pagina) | met de hand geschreven, alleen meegenomen |
+
+Een geschrapte route laat geen pagina achter: die wordt bij de volgende run
+vanzelf opgeruimd.
 
 <Callout type="info">
-Draai dit na elke wijziging in de inventory. Een hostnaam, een adres, een
-route of een stack die verandert zonder `docs.yml` betekent dat deze site iets
-beweert wat niet meer waar is — en dat is erger dan geen documentatie, want je
-gelooft het.
+Draai dit na **elke** wijziging in de inventory. Een site die iets beweert wat
+niet meer waar is, is erger dan geen documentatie: je gelooft hem.
 </Callout>
 
-## Wat draait er vanzelf, en wanneer?
+---
+
+## Geval 9 — Een schema in Semaphore aanpassen
+
+De templates en hun schema's staan in `semaphore_templates_list` in
+`inventory/host_vars/semaphore/main.yml`. Het playbook zet ze via de API in
+Semaphore.
+
+<Steps>
+
+### Kijk eerst wat er in de UI staat
+
+Open Semaphore en noteer de **exacte** naam van de template, met hoofdletters.
+
+<Callout type="error">
+`name` is de sleutel waarop gezocht wordt. `Cleanup (apply)` is niet
+`Cleanup (Apply)`: een andere schrijfwijze maakt een **tweede** template in
+plaats van de bestaande te wijzigen. Zo stonden er op 23-09 drie dubbele jobs,
+waaronder een site-converge zonder zijn limit.
+</Callout>
+
+### Pas de lijst aan
 
 ```bash
-ansible-playbook playbooks/semaphore-templates.yml --check   # eerst dit
-ansible-playbook playbooks/semaphore-templates.yml
+$EDITOR inventory/host_vars/semaphore/main.yml
 ```
-
-Semaphore draait de playbooks hierboven volgens een schema. Welke dat zijn en
-wanneer ze gaan stond tot nu toe alleen in de web-UI — het enige deel van deze
-estate dat nergens opgeschreven was. Een webformulier heeft geen geschiedenis,
-geen review en geen back-up: raak je die container kwijt, dan weet je niet meer
-wat er draaide.
-
-De lijst staat nu in `semaphore_templates_list` in
-`inventory/host_vars/semaphore/main.yml`. Per template een naam, een playbook,
-eventuele argumenten en een cron:
 
 ```yaml
 - name: "Drift check"
   playbook: playbooks/drift.yml
-  description: "Wat zou site.yml veranderen?"
+  description: "Wat zou site.yml veranderen? Faalt als het antwoord niet 'niets' is."
   arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
-  schedule: "0 6 * * *"
+  schedule: "0 6 * * *"   # lokale tijd (Europe/Brussels)
 ```
+
+Laat de limits staan. Waarom: zie
+[De limits in de templates](#de-limits-in-de-templates).
+
+### Probeer droog
+
+```bash
+ansible-playbook playbooks/semaphore-templates.yml --check
+```
+
+Lees de rapportageregel. Staat een template die je wilde **wijzigen** onder
+`create`? Dan wijkt de naam af. Stop en verbeter de naam.
+
+### Zet het echt
+
+```bash
+ansible-playbook playbooks/semaphore-templates.yml
+```
+
+### Commit en push
+
+```bash
+git add inventory && git commit -m 'Semaphore: schema Drift check' && git push
+```
+
+</Steps>
+
+<Callout type="info">
+Eerste keer op een nieuwe controller? De API-login staat in
+`inventory/host_vars/semaphore/vault.yml` (`vault_semaphore_api_user`,
+`vault_semaphore_api_password`). Ontbreekt dat bestand, dan faalt de rol met
+een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
+</Callout>
+
+Wat de rol **wel** en **niet** doet:
+
+| Doet | Doet niet |
+| --- | --- |
+| templates aanmaken en bijwerken | templates verwijderen: wat je uit de lijst haalt, blijft in de UI staan, mét schema |
+| de cron zetten | een gepauzeerd schema weer aanzetten |
+| naam, playbook, argumenten, beschrijving | surveys, views, vaults en de vlaggen onder *Advanced* |
+
+`site.yml` draait `semaphore-templates.yml` ook mee, maar alleen als je hem
+**met de hand en zonder limit** draait. De geplande `Site converge` slaat hem
+over; zie [Een schema herschrijft zichzelf niet](#een-schema-herschrijft-zichzelf-niet).
+
+---
+
+## Wat draait er vanzelf?
+
+### In Semaphore, met schema
+
+Tijden zijn lokale tijd (Europe/Brussels).
 
 | Template | Wanneer | Waarom dan |
 | --- | --- | --- |
-| Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
-| Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
-| Drift check | dagelijks 06:00 | ná de wekelijkse converge, zodat je ziet wat er tussendoor afwijkt |
-| DNS smoketest | dagelijks 06:30 | tussen Drift check en Docs in; twee jobs op dezelfde minuut vechten om dezelfde controller |
 | Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
+| Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
+| Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
+| Stacks | dagelijks 05:30 | ná de converge van zondag, vóór Drift check |
+| Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
+| DNS smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
+| Docs | dagelijks 07:00 | de site volgt de repo |
+| Homelab Report | zondag 08:00 | traag, dus wekelijks |
 | Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
-| Stacks | dagelijks 05:30 | ná de converge van zondag 05:00, vóór Drift check van 06:00 |
 
-### En twee dingen die niet via Semaphore gaan
+### In Semaphore, zonder schema (klik ze zelf)
 
-De back-ups draaien op `pve01` zelf, op de cron van Proxmox. Ze staan dus niet
-in de tabel hierboven en je vindt ze niet in de Semaphore-UI — wel in git, in
-`pve_backup_jobs` in `inventory/group_vars/proxmox/backup.yml`.
+| Template | Doet |
+| --- | --- |
+| Baseline (dry run) | `baseline.yml --check --diff`: droogloop, verandert niets |
+| Caddy | `caddy.yml` |
+| Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
 
-| Job | Wanneer | Waarheen | Waarom dan |
+Daarmee staan alle twaalf templates van het project in git. Maak je er een in
+de UI, zet hem dan ook in `semaphore_templates_list`, anders is dat bestand
+weer een deellijst en geloof je hem ten onrechte.
+
+### Op pve01, niet in Semaphore
+
+De back-ups draaien op de cron van Proxmox. Ze staan in `pve_backup_jobs` in
+`inventory/group_vars/proxmox/backup.yml`.
+
+| Job | Wanneer | Waarheen | Waarom |
 | --- | --- | --- | --- |
 | dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
-| wekelijks | zondag 01:00 | de Mac mini, over NFS | de tweede kopie, voor als pve01 zelf weg is |
+| wekelijks | zondag 01:00 | de Mac mini, over NFS | tweede kopie, voor als pve01 zelf weg is |
 
-Waarom die tweede er sinds 23-09 is, en hoe je eruit terugzet, staat in
-[Herstellen](/technisch/runbooks/disaster-recovery#de-tweede-kopie-op-de-mac-mini).
-
-<Callout type="warning">
-Geen van beide meldt zichzelf als hij faalt. Dat gold al voor de geplande jobs
-in Semaphore en het geldt hier net zo goed: de wekelijkse job schrijft over NFS
-naar een Mac die kan slapen. Tot er meldingen zijn, is elk van deze schema's
-een aanname. Het staat bovenaan `TODO.md`.
-</Callout>
-
-<Callout type="info">
-**Waarom `Stacks` dagelijks draait, sinds 23-09.** Twee stacks op de Mac mini
-kwamen niet terug na een herstart van OrbStack: `duplicati` en `shelfmark`,
-precies de twee die een schijf onder `/Volumes` aankoppelen. OrbStack deelt
-die schijf pas later aan de VM toe, en `restart: unless-stopped` helpt niet
-tegen een start die niet lúkt. Een dagelijkse converge repareert dat binnen een
-dag in plaats van pas wanneer je het merkt.
-
-De voorwaarde daarvoor is afgevinkt: de eerste beheerde run op de Mini is op
-23-09 met de hand gedaan en was schoon — `changed=0`, alle stacks `ok`. Een
-schema dat zijn eerste run onbewaakt doet is geen reparatie maar een gok.
-</Callout>
-
-<Callout type="info">
-**Die tijden zijn lokale tijd, sinds 23-09.** Daarvoor las Semaphore elke cron
-als UTC — zijn `Schedule.Timezone` heeft `UTC` als default, los van de tijdzone
-van de container. Gemeten en niet aangenomen: `Drift check` met `0 6 * * *`
-eindigde op `06:00:37Z` terwijl het Ansible-log binnenin `08:00:37 +0200`
-schreef.
-
-Dat is niet alleen verwarrend. Een cron in UTC schuift mee met de zomertijd:
-zaterdag 03:00 wordt 05:00 in de zomer en 04:00 in de winter. De unit van de
-`semaphore`-rol zet daarom `SEMAPHORE_SCHEDULE_TIMEZONE`, uit
-`semaphore_schedule_timezone`. Als omgevingsvariabele en niet als sleutel in
-de gevaulte `config.json`, want een instelling die je alleen na ontsleutelen
-kunt lezen kijkt niemand na.
-</Callout>
-
-<Callout type="error">
-**De namen zijn niet vrij te kiezen.** Ze zijn overgenomen uit wat er al in de
-UI stond, en dat is de les van 23-09: de lijst is er die dag eerst met eigen
-namen ingezet, en toen kreeg je `Cleanup (apply)` naast het bestaande
-`Cleanup (Apply)` — alleen een hoofdletter verschil, allebei met een schema op
-zaterdag 03:00. Hetzelfde met `Site (apply)` naast `Site converge` en
-`Drift (report)` naast `Drift check`.
-
-Drie dubbele jobs, en de ergste was een site-converge zónder de limit
-`all:!mbp:!semaphore` die in de bestaande template zat. Die kennis staat in de
-UI en niet in je hoofd, dus kijk eerst wat er staat.
-</Callout>
-
-Twee limits die je niet moet weghalen. `!semaphore` houdt een job van de
-container af waarop hij zelf draait — herstart hij halverwege, dan is de job
-dood en weet je niet of hij af is. En `!mbp` staat er omdat die host
-`ansible_connection: local` heeft: vanuit Semaphore betekent dat niet "jouw
-MacBook" maar "de container die dit draait". Aan je eigen bureau klopt hij
-wel, en daar draai je zonder limit.
-
-Op 23-09 bleek dat `!mbp` op meer plekken hoorde te staan. `Cleanup (report)`
-en `Cleanup (Apply)` hadden helemaal geen limit, en `cleanup.yml` heeft een
-play `hosts: macs`. Vanuit Semaphore viel de container daar dus zelf in, kreeg
-de macOS-taken, en liep vast op "Measure the Homebrew cache" op een Debian
-zonder Homebrew. `Homelab Report` had hetzelfde probleem en was er alleen nog
-niet op gestrand, want zijn schema van zondag 08:00 was nog niet langsgekomen.
-Alle drie hebben nu een limit.
+Terugzetten: [Herstellen](/technisch/runbooks/disaster-recovery/#geval-7--terugvallen-op-de-tweede-kopie).
 
 <Callout type="warning">
-**`Homelab Report` krijgt `all:!mbp:localhost`, met die `localhost` erbij.**
-Dat is geen slordigheid: `report.yml` rendert de HTML in een
-`hosts: localhost`-play en ruimt daar ook op, en Ansible telt de impliciete
-localhost niet mee in `all`. Met een kaal `all:!mbp` vallen die twee plays op
-nul hosts, wordt de run **groen**, en verschijnt er niets op
-`report.neodata.be`. Nagemeten met `--list-hosts` voor het werd toegepast.
-
-Dat is de gevaarlijkste soort fout in deze lijst: een limit die te veel
-wegsnijdt maakt een job niet rood, alleen stil.
+**Niets hiervan meldt zichzelf als het faalt**, niet in Semaphore en niet op
+Proxmox. De wekelijkse back-up schrijft naar een Mac die kan slapen. Tot er
+meldingen zijn, is elk schema een aanname: kijk af en toe zelf in de
+taaklijst. Staat bovenaan `TODO.md`.
 </Callout>
 
-`Drift check` geeft die limit door als `-e drift_limit=...` en niet als
-`--limit`. Dat playbook draait zelf op `localhost` en start de droogloop als
-los commando; een `--limit` zou die ene play raken in plaats van de converge
-eronder.
+---
 
-Naast deze zes staan er zes zonder schema in de lijst: `Baseline (dry run)`,
-`Caddy`, `Cleanup (report)`, `Stacks`, en met een schema `Docs` (dagelijks
-07:00) en `Homelab Report` (zondag 08:00). Daarmee staat elke template van het
-project in git. Komt er een bij in de UI, zet hem dan ook in
-`semaphore_templates_list` — anders is dat bestand weer een deellijst en
-geloof je hem ten onrechte.
+## Goed om te weten
 
-<Callout type="info">
-`Baseline (dry run)` heette tot 23-09 iets anders dan hij deed: hij draaide
-`baseline.yml` **zonder** `--check`, en dat playbook convergeert gewoon — wie
-erop klikte om te kijken wat er zou gebeuren, paste de baseline toe op elke
-Linux-host. Hij draait nu met `--check --diff`.
+### Waarom deze playbooks niet in `site.yml` zitten
 
-Er is bewust niet hernoemd. `name` is de sleutel waarop de rol zoekt, dus een
-andere naam had een tweede template gemaakt en de taakgeschiedenis van deze
-achtergelaten — precies wat er die ochtend met `Cleanup (Apply)` misging.
-</Callout>
+`site.yml` trekt gelijk. `report.yml` is traag en hoort op een schema,
+`drift.yml` en `dns-smoketest.yml` controleren alleen, en `cleanup.yml`
+verwijdert. Uitzondering: `semaphore-templates.yml` zit er wél in, sinds 23-09.
 
-`site.yml` roept `semaphore-templates.yml` sinds 23-09 zelf aan. Let op dat de
-gepláánde converge deze play juist overslaat: `Site converge` draait met
-`--limit all:!mbp:!semaphore`. Dat is geen omissie — een schema dat zijn eigen
-schema's herschrijft terwijl het draait is precies wat je niet wil.
+### De limits in de templates
 
-<Callout type="warning">
-`Update guests` draait met `--limit guests:!semaphore`, en dat is geen
-detail. Zonder die limit patcht de job de container waarop hij zelf draait:
-Semaphore herstart halverwege, de job is dood, en je weet niet of de upgrade af
-is. Die ene machine patch je met de hand.
-</Callout>
+- **`!semaphore`** — houdt een job van zijn eigen container af. Herstart
+  Semaphore halverwege, dan is de job dood en weet je niet of hij af is. Die
+  machine patch je met de hand.
+- **`!mbp`** — `mbp` heeft `ansible_connection: local`. Vanuit Semaphore
+  betekent dat "de container die de job draait", niet je MacBook. Die zit in
+  `macs` en krijgt dan macOS-taken: zo liep `Cleanup (report)` op 23-09 vast
+  op "Measure the Homebrew cache" in een Debian-container. Aan je bureau klopt
+  `mbp` wel; daar draai je zonder limit.
+- **`localhost`** bij `Homelab Report` (`all:!mbp:localhost`) — `all` telt de
+  impliciete `localhost` niet mee. Zonder hem is de run groen maar verschijnt
+  er niets op report.neodata.be. Een limit die te veel wegsnijdt maakt een job
+  niet rood, alleen stil.
+- **`drift_limit`** in plaats van `--limit` bij `Drift check` — `drift.yml`
+  draait zelf op `localhost`; een `--limit` zou die play raken, niet de
+  droogloop eronder.
 
-De rol maakt aan en werkt bij, en **verwijdert nooit**. Wat je met de hand in
-de UI maakt blijft staan, en een template die je uit de lijst haalt blijft ook
-staan — inclusief zijn schema. Dat is met opzet: zolang niet alles beschreven
-is, is stil iets weggooien erger dan iets laten slingeren.
+### Een schema herschrijft zichzelf niet
 
-<Callout type="error">
-Draai de eerste keer met `--check` en lees de rapportageregel. `name` is de
-sleutel waarop gezocht wordt en moet letterlijk overeenkomen met wat er nu in
-Semaphore staat. Staat een template die je dacht bij te werken onder `create`,
-dan wijkt de naam af en zou je een tweede aanmaken in plaats van de bestaande
-te wijzigen.
-</Callout>
+`Site converge` draait met `--limit all:!mbp:!semaphore`, dus de play
+`semaphore-templates.yml` in `site.yml` valt daar weg. Dat is met opzet: een
+schema dat zijn eigen schema's herschrijft terwijl het draait, wil je niet.
 
-Wat de rol niet aanraakt: surveys, views, vaults en de vlaggen onder
-*Advanced*. Die blijven van de UI, en een verschil daar lokt geen update uit.
+### Waarom de tijden lokale tijd zijn
 
-<Callout type="warning">
-Dat blijven staan kost wel moeite, en dat is de moeite waard om te weten voor
-je de rol ooit "vereenvoudigt". De Semaphore-API kent geen gedeeltelijke
-update: zijn `UPDATE` zet élke kolom uit het verzoek, dus een veld dat je
-weglaat wordt leeggemaakt. Daarom bouwt de rol het payload op uit wat de
-server nu heeft, met alleen onze velden eroverheen.
+Tot 23-09 las Semaphore elke cron als UTC (`Drift check` met `0 6 * * *`
+eindigde op `06:00:37Z`, dus 08:00 hier). UTC schuift mee met de zomertijd.
+De `semaphore`-rol zet nu `SEMAPHORE_SCHEDULE_TIMEZONE` uit
+`semaphore_schedule_timezone` (`Europe/Brussels`), als omgevingsvariabele en
+niet in de gevaulte `config.json`, zodat je hem kunt nalezen.
 
-Om dezelfde reden stuurt hij `environment_ids` mee en niet alleen
-`environment_id`. Die koppeling is geen kolom maar een aparte tabel, die bij
-elke create én update leeggegooid en opnieuw gevuld wordt met precies wat je
-meestuurt. Laat je het veld weg, dan draait de template daarna zonder zijn
-environment — en dat merk je pas als de job raar doet.
-</Callout>
-Ook het aan-uitknopje van een schema blijft: zet je er een in de UI op pauze,
-dan neemt de volgende run die pauze over in plaats van hem stilletjes weer aan
-te zetten. De cron is wat deze rol bezit, niet of hij loopt.
+### Baseline (dry run) deed vroeger echt iets
 
-Nog niet in `site.yml`, met opzet. Eerst één echte run die groen is; pas dan
-hoort een API-aanroep thuis in het playbook dat alles gelijktrekt.
+Tot 23-09 draaide hij `baseline.yml` **zonder** `--check`: wie ging kijken,
+paste de baseline toe op elke Linux-host. Nu met `--check --diff`. Niet
+hernoemd, want een nieuwe naam maakt een tweede template en laat de
+geschiedenis achter.
+
+### Waarom `Stacks` dagelijks draait
+
+Na een herstart van OrbStack komen `duplicati` en `shelfmark` op de Mac mini
+niet terug: ze koppelen een schijf onder `/Volumes` aan die OrbStack pas later
+doorgeeft, en `restart: unless-stopped` helpt niet tegen een start die mislukt.
+Een dagelijkse run herstelt dat binnen een dag. De eerste beheerde run is op
+23-09 met de hand gedaan en was schoon (`changed=0`): een schema dat zijn
+eerste run onbewaakt doet, is een gok.
+
+### De Semaphore-API kent geen gedeeltelijke update
+
+Een `UPDATE` zet élke kolom uit het verzoek; wat je weglaat wordt leeg. Daarom
+bouwt de rol het verzoek op uit wat de server nu heeft, met alleen onze velden
+erover. Om dezelfde reden stuurt hij `environment_ids` mee: laat je dat weg,
+dan draait de template zonder environment. Denk hieraan voor je de rol
+"vereenvoudigt".
+
+### Waarom `brew cleanup` niet in `update.yml` zit
+
+Op de MacBook komt `ansible` zelf uit Homebrew en is de verbinding `local`. Een
+update vervangt de interpreter die de playbook draait; `brew cleanup` zou daarna
+de map weggooien waar dat proces nog uit leest. Daarom zet `update.yml`
+`HOMEBREW_NO_INSTALL_CLEANUP=1`, en zit de opruiming in `cleanup.yml`, dat
+niets upgradet.
+
+### Images en build cache
+
+Images hebben een leeftijdsgrens (`cleanup_docker_until`), build cache niet. Een
+image dat toch nodig blijkt moet opnieuw over het netwerk; build cache wordt
+gewoon opnieuw gebouwd.
+
+### De DNS-test rekent zelf
+
+`dns-smoketest.yml` berekent de lijst namen op dezelfde manier als de
+`adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de lijst
+van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
+
+### De rapportvergelijkingen lopen over alle containerhosts
+
+`docker`, `docker-grafana-stack` en de Mac mini (`docker_hosts` plus `macs`,
+dezelfde regel als `stacks.yml`). Tot 22-09 keek hij alleen naar `docker`, en
+zo bleven drie dode routes en een dienst zonder compose-bestand op de Mini
+maandenlang onopgemerkt. Een nieuwe host komt er vanzelf bij.
+
+### Alloy en de rechten op de logbestanden
+
+Alloy draait als gebruiker `alloy`, niet als root, en leest via groep `caddy`.
+Daarom staat `caddy_log_mode` op `0640`. Caddy past die mode toe bij het
+**openen** van een bestand: na `systemctl reload caddy` bleef het `0600`, pas
+na `systemctl restart caddy` (of de rotatie om middernacht) werd het `0640`.
+De regels zijn JSON en krijgen geen label per statuscode of pad, omdat Loki op
+labels indexeert: pel af bij het zoeken, niet bij het schrijven.
+
+### docs en report zijn niet publiek
+
+`docs.neodata.be` en `report.neodata.be` staan niet in `caddy_sites` maar als
+vaste blokken in de Caddyfile. Ze serveren van schijf en geven een 403 buiten
+het LAN en de tailnet: ze beschrijven de binnenkant van het netwerk.

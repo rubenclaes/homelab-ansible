@@ -106,7 +106,11 @@ pve_vms:
     params:
       name: docker
       cores: 6
-      memory: 28672
+      # Was 28672 tot 23-09. De containers gebruikten er toen samen ~4,2 GB
+      # van; de rest vulde Linux met bestandscache, en die geeft een VM
+      # zonder balloon nooit terug aan pve01. 16 GB is dat werkelijke gebruik
+      # plus ruimte voor de pieken van immich-machine-learning.
+      memory: 16384
       cpu: host
       ostype: l26
       agent: enabled=1

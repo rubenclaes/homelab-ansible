@@ -6,60 +6,76 @@ import { Steps, Callout } from 'nextra/components'
 
 # Een nieuwe machine op pve01
 
-Je wil iets nieuws draaien: een dienst, een testbak, een vervanger voor iets
-ouds. Dit is het hele pad, van niets tot een machine waar de playbooks op
-mogen.
+Gebruik deze pagina als je een **extra machine** op pve01 nodig hebt: een
+container (LXC) of een virtuele machine (VM). Alles doe je vanaf je
+werkstation; het Proxmox-scherm heb je alleen voor een VM nodig.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil een **nieuwe container** voor software die een eigen machine hoort te hebben | Vaultwarden op een eigen LXC | [Geval 1 — Een nieuwe container](#geval-1--een-nieuwe-container) |
+| Een container die **al in de lijst staat** is weg en je wil hem opnieuw bouwen | `adguard` na een herinstallatie van pve01 | [Geval 2 — Een container opnieuw bouwen](#geval-2--een-container-opnieuw-bouwen) |
+| Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Geval 3 — Een virtuele machine](#geval-3--een-virtuele-machine) |
 
 <Callout type="info">
-Dit gaat over **containers** (LXC). Dat is wat je in negen van de tien
-gevallen wil: ze starten in een seconde, kosten nauwelijks geheugen, en dit
-pad is volledig geautomatiseerd. Heb je een echte virtuele machine nodig, lees
-dan [Virtuele machines](#virtuele-machines) onderaan.
+Wil je gewoon een **Docker-app** draaien (Memos, Jellyfin…)? Dan heb je **geen
+nieuwe machine** nodig. Die komt op de bestaande machine `docker`. Volg
+[Dienst toevoegen, geval 1](/technisch/runbooks/dienst-toevoegen/#geval-1--nieuwe-docker-app).
 </Callout>
 
-## Eerst even de woorden
+Twijfel je tussen container en VM: kies de **container**. Die start in een
+seconde, kost nauwelijks geheugen, en het hele pad is geautomatiseerd.
 
-**Inventory** — de map `inventory/`. Daarin staat welke machines er zijn en wat
-erop hoort. Dit is waar je dingen aanpast; nooit op de machine zelf.
+### Woorden die je nodig hebt
 
-**Playbook** — een bestand in `playbooks/` dat je met `ansible-playbook` draait.
-Eén playbook is één klus.
+- **Guest** — alles wat op pve01 draait: een container of een VM.
+- **vmid** — het unieke nummer van een guest in Proxmox (bv. `107` is `adguard`).
+- **`pve_lxcs`** — de lijst met containers in `inventory/group_vars/proxmox/lxcs.yml`. Wat daar niet in staat, kan het playbook niet bouwen.
+- **Baseline** — het minimum dat elke Linux-machine krijgt: tijdzone, basispakketten, automatische beveiligingsupdates, SSH dichtgetimmerd.
+- **Vault** — de versleutelde bestanden met wachtwoorden. Je hebt `~/.ansible/vault_pass_infra` en `~/.ansible/vault_pass_stacks` op je werkstation nodig (zie de README).
 
-**Rol** — een herbruikbaar recept in `roles/`, bijvoorbeeld "installeer AdGuard".
-Playbooks roepen rollen aan.
+---
 
-**Baseline** — het minimum dat elke Linux-machine krijgt: tijdzone,
-basispakketten, automatische beveiligingsupdates, SSH dichtgetimmerd.
+## Geval 1 — Een nieuwe container
 
-**Vault** — de versleutelde bestanden met wachtwoorden en sleutels. Je hebt de
-vault-wachtwoorden op je werkstation nodig om ze te kunnen lezen.
-
-## Wat je nodig hebt
-
-Je werkstation, met de repo en de vault-wachtwoorden. Verder niets. Je hoeft
-niet in het Proxmox-scherm te zijn.
+Voorbeeld: Vaultwarden op een eigen LXC.
 
 <Steps>
 
-### Kies een nummer en een adres
-
-Elke container heeft een uniek nummer (vmid) en een vast adres. Kijk welke
-al bezet zijn:
+### Zoek een vrij nummer
 
 ```bash
-ansible-playbook playbooks/proxmox-info.yml
+ansible-playbook playbooks/proxmox-info.yml   # toont elke guest: vmid, type, naam, status
 ```
 
-Dat toont elke guest met zijn nummer. Kies een vrij nummer, en een adres dat
-nog nergens in gebruik is. Houd de reeks aan die je al gebruikt.
+Kies een nummer dat daar niet in staat.
 
-### Beschrijf de container
+<Callout type="warning">
+Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
+nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
+gereserveerd voor de recovery-drill.
+</Callout>
 
-Open `inventory/group_vars/proxmox/lxcs.yml` en zet er een blok bij, onderaan
-in de lijst `pve_lxcs`:
+### Zoek een vrij adres
+
+Kijk in `inventory/group_vars/proxmox/lxcs.yml` welke adressen al gebruikt
+worden, en test of het adres echt vrij is:
+
+```bash
+ping -c 2 192.168.0.31   # geen antwoord = waarschijnlijk vrij
+```
+
+### Zet de container in de lijst
+
+```bash
+$EDITOR inventory/group_vars/proxmox/lxcs.yml
+```
+
+Voeg onderaan in `pve_lxcs` een blok toe:
 
 ```yaml
-  - vmid: 110
+  - vmid: 111
     hostname: vaultwarden
     cores: 1
     memory: 512
@@ -69,146 +85,290 @@ in de lijst `pve_lxcs`:
     features: [nesting=1]
 ```
 
-Wat de velden betekenen:
-
 | Veld | Wat je invult |
 | --- | --- |
-| `vmid` | Het vrije nummer dat je net koos |
-| `hostname` | De naam. Kleine letters, geen spaties. Dit wordt ook zijn naam in de inventory |
-| `cores` / `memory` / `swap` | Hoeveel hij mag gebruiken. Geheugen in MB. Begin klein, ophogen kan later in Proxmox |
-| `disk` | Op welke opslag en hoe groot in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
-| `ip` | Het adres dat je koos, met `/24` erachter |
-| `features` | `nesting=1` heeft elke container nodig die Docker draait. Weet je het niet, zet het erbij |
+| `vmid` | het vrije nummer |
+| `hostname` | kleine letters, geen spaties. Wordt ook zijn naam in de inventory |
+| `cores` / `memory` / `swap` | geheugen in MB. Begin klein, ophogen kan later |
+| `disk` | opslag + grootte in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
+| `ip` | het vrije adres, met `/24` erachter |
+| `features` | `nesting=1` zet je er altijd bij (Docker heeft het nodig, de rest heeft er geen last van) |
 
-<Callout type="warning">
-Dit bestand is de bron van het adres **totdat** de container bestaat. Daarna
-haalt de inventory het live uit Proxmox. Je hoeft het adres dus nergens anders
-op te schrijven.
-</Callout>
+Gateway, template en de Ansible-sleutel komen uit `pve_lxc_defaults` bovenaan
+hetzelfde bestand. Die hoef je niet in te vullen.
 
 ### Bouw hem
-
-Eén commando:
 
 ```bash
 ansible-playbook playbooks/new-guest.yml -e guest=vaultwarden
 ```
 
-Dit doet vijf dingen achter elkaar: de container aanmaken, wachten tot hij
-luistert, zijn sleutel vertrouwen, het `ansible`-account erop zetten, en de
-baseline toepassen (tijdzone, basispakketten, automatische beveiligingsupdates,
-SSH dichttimmeren).
+Dit maakt de container, wacht tot SSH luistert, vertrouwt zijn hostkey, zet
+het `ansible`-account erop en past de baseline toe. Aan het eind staat in beeld
+wat je hierna doet.
 
-Als het klaar is staat er in beeld wat je hierna doet.
-
-<Callout type="info">
-Typ je een naam die niet in de lijst staat, dan stopt het playbook meteen en
-toont het de namen die wél bestaan. Je kunt dus niet per ongeluk iets
-verkeerds bouwen.
+<Callout type="warning">
+Het playbook maakt **elke** container uit `pve_lxcs` die nog niet bestaat, niet
+alleen de naam die je opgeeft. Staat er nog een half afgewerkt blok in de
+lijst, dan wordt dat ook gemaakt (maar niet gebootstrapt).
 </Callout>
 
 ### Installeer de dienst
 
-Dit is het enige stuk dat per dienst verschilt.
-
-**Draait het in Docker?** Dan is er een generator:
+Voor software zonder Docker schrijf je een rol. Dat staat in
+[Dienst toevoegen, geval 3](/technisch/runbooks/dienst-toevoegen/#geval-3--eigen-rol-zonder-docker):
 
 ```bash
-ansible-playbook playbooks/new-service.yml \
+ansible-playbook playbooks/new-role.yml \
   -e svc_name=vaultwarden \
-  -e svc_port=8080 \
-  -e svc_image=vaultwarden/server:1.32.0 \
-  -e '{"svc_desc": "Wachtwoordkluis"}'
+  -e svc_host=vaultwarden \
+  -e svc_tag=secrets \
+  -e '{"svc_desc": "Vaultwarden - wachtwoordkluis"}'
 ```
 
-Die maakt het compose-bestand, versleutelt de `.env`, en zet de dienst én de
-route al in de inventory. Daarna pushen en draaien:
+### Geef hem een adres (optioneel)
 
-```bash
-ansible-playbook playbooks/stacks.yml
-ansible-playbook playbooks/caddy.yml
-```
-
-**Draait het niet in Docker?** Dan schrijf je er een rol voor, in `roles/`.
-Kijk naar `roles/adguard` als voorbeeld: die haalt een binary op, zet een
-systemd-unit neer, en start hem. Dat is werk van een uurtje en het betaalt
-zich terug zodra je de machine ooit opnieuw moet bouwen.
-
-### Geef hem een naam
-
-Wil je hem op `https://naam.neodata.be` bereiken en deed `new-service.yml`
-dat nog niet, zet hem dan in `caddy_sites` in
-`inventory/host_vars/caddy/main.yml`:
+Wil je hem op `https://vaultwarden.neodata.be`, zet dan een route in
+`inventory/host_vars/caddy/main.yml` onder `caddy_sites`:
 
 ```yaml
   - { name: vaultwarden, host: vaultwarden, port: 8080, desc: "Wachtwoordkluis" }
 ```
 
-En draai:
-
 ```bash
 ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/caddy-smoketest.yml
 ```
 
-### Commit
+Alle velden van een route: zie [Dienst toevoegen, geval 2](/technisch/runbooks/dienst-toevoegen/#geval-2--alleen-een-adres).
+
+### Zet hem in de wekelijkse back-up
+
+De dagelijkse back-up naar PBS neemt elke guest vanzelf mee. De wekelijkse
+kopie naar de Mac mini **niet**: die heeft een vaste lijst.
 
 ```bash
-git add inventory/ roles/
+$EDITOR inventory/group_vars/proxmox/backup.yml   # vmid toevoegen aan "101,102,…,108"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+### Commit en push
+
+```bash
+git add inventory/ roles/ playbooks/
 git commit -m "vaultwarden erbij"
 git push
 ```
 
 <Callout type="error">
-Sla deze stap niet over. Semaphore draait de playbooks uit Git, niet van jouw
-laptop. Wat niet gecommit is, bestaat voor de rest van het systeem niet, en
-een volgende geplande run kan jouw wijziging terugdraaien.
+Sla dit niet over. Semaphore draait zijn geplande runs vanuit git, niet vanaf
+je laptop. Een route of rol die niet gepusht is, bestaat voor Semaphore niet
+en kan bij de volgende run weer verdwijnen.
 </Callout>
 
 ### Controleer
 
 ```bash
-ansible-playbook playbooks/site.yml --check --diff
+ansible-playbook playbooks/site.yml --check --diff --limit vaultwarden
 ```
 
-Dit verandert niets en toont wat er nog zou veranderen. Staat er niets meer
-open, dan klopt alles.
+Verandert niets, toont alleen wat er nog zou veranderen. Staat er niets open,
+dan klopt alles.
+
+### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina's met hosts en containers op deze site worden uit de inventory
+gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
 
 </Steps>
+
+---
+
+## Geval 2 — Een container opnieuw bouwen
+
+De container staat al in `pve_lxcs`, maar bestaat niet meer op pve01. Je bouwt
+hem uit de lijst terug.
+
+<Callout type="warning">
+Dit geeft je een **lege** container met de juiste instellingen. Heb je de
+data nodig (instellingen, databases), zet dan een back-up terug met
+[Disaster recovery](/technisch/runbooks/disaster-recovery/). Dat is bijna
+altijd wat je wil.
+</Callout>
+
+<Steps>
+
+### Bouw hem
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
+```
+
+Meerdere tegelijk kwijt? Eén per keer, in deze volgorde: `adguard` (DNS),
+`caddy` (de voordeur), `tailscale`, `semaphore`.
+
+### Doe de handwerkstappen uit `lxcs.yml`
+
+Sommige containers hebben instellingen die de API-token niet kan zetten. Die
+staan als commentaar bij hun blok in `inventory/group_vars/proxmox/lxcs.yml`.
+Nu: `tailscale` (108) en `adguard` (107), allebei voor `/dev/net/tun`.
+
+Voorbeeld voor 108, als root op pve01:
+
+```bash
+pct set 108 -lxc.cgroup2.devices.allow "c 10:200 rwm"
+pct set 108 -lxc.mount.entry "/dev/net/tun dev/net/tun none bind,create=file"
+pct reboot 108   # een mount-entry geldt pas na een herstart
+```
+
+<Callout type="warning">
+Voor 107 weigert `pct set` die regels. Zet ze daar rechtstreeks onderaan
+`/etc/pve/lxc/107.conf`. De exacte regels staan bij het blok in `lxcs.yml`.
+</Callout>
+
+### Zet de dienst er terug op
+
+```bash
+ansible-playbook playbooks/site.yml --limit adguard
+```
+
+</Steps>
+
+---
+
+## Geval 3 — Een virtuele machine
+
+Een VM maak je **met de hand** in het Proxmox-scherm. Dat is een bewuste
+keuze, zie [Waarom VM's niet automatisch](#waarom-vms-niet-automatisch).
+
+<Steps>
+
+### Maak de VM in Proxmox
+
+Met de hand, in het Proxmox-scherm. Installeer Debian en geef hem een vast
+adres. Is het een **vervanger** van een bestaande VM, neem dan cores,
+geheugen, schijf en MAC-adres exact over uit `inventory/group_vars/proxmox/vms.yml`.
+
+### Schrijf hem op in `vms.yml`
+
+```bash
+qm config <vmid>   # op pve01, bv. via de Shell in het Proxmox-scherm
+```
+
+Neem die waarden over in `inventory/group_vars/proxmox/vms.yml`.
+
+Geen playbook leest dit bestand. Het is je geheugen voor als pve01 ooit weg is.
+
+### Vertrouw zijn hostkey
+
+```bash
+ssh-keyscan -H 192.168.0.99 >> ~/.ssh/known_hosts
+```
+
+### Zet het ansible-account erop
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit nieuwehost -u root -k
+```
+
+`-k` vraagt het root-wachtwoord. Een VM heeft de Ansible-sleutel nog niet,
+anders dan een container.
+
+### Pas de baseline toe
+
+```bash
+ansible-playbook playbooks/baseline.yml --limit nieuwehost
+```
+
+### Verder zoals een container
+
+Vanaf hier is het hetzelfde als geval 1, vanaf
+[Installeer de dienst](#installeer-de-dienst): dienst, adres, wekelijkse
+back-up, commit, controleren, docs.
+
+</Steps>
+
+---
 
 ## Als het misgaat
 
 | Wat je ziet | Wat het is |
 | --- | --- |
-| Het playbook stopt met een lijst namen | Je naam staat niet in `pve_lxcs`. Zet hem erbij en draai opnieuw |
-| Het blijft hangen bij "Wait for SSH" | De container start niet, of het adres klopt niet. Kijk in het Proxmox-scherm of hij draait en welk adres hij heeft |
+| Het playbook stopt meteen met een lijst namen | Je naam staat niet in `pve_lxcs`. Zet hem erbij en draai opnieuw |
+| Het blijft hangen bij "Wait for SSH" (3 minuten) | De container start niet, of het adres klopt niet. Kijk in het Proxmox-scherm of hij draait en welk adres hij heeft |
 | Een fout over een hostkey | Er stond al een andere machine op dat adres. `ssh-keygen -R <adres>` en opnieuw |
-| Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt. Zie de README |
+| Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet. Zie de README |
 
 Een half gebouwde container is niet erg: het playbook mag altijd opnieuw. Wat
-er al staat wordt niet nog eens gemaakt.
+al bestaat wordt niet nog eens gemaakt.
 
-## Virtuele machines
+---
 
-Die maak je met de hand, in het Proxmox-scherm. Dat is een bewuste keuze en
-geen gat.
+## Goed om te weten
 
-Een virtuele machine ontleent zijn waarde aan wat er op zijn schijf staat, niet
-aan zijn instellingen. Hem opnieuw aanmaken uit een lijst geeft je een
-correcte, maar lege machine. Het echte herstel is een back-up terugzetten uit
-Proxmox Backup Server, en dat is een commando dat je één keer geeft, niet iets
-dat je automatiseert.
+### Waar het adres van een container vandaan komt
 
-Wat wel in de repo staat is hoe ze eruitzien: `inventory/group_vars/proxmox/vms.yml`
-noteert cores, geheugen, schijfgrootte en MAC-adres van elke VM. Ben je pve01
-kwijt, dan kun je ze in de juiste vorm terugbouwen zonder te gokken. Houd dat
-bestand met de hand bij; `qm config <nummer>` is de bron.
+Zolang de container niet bestaat, is `lxcs.yml` de enige plek met zijn adres.
+Zodra hij bestaat, haalt de inventory het live uit Proxmox. Je schrijft het
+adres dus nergens anders op, en zet een guest **nooit** in `00-static.yml`:
+dat overschaduwt de live gegevens.
 
-De stappen daarna, vanaf **Installeer de dienst**, zijn voor een VM hetzelfde.
-Alleen het bootstrappen gaat anders, want een VM draagt de Ansible-sleutel nog
-niet:
+### Bestaande containers worden nooit aangepast
+
+De rol kijkt alleen welke vmid ontbreekt. Pas je later `memory` of `cores` aan
+in `lxcs.yml`, dan verandert er niets aan een draaiende container. Doe dat in
+het Proxmox-scherm en zet het ook in `lxcs.yml`, zodat een herbouw klopt.
+
+### Hoeveel geheugen een VM krijgt
+
+Geef een VM wat zijn diensten echt gebruiken, plus wat ruimte voor pieken, en
+niet "zoveel als er vrij is". Linux vult elk vrij geheugen in de VM met
+bestandscache. Zonder balloon geeft een VM dat nooit terug, dus voor pve01 is
+het gewoon bezet.
+
+De `docker`-VM had tot 23-09 28 GB. Proxmox zag 26 GB in gebruik, maar de
+containers zelf gebruikten er samen maar ~4,2 GB van. De rest was cache. Op
+pve01 bleef daardoor maar ~9 GB over voor alle andere guests en de ZFS-cache.
+Nu heeft hij 16 GB, genoeg voor de pieken van Immich.
+
+Wat een VM echt gebruikt, zie je **binnen** de VM, niet in Proxmox:
 
 ```bash
-ssh-keyscan -H 192.168.0.99 >> ~/.ssh/known_hosts
-ansible-playbook playbooks/bootstrap.yml --limit nieuwehost -u root -k
-ansible-playbook playbooks/baseline.yml --limit nieuwehost
+free -m                   # kijk naar "used", niet naar "buff/cache"
+docker stats --no-stream  # per container
+```
+
+Aanpassen doe je op pve01, en daarna ook in `vms.yml`:
+
+```bash
+qm set <vmid> --memory 16384   # gaat pas in na een herstart
+qm pending <vmid>              # toont wat er nog wacht
+qm reboot <vmid>               # herstart hem netjes, alle diensten erop gaan even plat
+```
+
+### Waarom de hostkey via Proxmox gelezen wordt
+
+Een nieuwe container heeft een hostkey die niemand kent, en Ansible kan die
+niet zomaar accepteren. `new-guest.yml` leest de sleutel via `pct exec`
+rechtstreeks van de schijf van de container. Zo vertrouw je de echte machine,
+en niet wat er toevallig op dat adres antwoordt.
+
+### Waarom VM's niet automatisch
+
+Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
+instellingen. Hem opnieuw aanmaken uit een lijst geeft je een correcte, maar
+lege machine. Het echte herstel is een back-up terugzetten uit PBS. Daarom
+staat `vms.yml` er alleen als naslag.
+
+### Na een wijziging aan dit pad
+
+Pas je `new-guest.yml`, `bootstrap.yml`, de baseline of de `proxmox_lxc`-rol
+aan? Draai dan de drill die een wegwerpcontainer bouwt en weer sloopt:
+
+```bash
+ansible-playbook playbooks/recovery-drill.yml -e drill_confirm=true
 ```
