@@ -1,20 +1,58 @@
 ---
-# Vraagt elke DNS-rewrite op bij AdGuard en faalt als er één ontbreekt of naar
-# het verkeerde adres wijst.
+# Controleert of alles nog antwoordt. Verandert niets.
 #
-#   ansible-playbook playbooks/dns-smoketest.yml
+#   ansible-playbook playbooks/smoketest.yml
+#   ansible-playbook playbooks/smoketest.yml --tags caddy   # alleen de routes
+#   ansible-playbook playbooks/smoketest.yml --tags dns     # alleen AdGuard
 #
-# Draai dit na adguard.yml, en op een schema. Niet in site.yml: het
-# controleert, het convergeert niet - zelfde afspraak als caddy-smoketest.yml.
+# Twee checks, want ze zien elk iets anders:
+#   caddy  vraagt elke site uit caddy_sites op. Een 5xx of geen verbinding is
+#          stuk; een 401 of redirect niet, dat is een dienst die om inloggen
+#          vraagt.
+#   dns    vraagt elke <host>.home.arpa bij AdGuard op. Valt een rewrite om,
+#          dan blijven de routes werken (Caddy praat met IP-adressen) terwijl
+#          `ssh pve01.home.arpa` stilletjes stuk is.
 #
-# Waarom naast caddy-smoketest.yml: die vraagt de *.neodata.be routes op en
-# faalt dus al als een naam niet resolvet. Wat hij NIET ziet is de zone die
-# AdGuard zelf serveert. Valt een rewrite om, dan blijven de routes werken
-# (Caddy praat met IP-adressen) terwijl `ssh pve01.home.arpa` stilletjes stuk
-# is, en dat merk je precies op het moment dat je erbij moet.
+# Faalt de eerste check, dan draait de tweede niet: los hem op en draai
+# opnieuw. Draai dit na caddy.yml of adguard.yml; staat ook dagelijks in
+# Semaphore. Niet in site.yml: het controleert, het convergeert niet.
+- name: Smoke test all Caddy sites
+  hosts: caddy
+  gather_facts: false
+  tags: [caddy]
+  tasks:
+    - name: Request every site
+      ansible.builtin.uri:
+        url: "https://{{ item.name }}.{{ caddy_domain }}"
+        follow_redirects: none
+        timeout: 10
+      loop: "{{ caddy_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: smoke
+      failed_when: false
+      # Requesting a URL changes nothing, and the assert below needs the
+      # result. Without this the whole playbook is unusable under --check:
+      # the task skips, leaving results with no `status` to read.
+      check_mode: false
+      changed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Summarise
+      ansible.builtin.assert:
+        that: broken_sites | length == 0
+        fail_msg: "Broken sites: {{ broken_sites | join(', ') }}"
+        success_msg: "All {{ caddy_sites | length }} sites respond"
+      vars:
+        broken_sites: >-
+          {{ (smoke.results | selectattr('status', 'ge', 500) | map(attribute='item.name') | list)
+             + (smoke.results | selectattr('status', 'lt', 0) | map(attribute='item.name') | list) }}
+
 - name: Smoke test the DNS rewrites
   hosts: adguard
   gather_facts: false
+  tags: [dns]
 
   vars:
     # Het adres van de resolver zelf. LET OP de omweg via hostvars: de dig

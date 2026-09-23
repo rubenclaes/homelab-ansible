@@ -14,7 +14,7 @@ foutmelding.
 ## De smoketest
 
 ```bash
-ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
 ```
 
 Bezoekt elk adres uit `caddy_sites` en faalt als er één stuk is (een 5xx of

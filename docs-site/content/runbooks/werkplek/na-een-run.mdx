@@ -11,7 +11,7 @@ of de rest laten bijtrekken.
 | --- | --- | --- |
 | `site.yml` | `site.yml --check --diff` | een tweede keer hoort niets meer te veranderen |
 | `new-guest.yml` | `site.yml --limit <host>`, daarna `dotfiles.yml` | de dienst erop, en de nieuwe `ssh <host>` |
-| `caddy.yml` | `caddy-smoketest.yml` | vraagt elke route echt op, faalt op een dode |
+| `caddy.yml` | `smoketest.yml` | vraagt elke route echt op, faalt op een dode |
 | `stacks.yml` (nieuwe stack) | `caddy.yml`, `docs.yml` | route en servicepagina volgen de stack |
 | `update.yml` | `report.yml` | de lijst met openstaande updates hoort nu leeg |
 | iets in de inventory | `docs.yml` | Diensten en Machines onder Homelab komen daaruit |

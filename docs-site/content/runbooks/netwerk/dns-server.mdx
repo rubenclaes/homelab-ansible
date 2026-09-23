@@ -70,7 +70,7 @@ dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Cad
 ### Controleer alle namen in één keer
 
 ```bash
-ansible-playbook playbooks/dns-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
 Vraagt elke naam uit de inventory op bij AdGuard en vergelijkt het antwoord.

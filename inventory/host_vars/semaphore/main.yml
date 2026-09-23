@@ -64,20 +64,23 @@ semaphore_templates_list:
     arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
     schedule: "0 6 * * *"
 
-  # Vraagt elke <host>.home.arpa bij AdGuard op en vergelijkt met het adres uit
-  # de inventory. Sinds 22-09 loopt de hele estate via één LXC, dus dit is
-  # precies het soort ding dat je niet wil ontdekken op het moment dat je het
-  # nodig hebt.
+  # Vraagt elke route bij Caddy op, en elke <host>.home.arpa bij AdGuard.
+  # Dit is precies het soort ding dat je niet wil ontdekken op het moment dat
+  # je het nodig hebt.
+  #
+  # Hernoemd van "DNS smoketest" op 23-09, toen caddy-smoketest.yml en
+  # dns-smoketest.yml samen smoketest.yml werden. Die naam moest eerst in de
+  # UI mee veranderen, anders maakt de rol een tweede template.
   #
   # 06:30 en niet 06:00 of 07:00: die twee zijn al bezet door Drift check en
   # Docs, en twee jobs op dezelfde minuut vechten om dezelfde controller.
   #
-  # Geen limit nodig. Het playbook draait op `adguard` en delegeert de dig
-  # naar de host die de job draait - de Semaphore-container, en die heeft dig
-  # (gecontroleerd op 23-09, /usr/bin/dig).
-  - name: "DNS smoketest"
-    playbook: playbooks/dns-smoketest.yml
-    description: "Antwoordt AdGuard nog wat de inventory zegt? Plus één publieke naam voor de forwarding."
+  # Geen limit nodig. Beide checks delegeren naar de host die de job draait -
+  # de Semaphore-container. Die heeft dig (gecontroleerd op 23-09,
+  # /usr/bin/dig) en bereikt de routes via Caddy op het LAN (200, 23-09).
+  - name: "Smoketest"
+    playbook: playbooks/smoketest.yml
+    description: "Antwoordt elke route nog, en AdGuard wat de inventory zegt? Plus één publieke naam voor de forwarding."
     schedule: "30 6 * * *"
 
   # De hoofdletter A is die van de bestaande template. Naast deze staat

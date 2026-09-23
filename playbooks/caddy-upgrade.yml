@@ -113,5 +113,6 @@
       become: false
 
 # Proves the upgrade against every site rather than just the process being up.
+# The DNS check comes along; it is quick and harmless.
 - name: Smoke test every site
-  ansible.builtin.import_playbook: caddy-smoketest.yml
+  ansible.builtin.import_playbook: smoketest.yml

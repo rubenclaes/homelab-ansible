@@ -88,7 +88,7 @@ route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet
 ### Alleen bij `caddy`: zet de docs en het rapport terug
 
 ```bash
-ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
 ansible-playbook playbooks/docs.yml       # docs.neodata.be staat op caddy
 ansible-playbook playbooks/report.yml     # report.neodata.be ook
 ```

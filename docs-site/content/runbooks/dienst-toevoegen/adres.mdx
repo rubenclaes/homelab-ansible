@@ -44,7 +44,7 @@ Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
 
 ```bash
 ansible-playbook playbooks/caddy.yml
-ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
 ansible-playbook playbooks/docs.yml
 ```
 

@@ -14,7 +14,7 @@ vergelijkt met de inventory.
 ### Draai de DNS-test
 
 ```bash
-ansible-playbook playbooks/dns-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
 Vraagt `<host>.home.arpa` op voor elke host met een adres, rechtstreeks bij
@@ -36,7 +36,7 @@ Een andere publieke naam kies je met `-e dns_smoketest_public_name=...`.
 
 ```bash
 ansible-playbook playbooks/adguard.yml
-ansible-playbook playbooks/dns-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
 Meer over DNS: [Netwerk](/runbooks/netwerk/).
@@ -44,8 +44,8 @@ Meer over DNS: [Netwerk](/runbooks/netwerk/).
 </Steps>
 
 <Callout type="info">
-Draait ook vanzelf, dagelijks om 06:30. Het vult `caddy-smoketest.yml` aan en
-vervangt hem niet: Caddy praat met adressen, dus een kapotte rewrite laat de
+Draait ook vanzelf, dagelijks om 06:30, samen met de check op de routes. Die
+vangt dit niet op: Caddy praat met adressen, dus een kapotte rewrite laat de
 `neodata.be`-routes gewoon werken terwijl `ssh pve01.home.arpa` stil stuk is.
 </Callout>
 

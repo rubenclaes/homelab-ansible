@@ -10,7 +10,7 @@ Over Semaphore (limits, tijdzone, de API): zie
 ## Waarom deze playbooks niet in `site.yml` zitten
 
 `site.yml` trekt gelijk. `report.yml` is traag en hoort op een schema,
-`drift.yml` en `dns-smoketest.yml` controleren alleen, en `cleanup.yml`
+`drift.yml` en `smoketest.yml` controleren alleen, en `cleanup.yml`
 verwijdert. Uitzondering: `semaphore-templates.yml` zit er wél in, sinds 23-09.
 
 ## Waarom `brew cleanup` niet in `update.yml` zit
@@ -29,7 +29,7 @@ gewoon opnieuw gebouwd.
 
 ## De DNS-test rekent zelf
 
-`dns-smoketest.yml` berekent de lijst namen op dezelfde manier als de
+`smoketest.yml` berekent de lijst namen op dezelfde manier als de
 `adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de lijst
 van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
 

@@ -60,7 +60,7 @@ ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + f
 ### Test
 
 ```bash
-ansible-playbook playbooks/dns-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
 Vraagt elke naam uit de inventory op bij AdGuard, plus één publieke naam

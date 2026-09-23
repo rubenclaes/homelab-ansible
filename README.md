@@ -184,7 +184,7 @@ ansible-playbook playbooks/caddy.yml
 # === Een route toevoegen of wijzigen ======================================
 $EDITOR inventory/host_vars/caddy/main.yml        # caddy_sites
 ansible-playbook playbooks/caddy.yml
-ansible-playbook playbooks/caddy-smoketest.yml    # vraagt elke site op, faalt op een dode route
+ansible-playbook playbooks/smoketest.yml --tags caddy   # vraagt elke site op, faalt op een dode route
 ansible-playbook playbooks/docs.yml               # servicepagina's volgen caddy_sites
 # Wie hier woont vindt de dienst via NeoGate, niet via deze site.
 
@@ -241,7 +241,7 @@ ansible-playbook playbooks/cleanup.yml --limit macmini -e cleanup_apply=true
 ansible-playbook playbooks/caddy-upgrade.yml
 # Niet met apt. De draaiende binary is de pakketversie met caddy-dns/cloudflare
 # erin; apt zet de kale terug en die weigert te starten op deze Caddyfile.
-ansible-playbook playbooks/caddy-smoketest.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
 
 
 # === Schijfruimte vrijmaken ===============================================
@@ -307,13 +307,14 @@ ansible-playbook playbooks/drift.yml -e drift_fail=true   # rood bij drift, voor
 # Een host die niet bereikbaar was telt niet als "gelijk", dat zegt hij erbij.
 
 
-# === Zien of DNS nog antwoordt wat het moet ===============================
-ansible-playbook playbooks/dns-smoketest.yml
+# === Zien of alles nog antwoordt ==========================================
+ansible-playbook playbooks/smoketest.yml              # routes én DNS
+ansible-playbook playbooks/smoketest.yml --tags dns   # alleen DNS
 # Vraagt elke <host>.home.arpa rechtstreeks bij AdGuard op en vergelijkt het
 # antwoord met het adres uit de inventory - een rewrite die naar een oud adres
 # wijst is erger dan een die ontbreekt. Daarna een publieke naam, want valt de
 # upstream weg dan blijven de rewrites groen terwijl de rest stuk is.
-# Naast caddy-smoketest.yml: die ziet de home.arpa-zone niet.
+# De routecheck ziet dat niet: Caddy praat met IP-adressen, niet met home.arpa.
 
 
 # === Wat draait er vanzelf, en wanneer ====================================
