@@ -314,6 +314,27 @@ eventuele argumenten en een cron:
 | Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
 | Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
 
+### En twee dingen die niet via Semaphore gaan
+
+De back-ups draaien op `pve01` zelf, op de cron van Proxmox. Ze staan dus niet
+in de tabel hierboven en je vindt ze niet in de Semaphore-UI — wel in git, in
+`pve_backup_jobs` in `inventory/group_vars/proxmox/backup.yml`.
+
+| Job | Wanneer | Waarheen | Waarom dan |
+| --- | --- | --- | --- |
+| dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
+| wekelijks | zondag 01:00 | de Mac mini, over NFS | de tweede kopie, voor als pve01 zelf weg is |
+
+Waarom die tweede er sinds 23-09 is, en hoe je eruit terugzet, staat in
+[Herstellen](/technisch/runbooks/disaster-recovery#de-tweede-kopie-op-de-mac-mini).
+
+<Callout type="warning">
+Geen van beide meldt zichzelf als hij faalt. Dat gold al voor de geplande jobs
+in Semaphore en het geldt hier net zo goed: de wekelijkse job schrijft over NFS
+naar een Mac die kan slapen. Tot er meldingen zijn, is elk van deze schema's
+een aanname. Het staat bovenaan `TODO.md`.
+</Callout>
+
 <Callout type="info">
 **Die tijden zijn lokale tijd, sinds 23-09.** Daarvoor las Semaphore elke cron
 als UTC — zijn `Schedule.Timezone` heeft `UTC` als default, los van de tijdzone
@@ -361,12 +382,15 @@ project in git. Komt er een bij in de UI, zet hem dan ook in
 `semaphore_templates_list` — anders is dat bestand weer een deellijst en
 geloof je hem ten onrechte.
 
-<Callout type="warning">
-`Baseline (dry run)` heet iets anders dan hij doet: hij draait `baseline.yml`
-**zonder** `--check`, en dat playbook convergeert gewoon. Wie erop klikt om te
-kijken wat er zou gebeuren, past de baseline toe op elke Linux-host. Het staat
-zo in de repo omdat het zo in de UI staat; de keuze tussen hernoemen en
-`--check` toevoegen staat in `TODO.md`.
+<Callout type="info">
+`Baseline (dry run)` heette tot 23-09 iets anders dan hij deed: hij draaide
+`baseline.yml` **zonder** `--check`, en dat playbook convergeert gewoon — wie
+erop klikte om te kijken wat er zou gebeuren, paste de baseline toe op elke
+Linux-host. Hij draait nu met `--check --diff`.
+
+Er is bewust niet hernoemd. `name` is de sleutel waarop de rol zoekt, dus een
+andere naam had een tweede template gemaakt en de taakgeschiedenis van deze
+achtergelaten — precies wat er die ochtend met `Cleanup (Apply)` misging.
 </Callout>
 
 `site.yml` roept `semaphore-templates.yml` sinds 23-09 zelf aan. Let op dat de

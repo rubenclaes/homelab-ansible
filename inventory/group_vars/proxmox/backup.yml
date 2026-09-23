@@ -9,28 +9,38 @@
 # against the live one, so a string "1" where the API returns an integer 1
 # reports a difference on every run, forever.
 #
-# Two corrections to the live state are made here deliberately:
+# Two deliberate departures from a plain transcription:
 #   - vmid 109 is dropped from the weekly job. That guest no longer exists,
 #     so it is a stale reference and does not belong in an accurate
-#     transcription. It is NOT why the job has been failing - see below.
+#     transcription.
 #   - The orphaned PBS groups ct/109 and vm/110 are NOT touched. No role here
 #     deletes anything; remove them by hand in the PBS UI.
 #
-# This weekly job has never produced a backup, for a reason unrelated to its
-# vmid list: its storage, `local`, has content `vztmpl,import,iso` - no
-# `backup` type. vzdump aborts during storage validation before it ever reads
-# which vmids to back up. Confirmed live on pve01: /var/log/pve/tasks/index
-# carries "can't use storage 'local' for backups - wrong content type" on
-# every run of this job, and /var/lib/vz/dump is empty. Dropping vmid 109
-# above is a faithful transcription and changes nothing about whether this
-# job works. Fixing it - giving `local` the `backup` content type, or
-# retargeting the job at `pbs` - is an estate decision with retention
-# consequences and is deliberately left to TODO.md, not done here.
+# On 23-09 the weekly job stopped being a transcription and became a
+# declaration. It had spent months aborting every Sunday on "can't use storage
+# 'local' for backups - wrong content type" - `local` carries import,iso,vztmpl
+# and no `backup`, so vzdump failed during storage validation before it ever
+# read the vmid list, and /var/lib/vz/dump stayed empty. It was then deleted
+# from the node, so this file is now the only place it exists. Re-create it
+# with `-e proxmox_datacenter_create=true`; the role will not do it unasked.
 pve_backup_jobs:
+  # De tweede kopie, wekelijks naar de Mac mini. De dagelijkse job hieronder
+  # naar `pbs` blijft de primaire: die dedupliceert, is incrementeel en houdt
+  # zeven snapshots. Deze schrijft volledige zstd-dumps naar een andere
+  # machine, zodat een pve01 die sterft niet elke kopie meeneemt. Twee
+  # kopieen, twee machines, twee formaten - nog geen off-site.
+  #
+  # 100 blijft erbuiten. Dat is PBS zelf, en zijn schijf is de datastore waar
+  # de andere kopie in staat; die meenemen is een back-up van je back-ups op
+  # de schijf waar je back-ups al niet staan.
+  #
+  # Retentie hangt niet aan deze job maar aan de storage
+  # (`prune-backups keep-last=2` in storage.yml), want dat is waar de ruimte
+  # op is. Zie daar waarom twee en niet meer.
   - id: backup-e6cc3e8b-ac39
     params:
       schedule: "sun 01:00"
-      storage: local
+      storage: macmini-backup
       vmid: "101,102,103,104,106,107,108"
       mode: snapshot
       compress: zstd

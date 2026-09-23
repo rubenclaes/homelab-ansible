@@ -41,6 +41,47 @@ pve_storages:
       nodes: pve01
       content: images,rootdir
 
+  # The second copy, on the Mac mini over NFS. Declared on 23-09 to give the
+  # weekly backup job a storage that actually accepts backups: it ran against
+  # `local` for months and aborted every Sunday on "can't use storage 'local'
+  # for backups - wrong content type", because that storage carries
+  # import,iso,vztmpl and no `backup`. The daily job to `pbs` was unaffected
+  # and is still the primary; this one exists so a dead pve01 does not take
+  # every copy with it.
+  #
+  # `export` is a SUBDIRECTORY of the share, not its root. The Mini exports
+  # /Volumes/media01 with -alldirs (see roles/nfs_exports/defaults/main.yml),
+  # which is precisely what makes that legal - measured on 23-09 by mounting
+  # the path directly from pve01 and writing to it. Without -alldirs this
+  # would have to be the share root, and vzdump would drop a `dump/` beside
+  # Movies and Photos. The directory itself is created by hand, once: an
+  # export cannot be mounted at a path that does not exist yet.
+  #
+  # `options: vers=3` because macOS serves NFSv3. The share also demands
+  # reserved ports (`resvport` on the docker host's mount of the same volume);
+  # Linux uses those by default, so it needs no option here.
+  #
+  # `prune-backups keep-last=2`, and that number is load-bearing. media01 sits
+  # at 95% with ~293 GiB free and already carries Time Machine and Duplicati,
+  # so this job filling it would break all three at once. Two full dumps of
+  # the declared guests is roughly 50 GB - the guests hold ~45 GB of real data
+  # and zstd roughly halves it. Raising this number spends someone else's
+  # headroom; check `df` on the Mini first.
+  - id: macmini-backup
+    params:
+      type: nfs
+      server: 192.168.0.26
+      export: /Volumes/media01/backups/proxmox
+      content: backup
+      options: vers=3
+      prune-backups: keep-last=2
+      # Proxmox sets this itself for an NFS storage and never asks; it is
+      # declared anyway so the transcription is complete, the same way `local`
+      # declares shared: 0. Two fields the API also returns are left out on
+      # purpose: `digest` (a checksum of the whole file, see the header) and
+      # `path`, which Proxmox derives from the storage id as /mnt/pve/<id>.
+      shared: 1
+
 # The `pbs` storage is deliberately absent, and this is a real gap rather than
 # a tidy exclusion.
 #

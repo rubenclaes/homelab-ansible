@@ -19,8 +19,12 @@ proxmox-backup-client key show
 ```
 
 Draai dat één keer, print het resultaat, en leg het ergens buiten het huis.
-Ben je pve01 én de sleutel kwijt, dan zijn je back-ups onleesbaar en stopt dit
-document hier.
+
+Sinds 23-09 is dat niet meer het enige pad: er staat een **tweede kopie op de
+Mac mini**, en die is niet versleuteld. Ben je de sleutel kwijt, dan ben je de
+PBS-kopie kwijt en val je terug op die tweede — hoogstens een week oud in
+plaats van hoogstens een dag. Zie [De tweede kopie](#de-tweede-kopie-op-de-mac-mini).
+Dat maakt de sleutel niet minder belangrijk, het maakt hem minder fataal.
 </Callout>
 
 ## Eerst even de woorden
@@ -41,6 +45,7 @@ zelf als guest, met zijn opslag op een aparte schijf.
 | Een container is stuk, de data is niet belangrijk | [Opnieuw opbouwen](#opnieuw-opbouwen) |
 | Een container of VM is stuk, de data moet terug | [Back-up terugzetten](#back-up-terugzetten) |
 | pve01 zelf is weg | [De hele node](#de-hele-node) |
+| pve01 is weg *en* de encryptiesleutel ook | [De tweede kopie](#de-tweede-kopie-op-de-mac-mini) |
 | De media-stack ziet zijn bestanden niet meer | [De shares van de Mac mini](#de-shares-van-de-mac-mini) |
 
 ## Opnieuw opbouwen
@@ -145,6 +150,65 @@ weigert te verbinden tot je `ssh-keygen -R <adres>` draait. Semaphore
 repareert zichzelf bij de volgende run van `playbooks/semaphore.yml`.
 </Callout>
 
+## De tweede kopie, op de Mac mini
+
+Er zijn twee back-upjobs, en ze doen expres niet hetzelfde.
+
+| | Dagelijks | Wekelijks |
+| --- | --- | --- |
+| Wanneer | 02:30, elke nacht | zondag 01:00 |
+| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
+| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`-dumps |
+| Bewaart | 7 snapshots | 2 dumps |
+| Versleuteld | ja | **nee** |
+| Wat het redt | een guest die stuk is | **pve01 die weg is** |
+
+De dagelijkse is de primaire: fijnmaziger, zuiniger, en dat is de job waar je
+negen van de tien keer uit terugzet. Maar hij schrijft naar een datastore die
+zelf op pve01 staat. Sterft die machine, dan gaan de guests en hun back-ups in
+één keer. Daar is de wekelijkse voor.
+
+<Callout type="warning">
+Dit is een tweede *machine*, geen off-site. Beide staan in hetzelfde huis, aan
+dezelfde stroom, op hetzelfde netwerk. Tegen brand, diefstal of ransomware die
+allebei bereikt helpt dit niet. En omdat deze dumps niet versleuteld zijn, kan
+iedereen die de NFS-share van de Mini kan mounten ze lezen.
+</Callout>
+
+### Terugzetten uit de tweede kopie
+
+Net als uit PBS, alleen een andere opslagnaam. Op pve01:
+
+```bash
+pvesm list macmini-backup
+```
+
+```bash
+pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_23-09_29_52.tar.zst --storage vm-hdd
+```
+
+Er is geen sleutel nodig. Dat is precies het punt van deze kopie, en meteen
+haar zwakte.
+
+### Als hij niet gedraaid heeft
+
+De job schrijft over NFS naar `/Volumes/media01/backups/proxmox` op de Mini.
+Slaapt die machine op zondagnacht, of is de share weg, dan faalt de job — en
+er is nog niets dat dat meldt. Controleer dus met het oog, tot dat er wel is:
+
+```bash
+pvesm list macmini-backup
+ssh ansible@192.168.0.14 'df -h /mnt/pve/macmini-backup'
+```
+
+<Callout type="warning">
+`media01` zat op 23-09 al op 95% vol en draagt ook je Time Machine en
+Duplicati. Daarom staat de retentie op twee dumps (`prune-backups keep-last=2`
+op de opslag, ongeveer 50 GB) en niet hoger. Zet je dat getal omhoog, kijk dan
+eerst of die schijf het heeft — hij vol laten lopen breekt alle drie de
+back-uppaden tegelijk.
+</Callout>
+
 ## De hele node
 
 pve01 opnieuw geïnstalleerd. Dit is de lange weg, en de volgorde doet ertoe.
@@ -179,6 +243,17 @@ encryptiesleutel, en die hoort niet in Git.
 ```bash
 ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
 ```
+
+<Callout type="warning">
+Eén handgreep vooraf, op de **Mac mini**: de map waar de wekelijkse job in
+schrijft moet bestaan. Een NFS-export laat zich niet mounten op een pad dat er
+niet is, dus zonder deze regel komt `macmini-backup` er wel maar blijft hij
+inactief.
+
+```bash
+mkdir -p '/Volumes/media01/backups/proxmox'
+```
+</Callout>
 
 De vlag staat er met opzet niet standaard op. Ontbrekende opslag betekent op
 een gezonde node "je transcriptie klopt niet", en op een herbouwde node "dit
@@ -238,6 +313,28 @@ Die `-K` hoort erbij. `/etc/exports` schrijven vraagt root, en `sudo` op de
 Mini vraagt een wachtwoord — daar staat geen NOPASSWD-regel zoals op de
 Linux-hosts, die krijgen die van `bootstrap.yml`. Daarom staat dit playbook
 ook **niet** in `site.yml`: elke geplande run zou erop blijven hangen.
+
+Krijg je `[Errno 1] Operation not permitted` op de hernoeming naar
+`/etc/exports`, dan is dat géén sudo-probleem — het tijdelijke bestand kwam
+immers wél in `/etc`, en dat mag alleen root. Het is TCC: het bestand draagt
+`com.apple.macl`, en een proces dat onder `sshd` start mag zo'n bestand niet
+aanraken, ook niet als root.
+
+Dat is geen theorie. Exact hetzelfde commando dat over SSH `Operation not
+permitted` geeft, werkt lokaal in Terminal op de Mini. Het ligt dus aan het
+proces, niet aan het bestand, en de oplossing is `sshd` die toestemming geven:
+
+> Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `+`
+> → cmd-shift-G → `/usr/libexec/sshd-keygen-wrapper`
+
+Daarna opnieuw verbinden; een lopende sessie pakt het niet op.
+
+Drie dingen die je niet hoeft te proberen, want dat is op 23-09 al gedaan:
+`unsafe_writes: true` (springt in Ansible alleen in bij `EBUSY`, wij hebben
+`EPERM`), `xattr -d com.apple.macl` (geeft zelf `EPERM`, de vlag is
+kernel-beschermd) en in het bestand schrijven in plaats van het te vervangen
+(over SSH net zo goed geweigerd). Het staat uitgeschreven in
+`roles/nfs_exports/tasks/main.yml`.
 </Callout>
 
 <Callout type="info">
