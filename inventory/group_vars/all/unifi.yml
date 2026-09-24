@@ -5,3 +5,13 @@
 # Via Caddy, zodat het certificaat klopt en validate_certs aan kan blijven.
 unifi_api_url: https://unifi.neodata.be/proxy/network/integration/v1
 unifi_api_key: "{{ vault_unifi_api_key }}"
+
+# Toestellen die ik ken. Eén MAC per regel, met in commentaar wat het is.
+# Wat hier niet in staat, komt als melding op de telefoon (unifi-watch.yml).
+# Eerste vulling: de uitvoer van playbooks/unifi-clients.yml, nagelopen.
+unifi_known_macs: []
+
+# ntfy, rechtstreeks op het IP: net als de Proxmox-meldingen mag dit niet
+# afhangen van Caddy of AdGuard.
+unifi_ntfy_url: http://192.168.0.32/homelab
+unifi_ntfy_token: "{{ vault_ntfy_unifi_token }}"
