@@ -20,7 +20,7 @@ diensten erin.
 | Machine | Soort | Adres | Diensten |
 | --- | --- | --- | --- |
 | [pve01](#pve01) | Proxmox-host | `192.168.0.10` | 1 |
-| [docker](#docker) | VM | `192.168.0.15` | 21 |
+| [docker](#docker) | VM | `192.168.0.15` | 20 |
 | [docker-grafana-stack](#docker-grafana-stack) | VM | `192.168.0.17` | 2 |
 | [haos](#haos) | VM | `192.168.0.31` | 1 |
 | [pbs](#pbs) | VM | `192.168.0.181` | 1 |
@@ -64,7 +64,7 @@ Volwaardige virtuele machines op Proxmox. Een VM met Docker draait stacks.
 | **neogate** | [neogate](/homelab/diensten/neogate/) | `/opt/containers/stacks/neogate` | `.env` in vault |
 | **portainer** | [portainer](/homelab/diensten/portainer/) | `/opt/containers/stacks/portainer` | geen |
 | **rustdesk** | [rustdesk](/homelab/diensten/rustdesk/) | `/opt/containers/stacks/apps/rustdesk` | `.env` in vault |
-| **utils** | [code](/homelab/diensten/code/), [metube](/homelab/diensten/metube/), [pairdrop](/homelab/diensten/pairdrop/), [pdf](/homelab/diensten/pdf/), [termix](/homelab/diensten/termix/), [tools](/homelab/diensten/tools/) | `/opt/containers/stacks/utils` | `.env` in vault |
+| **utils** | [code](/homelab/diensten/code/), [metube](/homelab/diensten/metube/), [pairdrop](/homelab/diensten/pairdrop/), [pdf](/homelab/diensten/pdf/), [tools](/homelab/diensten/tools/) | `/opt/containers/stacks/utils` | `.env` in vault |
 
 Compose-bestanden uit [rubenclaes/containers](https://github.com/rubenclaes/containers). Docker wacht bij het opstarten op `/mnt/ssdnas`, `/mnt/media01`, `/mnt/faststore`.
 
