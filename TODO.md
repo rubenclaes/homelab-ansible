@@ -2,36 +2,14 @@
 
 ## Lopend — thuis afwerken (gestart 24-09)
 
-- [x] **A0. Eerst: caddy en adguard hun adres zelf laten kennen.** Nu vragen
-      ze het bij elke start aan de UCG, en alleen een Fixed IP in UniFi houdt
-      het op `.25` en `.29`. Valt die weg, dan heeft het hele huis geen DNS
-      meer en zijn alle routes dood. Het adres staat al in git (`lxcs.yml`);
-      de container moet het gewoon zelf gebruiken. Adguard is even weg bij de
-      herstart: doe dit als niemand internet gebruikt. Caddy eerst, die is
-      minder kritiek.
-  - [x] Als root op pve01: `pct config 106 | grep -e net0 -e nameserver`.
-        Neem die `net0`-regel letterlijk over en vervang alleen `ip=dhcp` door
-        `ip=192.168.0.25/24,gw=192.168.0.1`. De `hwaddr` moet blijven staan,
-        anders ziet UniFi een nieuw toestel.
-        `pct set 106 --net0 '<aangepaste regel>'` en `pct reboot 106`.
-  - [x] Controle: `curl -sI https://books.neodata.be` geeft een antwoord.
-  - [x] Hetzelfde voor adguard (107) met `ip=192.168.0.29/24,gw=192.168.0.1`.
-        Stond er geen `nameserver`, zet dan ook `--nameserver 1.1.1.1`: zo
-        kan adguard zelf nog namen opzoeken als zijn eigen DNS niet draait.
-  - [x] Controle: `dig @192.168.0.29 pve01.home.arpa +short` geeft `192.168.0.14`.
-  - [x] De Fixed IP's in UniFi laten staan. Ze beslissen niets meer, maar ze
-        beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
-  - [x] In `lxcs.yml` de twee opmerkingen "live container still uses DHCP
-        (see TODO)" weghalen en committen.
-
 - [ ] **A1. Werk-pc `work-wsl` als beheerde host.** Ubuntu in WSL op de
       werk-pc, beheerd vanaf thuis over de tailnet.
   - [ ] SSH-server, alleen sleutels (`PasswordAuthentication no`), WSL in nat-modus.
   - [ ] Publieke `ansible@neodata`-sleutel in `~/.ssh/authorized_keys`.
   - [ ] Tag `tag:work` op de node in de Tailscale-console.
-  - [x] Groep `workstations` met `work-wsl` in `inventory/00-static.yml`
-        (bewust niet onder `linux`: vaak uit, en geen gepland playbook mag hem raken).
   - [ ] Vanaf de mbp: `ansible work-wsl -m ping` → groene pong.
+  - [ ] `adguard.yml` draaien (zet `work-wsl.home.arpa`), dan `smoketest.yml`:
+        die faalt tot dan op die ene naam.
 
 - [ ] **A2. Tailscale-regels.** Afgesproken: `tag:work` krijgt geen enkele
       regel als bron. Hij hoeft nergens heen; thuis → work-wsl dekt mijn eigen `*:*`.
@@ -53,45 +31,17 @@
         kwaliteit op Original.
   - [ ] Eerste stream: Dashboard toont Direct Play, niet Relay.
 
-- [x] **A5. AdGuard-wildcard uit git.** `*.neodata.be` → caddy staat sinds
-      24-09 in `host_vars/adguard/main.yml` en de rol beheert hem.
-  - [x] `ansible-playbook playbooks/adguard.yml --check --diff`. Verwacht:
-        geen wijziging, want de regel met de hand is dezelfde. Toont hij wel
-        iets voor `*.neodata.be`, eerst uitzoeken waarom.
-
 - [ ] **A4. UniFi als gegevensbron (alleen lezen).** UniFi is een bron, geen
       inventory: de toestellen zelf beheert Ansible niet. Alles leest, niets
       schrijft naar UniFi.
-  - [x] Stap 1 — `ansible.utils` en `netaddr` staan in de requirements. Thuis:
-        `pipx inject ansible-core netaddr` en
-        `ansible-galaxy collection install -r collections/requirements.yml`.
-  - [x] Stap 2 — route `unifi` → UCG staat in `host_vars/caddy/main.yml`,
-        plus `group_vars/all/unifi.yml`, `playbooks/unifi-clients.yml` en
-        `playbooks/tasks/unifi_clients.yml`. Thuis:
-    - [x] `caddy.yml --check --diff`, dan echt, dan `smoketest.yml`.
-          (24-09: route werkt. Smoketest faalt enkel op `work-wsl.home.arpa`
-          tot A1 klaar is en `adguard.yml` gedraaid is.)
-    - [x] API-sleutel maken: UniFi → Settings → Control Plane → Integrations.
-    - [x] `ansible-vault create --encrypt-vault-id infra inventory/group_vars/all/vault.yml`
-          met `vault_unifi_api_key`.
-    - [x] `unifi-clients.yml` draaien; veldnamen nakijken (`macAddress`,
-          `name`, `ipAddress`, `type`) en of de lijst volledig is (`totalCount`).
-  - [ ] Stap 3 — melding bij onbekend toestel: `playbooks/unifi-watch.yml`. Thuis:
-    - [x] Eigen ntfy-token → `vault_ntfy_unifi_token`.
-    - [x] `unifi_known_macs` vullen uit de uitvoer van stap 2.
-    - [ ] Op de telefoons van het gezin: Private Wi-Fi Address → Fixed.
-    - [ ] Testrun (verwacht: nul meldingen), dan Semaphore-template elke 15 minuten.
+  - [ ] Stap 3 — `unifi-watch.yml` draait elk kwartier in Semaphore. Nog:
+        op de iPhones van het gezin Private Wi-Fi Address → Fixed.
   - [ ] Stap 4 — routes tegen UniFi: `playbooks/unifi-routes.yml`. Thuis:
     - [ ] Draaien.
     - [ ] Testen of de API-sleutel ook de oude API opent
           (`/proxy/network/api/s/default/rest/user` → `use_fixedip`). Zo ja:
           ook reservaties controleren, dan waarschuwt hij vóór een herstart
           in plaats van erna.
-  - [x] Stap 5 — namen in AdGuard, zonder Ansible: Private reverse DNS
-        servers `192.168.0.1` (24-09, via de API). Was leeg, en sinds A0 viel
-        AdGuard dan terug op `1.1.1.1`. Alleen DHCP-toestellen krijgen een
-        naam (`.26` heeft er geen, test met `.6`). Hoort bij de
-        AdGuard-instellingen die nog naar git moeten (Grotere projecten).
   - [ ] Stap 6 — pagina Toestellen op de docs-site: `docs.yml` (block/rescue),
         `toestellen.md.j2`, `_meta.js`. Zonder MAC-adressen.
         **Let op: deze code staat nog niet in de repo** (geen
@@ -117,9 +67,8 @@ machine staat, gaat naar git. Wie wat doet:
 
 Eerst wat het hele huis plat kan leggen:
 
-- [x] Vaste adressen voor caddy en adguard → A0.
-- [x] AdGuard-wildcard `*.neodata.be` → in de rol (A5 om te controleren).
-- [ ] AdGuard upstream (Quad9) en per-client instellingen → zie "Grotere
+- [ ] AdGuard upstream (Quad9), per-client instellingen en de private
+      reverse DNS (`192.168.0.1`, op 24-09 via de API gezet) → zie "Grotere
       projecten". Kan via Ansible (REST API, zoals de rewrites).
 - [ ] UniFi: de DNS die DHCP uitdeelt (`.29` + `1.1.1.1`) en de reservaties
       staan alleen in UniFi. Afgesproken dat Ansible niet naar UniFi schrijft;
@@ -167,9 +116,6 @@ Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 - [ ] PBS: datastore-, prune- en verify-jobs. Nakijken of daar een bruikbare
       provider voor is; zo niet, de Ansible-rol laten corrigeren in plaats van
       alleen toevoegen.
-- [x] De wekelijkse back-upjob naar de Mac mini: `backup.yml` zegt dat hij op
-      23-09 van pve01 verdween en alleen met `-e proxmox_datacenter_create=true`
-      terugkomt. Nakijken of hij er weer staat; zo niet, terugzetten.
 - [ ] AdGuard-versie: nu update je in de web-UI en kopieer je de versie naar
       git. Omdraaien: versie in git, rol installeert.
 
