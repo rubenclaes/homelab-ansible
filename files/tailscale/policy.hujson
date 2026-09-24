@@ -14,6 +14,7 @@
 	"tagOwners": {
 		"tag:ci":      [],
 		"tag:homelab": ["rubes.claes@gmail.com"],
+		"tag:work":    ["rubes.claes@gmail.com"],
 	},
 
 	// Namen voor adressen, zodat de regels leesbaar blijven.
@@ -34,7 +35,7 @@
 			"src":    ["autogroup:member"],
 			"dst":    ["caddy:80,443"],
 		},
-		// En DNS bij adguard (tag:homelab), anders lost *.neodata.be niet op.
+		// En DNS bij adguard, anders lost *.neodata.be niet op.
 		{
 			"action": "accept",
 			"src":    ["autogroup:member"],
@@ -61,8 +62,13 @@
 	// Tailscale weigert op te slaan als een van deze niet klopt.
 	"tests": [
 		{
+			"src":  "tag:work",
+			"deny": ["192.168.0.14:8006", "192.168.0.14:22", "100.84.46.18:53"],
+		},
+		{
 			"src":    "rubes.claes@gmail.com",
-			"accept": ["192.168.0.14:8006", "192.168.0.25:443", "100.84.46.18:53"],
+			"accept": ["192.168.0.14:8006", "192.168.0.25:443", "100.84.46.18:53", "tag:work:22"],
 		},
 	],
 }
+
