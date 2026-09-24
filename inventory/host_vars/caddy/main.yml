@@ -16,7 +16,6 @@ caddy_config_readers:
 # https:     upstream doet TLS met een zelfondertekend certificaat
 # host_header, forwarded: Host doorgeven / X-Real-IP en X-Forwarded-* toevoegen
 caddy_sites:
-  - { name: unifi, host: ucg, upstream: "192.168.0.1:443", https: true, host_header: true, desc: "UniFi — gateway en netwerkbeheer" }
   - { name: memos, host: docker, port: 5230, stack: memos, desc: "Memos - snelle notities" }
 
   # --- Infra ---
@@ -35,6 +34,7 @@ caddy_sites:
   - { name: dns, host: adguard, port: 80, desc: "AdGuard Home — DNS voor de hele estate, en filtering" }
   # Vereist 192.168.0.25 in http.trusted_proxies van HA, anders een 400.
   - { name: haos, host: haos, port: 8123, forwarded: true, desc: "Home Assistant — domotica" }
+  - { name: unifi, host: ucg, upstream: "192.168.0.1:443", https: true, host_header: true, desc: "UniFi — gateway en netwerkbeheer" }
 
   # --- docker ---
   - { name: home, host: docker, port: 8085, stack: homepage, desc: "Homepage — startpagina met alle diensten" }

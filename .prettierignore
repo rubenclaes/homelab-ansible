@@ -1,0 +1,3 @@
+# Ansible-YAML: Prettier breekt flow-maps langer dan 80 tekens open.
+*.yml
+*.yaml
