@@ -5,7 +5,7 @@
 #   ansible-playbook playbooks/alloy.yml
 #
 # Een dunne wrapper, net als caddy.yml en adguard.yml. Welke hosts een agent
-# krijgen bepaalt de Proxmox-tag `alloy_hosts` op de guest; wat die
+# krijgen staat in de groep `alloy_hosts` in inventory/00-static.yml; wat die
 # agent verstuurt staat per host in alloy_log_targets.
 #
 # In site.yml staat dit NA caddy.yml, en dat is geen willekeurige volgorde:

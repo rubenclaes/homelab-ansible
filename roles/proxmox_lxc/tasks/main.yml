@@ -36,7 +36,6 @@
     swap: "{{ item.swap }}"
     unprivileged: "{{ pve_lxc_defaults.unprivileged }}"
     features: "{{ item.features | default(omit) }}"
-    tags: "{{ item.tags | default(omit) }}"
     netif:
       net0: "name=eth0,bridge={{ pve_lxc_defaults.bridge }},ip={{ item.ip }},gw={{ pve_lxc_defaults.gateway }}"
     pubkey: "{{ pve_lxc_defaults.pubkey }}"

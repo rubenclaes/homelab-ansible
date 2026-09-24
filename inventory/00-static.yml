@@ -19,20 +19,34 @@ all:
             # inventory, want een node is geen guest van zichzelf.
             pve01: { ansible_host: 192.168.0.14 }
 
-    # Groepen die uit Proxmox-tags komen. homelab.proxmox.yml maakt van elke
-    # tag een groep met dezelfde naam; een guest met tag `docker_hosts` zit dus
-    # in docker_hosts. Een nieuwe guest krijgt zijn rollen door hem te taggen,
-    # niet door hem hier te zetten. Welke guest welke tag heeft en waarom staat
-    # bij de guest zelf, in group_vars/proxmox/lxcs.yml en vms.yml.
-    #
-    # Ze staan hier leeg zodat een playbook de groep altijd kent, ook als geen
-    # enkele guest de tag heeft.
+    # Guests met Docker. Proxmox weet dat niet, dus staat het hier. De hosts
+    # zelf komen uit de dynamische inventory; hier worden ze enkel gegroepeerd.
     docker_hosts:
-      hosts: {}
+      hosts:
+        docker: {}
+        docker-grafana-stack: {}
+
+    # Guests op de tailnet.
+    #
+    # adguard is de DNS-server van het huis en moet daarom een tailnet-adres
+    # hebben. Een LAN-adres werkt alleen voor toestellen die de subnet-route
+    # accepteren, en dat doet hier geen enkel toestel (RouteAll: False op de
+    # Mini en op ct 108). Onderweg zou je dan helemaal geen DNS hebben.
+    #
+    # Alleen ct 108 adverteert routes (zie zijn host_vars); adguard niet.
     tailnet:
-      hosts: {}
+      hosts:
+        tailscale: {}
+        adguard: {}
+
+    # Hosts die een Alloy-logagent krijgen.
+    #
+    # De docker-hosts staan er bewust niet bij: daar haalt de Alloy uit de
+    # monitoring-stack de containerlogs al op via de Docker-socket. Een tweede
+    # agent zou dezelfde logs dubbel naar Loki sturen.
     alloy_hosts:
-      hosts: {}
+      hosts:
+        caddy: {}
 
     # Hosts die geen Debian draaien en de baseline-rol niet krijgen. De groep
     # staat hier zodat site.yml hem altijd kent, ook als alle leden uit de
