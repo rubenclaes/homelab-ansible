@@ -36,19 +36,24 @@
       schrijft naar UniFi.
   - [ ] Stap 3 — `unifi-watch.yml` draait elk kwartier in Semaphore. Nog:
         op de iPhones van het gezin Private Wi-Fi Address → Fixed.
-  - [ ] Stap 4 — routes tegen UniFi: `playbooks/unifi-routes.yml`. Thuis:
-    - [ ] Draaien.
-    - [ ] Testen of de API-sleutel ook de oude API opent
-          (`/proxy/network/api/s/default/rest/user` → `use_fixedip`). Zo ja:
-          ook reservaties controleren, dan waarschuwt hij vóór een herstart
-          in plaats van erna.
-  - [ ] Stap 6 — pagina Toestellen op de docs-site: `docs.yml` (block/rescue),
-        `toestellen.md.j2`, `_meta.js`. Zonder MAC-adressen.
-        **Let op: deze code staat nog niet in de repo** (geen
-        `toestellen.md.j2`, geen UniFi in `docs.yml`). Staat ze nog ergens
-        lokaal, bv. op de mbp? Thuis:
-    - [ ] `docs.yml` draaien, pagina bekijken.
-    - [ ] De rescue één keer testen met een foute `unifi_api_url`.
+  - [ ] Wat `unifi-routes.yml` op 24-09 vond. Pas als hij groen is, een
+        Semaphore-template (dagelijks) zodat hij vóór een herstart waarschuwt:
+    - [ ] **Fixed IP in UniFi** voor `.15` docker, `.17` docker-grafana-stack,
+          `.181` pbs, `.25` caddy, `.29` adguard, `.30` semaphore, `.31` haos,
+          `.32` ntfy. Alleen de Mac mini en Dobbis hebben er een, en de
+          DHCP-range is `.6`–`.254`: de UCG kan `.29` aan een telefoon geven.
+    - [ ] **pve01 zit op `.10`, niet op `.14`.** `.10` staat op `vmbr0`
+          (2,5GbE, `enp3s0`); `.14` op `vmbr1`, en daar zit geen kabel in
+          (`nic0` NO-CARRIER). `.14` werkt alleen omdat Linux op elke poort
+          antwoordt voor al zijn adressen. Kiezen: overal `.10` (inventory,
+          AdGuard, Caddy, docs), of `.14` naar `vmbr0` verhuizen. Pas bij een
+          rustig moment: dit is de hypervisor.
+  - [ ] **WireGuard deelt DNS `192.168.0.26` uit**: de oude AdGuard op de
+        Mac mini, die er niet meer is. UniFi → VPN Server → Neodata VPN → DNS
+        naar `192.168.0.29`, daarna het profiel op de iPhone vernieuwen.
+  - [ ] Zes toestellen zonder naam op de pagina Toestellen (`.10` pve01,
+        `.17`, `.30`, `.32`, `.50`, `.100` switch): een Alias in UniFi.
+  - [ ] De eerste iPhone (`.171`) heet gewoon "iPhone": van wie?
 
 ---
 
@@ -72,7 +77,7 @@ Eerst wat het hele huis plat kan leggen:
       projecten". Kan via Ansible (REST API, zoals de rewrites).
 - [ ] UniFi: de DNS die DHCP uitdeelt (`.29` + `1.1.1.1`) en de reservaties
       staan alleen in UniFi. Afgesproken dat Ansible niet naar UniFi schrijft;
-      dan minstens een controle die waarschuwt als het afwijkt (A4 stap 4).
+      dan minstens een controle die waarschuwt als het afwijkt: `unifi-routes.yml` (A4).
 - [ ] De `/dev/net/tun`-regels voor ct 107 en 108 staan met de hand in
       `/etc/pve/lxc/*.conf`. De API-token kan ze niet zetten; nakijken of
       OpenTofu dat via root@pam wel kan, anders blijft het een beschreven handstap.

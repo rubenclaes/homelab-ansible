@@ -1,0 +1,36 @@
+{#- Wat er nu op het netwerk zit, uit UniFi. Zonder MAC-adressen: deze site
+    staat op het net, en een MAC is een sleutel (Fixed IP, Block, known list).
+    Een naam die zelf een MAC is wordt "zonder naam"; de twee laatste bytes
+    die UniFi achter een standaardnaam zet ("PulseR 84:c7") gaan eraf. -#}
+{% set mac_re = '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$' -%}
+{% set kinds = {'WIRED': 'kabel', 'WIRELESS': 'wifi', 'VPN': 'VPN'} -%}
+---
+title: Toestellen
+---
+
+import { Callout } from 'nextra/components'
+
+# Toestellen
+
+<Callout type="warning">
+Gegenereerd door `playbooks/docs.yml` uit UniFi, bij elke run. Een naam pas
+je aan in UniFi (Client Devices → het toestel → Alias), niet hier.
+</Callout>
+
+{% if unifi_docs_clients | default(none) -%}
+Wat er op {{ unifi_docs_generated }} op het netwerk zat: {{ unifi_docs_clients | length }}
+toestellen. **Vast adres** is een Fixed IP in UniFi. Zonder vast adres kan
+een toestel na een herstart op een ander adres uitkomen; voor alles met een
+Caddy-route moet het er staan (`playbooks/unifi-routes.yml` controleert dat).
+
+| Toestel | Adres | Verbinding | Vast adres | Verbonden sinds |
+| --- | --- | --- | --- | --- |
+{% for c in unifi_docs_clients | sort(attribute='sortkey') -%}
+{% set name = c.name | default('') -%}
+{% set name = '' if name is match(mac_re) else name | regex_replace('\\s([0-9a-fA-F]{2}:){1,2}[0-9a-fA-F]{2}$', '') | trim -%}
+| {{ name if name else '*zonder naam*' }} | `{{ c.ipAddress | default('—') }}` | {{ kinds[c.type] | default(c.type | default('—') | lower) }} | {{ 'ja' if c.ipAddress | default('') in unifi_reserved_ips else '—' }} | {{ (c.connectedAt | default(''))[:10] or '—' }} |
+{% endfor %}
+{% else -%}
+UniFi was niet bereikbaar toen deze pagina voor het eerst gemaakt werd.
+De volgende run van `playbooks/docs.yml` vult hem.
+{% endif %}

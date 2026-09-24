@@ -100,6 +100,52 @@
         mode: "0644"
       loop: "{{ docs_pages }}"
 
+    # De pagina Toestellen komt uit UniFi, niet uit de inventory. Is UniFi
+    # onbereikbaar (UCG herstart, sleutel ingetrokken), dan mag de rest van
+    # de site gewoon gebouwd worden: de vorige versie van de pagina blijft
+    # staan, en alleen als er nog geen is komt er een lege met die uitleg.
+    - name: Devices page from UniFi
+      block:
+        - name: Read the clients from UniFi
+          ansible.builtin.import_tasks: tasks/unifi_clients.yml
+
+        - name: Read the reservations from UniFi
+          ansible.builtin.import_tasks: tasks/unifi_reservations.yml
+
+        # Sorteren op het laatste getal van het adres: als tekst komt .100
+        # voor .6. Alles zit in één /24, dus dat getal volstaat.
+        - name: Sort the clients by address
+          ansible.builtin.set_fact:
+            unifi_docs_clients: >-
+              {%- set out = [] -%}
+              {%- for c in unifi_clients.json.data -%}
+              {%- set n = (c.ipAddress | default('0.0.0.999')).split('.') | last | int -%}
+              {%- set _ = out.append(c | combine({'sortkey': '%03d' | format(n)})) -%}
+              {%- endfor -%}
+              {{ out }}
+            unifi_docs_generated: "{{ now().strftime('%d-%m-%Y %H:%M') }}"
+
+        - name: Render the devices page
+          ansible.builtin.template:
+            src: docs/toestellen.md.j2
+            dest: "{{ docs_site }}/content/homelab/toestellen.mdx"
+            mode: "0644"
+      rescue:
+        - name: Say that the devices page was not refreshed
+          ansible.builtin.debug:
+            msg: >-
+              UniFi gaf geen antwoord ({{ ansible_failed_result.msg | default('onbekende fout') }}).
+              De pagina Toestellen is niet bijgewerkt; de rest van de site wel.
+
+        - name: Write a placeholder only if there is no devices page yet
+          ansible.builtin.template:
+            src: docs/toestellen.md.j2
+            dest: "{{ docs_site }}/content/homelab/toestellen.mdx"
+            mode: "0644"
+            force: false
+          vars:
+            unifi_docs_clients: !!null
+
     - name: Ensure the per-service page directory exists
       ansible.builtin.file:
         path: "{{ docs_services }}"

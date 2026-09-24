@@ -23,19 +23,51 @@
              | selectattr('ipAddress', 'defined')
              | map(attribute='ipAddress') | list }}
 
-    - name: Every route must point at an address a device really has
-      ansible.builtin.assert:
-        that: route_ip in unifi_ips
-        fail_msg: "{{ item.name }} wijst naar {{ route_ip }}, maar geen toestel in UniFi heeft dat adres."
-        success_msg: "{{ item.name }} -> {{ route_ip }} ok"
-        quiet: true
+    - name: Work out where every route points
+      ansible.builtin.set_fact:
+        unifi_route_ips: "{{ unifi_route_ips | default({}) | combine({item.name: route_ip}) }}"
       vars:
         route_ip: >-
           {{ (item.upstream | split(':') | first) if item.upstream is defined
              else hostvars[item.host].ansible_host }}
       when:
         - item.name not in unifi_route_check_skip
-        - route_ip | ansible.utils.ipaddr('192.168.0.0/24')
+        - route_ip is ansible.utils.ipv4_address
+        - route_ip is ansible.utils.in_network('192.168.0.0/24')
       loop: "{{ hostvars['caddy'].caddy_sites }}"
       loop_control:
         label: "{{ item.name }}"
+
+    - name: Every route must point at an address a device really has
+      ansible.builtin.assert:
+        that: missing | length == 0
+        fail_msg: >-
+          Geen toestel in UniFi heeft dit adres:
+          {% for k in missing %}{{ k }} ({{ unifi_route_ips[k] }}){{ ', ' if not loop.last }}{% endfor %}
+        quiet: true
+      vars:
+        missing: >-
+          {{ unifi_route_ips | dict2items
+             | rejectattr('value', 'in', unifi_ips)
+             | map(attribute='key') | list }}
+
+    # Zonder reservatie kan de UCG het adres van een upstream aan een ander
+    # toestel geven zodra dat even offline is: dan breekt de route pas bij de
+    # volgende herstart, en dit vangt het vooraf.
+    - name: Read the reservations from UniFi
+      ansible.builtin.import_tasks: tasks/unifi_reservations.yml
+
+    # Caddy zelf erbij: geen route, maar zonder Caddy werkt er geen enkele.
+    - name: Every route must point at a reserved address
+      ansible.builtin.assert:
+        that: unreserved | length == 0
+        fail_msg: >-
+          Zonder Fixed IP in UniFi:
+          {% for ip in unreserved %}{{ ip }} ({{ checked | dict2items | selectattr('value', 'eq', ip)
+          | map(attribute='key') | join(', ') }}){{ '; ' if not loop.last }}{% endfor %}.
+          Zet ze vast in UniFi: Client Devices -> het toestel -> Settings -> Fixed IP.
+        quiet: true
+      vars:
+        checked: "{{ unifi_route_ips | combine({'caddy': hostvars['caddy'].ansible_host}) }}"
+        unreserved: >-
+          {{ checked.values() | unique | reject('in', unifi_reserved_ips) | sort | list }}

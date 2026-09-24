@@ -1,0 +1,18 @@
+---
+# Leest de Fixed IP-reservaties uit UniFi naar unifi_reserved_ips.
+# Gedeeld door playbooks/unifi-routes.yml en playbooks/docs.yml.
+#
+# De nieuwe API (integration/v1) kent geen reservaties; de oude wel, en ze
+# neemt dezelfde sleutel aan.
+- name: Read the fixed-IP reservations from UniFi
+  ansible.builtin.uri:
+    url: "{{ unifi_api_url | regex_replace('/integration/v1$', '') }}/api/s/default/rest/user"
+    headers:
+      X-API-KEY: "{{ unifi_api_key }}"
+  register: unifi_users
+
+- name: Keep only the reserved addresses
+  ansible.builtin.set_fact:
+    unifi_reserved_ips: >-
+      {{ unifi_users.json.data | selectattr('use_fixedip', 'defined')
+         | selectattr('use_fixedip') | map(attribute='fixed_ip') | list }}
