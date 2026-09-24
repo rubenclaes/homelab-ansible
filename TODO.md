@@ -62,9 +62,6 @@ Eerst wat het hele huis plat kan leggen:
 - [ ] AdGuard upstream (Quad9), per-client instellingen en de private
       reverse DNS (`192.168.0.1`, op 24-09 via de API gezet) → zie "Grotere
       projecten". Kan via Ansible (REST API, zoals de rewrites).
-- [ ] UniFi: de DNS die DHCP uitdeelt (`.29` + `1.1.1.1`) en de reservaties
-      staan alleen in UniFi. Afgesproken dat Ansible niet naar UniFi schrijft;
-      dan minstens een controle die waarschuwt als het afwijkt: `unifi-routes.yml` (A4).
 - [ ] De `/dev/net/tun`-regels voor ct 107 en 108 staan met de hand in
       `/etc/pve/lxc/*.conf`. De API-token kan ze niet zetten; nakijken of
       OpenTofu dat via root@pam wel kan, anders blijft het een beschreven handstap.

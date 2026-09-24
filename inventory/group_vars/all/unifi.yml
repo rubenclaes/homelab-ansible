@@ -52,3 +52,14 @@ unifi_known_macs:
 # afhangen van Caddy of AdGuard.
 unifi_ntfy_url: http://192.168.0.32/homelab
 unifi_ntfy_token: "{{ vault_ntfy_unifi_token }}"
+
+# De DNS-servers die elk netwerk in UniFi via DHCP uitdeelt, in volgorde.
+# Ansible schrijft niet naar UniFi: playbooks/unifi-routes.yml vergelijkt
+# alleen, en faalt als het afwijkt. Wijzigt het hier, dan eerst in UniFi.
+#
+# Waarom het ertoe doet: deelt Home iets anders uit dan AdGuard, dan gaat
+# elk toestel er stil omheen. En `1.1.1.1` als tweede houdt het huis online
+# als ct 107 stilstaat (zie de Homelab-pagina Netwerk).
+unifi_expected_dns:
+  Home: [192.168.0.29, 1.1.1.1]
+  Neodata VPN: [192.168.0.29]

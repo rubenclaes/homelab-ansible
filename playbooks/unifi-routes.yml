@@ -1,11 +1,12 @@
 ---
 # Controleert of elke Caddy-route naar een adres wijst dat een toestel in
-# UniFi nu echt heeft. Vangt een upstream die verhuisd of weg is.
+# UniFi nu echt heeft, met een Fixed IP. Vangt een upstream die verhuisd of
+# weg is. En of elk netwerk de DNS uitdeelt uit unifi_expected_dns.
 #
 #   ansible-playbook playbooks/unifi-routes.yml
 #
 # Leest alleen. Verandert niets in UniFi of Caddy.
-- name: Caddy routes against UniFi
+- name: Caddy routes and DNS against UniFi
   hosts: localhost
   gather_facts: false
   vars:
@@ -71,3 +72,38 @@
         checked: "{{ unifi_route_ips | combine({'caddy': hostvars['caddy'].ansible_host}) }}"
         unreserved: >-
           {{ checked.values() | unique | reject('in', unifi_reserved_ips) | sort | list }}
+
+    # Het oude API-pad, net als de reservaties: de nieuwe API toont geen
+    # DHCP-instellingen.
+    - name: Read the network settings from UniFi
+      ansible.builtin.uri:
+        url: "{{ unifi_api_url | regex_replace('/integration/v1$', '') }}/api/s/default/rest/networkconf"
+        headers:
+          X-API-KEY: "{{ unifi_api_key }}"
+      register: unifi_networks
+
+    - name: Every network must hand out the DNS servers in git
+      ansible.builtin.assert:
+        that: wrong | length == 0
+        fail_msg: >-
+          UniFi deelt andere DNS uit dan unifi_expected_dns: {{ wrong | join('; ') }}.
+          Pas het aan in UniFi (Settings -> Networks, of VPN Server), niet hier.
+        quiet: true
+      vars:
+        wrong: >-
+          {%- set out = [] -%}
+          {%- for name, want in unifi_expected_dns.items() -%}
+          {%-   set net = unifi_networks.json.data | selectattr('name', 'eq', name) | first | default(none) -%}
+          {%-   if net is none -%}
+          {%-     set _ = out.append(name ~ ': bestaat niet in UniFi') -%}
+          {%-   else -%}
+          {%-     set have = [] -%}
+          {%-     for i in range(1, 5) if net['dhcpd_dns_' ~ i] | default('') -%}
+          {%-       set _ = have.append(net['dhcpd_dns_' ~ i]) -%}
+          {%-     endfor -%}
+          {%-     if have != want -%}
+          {%-       set _ = out.append(name ~ ': ' ~ (have | join(', ') or 'automatisch') ~ ' in plaats van ' ~ want | join(', ')) -%}
+          {%-     endif -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{ out }}

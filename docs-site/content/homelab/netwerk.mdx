@@ -30,6 +30,11 @@ Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
 internet, ook het toestel waarmee je het zou repareren niet.
 </Callout>
 
+Wat elk netwerk hoort uit te delen staat in `unifi_expected_dns`
+(`inventory/group_vars/all/unifi.yml`). Ansible zet het niet in UniFi, maar
+`playbooks/unifi-routes.yml` vergelijkt het elke ochtend (Semaphore, 06:15) en
+wordt rood als het afwijkt.
+
 ## Vaste adressen van caddy en adguard
 
 Sinds 24-09 zetten ct 106 (caddy, `192.168.0.25`) en ct 107 (adguard,
