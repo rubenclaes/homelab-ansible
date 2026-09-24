@@ -1,0 +1,222 @@
+---
+title: Iets weghalen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Iets weghalen
+
+Een dienst of machine die weg mag. Het omgekeerde van
+[Nieuwe dienst](/runbooks/toevoegen/dienst/) en
+[Nieuwe machine](/runbooks/toevoegen/machine/).
+
+<Callout type="warning">
+Een container stoppen is het makkelijke deel. Wat je vergeet is de rest: een
+route die blijft staan, een stack die de volgende run terugzet, een wachtwoord
+dat nog geldig is. Daarom begint elk geval hieronder met **zoeken**.
+</Callout>
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Een **Docker-app** mag weg | termix (weggehaald op 24-09) | [Docker-app weghalen](#een-docker-app-weghalen) |
+| Een dienst blijft draaien, maar zijn **mooie adres** mag weg | een route naar een oude printer | [Alleen het adres](#alleen-het-adres-weghalen) |
+| Een **container of VM** op pve01 mag weg | een test-LXC | [Machine weghalen](#een-machine-weghalen) |
+
+## Een Docker-app weghalen
+
+Voorbeeld: `termix` uit de stack `utils`.
+
+<Steps>
+
+#### Zoek overal waar hij staat
+
+In beide repo's, en op de docker-host:
+
+```bash
+grep -rniI termix --exclude-dir=node_modules --exclude-dir=.git . ~/Development/containers
+ssh docker 'sudo docker ps -a --filter name=termix'
+ssh docker "sudo docker inspect -f '{{range .Mounts}}{{.Source}} {{end}}' utils-termix"
+ssh docker 'ls /opt/containers/data | grep -i termix'
+```
+
+Schrijf de datamap op die `docker inspect` toont: na de volgende stappen is
+de container weg en kan je het niet meer vragen. De `ls` vindt oude mappen van
+een vorige opzet. Bij termix stond er naast `data/utils/termix` nog een
+`data/termix` van december 2025.
+
+Kijk ook buiten git, want dit vind je niet met grep:
+
+| Waar | Wat je zoekt |
+| --- | --- |
+| Pocket ID (`id.neodata.be`) | een OIDC-client voor de app |
+| NeoGate | een toegang die mensen voor de app krijgen |
+| Semaphore | een template die de app raakt |
+| `files/env/<stack>.env` | variabelen die alleen deze app gebruikt (`ansible-vault edit`) |
+
+#### Haal de route weg
+
+Verwijder zijn regel uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`, dan:
+
+```bash
+ansible-playbook playbooks/caddy.yml --check --diff   # alleen zijn blok verdwijnt
+ansible-playbook playbooks/caddy.yml
+```
+
+Eerst de route, dan de container: zo krijgt niemand een foutpagina van een
+dienst die half weg is.
+
+#### Haal hem uit de compose
+
+In de `containers`-repo: verwijder zijn blok onder `services:` in
+`stacks/<stack>/docker-compose.yml`. Commit en **push**: de docker-host haalt de
+compose van GitHub, niet van je laptop.
+
+Is het de laatste dienst van de stack, haal dan de hele stack weg uit
+`docker_stacks_list` in `inventory/host_vars/docker.yml`.
+
+#### Laat stacks.yml de container opruimen
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker
+```
+
+De rol draait `docker compose up` met `remove_orphans`: een dienst die niet
+meer in de compose staat, wordt gestopt en verwijderd.
+
+#### Gooi de data weg
+
+De map(pen) die je in de eerste stap opschreef:
+
+```bash
+ssh docker 'sudo rm -rf /opt/containers/data/utils/termix /opt/containers/data/termix'
+```
+
+Dit is de enige stap die je niet terugdraait vanuit git. PBS heeft de data nog
+in zijn back-ups van `docker`, tot die door de prune verdwijnen.
+
+#### Ruim op buiten git
+
+Wat je in de eerste stap vond: de OIDC-client in Pocket ID, de toegang in
+NeoGate, variabelen in de `.env`. Een wachtwoord of sleutel die in de app zelf
+stond, is daarmee niet ongeldig: verander hem daar waar hij ook gebruikt werd.
+
+#### Docs, commit en push
+
+```bash
+ansible-playbook playbooks/docs.yml
+git add -A && git commit -m "chore: remove <app>" && git push
+```
+
+`docs.yml` haalt de pagina van de dienst zelf weg, want die komt uit
+`caddy_sites`.
+
+#### Test
+
+```bash
+curl -sI https://<app>.neodata.be          # geen antwoord meer
+ansible-playbook playbooks/smoketest.yml   # de rest werkt nog
+```
+
+</Steps>
+
+## Alleen het adres weghalen
+
+De dienst zelf blijft, alleen `naam.neodata.be` gaat weg.
+
+<Steps>
+
+#### Haal de route weg
+
+Verwijder de regel uit `caddy_sites` en draai `caddy.yml`, zoals hierboven.
+
+#### Docs, commit en push
+
+```bash
+ansible-playbook playbooks/docs.yml
+git add -A && git commit -m "chore: drop the <naam> route" && git push
+```
+
+#### Het Fixed IP (optioneel)
+
+Had het toestel alleen een Fixed IP in UniFi omdat er een route naar wees? Dan
+mag dat weg. `unifi-routes.yml` vraagt het niet meer.
+
+</Steps>
+
+## Een machine weghalen
+
+Een container (LXC of OCI) of VM op pve01.
+
+<Steps>
+
+#### Haal eerst alles erop weg
+
+Elke route naar deze machine, en elke stack erop: zie de twee gevallen
+hierboven. Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
+niet meer bestaat.
+
+#### Haal hem uit de lijsten
+
+| Bestand | Wat |
+| --- | --- |
+| `inventory/group_vars/proxmox/lxcs.yml` | zijn item in `pve_lxcs` of `pve_oci_lxcs` |
+| `inventory/group_vars/proxmox/vms.yml` | zijn item, als het een VM is |
+| `inventory/group_vars/proxmox/backup.yml` | zijn vmid in de wekelijkse job naar de Mac mini (de PBS-job neemt `all` en past zich zelf aan) |
+| `inventory/group_vars/all/unifi.yml` | zijn MAC in `unifi_known_macs` |
+
+#### Vernietig hem in Proxmox
+
+Met de hand: Proxmox → de guest → **More** → **Remove**, met **Purge** aan. Of
+als root op pve01:
+
+```bash
+pct destroy <vmid> --purge   # container
+qm destroy <vmid> --purge    # VM
+```
+
+Geen playbook doet dit, met opzet: de rollen maken en wijzigen, maar
+vernietigen nooit. Een typfout in een vmid mag geen machine kosten.
+
+#### Ruim op buiten git
+
+| Waar | Wat |
+| --- | --- |
+| UniFi → Client Devices | Fixed IP en alias van de machine |
+| Tailscale → Machines | de node, als hij op de tailnet zat |
+
+#### Laat de rest zich aanpassen
+
+```bash
+ansible-playbook playbooks/adguard.yml   # haalt <naam>.home.arpa weg
+ansible-playbook playbooks/docs.yml      # haalt hem van de pagina Machines
+git add -A && git commit -m "chore: remove <naam>" && git push
+```
+
+De Proxmox-inventory vindt hem vanzelf niet meer. `adguard.yml` haalt elke
+naam weg die niet meer in de inventory staat.
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom zoeken de eerste stap is
+
+Een dienst laat sporen na op plekken die niet in deze repo staan: de compose
+in `containers`, een OIDC-client, een `.env`. Bij termix bleek het mee te
+vallen (één compose-blok, één route, 180 KB data), maar dat wist je pas na het
+zoeken. Een vergeten route is een foutpagina. Een vergeten OIDC-client is een
+login die nog werkt voor een app die er niet meer is.
+
+### Waarom de volgorde route → container → data
+
+Elke stap is terug te draaien tot de laatste. De route en de compose zet je
+terug met `git revert`. De data niet: die haal je alleen nog uit PBS. Door die
+als laatste te doen, heb je tot het einde een weg terug.
+
+### Waarom er geen playbook is dat alles weghaalt
+
+Omdat de sporen buiten git liggen (Pocket ID, NeoGate, UniFi, Tailscale), zou
+zo'n playbook maar de helft doen en de indruk geven dat het alles deed. Een
+lijst die je afloopt is hier eerlijker.

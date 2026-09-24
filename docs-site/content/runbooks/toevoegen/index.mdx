@@ -6,7 +6,7 @@ import { Callout } from 'nextra/components'
 
 # Iets toevoegen
 
-Een extra machine op pve01, of een nieuwe dienst op `naam.neodata.be`: kies hieronder je geval.
+Een extra machine op pve01, een nieuwe dienst op `naam.neodata.be`, of iets dat weer weg mag: kies hieronder je geval.
 
 ## Welk geval ben jij?
 
@@ -19,6 +19,7 @@ Een extra machine op pve01, of een nieuwe dienst op `naam.neodata.be`: kies hier
 | Je wil **één programma uit een Docker-image** dat moet blijven werken als de docker-VM plat ligt | `ntfy` | [OCI-container](/runbooks/toevoegen/machine/#een-oci-container) |
 | Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Virtuele machine](/runbooks/toevoegen/machine/#een-virtuele-machine) |
 | Je container of VM staat er, en je wil hem **afwerken**: dienst erop, adres, back-up, commit, docs | `vaultwarden` na het bouwen | [Afwerken](/runbooks/toevoegen/machine/#afwerken) |
+| Een **dienst of machine mag weg** | termix, een test-LXC | [Iets weghalen](/runbooks/toevoegen/weghalen/) |
 | Een container die **al in de lijst staat** is weg en je wil hem opnieuw bouwen | `adguard` na een herinstallatie van pve01 | [Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
 
 Twijfel je bij een dienst: het is bijna altijd een **Docker-app**. Een eigen rol heb je zelden nodig.

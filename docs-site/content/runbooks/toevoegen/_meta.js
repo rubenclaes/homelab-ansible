@@ -1,5 +1,6 @@
 export default {
   index: 'Start hier',
   machine: 'Nieuwe machine',
-  dienst: 'Nieuwe dienst'
+  dienst: 'Nieuwe dienst',
+  weghalen: 'Iets weghalen'
 }
