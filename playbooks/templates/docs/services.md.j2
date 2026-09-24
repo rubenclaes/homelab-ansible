@@ -16,26 +16,7 @@ Wat er draait, per machine. Een dienst met een webroute staat op
 `https://<naam>.{{ caddy_domain }}`; klik de naam voor het adres, de poort en
 de instellingen. De stack linkt naar de machine waar hij op staat.
 
-{#- Voorbeeld met een echte route, zodat de namen en poort kloppen. photos als
-    die bestaat, anders de eerste dienst op een beheerde stack. #}
-{%- set ex = (caddy_sites | selectattr('name', 'equalto', 'photos') | list
-             + caddy_sites | selectattr('stack', 'defined') | list) | first %}
-{%- set caddy_ip = hostvars['caddy'].ansible_host | default('caddy') %}
-
-
-Zo komt een bezoek aan een dienst binnen, met `{{ ex.name }}` als voorbeeld:
-
-```mermaid
-flowchart LR
-  you["Jij<br/>browser of app"]
-  dns["<b>adguard</b><br/>DNS"]
-  caddy["<b>caddy</b><br/>reverse proxy + HTTPS"]
-  svc["<b>{{ ex.name }}</b><br/>stack {{ ex.stack | default('—') }} op {{ ex.host }}"]
-  you -- "1 · waar is {{ ex.name }}.{{ caddy_domain }}?" --> dns
-  dns -- "2 · bij caddy, {{ caddy_ip }}" --> you
-  you -- "3 · HTTPS" --> caddy
-  caddy -- "4 · {{ ex.host }}:{{ ex.port }}" --> svc
-```
+Zo komt een bezoek aan een dienst binnen:
 
 1. AdGuard stuurt élke naam onder `{{ caddy_domain }}` naar Caddy. Dat is één
    wildcard, dus een nieuwe dienst heeft geen eigen DNS-regel nodig.
