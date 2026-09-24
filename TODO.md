@@ -87,10 +87,11 @@
           (`/proxy/network/api/s/default/rest/user` → `use_fixedip`). Zo ja:
           ook reservaties controleren, dan waarschuwt hij vóór een herstart
           in plaats van erna.
-  - [ ] Stap 5 — namen in AdGuard, zonder Ansible:
-        `dig -x 192.168.0.26 @192.168.0.1 +short`, dan AdGuard → DNS →
-        Private reverse DNS servers `192.168.0.1` + "Use private reverse DNS
-        resolvers". Geen kopie van de lijst (zie `rewrites.yml`).
+  - [x] Stap 5 — namen in AdGuard, zonder Ansible: Private reverse DNS
+        servers `192.168.0.1` (24-09, via de API). Was leeg, en sinds A0 viel
+        AdGuard dan terug op `1.1.1.1`. Alleen DHCP-toestellen krijgen een
+        naam (`.26` heeft er geen, test met `.6`). Hoort bij de
+        AdGuard-instellingen die nog naar git moeten (Grotere projecten).
   - [ ] Stap 6 — pagina Toestellen op de docs-site: `docs.yml` (block/rescue),
         `toestellen.md.j2`, `_meta.js`. Zonder MAC-adressen.
         **Let op: deze code staat nog niet in de repo** (geen

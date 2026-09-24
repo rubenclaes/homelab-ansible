@@ -40,6 +40,20 @@ het hele huis (DNS) en elke route aan één Fixed IP in UniFi.
 De Fixed IP's in UniFi blijven staan. Ze beslissen niets meer, maar ze
 beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
 
+## Namen in de Query Log
+
+AdGuard toont bij een IP de naam die de UCG kent. Dat staat in AdGuard →
+**Settings** → **DNS settings** → **Private reverse DNS servers**:
+`192.168.0.1`, met **Use private reverse DNS resolvers** aan. Met de hand
+gezet op 24-09, via de API; de rol beheert het (nog) niet.
+
+Blijft dat veld leeg, dan vraagt AdGuard het aan zijn eigen `nameserver`
+(`1.1.1.1`), en die kent geen thuisnamen: dan zie je alleen IP's.
+
+Je krijgt de naam die het toestel zelf opgeeft bij DHCP (`Mac`, `iPhone`,
+`LGwebOSTV`), niet de alias uit UniFi. Toestellen met een vast adres in hun
+eigen config (pve01, de guests) vragen niets aan DHCP en blijven een IP.
+
 ## Twee soorten namen
 
 | Namen | Wijst naar | Beheerd door |
