@@ -16,19 +16,7 @@ Wat er draait, per machine. Een dienst met een webroute staat op
 `https://<naam>.neodata.be`; klik de naam voor het adres, de poort en
 de instellingen. De stack linkt naar de machine waar hij op staat.
 
-Zo komt een bezoek aan een dienst binnen, met `photos` als voorbeeld:
-
-```mermaid
-flowchart LR
-  you["Jij<br/>browser of app"]
-  dns["<b>adguard</b><br/>DNS"]
-  caddy["<b>caddy</b><br/>reverse proxy + HTTPS"]
-  svc["<b>photos</b><br/>stack media op docker"]
-  you -- "1 · waar is photos.neodata.be?" --> dns
-  dns -- "2 · bij caddy, 192.168.0.25" --> you
-  you -- "3 · HTTPS" --> caddy
-  caddy -- "4 · docker:2283" --> svc
-```
+Zo komt een bezoek aan een dienst binnen:
 
 1. AdGuard stuurt élke naam onder `neodata.be` naar Caddy. Dat is één
    wildcard, dus een nieuwe dienst heeft geen eigen DNS-regel nodig.
