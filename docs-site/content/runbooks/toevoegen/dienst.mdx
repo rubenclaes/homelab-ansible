@@ -145,6 +145,10 @@ ansible-playbook playbooks/stacks.yml     # start de container op docker
 ansible-playbook playbooks/caddy.yml      # maakt memos.neodata.be aan
 ```
 
+`stacks.yml` zet hem ook meteen op [home.neodata.be](https://home.neodata.be),
+onder **Overig**. Wil je hem in een andere groep of met een icoon, zie
+[De tegel op home.neodata.be](#de-tegel-op-homeneodatabe).
+
 #### Test
 
 ```bash
@@ -211,6 +215,7 @@ Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
 ```bash
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/smoketest.yml --tags caddy
+ansible-playbook playbooks/stacks.yml --tags homepage   # de tegel op home.neodata.be
 ansible-playbook playbooks/docs.yml
 ```
 
@@ -306,6 +311,32 @@ Volg [Alleen een adres](#alleen-een-adres) om een route toe te voegen.
 </Steps>
 
 ## Goed om te weten
+
+### De tegel op home.neodata.be
+
+Elke regel in `caddy_sites` wordt vanzelf een tegel op
+[home.neodata.be](https://home.neodata.be). Hoe hij eruitziet, staat in
+`homepage_tiles` in `inventory/host_vars/docker.yml`:
+
+```yaml
+  memos: { title: Memos, group: Handig, icon: memos.png }
+```
+
+| Veld | Doet | Zonder |
+| --- | --- | --- |
+| `title` | de naam op de tegel | de subdomeinnaam met een hoofdletter |
+| `group` | een van `homepage_groups` | onder **Overig**, onderaan |
+| `icon` | `naam.png` uit [dashboard-icons](https://dashboard-icons.dev), of `mdi-naam` uit [Material Design Icons](https://pictogrammers.com/library/mdi/) | geen icoon |
+
+De tekst onder de naam is `desc` uit `caddy_sites`, zonder het stuk vóór de
+` — `. Het bolletje rechts is groen als het adres antwoordt; een 401 (login)
+telt ook als groen.
+
+Waarom uit `caddy_sites` en niet met de hand in Homepage? Dan staat een nieuwe
+dienst er altijd op, en een weggehaalde verdwijnt. Met de hand vergeet je dat.
+De bestanden in `/opt/containers/data/homepage` op `docker` worden bij elke run
+overschreven: pas ze daar dus niet aan. Homepage leest ze bij elk bezoek opnieuw,
+een herstart is niet nodig.
 
 ### Waarom `new-service.yml` weigert te overschrijven
 

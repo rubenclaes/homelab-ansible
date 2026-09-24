@@ -83,7 +83,9 @@ ansible-playbook playbooks/stacks.yml --limit docker
 ```
 
 De rol draait `docker compose up` met `remove_orphans`: een dienst die niet
-meer in de compose staat, wordt gestopt en verwijderd.
+meer in de compose staat, wordt gestopt en verwijderd. Hetzelfde playbook
+haalt ook zijn tegel van home.neodata.be; zijn regel in `homepage_tiles` mag
+je weggooien (de grep in de eerste stap vond hem).
 
 #### Gooi de data weg
 
@@ -130,6 +132,8 @@ De dienst zelf blijft, alleen `naam.neodata.be` gaat weg.
 #### Haal de route weg
 
 Verwijder de regel uit `caddy_sites` en draai `caddy.yml`, zoals hierboven.
+Daarna `ansible-playbook playbooks/stacks.yml --tags homepage`, zodat ook de
+tegel op home.neodata.be weggaat.
 
 #### Docs, commit en push
 

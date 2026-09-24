@@ -1,0 +1,30 @@
+---
+# Managed by Ansible - edit caddy_sites (the sites) or homepage_tiles
+# (title, group, icon) in the inventory, not this file.
+{% set caddy = hostvars[homepage_caddy_host] %}
+{% set sites = caddy.caddy_sites | rejectattr('name', 'in', homepage_hidden) | list %}
+{% for group in homepage_groups + [homepage_default_group] %}
+{% set ns = namespace(members=[]) %}
+{% for s in sites if homepage_tiles.get(s.name, {}).get('group', homepage_default_group) == group %}
+{% set ns.members = ns.members + [s] %}
+{% endfor %}
+{% if ns.members %}
+
+- {{ group | to_json }}:
+{% for s in ns.members %}
+{% set t = homepage_tiles.get(s.name, {}) %}
+{% set url = 'https://' ~ s.name ~ '.' ~ caddy.caddy_domain %}
+{# "Immich — foto- en videobibliotheek": de naam staat al in title #}
+{% set desc = ((s.desc | default('')).split(' — ', 1) | last).split(' - ', 1) | last %}
+    - {{ t.title | default(s.name | capitalize) | to_json }}:
+        href: {{ url }}
+{% if desc %}
+        description: {{ (desc[:1] | upper ~ desc[1:]) | to_json }}
+{% endif %}
+{% if t.icon is defined %}
+        icon: {{ t.icon }}
+{% endif %}
+        siteMonitor: {{ url }}
+{% endfor %}
+{% endif %}
+{% endfor %}

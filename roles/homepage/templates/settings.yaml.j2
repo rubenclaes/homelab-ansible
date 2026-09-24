@@ -1,0 +1,17 @@
+---
+# Managed by Ansible - see roles/homepage.
+title: {{ homepage_title | to_json }}
+language: nl
+theme: dark
+color: slate
+headerStyle: clean
+statusStyle: dot
+hideVersion: true
+target: _self
+
+layout:
+{% for group in homepage_groups + [homepage_default_group] %}
+  {{ group | to_json }}:
+    style: row
+    columns: 4
+{% endfor %}

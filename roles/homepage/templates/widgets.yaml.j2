@@ -1,0 +1,17 @@
+---
+# Managed by Ansible - see roles/homepage.
+- resources:
+    label: docker
+    cpu: true
+    memory: true
+    disk: /
+
+- datetime:
+    locale: nl-BE
+    format:
+      dateStyle: long
+      timeStyle: short
+
+- search:
+    provider: duckduckgo
+    target: _blank

@@ -1,0 +1,15 @@
+---
+# Homepage leest zijn YAML bij elke paginaweergave opnieuw in, dus een
+# wijziging is meteen zichtbaar - geen herstart nodig.
+- name: Write the Homepage config
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ homepage_config_dir }}/{{ item }}"
+    owner: "{{ homepage_owner }}"
+    group: "{{ homepage_group }}"
+    mode: "0644"
+  loop:
+    - services.yaml
+    - settings.yaml
+    - widgets.yaml
+    - bookmarks.yaml

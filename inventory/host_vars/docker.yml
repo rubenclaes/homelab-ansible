@@ -87,3 +87,55 @@ docker_services_without_route:
       de app bij Netwerk de ID-server op het adres van deze host en vul de
       publieke sleutel in (`id_ed25519.pub` in de datamap van de stack).
       Buiten het LAN werkt hij alleen als de router deze poorten doorstuurt.
+
+# --- Homepage (home.neodata.be) ---
+# Elke site uit caddy_sites krijgt vanzelf een tegel; hier staat alleen hoe
+# hij eruitziet. Een nieuwe dienst zonder regel hier komt onder "Overig",
+# zonder icoon. Iconen: .png is dashboard-icons, mdi- is Material Design.
+homepage_groups: [Media, Downloads, Handig, Huis, Beheer, Monitoring]
+homepage_hidden: [home] # de pagina zelf
+homepage_tiles:
+  photos: { title: Immich, group: Media, icon: immich.png }
+  plex: { title: Plex, group: Media, icon: plex.png }
+  audiobooks: { title: Audiobookshelf, group: Media, icon: audiobookshelf.png }
+  books: { title: Grimmory, group: Media, icon: booklore.png }
+  overseerr: { title: Overseerr, group: Media, icon: overseerr.png }
+
+  sonarr: { title: Sonarr, group: Downloads, icon: sonarr.png }
+  radarr: { title: Radarr, group: Downloads, icon: radarr.png }
+  prowlarr: { title: Prowlarr, group: Downloads, icon: prowlarr.png }
+  torrent: { title: qBittorrent, group: Downloads, icon: qbittorrent.png }
+  openbooks: { title: OpenBooks, group: Downloads, icon: mdi-book-search }
+  shelfmark: { title: Shelfmark, group: Downloads, icon: shelfmark.png }
+  metube: { title: MeTube, group: Downloads, icon: metube.png }
+
+  memos: { title: Memos, group: Handig, icon: memos.png }
+  spullen: { title: Homebox, group: Handig, icon: homebox.png }
+  pairdrop: { title: PairDrop, group: Handig, icon: pairdrop.png }
+  pdf: { title: BentoPDF, group: Handig, icon: bentopdf.png }
+  tools: { title: IT-Tools, group: Handig, icon: it-tools.png }
+  code: { title: code-server, group: Handig, icon: code-server.png }
+
+  haos: { title: Home Assistant, group: Huis, icon: home-assistant.png }
+  neogate: { title: NeoGate, group: Huis, icon: mdi-shield-key }
+  id: { title: Pocket ID, group: Huis, icon: pocket-id.png }
+
+  proxmox: { title: Proxmox, group: Beheer, icon: proxmox.png }
+  backup: { title: Proxmox Backup, group: Beheer, icon: proxmox-backup-server.png }
+  dns: { title: AdGuard Home, group: Beheer, icon: adguard-home.png }
+  unifi: { title: UniFi, group: Beheer, icon: unifi.png }
+  portainer: { title: Portainer, group: Beheer, icon: portainer.png }
+  semaphore: { title: Semaphore, group: Beheer, icon: semaphore.png }
+  duplicati: { title: Duplicati, group: Beheer, icon: duplicati.png }
+
+  monitoring: { title: Grafana, group: Monitoring, icon: grafana.png }
+  prometheus: { title: Prometheus, group: Monitoring, icon: prometheus.png }
+  ntfy: { title: ntfy, group: Monitoring, icon: ntfy.png }
+
+# Wat wel een adres heeft maar niet in caddy_sites staat (die sites staan
+# rechtstreeks in de Caddyfile).
+homepage_bookmarks:
+  - { group: Homelab, name: Docs, abbr: DO, href: "https://docs.neodata.be" }
+  - { group: Homelab, name: Rapport, abbr: RA, href: "https://report.neodata.be" }
+  - { group: Homelab, name: homelab-ansible, abbr: HA, href: "https://github.com/rubenclaes/homelab-ansible" }
+  - { group: Homelab, name: containers, abbr: CO, href: "https://github.com/rubenclaes/containers" }

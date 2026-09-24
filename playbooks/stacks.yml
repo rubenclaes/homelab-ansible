@@ -25,3 +25,12 @@
     - role: docker_stacks
       when: docker_stacks_list | default([]) | length > 0
   tags: [docker]
+
+# Na de stacks, want de homepage-stack maakt de map aan waar dit in schrijft.
+# Ook hier beslist de inventory: de host die de homepage-stack draait.
+- name: Homepage dashboard
+  hosts: docker_hosts
+  roles:
+    - role: homepage
+      when: "'homepage' in docker_stacks_list | default([]) | map(attribute='name')"
+  tags: [docker, homepage]

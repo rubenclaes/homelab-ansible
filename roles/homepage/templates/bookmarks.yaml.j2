@@ -1,0 +1,11 @@
+---
+# Managed by Ansible - edit homepage_bookmarks in the inventory, not this file.
+{% for b in homepage_bookmarks | groupby('group') %}
+
+- {{ b[0] | to_json }}:
+{% for item in b[1] %}
+    - {{ item.name | to_json }}:
+        - href: {{ item.href }}
+          abbr: {{ item.abbr | to_json }}
+{% endfor %}
+{% endfor %}

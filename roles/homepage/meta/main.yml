@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: homepage
+  author: rubenclaes
+  description: >-
+    Writes the config of the Homepage dashboard from caddy_sites. Does not run the container; that is the homepage stack.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - web
+    - dashboard
+
+# These roles are composed by playbooks, not by role dependencies,
+# so the run order stays visible in playbooks/site.yml.
+dependencies: []

@@ -1,0 +1,25 @@
+---
+# De map die de homepage-stack als /app/config mount: ${DATA_PATH}/homepage
+# uit files/env/homepage.env.
+homepage_config_dir: /opt/containers/data/homepage
+homepage_owner: ruben
+homepage_group: ruben
+
+# De host waarvan caddy_sites en caddy_domain gelezen worden.
+homepage_caddy_host: caddy
+
+homepage_title: Neodata
+
+# Volgorde van de groepen op de pagina. Een site die in homepage_tiles geen
+# groep heeft, komt in homepage_default_group, onderaan.
+homepage_groups: []
+homepage_default_group: Overig
+
+# Per site-naam uit caddy_sites: title, group, icon. Alles optioneel.
+homepage_tiles: {}
+
+# Sites uit caddy_sites die geen tegel krijgen.
+homepage_hidden: []
+
+# Links zonder eigen caddy_sites-regel, als bladwijzers bovenaan.
+homepage_bookmarks: []
