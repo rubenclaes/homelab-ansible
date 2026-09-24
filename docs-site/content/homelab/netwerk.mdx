@@ -35,9 +35,9 @@ internet, ook het toestel waarmee je het zou repareren niet.
 | Namen | Wijst naar | Beheerd door |
 | --- | --- | --- |
 | `*.home.arpa` | één regel per host | `roles/adguard`, uit de inventory |
-| `*.neodata.be` | één wildcard naar Caddy (`192.168.0.25`) | met de hand in AdGuard |
+| `*.neodata.be` | één wildcard naar Caddy (`192.168.0.25`) | `roles/adguard`, uit `host_vars/adguard` |
 
-De rol raakt alleen rewrites onder `home.arpa` aan. De wildcard blijft dus staan.
+De rol raakt alleen deze twee aan. Een rewrite die je met de hand in AdGuard zet, blijft staan.
 
 ## Twee wegen naar binnen
 

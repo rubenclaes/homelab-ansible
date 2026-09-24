@@ -2,9 +2,9 @@
 # Syncs the DNS rewrite list over the REST API.
 #
 # Desired state is every inventory host with an ansible_host, as
-# <name>.<adguard_rewrite_domain>. The role owns that zone and nothing else: a
-# name under it that the inventory does not ask for is removed, a rewrite
-# outside it is left alone. AdGuardHome.yaml is read once, for the web port,
+# <name>.<adguard_rewrite_domain>, plus adguard_rewrites_extra. The role owns
+# that zone and the extra domains, nothing else: a name under them that the
+# inventory does not ask for is removed, any other rewrite is left alone. AdGuardHome.yaml is read once, for the web port,
 # and never written.
 #
 # Only hosts. Everything without SSH - phones, the TV, the printer - already
@@ -20,7 +20,9 @@
 - name: Collect the names the inventory asks for
   ansible.builtin.set_fact:
     adguard_rewrites_wanted: >-
-      {{ adguard_host_names | zip(adguard_host_addrs) | map('join', ' ') | sort }}
+      {{ (adguard_host_names | zip(adguard_host_addrs) | map('join', ' ') | list
+          + adguard_extra_domains | zip(adguard_rewrites_extra | map(attribute='answer')) | map('join', ' ') | list)
+         | sort }}
   vars:
     adguard_hosts_with_addr: >-
       {{ groups['all'] | sort | map('extract', hostvars) | selectattr('ansible_host', 'defined') | list }}
@@ -28,6 +30,7 @@
       {{ adguard_hosts_with_addr | map(attribute='inventory_hostname')
          | map('regex_replace', '$', '.' ~ adguard_rewrite_domain) | list }}
     adguard_host_addrs: "{{ adguard_hosts_with_addr | map(attribute='ansible_host') | list }}"
+    adguard_extra_domains: "{{ adguard_rewrites_extra | map(attribute='domain') | list }}"
 
 # The API lowercases domains and rejects bad ones with a 400 that names
 # nothing. Check here, where the message can say which name is wrong.
@@ -35,13 +38,14 @@
   ansible.builtin.assert:
     that: adguard_rewrites_bad | length == 0
     fail_msg: >-
-      Not a valid DNS name (lowercase letters, digits and hyphens only):
+      Not a valid DNS name (lowercase letters, digits and hyphens only, and
+      an optional leading `*.` for a wildcard):
       {{ adguard_rewrites_bad | join(', ') }}.
     success_msg: "{{ adguard_rewrites_wanted | length }} names wanted under {{ adguard_rewrite_domain }}."
   vars:
     adguard_rewrites_bad: >-
       {{ adguard_rewrites_wanted | map('regex_replace', ' .*$', '')
-         | reject('match', '^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$') | list }}
+         | reject('match', '^([*]\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$') | list }}
 
 - name: Read the current rewrite list
   ansible.builtin.uri:
@@ -63,8 +67,11 @@
     adguard_rewrites_add: "{{ adguard_rewrites_wanted | difference(adguard_rewrites_owned | difference(adguard_rewrites_disabled)) | sort }}"
   vars:
     adguard_owned_entries: >-
-      {{ adguard_rewrite_list.json
-         | selectattr('domain', 'search', '\.' ~ (adguard_rewrite_domain | regex_escape) ~ '$') | list }}
+      {{ (adguard_rewrite_list.json
+          | selectattr('domain', 'search', '\.' ~ (adguard_rewrite_domain | regex_escape) ~ '$') | list
+          + adguard_rewrite_list.json
+          | selectattr('domain', 'in', adguard_rewrites_extra | map(attribute='domain') | list) | list)
+         | unique | list }}
     adguard_disabled_entries: >-
       {{ adguard_owned_entries | selectattr('enabled', 'defined') | rejectattr('enabled') | list }}
     adguard_rewrites_owned: >-

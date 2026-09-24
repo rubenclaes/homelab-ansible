@@ -23,10 +23,10 @@ adguard_url: >-
 
 # --- DNS rewrites ---------------------------------------------------------
 # The one part of AdGuard's configuration this role does own: the rewrite
-# list, and within it only the names under adguard_rewrite_domain. They are
-# set through the REST API, so AdGuardHome.yaml is never written and the web
-# UI keeps every other setting. A rewrite outside this zone - one made by
-# hand in the UI - is never touched.
+# list, and within it only the names under adguard_rewrite_domain plus the
+# domains in adguard_rewrites_extra. They are set through the REST API, so
+# AdGuardHome.yaml is never written and the web UI keeps every other
+# setting. Any other rewrite - one made by hand in the UI - is never touched.
 #
 # home.arpa is the zone RFC 8375 reserves for exactly this. It never resolves
 # on the public internet, so a query that leaks is harmless, and it cannot
@@ -36,6 +36,11 @@ adguard_url: >-
 # Also set, as a plain value, in inventory/host_vars/adguard/main.yml, so
 # docs.yml can read it through hostvars.
 adguard_rewrite_domain: home.arpa
+
+# Rewrites that are not a host, as {domain, answer}. The role owns each
+# domain listed here: a different answer for it is replaced. The real list
+# is in inventory/host_vars/adguard/main.yml.
+adguard_rewrites_extra: []
 
 # adguard_api_user and adguard_api_password have no default on purpose. They
 # are the web UI login, and come from inventory/host_vars/adguard/vault.yml.

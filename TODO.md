@@ -2,11 +2,27 @@
 
 ## Lopend — thuis afwerken (gestart 24-09)
 
-- [ ] **A0. Eerst: vaste adressen na de verhuis naar de UCG.** In UniFi
-      nakijken dat caddy (`192.168.0.25`) en adguard (`192.168.0.29`) nog een
-      Fixed IP hebben. Beide containers draaien nog op DHCP (zie `lxcs.yml`).
-      Valt die reservatie weg, dan heeft na een herstart het hele huis geen DNS
-      meer en zijn alle routes dood.
+- [ ] **A0. Eerst: caddy en adguard hun adres zelf laten kennen.** Nu vragen
+      ze het bij elke start aan de UCG, en alleen een Fixed IP in UniFi houdt
+      het op `.25` en `.29`. Valt die weg, dan heeft het hele huis geen DNS
+      meer en zijn alle routes dood. Het adres staat al in git (`lxcs.yml`);
+      de container moet het gewoon zelf gebruiken. Adguard is even weg bij de
+      herstart: doe dit als niemand internet gebruikt. Caddy eerst, die is
+      minder kritiek.
+  - [ ] Als root op pve01: `pct config 106 | grep -e net0 -e nameserver`.
+        Neem die `net0`-regel letterlijk over en vervang alleen `ip=dhcp` door
+        `ip=192.168.0.25/24,gw=192.168.0.1`. De `hwaddr` moet blijven staan,
+        anders ziet UniFi een nieuw toestel.
+        `pct set 106 --net0 '<aangepaste regel>'` en `pct reboot 106`.
+  - [ ] Controle: `curl -sI https://books.neodata.be` geeft een antwoord.
+  - [ ] Hetzelfde voor adguard (107) met `ip=192.168.0.29/24,gw=192.168.0.1`.
+        Stond er geen `nameserver`, zet dan ook `--nameserver 1.1.1.1`: zo
+        kan adguard zelf nog namen opzoeken als zijn eigen DNS niet draait.
+  - [ ] Controle: `dig @192.168.0.29 pve01.home.arpa +short` geeft `192.168.0.14`.
+  - [ ] De Fixed IP's in UniFi laten staan. Ze beslissen niets meer, maar ze
+        beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
+  - [ ] In `lxcs.yml` de twee opmerkingen "live container still uses DHCP
+        (see TODO)" weghalen en committen.
 
 - [ ] **A1. Werk-pc `work-wsl` als beheerde host.** Ubuntu in WSL op de
       werk-pc, beheerd vanaf thuis over de tailnet.
@@ -24,11 +40,10 @@
         familie-account (accept Plex + Caddy, deny `:22` en Proxmox).
   - [ ] `nodeAttrs` → funnel weghalen, of beperken tot mijn eigen account.
         Funnel zet een dienst op het publieke internet.
-  - [ ] Policy uit de console kopiëren naar `files/tailscale/policy.hujson` en committen.
-
-      Stand in de repo: `policy.hujson` heeft de `mac-mini:32400`-regel, de
-      test met `maarten.claes95@gmail.com`, en funnel alleen voor mijn eigen
-      account. Nakijken of de console daar exact mee overeenkomt.
+  - [ ] Eenmalig nakijken dat de console gelijk is aan `policy.hujson`. In de
+        repo staan al de `mac-mini:32400`-regel, de test met
+        `maarten.claes95@gmail.com`, en funnel alleen voor mijn eigen account.
+        Daarna loopt het andersom: git → Tailscale, via OpenTofu (zie B).
 
 - [ ] **A3. Plex voor de familie.** Via Tailscale op de boxen (Apple TV /
       Google TV) aan de tv, geen port forward.
@@ -37,6 +52,12 @@
   - [ ] Per box: Tailscale + Plex, aanmelden met het account van die persoon,
         kwaliteit op Original.
   - [ ] Eerste stream: Dashboard toont Direct Play, niet Relay.
+
+- [ ] **A5. AdGuard-wildcard uit git.** `*.neodata.be` → caddy staat sinds
+      24-09 in `host_vars/adguard/main.yml` en de rol beheert hem.
+  - [ ] `ansible-playbook playbooks/adguard.yml --check --diff`. Verwacht:
+        geen wijziging, want de regel met de hand is dezelfde. Toont hij wel
+        iets voor `*.neodata.be`, eerst uitzoeken waarom.
 
 - [ ] **A4. UniFi als gegevensbron (alleen lezen).** UniFi is een bron, geen
       inventory: de toestellen zelf beheert Ansible niet. Alles leest, niets
@@ -75,6 +96,55 @@
         lokaal, bv. op de mbp? Thuis:
     - [ ] `docs.yml` draaien, pagina bekijken.
     - [ ] De rescue één keer testen met een foute `unifi_api_url`.
+
+---
+
+## B. Git is de bron — wat nog buiten git leeft
+
+Regel: git beslist, de rest volgt. Wat nu alleen in een console of op een
+machine staat, gaat naar git. Wie wat doet:
+
+- **OpenTofu** voor wat er *bestaat*: guests, gebruikers en rechten, de
+  Tailscale-policy. Het vergelijkt git met de werkelijkheid en toont het
+  verschil (`tofu plan`) voor het iets verandert.
+- **Ansible** voor wat er *in* een machine draait: pakketten, config,
+  diensten, AdGuard-rewrites.
+- **Met de hand**, maar beschreven in git: wat alleen in een app kan (Plex,
+  de Semaphore-UI, Full Disk Access op de Mac).
+
+Eerst wat het hele huis plat kan leggen:
+
+- [ ] Vaste adressen voor caddy en adguard → A0.
+- [x] AdGuard-wildcard `*.neodata.be` → in de rol (A5 om te controleren).
+- [ ] AdGuard upstream (Quad9) en per-client instellingen → zie "Grotere
+      projecten". Kan via Ansible (REST API, zoals de rewrites).
+- [ ] UniFi: de DNS die DHCP uitdeelt (`.29` + `1.1.1.1`) en de reservaties
+      staan alleen in UniFi. Afgesproken dat Ansible niet naar UniFi schrijft;
+      dan minstens een controle die waarschuwt als het afwijkt (A4 stap 4).
+- [ ] De `/dev/net/tun`-regels voor ct 107 en 108 staan met de hand in
+      `/etc/pve/lxc/*.conf`. De API-token kan ze niet zetten; nakijken of
+      OpenTofu dat via root@pam wel kan, anders blijft het een beschreven handstap.
+
+Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
+
+- [ ] Beslissen waar de state staat. Die bevat geheimen: OpenTofu kan hem
+      zelf versleutelen, dan mag hij in git.
+- [ ] Tailscale (provider `tailscale/tailscale`): de policy uit
+      `policy.hujson`, de globale nameserver, de goedgekeurde subnet-route van
+      ct 108, de tags. Vervangt A2's "console → git". Vraagt een OAuth-client
+      die de policy mag schrijven; de huidige mag alleen sleutels maken.
+- [ ] Proxmox (provider `bpg/proxmox`): de VM's uit `vms.yml` en de LXC's
+      uit `lxcs.yml`, eerst met `tofu import` zodat niets opnieuw gebouwd
+      wordt. Dan verdwijnen "NOTHING READS THIS FILE" en "existing containers
+      are never modified". Ook gebruikers en rechten uit `access.yml`.
+- [ ] PBS: datastore-, prune- en verify-jobs. Nakijken of daar een bruikbare
+      provider voor is; zo niet, de Ansible-rol laten corrigeren in plaats van
+      alleen toevoegen.
+- [ ] De wekelijkse back-upjob naar de Mac mini: `backup.yml` zegt dat hij op
+      23-09 van pve01 verdween en alleen met `-e proxmox_datacenter_create=true`
+      terugkomt. Nakijken of hij er weer staat; zo niet, terugzetten.
+- [ ] AdGuard-versie: nu update je in de web-UI en kopieer je de versie naar
+      git. Omdraaien: versie in git, rol installeert.
 
 ---
 

@@ -11,6 +11,14 @@ adguard_api_password: "{{ vault_adguard_api_password }}"
 # a reader of the inventory sees it without opening the role.
 adguard_rewrite_domain: home.arpa
 
+# Alle diensten achter Caddy: één wildcard, zodat een nieuwe route geen eigen
+# regel nodig heeft. Stond tot 24-09 met de hand in AdGuard; een herbouw was
+# hem dan kwijt, en zonder deze regel opent geen enkele *.neodata.be.
+# Het adres komt van caddy zelf, zoals zijn caddy.home.arpa-regel.
+adguard_rewrites_extra:
+  - domain: "*.neodata.be"
+    answer: "{{ hostvars['caddy']['ansible_host'] }}"
+
 # De blocklists, op 23-09 van de draaiende instantie afgelezen. De rol bezit
 # deze lijst: wat hier niet staat wordt weggehaald. Voeg je er een toe in de
 # web-UI, zet hem dan ook hier neer, anders haalt de volgende run hem weg.
