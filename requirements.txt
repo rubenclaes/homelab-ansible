@@ -13,3 +13,4 @@ ansible-lint==26.8.0
 # Needed by community.proxmox for the API modules and the dynamic inventory.
 proxmoxer>=2.3
 requests>=2.31
+netaddr>=1.3
