@@ -2,26 +2,26 @@
 
 ## Lopend — thuis afwerken (gestart 24-09)
 
-- [ ] **A0. Eerst: caddy en adguard hun adres zelf laten kennen.** Nu vragen
+- [x] **A0. Eerst: caddy en adguard hun adres zelf laten kennen.** Nu vragen
       ze het bij elke start aan de UCG, en alleen een Fixed IP in UniFi houdt
       het op `.25` en `.29`. Valt die weg, dan heeft het hele huis geen DNS
       meer en zijn alle routes dood. Het adres staat al in git (`lxcs.yml`);
       de container moet het gewoon zelf gebruiken. Adguard is even weg bij de
       herstart: doe dit als niemand internet gebruikt. Caddy eerst, die is
       minder kritiek.
-  - [ ] Als root op pve01: `pct config 106 | grep -e net0 -e nameserver`.
+  - [x] Als root op pve01: `pct config 106 | grep -e net0 -e nameserver`.
         Neem die `net0`-regel letterlijk over en vervang alleen `ip=dhcp` door
         `ip=192.168.0.25/24,gw=192.168.0.1`. De `hwaddr` moet blijven staan,
         anders ziet UniFi een nieuw toestel.
         `pct set 106 --net0 '<aangepaste regel>'` en `pct reboot 106`.
-  - [ ] Controle: `curl -sI https://books.neodata.be` geeft een antwoord.
-  - [ ] Hetzelfde voor adguard (107) met `ip=192.168.0.29/24,gw=192.168.0.1`.
+  - [x] Controle: `curl -sI https://books.neodata.be` geeft een antwoord.
+  - [x] Hetzelfde voor adguard (107) met `ip=192.168.0.29/24,gw=192.168.0.1`.
         Stond er geen `nameserver`, zet dan ook `--nameserver 1.1.1.1`: zo
         kan adguard zelf nog namen opzoeken als zijn eigen DNS niet draait.
-  - [ ] Controle: `dig @192.168.0.29 pve01.home.arpa +short` geeft `192.168.0.14`.
-  - [ ] De Fixed IP's in UniFi laten staan. Ze beslissen niets meer, maar ze
+  - [x] Controle: `dig @192.168.0.29 pve01.home.arpa +short` geeft `192.168.0.14`.
+  - [x] De Fixed IP's in UniFi laten staan. Ze beslissen niets meer, maar ze
         beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
-  - [ ] In `lxcs.yml` de twee opmerkingen "live container still uses DHCP
+  - [x] In `lxcs.yml` de twee opmerkingen "live container still uses DHCP
         (see TODO)" weghalen en committen.
 
 - [ ] **A1. Werk-pc `work-wsl` als beheerde host.** Ubuntu in WSL op de
@@ -53,22 +53,24 @@
         kwaliteit op Original.
   - [ ] Eerste stream: Dashboard toont Direct Play, niet Relay.
 
-- [ ] **A5. AdGuard-wildcard uit git.** `*.neodata.be` → caddy staat sinds
+- [x] **A5. AdGuard-wildcard uit git.** `*.neodata.be` → caddy staat sinds
       24-09 in `host_vars/adguard/main.yml` en de rol beheert hem.
-  - [ ] `ansible-playbook playbooks/adguard.yml --check --diff`. Verwacht:
+  - [x] `ansible-playbook playbooks/adguard.yml --check --diff`. Verwacht:
         geen wijziging, want de regel met de hand is dezelfde. Toont hij wel
         iets voor `*.neodata.be`, eerst uitzoeken waarom.
 
 - [ ] **A4. UniFi als gegevensbron (alleen lezen).** UniFi is een bron, geen
       inventory: de toestellen zelf beheert Ansible niet. Alles leest, niets
       schrijft naar UniFi.
-  - [ ] Stap 1 — `ansible.utils` en `netaddr` staan in de requirements. Thuis:
+  - [x] Stap 1 — `ansible.utils` en `netaddr` staan in de requirements. Thuis:
         `pipx inject ansible-core netaddr` en
         `ansible-galaxy collection install -r collections/requirements.yml`.
   - [ ] Stap 2 — route `unifi` → UCG staat in `host_vars/caddy/main.yml`,
         plus `group_vars/all/unifi.yml`, `playbooks/unifi-clients.yml` en
         `playbooks/tasks/unifi_clients.yml`. Thuis:
-    - [ ] `caddy.yml --check --diff`, dan echt, dan `smoketest.yml`.
+    - [x] `caddy.yml --check --diff`, dan echt, dan `smoketest.yml`.
+          (24-09: route werkt. Smoketest faalt enkel op `work-wsl.home.arpa`
+          tot A1 klaar is en `adguard.yml` gedraaid is.)
     - [ ] API-sleutel maken: UniFi → Settings → Control Plane → Integrations.
     - [ ] `ansible-vault create --encrypt-vault-id infra inventory/group_vars/all/vault.yml`
           met `vault_unifi_api_key`.
@@ -114,7 +116,7 @@ machine staat, gaat naar git. Wie wat doet:
 
 Eerst wat het hele huis plat kan leggen:
 
-- [ ] Vaste adressen voor caddy en adguard → A0.
+- [x] Vaste adressen voor caddy en adguard → A0.
 - [x] AdGuard-wildcard `*.neodata.be` → in de rol (A5 om te controleren).
 - [ ] AdGuard upstream (Quad9) en per-client instellingen → zie "Grotere
       projecten". Kan via Ansible (REST API, zoals de rewrites).
@@ -164,7 +166,7 @@ Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 - [ ] PBS: datastore-, prune- en verify-jobs. Nakijken of daar een bruikbare
       provider voor is; zo niet, de Ansible-rol laten corrigeren in plaats van
       alleen toevoegen.
-- [ ] De wekelijkse back-upjob naar de Mac mini: `backup.yml` zegt dat hij op
+- [x] De wekelijkse back-upjob naar de Mac mini: `backup.yml` zegt dat hij op
       23-09 van pve01 verdween en alleen met `-e proxmox_datacenter_create=true`
       terugkomt. Nakijken of hij er weer staat; zo niet, terugzetten.
 - [ ] AdGuard-versie: nu update je in de web-UI en kopieer je de versie naar

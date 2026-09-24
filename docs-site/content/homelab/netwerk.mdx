@@ -17,7 +17,7 @@ Sinds 23-09 loopt alle naamresolutie via de AdGuard in **ct 107**
 | --- | --- | --- |
 | pve01, pbs, caddy, semaphore | `192.168.0.29` | gewone `/etc/resolv.conf` |
 | docker, docker-grafana-stack | `192.168.0.29` | via netplan |
-| adguard zelf | `127.0.0.1` + `1.1.1.1` | hij ís de resolver; `1.1.1.1` is het vangnet om nog te kunnen updaten als hij stilstaat |
+| adguard zelf | `1.1.1.1` | `nameserver` in de Proxmox-config van ct 107; zo kan hij nog namen opzoeken (en updaten) als zijn eigen DNS stilstaat |
 | tailscale (ct 108) | `100.100.100.100` | **niet aankomen**, tailscaled beheert dit |
 | de Mac mini | `192.168.0.29` | sinds zijn eigen AdGuard weg is |
 | telefoons, laptops thuis | `192.168.0.29` | via DHCP in UniFi |
@@ -29,6 +29,16 @@ Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
 `1.1.1.1`. Staat ct 107 stil en is er geen tweede, dan heeft het hele huis geen
 internet, ook het toestel waarmee je het zou repareren niet.
 </Callout>
+
+## Vaste adressen van caddy en adguard
+
+Sinds 24-09 zetten ct 106 (caddy, `192.168.0.25`) en ct 107 (adguard,
+`192.168.0.29`) hun adres zelf, in hun Proxmox-config (`net0`), en niet meer
+via DHCP. Waarom: vroeg de container het bij elke start aan de UCG, dan hing
+het hele huis (DNS) en elke route aan één Fixed IP in UniFi.
+
+De Fixed IP's in UniFi blijven staan. Ze beslissen niets meer, maar ze
+beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
 
 ## Twee soorten namen
 
