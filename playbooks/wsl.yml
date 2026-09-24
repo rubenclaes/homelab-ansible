@@ -1,0 +1,24 @@
+---
+# Zet de WSL-werkplek terug zoals hij beschreven staat.
+#
+#   ansible-playbook playbooks/wsl.yml -K                  # vanaf de Mac
+#   ansible-playbook playbooks/wsl.yml -K -c local         # vanaf de WSL zelf
+#
+# Dat laatste omdat ~/.ssh/ansible_ed25519 niet op de werklaptop staat: over
+# SSH naar jezelf lukt dan niet, lokaal wel.
+#
+# -K omdat sudo hier een wachtwoord vraagt; bootstrap.yml heeft deze machine
+# nooit gezien. Daarom staat dit ook niet in site.yml: de laptop staat vaak
+# uit, en een geplande run zou op het wachtwoord blijven hangen.
+#
+# Wat dit NIET doet, want dat vraagt een mens:
+#   sudo tailscale up --hostname work-wsl
+#   gh auth login && gh auth setup-git
+#   ~/.ssh/id_ed25519 terugzetten
+- name: WSL workstation
+  hosts: work-wsl
+  become: false
+  roles:
+    - wsl
+    - dotfiles
+  tags: [wsl, workstation]

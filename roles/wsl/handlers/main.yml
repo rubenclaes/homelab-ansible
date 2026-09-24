@@ -1,0 +1,9 @@
+---
+# /etc/wsl.conf is read when the WSL VM boots, not when a shell starts, and
+# nothing inside the distro can restart that VM. So all a handler can do is
+# say so.
+- name: Tell me to restart WSL
+  ansible.builtin.debug:
+    msg: >-
+      /etc/wsl.conf gewijzigd. Pas actief na `wsl --shutdown` in PowerShell
+      en de distro opnieuw openen.

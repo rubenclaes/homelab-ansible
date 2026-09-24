@@ -1,0 +1,38 @@
+# Managed by Ansible (dotfiles role): edit roles/dotfiles/templates/zshrc_wsl.j2, not ~/.zshrc
+# Brew's shellenv lives in ~/.zprofile (wsl role), so it runs once per login.
+
+# 1. Oh My Zsh (installed by the wsl role, plugins included)
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting zsh-history-substring-search)
+source $ZSH/oh-my-zsh.sh
+
+# 2. Aliases. Ubuntu ships bat as `batcat`.
+alias cat='batcat'
+alias ls='eza --icons --group-directories-first'
+
+# 3. Prompt; overrides the Oh My Zsh theme above
+eval "$($HOME/.local/bin/oh-my-posh init zsh --config $HOME/.cache/oh-my-posh/themes/spaceship.omp.json)"
+
+# 4. Paths
+export PATH="$PATH:$HOME/.local/bin"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+export GOPATH=$HOME/go
+export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+export PATH=$PATH:/snap/bin
+
+# 5. AsyncAPI CLI Autocomplete
+ASYNCAPI_AC_ZSH_SETUP_PATH=$HOME/.cache/@asyncapi/cli/autocomplete/zsh_setup && test -f $ASYNCAPI_AC_ZSH_SETUP_PATH && source $ASYNCAPI_AC_ZSH_SETUP_PATH
+
+# 6. Homelab helpers: ap (playbook menu), hl
+[ -f ~/.config/homelab/homelab.zsh ] && source ~/.config/homelab/homelab.zsh
+
+# BEGIN ANSIBLE MANAGED (dotfiles role)
+{{ dotfiles_zsh_block | trim }}
+# END ANSIBLE MANAGED (dotfiles role)

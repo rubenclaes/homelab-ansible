@@ -2,6 +2,10 @@
 dotfiles_git_config: {}
 dotfiles_zsh_block: ""
 
+# zshrc.j2 assumes macOS (Homebrew in /opt/homebrew, zplug); a Linux host
+# points this at its own template.
+dotfiles_zshrc_template: zshrc.j2
+
 # Where the repo lives on the workstation; `ap` runs playbooks from here.
 dotfiles_homelab_repo: "~/Development/homelab-ansible"
 

@@ -15,6 +15,7 @@
 #   update.yml             package upgrades and reboots
 #   cleanup.yml            deletes: caches, old images, orphaned packages
 #   nfs.yml                sudo on the Mini wants a password, so it needs -K
+#   wsl.yml                the work laptop: often off, and sudo wants -K
 #   report.yml             read-only, but slow; scheduled separately
 
 - name: Linux baseline

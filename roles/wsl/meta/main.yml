@@ -1,15 +1,12 @@
 ---
 galaxy_info:
-  role_name: dotfiles
+  role_name: wsl
   author: rubenclaes
   description: >-
-    Personal workstation dotfiles: SSH config, Git config and zshrc.
+    Ubuntu under WSL as a workstation: apt, snaps, Homebrew, Go, zsh tooling.
   license: MIT
   min_ansible_version: "2.17"
   platforms:
-    - name: MacOSX
-      versions:
-        - all
     - name: Ubuntu
       versions:
         - noble

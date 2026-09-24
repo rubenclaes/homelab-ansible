@@ -73,7 +73,7 @@
 
 - name: Deploy ~/.zshrc
   ansible.builtin.template:
-    src: zshrc.j2
+    src: "{{ dotfiles_zshrc_template }}"
     dest: ~/.zshrc
     mode: "0644"
     backup: true

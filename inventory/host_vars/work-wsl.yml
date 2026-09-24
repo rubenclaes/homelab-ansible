@@ -1,0 +1,75 @@
+---
+# Ubuntu 24.04 onder WSL op de werklaptop (Windows-host PW08HN75). Alles
+# hieronder is op 24-09 van de machine zelf gelezen: `apt-mark showmanual`,
+# `brew leaves`, `snap list`, ~/.zshrc en ~/.gitconfig.
+
+# `apt-mark showmanual` zonder wat Ubuntu zelf meebrengt, en zonder de ~60
+# lib*-, fonts-*-, gstreamer- en xvfb-pakketten: die zijn er door
+# `npx playwright install-deps` op gekomen en dat commando zet ze terug.
+wsl_apt_packages_extra:
+  - azure-cli
+  - bat           # heet hier `batcat`; de zshrc aliast cat erop
+  - eza
+  - fzf
+  - gh
+  - git-delta
+  - httpie
+  - maven
+  - ntpdate
+  - openjdk-21-jdk
+  - openssh-server
+  - tailscale
+  - tldr
+
+# De tailscale-sleutel stond als los keyring-bestand onder /usr/share/keyrings,
+# die van Microsoft onder /etc/apt/keyrings. Hier zitten ze allebei in het
+# .sources-bestand zelf. De eerste run herschrijft beide bronnen daarom, en
+# ruimt de oude tailscale.list op.
+wsl_apt_repositories:
+  - name: tailscale
+    uris: https://pkgs.tailscale.com/stable/ubuntu
+    signed_by: https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg
+  - name: azure-cli
+    uris: https://packages.microsoft.com/repos/azure-cli/
+    architectures: [amd64]
+    signed_by: https://packages.microsoft.com/keys/microsoft.asc
+
+wsl_snaps:
+  - drawio
+  - dyff
+
+wsl_services:
+  - ssh
+  - tailscaled
+
+wsl_go_version: 1.25.4
+
+# `brew leaves`. nvm staat hier én in ~/.nvm; de zshrc laadt alleen die in
+# ~/.nvm. Die uit brew mag dus weg, maar dat is nog niet beslist.
+wsl_brew_packages:
+  - node
+  - nvm
+  - pnpm
+  - tree
+  - uv
+  - wget
+
+wsl_ohmyzsh_plugins:
+  - zsh-users/zsh-autosuggestions
+  - zsh-users/zsh-syntax-highlighting
+  - zsh-users/zsh-history-substring-search
+
+wsl_nvm_version: v0.39.7
+wsl_oh_my_posh: true
+
+# --- dotfiles-rol ----------------------------------------------------------
+dotfiles_zshrc_template: zshrc_wsl.j2
+dotfiles_homelab_repo: "~/development/homelab-ansible"
+
+# Het werk-adres, niet het privé-adres van de Macs. De credential-helper van
+# gh staat hier bewust niet: die schrijft `gh auth setup-git` na
+# `gh auth login`, en dat inloggen kan Ansible niet voor je doen.
+dotfiles_git_config:
+  user.name: Ruben Claes
+  user.email: 8516279+rubenclaes@users.noreply.github.com
+  core.pager: delta

@@ -1,0 +1,207 @@
+---
+# Two halves: system state as root, then the user's own tooling as the user.
+# The play itself runs without become, so every root task says so.
+
+- name: Fail when an apt package is both wanted and unwanted
+  ansible.builtin.assert:
+    that:
+      - (wsl_apt_packages + wsl_apt_packages_extra)
+        | intersect(wsl_apt_packages_absent) | length == 0
+    fail_msg: >-
+      {{ inventory_hostname }} lists these as both wanted and unwanted:
+      {{ (wsl_apt_packages + wsl_apt_packages_extra)
+         | intersect(wsl_apt_packages_absent) }}
+    quiet: true
+
+# --- System ----------------------------------------------------------------
+
+- name: Write /etc/wsl.conf
+  community.general.ini_file:
+    path: /etc/wsl.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+  loop: "{{ wsl_conf }}"
+  loop_control:
+    label: "[{{ item.section }}] {{ item.option }}"
+  become: true
+  notify: Tell me to restart WSL
+
+- name: Add third-party apt repositories
+  ansible.builtin.deb822_repository:
+    name: "{{ item.name }}"
+    uris: "{{ item.uris }}"
+    suites: "{{ item.suites | default(ansible_facts['distribution_release']) }}"
+    components: "{{ item.components | default(['main']) }}"
+    architectures: "{{ item.architectures | default(omit) }}"
+    signed_by: "{{ item.signed_by }}"
+  loop: "{{ wsl_apt_repositories }}"
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+  register: wsl_repos
+
+# The same repository in the old one-line format, as its install docs leave
+# it. Kept next to the .sources file, apt complains about a duplicate source.
+- name: Remove one-line sources the deb822 files replace
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/{{ item.name }}.list
+    state: absent
+  loop: "{{ wsl_apt_repositories }}"
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+
+- name: Install apt packages
+  ansible.builtin.apt:
+    name: "{{ wsl_apt_packages + wsl_apt_packages_extra }}"
+    state: present
+    update_cache: "{{ wsl_repos is changed }}"
+    cache_valid_time: 3600
+  become: true
+
+- name: Remove apt packages that no longer belong here
+  ansible.builtin.apt:
+    name: "{{ wsl_apt_packages_absent }}"
+    state: absent
+  become: true
+  when: wsl_apt_packages_absent | length > 0
+
+- name: Install snaps
+  community.general.snap:
+    name: "{{ wsl_snaps }}"
+  become: true
+  when: wsl_snaps | length > 0
+
+- name: Enable services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ wsl_services }}"
+  become: true
+
+- name: Use zsh as login shell
+  ansible.builtin.user:
+    name: "{{ wsl_user }}"
+    shell: /usr/bin/zsh
+  become: true
+
+# /usr/local/go/VERSION's first line is e.g. "go1.25.4".
+- name: Read the installed Go version
+  ansible.builtin.slurp:
+    src: /usr/local/go/VERSION
+  register: wsl_go_installed
+  failed_when: false
+  when: wsl_go_version | length > 0
+
+- name: Install Go {{ wsl_go_version }}
+  when:
+    - wsl_go_version | length > 0
+    - (wsl_go_installed.content | default('') | b64decode).splitlines() | first | default('')
+      != 'go' ~ wsl_go_version
+  become: true
+  block:
+    # Unpacking over an old tree leaves its stale files behind, and Go's own
+    # install docs say to remove it first.
+    - name: Remove the old Go tree
+      ansible.builtin.file:
+        path: /usr/local/go
+        state: absent
+
+    - name: Unpack Go
+      ansible.builtin.unarchive:
+        src: https://go.dev/dl/go{{ wsl_go_version }}.linux-amd64.tar.gz
+        dest: /usr/local
+        remote_src: true
+
+# --- Homebrew ----------------------------------------------------------------
+# The "untar anywhere" install: a git clone plus a symlink. The official
+# install.sh does the same, but asks for sudo itself halfway through.
+
+- name: Create the Homebrew prefix
+  ansible.builtin.file:
+    path: "{{ wsl_brew_prefix }}"
+    state: directory
+    owner: "{{ wsl_user }}"
+    mode: "0775"
+  become: true
+  when: wsl_brew_packages | length > 0
+
+- name: Install Homebrew
+  when: wsl_brew_packages | length > 0
+  block:
+    - name: Clone Homebrew
+      ansible.builtin.git:
+        repo: https://github.com/Homebrew/brew
+        dest: "{{ wsl_brew_prefix }}/Homebrew"
+        version: stable   # the branch install.sh checks out too
+        update: false     # brew update does that
+
+    - name: Ensure the Homebrew bin directory exists
+      ansible.builtin.file:
+        path: "{{ wsl_brew_prefix }}/bin"
+        state: directory
+        mode: "0775"
+
+    - name: Link brew into the prefix
+      ansible.builtin.file:
+        src: ../Homebrew/bin/brew
+        dest: "{{ wsl_brew_prefix }}/bin/brew"
+        state: link
+
+    - name: Put brew on the PATH of login shells
+      ansible.builtin.lineinfile:
+        path: "{{ wsl_home }}/.zprofile"
+        line: eval "$({{ wsl_brew_prefix }}/bin/brew shellenv)"
+        create: true
+        mode: "0644"
+
+    - name: Install Homebrew formulae
+      community.general.homebrew:
+        name: "{{ wsl_brew_packages }}"
+        state: present
+        path: "{{ wsl_brew_prefix }}/bin"
+
+# --- Shell -------------------------------------------------------------------
+
+- name: Install Oh My Zsh
+  ansible.builtin.git:
+    repo: https://github.com/ohmyzsh/ohmyzsh
+    dest: "{{ wsl_home }}/.oh-my-zsh"
+    version: master
+    update: false   # it updates itself
+
+- name: Install Oh My Zsh plugins
+  ansible.builtin.git:
+    repo: https://github.com/{{ item }}
+    dest: "{{ wsl_home }}/.oh-my-zsh/custom/plugins/{{ item | basename }}"
+    version: master
+    update: false
+  loop: "{{ wsl_ohmyzsh_plugins }}"
+
+# The installer drops the binary in ~/.local/bin and its themes in
+# ~/.cache/oh-my-posh/themes, where zshrc_wsl.j2 looks for them.
+- name: Install oh-my-posh
+  ansible.builtin.shell:
+    cmd: set -o pipefail && curl -fsSL https://ohmyposh.dev/install.sh | bash -s -- -d {{ wsl_home }}/.local/bin
+    executable: /bin/bash
+    creates: "{{ wsl_home }}/.local/bin/oh-my-posh"
+  when: wsl_oh_my_posh | bool
+
+- name: Install nvm {{ wsl_nvm_version }}
+  ansible.builtin.git:
+    repo: https://github.com/nvm-sh/nvm
+    dest: "{{ wsl_home }}/.nvm"
+    version: "{{ wsl_nvm_version }}"
+  when: wsl_nvm_version | length > 0
+
+# The first `nvm install` also writes the default alias, so its existence
+# means this has run.
+- name: Install the current Node LTS through nvm
+  ansible.builtin.shell:
+    cmd: . {{ wsl_home }}/.nvm/nvm.sh && nvm install --lts && nvm alias default 'lts/*'
+    executable: /bin/bash
+    creates: "{{ wsl_home }}/.nvm/alias/default"
+  when: wsl_nvm_version | length > 0

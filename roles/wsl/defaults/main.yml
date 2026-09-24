@@ -1,0 +1,43 @@
+---
+wsl_user: "{{ ansible_user | default(ansible_facts['user_id']) }}"
+wsl_home: "/home/{{ wsl_user }}"
+
+wsl_apt_packages:
+  - curl
+  - file        # Homebrew wants it
+  - git
+  - jq
+  - procps      # Homebrew wants it
+  - unzip
+  - zsh
+wsl_apt_packages_extra: []
+
+# Explicitly unwanted, as opposed to merely undeclared. Same idea as the
+# macos role: dropping a name from the lists above only stops it coming back.
+wsl_apt_packages_absent: []
+
+# Third-party apt repositories, as deb822 sources. `signed_by` may be a URL;
+# the module then embeds the key in the .sources file, so there is no
+# separate keyring file to keep track of.
+wsl_apt_repositories: []
+
+wsl_snaps: []
+
+# /etc/wsl.conf. Without systemd there is no sshd, tailscaled or snapd.
+wsl_conf:
+  - { section: boot, option: systemd, value: "true" }
+
+wsl_services: []
+
+# Go from the upstream tarball in /usr/local/go; the Ubuntu package lags a
+# year behind. Empty to leave Go alone.
+wsl_go_version: ""
+
+wsl_brew_prefix: /home/linuxbrew/.linuxbrew
+wsl_brew_packages: []
+
+wsl_ohmyzsh_plugins: []
+
+# nvm from its git repo into ~/.nvm; empty to leave it alone.
+wsl_nvm_version: ""
+wsl_oh_my_posh: false
