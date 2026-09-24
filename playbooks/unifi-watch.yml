@@ -11,12 +11,22 @@
     - name: Read the clients from UniFi
       ansible.builtin.import_tasks: tasks/unifi_clients.yml
 
+    # Een lege lijst zou elk toestel als onbekend melden: een ntfy per toestel.
+    - name: The known list is filled in
+      ansible.builtin.assert:
+        that: unifi_known_macs | length > 0
+        fail_msg: "unifi_known_macs is leeg. Vul hem eerst met playbooks/unifi-clients.yml."
+        quiet: true
+
     - name: Pick out the devices that are not on the known list
       ansible.builtin.set_fact:
         unifi_unknown: >-
           {{ unifi_clients.json.data
-             | rejectattr('macAddress', 'in', unifi_known_macs | map('lower') | list)
+             | rejectattr('macAddress', 'in', known)
+             | rejectattr('macAddress', 'in', known | map('upper') | list)
              | list }}
+      vars:
+        known: "{{ unifi_known_macs | map('lower') | list }}"
 
     - name: Send one message per unknown device
       ansible.builtin.uri:

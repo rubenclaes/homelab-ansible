@@ -8,6 +8,7 @@ unifi_api_key: "{{ vault_unifi_api_key }}"
 
 # Toestellen die ik ken. Eén MAC per regel, met in commentaar wat het is.
 # Wat hier niet in staat, komt als melding op de telefoon (unifi-watch.yml).
+# Leeg laat unifi-watch.yml weigeren, anders krijg je elk toestel als melding.
 # Eerste vulling: de uitvoer van playbooks/unifi-clients.yml, nagelopen.
 unifi_known_macs: []
 

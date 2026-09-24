@@ -1,28 +1,22 @@
 ---
-# Leest de toestellen uit UniFi en toont ze. Stap 2 van het UniFi-project:
-# nog niets controleren, alleen kijken wat de API teruggeeft.
+# Toont de toestellen in UniFi, als regels die je zo in unifi_known_macs
+# (group_vars/all/unifi.yml) plakt.
 #
 #   ansible-playbook playbooks/unifi-clients.yml
+#
+# Leest alleen. Verandert niets in UniFi.
 - name: UniFi clients
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Find the site
-      ansible.builtin.uri:
-        url: "{{ unifi_api_url }}/sites"
-        headers:
-          X-API-KEY: "{{ unifi_api_key }}"
-      register: unifi_sites
+    - name: Read the clients from UniFi
+      ansible.builtin.import_tasks: tasks/unifi_clients.yml
 
-    - name: Read the clients of that site
-      ansible.builtin.uri:
-        url: "{{ unifi_api_url }}/sites/{{ unifi_sites.json.data[0].id }}/clients?limit=200"
-        headers:
-          X-API-KEY: "{{ unifi_api_key }}"
-      register: unifi_clients
-
-    - name: Show what came back
+    - name: Show them as unifi_known_macs lines
       ansible.builtin.debug:
-        msg:
-          - "{{ unifi_clients.json.data | length }} of {{ unifi_clients.json.totalCount }} clients"
-          - "{{ unifi_clients.json.data | map(attribute='name') | list }}"
+        msg: "{{ lines | trim | split('\n') }}"
+      vars:
+        lines: |
+          {% for c in unifi_clients.json.data | sort(attribute='name') %}
+          - "{{ c.macAddress | lower }}"  # {{ c.name | default('zonder naam') }}, {{ c.ipAddress | default('geen IP') }}
+          {% endfor %}

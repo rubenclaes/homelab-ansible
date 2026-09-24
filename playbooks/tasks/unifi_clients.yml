@@ -1,0 +1,26 @@
+---
+# Leest alle clients van de eerste (enige) site in UniFi naar unifi_clients.
+# Gedeeld door playbooks/unifi-*.yml.
+- name: Find the site
+  ansible.builtin.uri:
+    url: "{{ unifi_api_url }}/sites"
+    headers:
+      X-API-KEY: "{{ unifi_api_key }}"
+  register: unifi_sites
+
+- name: Read the clients of that site
+  ansible.builtin.uri:
+    url: "{{ unifi_api_url }}/sites/{{ unifi_sites.json.data[0].id }}/clients?limit=200"
+    headers:
+      X-API-KEY: "{{ unifi_api_key }}"
+  register: unifi_clients
+
+# Eén pagina. Groeit het netwerk voorbij 200, dan liever stoppen dan
+# stilletjes toestellen missen.
+- name: All clients fit in one page
+  ansible.builtin.assert:
+    that: unifi_clients.json.data | length == unifi_clients.json.totalCount
+    fail_msg: >-
+      UniFi gaf {{ unifi_clients.json.data | length }} van
+      {{ unifi_clients.json.totalCount }} clients. Verhoog limit of blader.
+    quiet: true
