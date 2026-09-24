@@ -204,6 +204,14 @@ semaphore_templates_list:
     description: "Meldt toestellen op het netwerk die niet in unifi_known_macs staan."
     schedule: "*/15 * * * *"
 
+  # Dagelijks, zodat een upstream zonder Fixed IP opvalt vóór een herstart
+  # hem op een ander adres zet, niet erna. 06:15: na Drift check, vóór de
+  # smoketest, zodat een rode ochtend in één blik te lezen is.
+  - name: "UniFi routes"
+    playbook: playbooks/unifi-routes.yml
+    description: "Wijst elke Caddy-route naar een toestel in UniFi, met een Fixed IP?"
+    schedule: "15 6 * * *"
+
 # Hiermee staat elke template van dit project in git. Komt er een bij in de UI,
 # zet hem dan ook hier neer - anders is dit bestand weer een deellijst en
 # geloof je hem ten onrechte.

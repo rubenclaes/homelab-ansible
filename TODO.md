@@ -36,18 +36,11 @@
       schrijft naar UniFi.
   - [ ] Stap 3 — `unifi-watch.yml` draait elk kwartier in Semaphore. Nog:
         op de iPhones van het gezin Private Wi-Fi Address → Fixed.
-  - [ ] Wat `unifi-routes.yml` op 24-09 vond. Pas als hij groen is, een
-        Semaphore-template (dagelijks) zodat hij vóór een herstart waarschuwt:
-    - [ ] **Fixed IP in UniFi** voor `.10` pve01, `.15` docker, `.17` docker-grafana-stack,
-          `.181` pbs, `.25` caddy, `.29` adguard, `.30` semaphore, `.31` haos,
-          `.32` ntfy. Alleen de Mac mini en Dobbis hebben er een, en de
-          DHCP-range is `.6`–`.254`: de UCG kan `.29` aan een telefoon geven.
   - [ ] **WireGuard deelt DNS `192.168.0.26` uit**: de oude AdGuard op de
         Mac mini, die er niet meer is. UniFi → VPN Server → Neodata VPN → DNS
         naar `192.168.0.29`, daarna het profiel op de iPhone vernieuwen.
-  - [ ] Zes toestellen zonder naam op de pagina Toestellen (`.10` pve01,
-        `.17`, `.30`, `.32`, `.50`, `.100` switch): een Alias in UniFi.
-  - [ ] De eerste iPhone (`.171`) heet gewoon "iPhone": van wie?
+  - [ ] De eerste iPhone (was `.171`) heet gewoon "iPhone": van wie? Alias
+        geven zodra hij weer online is.
 
 ---
 
