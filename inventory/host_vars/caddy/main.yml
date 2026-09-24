@@ -4,8 +4,12 @@ baseline_held_packages:
 
 caddy_email: ruben.claes@neodata.be
 caddy_domain: neodata.be
+caddy_cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
 
-# Mogen de sitelijst op :2020 lezen, naast de docker-host (altijd toegelaten).
+# Waar NeoGate draait; die host mag de sitelijst op :2020 altijd lezen.
+caddy_neogate_host: docker
+
+# Mogen de sitelijst op :2020 ook lezen.
 caddy_config_readers:
   - 192.168.0.86 # Mac (NeoGate dev)
 

@@ -338,7 +338,7 @@
         url: >-
           https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/{{ report_pbs_datastore }}/groups
         headers:
-          Authorization: "PBSAPIToken={{ report_pbs_token_id }}:{{ hostvars['pbs'].vault_pbs_report_token }}"
+          Authorization: "PBSAPIToken={{ report_pbs_token_id }}:{{ hostvars['pbs'].report_pbs_token }}"
         validate_certs: false
         return_content: true
       register: report_backups

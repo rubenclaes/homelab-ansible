@@ -21,5 +21,9 @@ caddy_repo_uri: https://dl.cloudsmith.io/public/caddy/stable/deb/debian
 # hem meteen, herstart dan met de hand.
 caddy_log_mode: "0640"
 
+# Inventory-host waarop NeoGate draait; mag de sitelijst op :2020 lezen.
+# Leeg = geen :2020-blok.
+caddy_neogate_host: ""
+
 # Provides the DNS-01 challenge used for the *.neodata.be wildcard certificate.
 caddy_dns_module: github.com/caddy-dns/cloudflare

@@ -1,6 +1,9 @@
 ---
 baseline_unattended_upgrades: false
 
+# Leestoken voor playbooks/report.yml; het geheim staat in vault.yml ernaast.
+report_pbs_token: "{{ vault_pbs_report_token }}"
+
 # Datastore and job configuration, transcribed from
 # `proxmox-backup-manager <thing> list --output-format json`.
 #

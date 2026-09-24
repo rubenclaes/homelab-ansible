@@ -23,7 +23,7 @@
 - name: Cloudflare token from Vault
   ansible.builtin.copy:
     dest: /etc/caddy/cloudflare.env
-    content: "CF_API_TOKEN={{ vault_cloudflare_api_token }}\n"
+    content: "CF_API_TOKEN={{ caddy_cloudflare_api_token }}\n"
     owner: root
     group: root
     mode: "0600"

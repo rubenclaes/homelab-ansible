@@ -35,14 +35,14 @@
 
 # Read-only window on the admin API for NeoGate's Caddy plugin: it reads the
 # site list (host -> upstream) to give its app tiles their public address.
-# Only GET, only the routes path, only from the docker host NeoGate runs on
+# Only GET, only the routes path, only from caddy_neogate_host
 # (plus caddy_config_readers, e.g. a dev machine).
 # Never expose :2019 itself - it can rewrite this config - and not the rest of
-# /config/ either. Skipped when the docker host has no address (stopped).
-{% if hostvars['docker']['ansible_host'] is defined %}
+# /config/ either. Skipped when that host has no address (stopped).
+{% if caddy_neogate_host and hostvars[caddy_neogate_host]['ansible_host'] is defined %}
 :2020 {
 	@neogate {
-		remote_ip {{ ([hostvars['docker']['ansible_host']] + (caddy_config_readers | default([]))) | join(' ') }}
+		remote_ip {{ ([hostvars[caddy_neogate_host]['ansible_host']] + (caddy_config_readers | default([]))) | join(' ') }}
 		method GET
 		path /config/apps/http/servers*
 	}

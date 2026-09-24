@@ -1,0 +1,12 @@
+---
+# Waar Alloy naartoe schrijft. Dit is de Loki in de monitoring-stack op
+# docker-grafana-stack, die zijn 3100 op het LAN aanbiedt - dat staat ook zo
+# in docker_ports_without_route in host_vars/docker-grafana-stack.yml, met
+# "push/query api voor alloy en grafana" als reden. Nagekeken op 23-09: een
+# lege POST naar dit adres geeft 400, dus hij luistert en antwoordt.
+#
+# Op hostnaam en niet op IP zou mooier zijn, maar deze host valt terug op de
+# resolver van het huis en dat is AdGuard op ct 107. Een agent die zijn
+# bestemming niet kan vinden omdat de DNS stuk is, is precies de agent die je
+# op dat moment nodig had.
+alloy_loki_url: http://192.168.0.17:3100/loki/api/v1/push
