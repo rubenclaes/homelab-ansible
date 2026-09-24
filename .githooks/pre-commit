@@ -17,14 +17,15 @@ fail=0
 
 # 1. Nothing sensitive may be committed as plaintext. Checks the staged blob,
 #    not the working tree - `git add` snapshots content, so the two can differ.
-if ! bin/check-vaulted --staged > /tmp/.check-vaulted.$$ 2>&1; then
+out="$(mktemp)"
+trap 'rm -f "$out"' EXIT
+if ! bin/check-vaulted --staged > "$out" 2>&1; then
 	echo "pre-commit: a file that must be encrypted is staged as plaintext." >&2
-	grep 'PLAINTEXT' /tmp/.check-vaulted.$$ >&2 || true
+	grep 'PLAINTEXT' "$out" >&2 || true
 	echo >&2
 	echo "  Encrypt it:  ansible-vault encrypt <file> && git add <file>" >&2
 	fail=1
 fi
-rm -f /tmp/.check-vaulted.$$
 
 # 2. The collection cache is a build artefact and must never be committed,
 #    even with `git add -f`.

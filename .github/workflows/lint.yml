@@ -21,12 +21,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  # Gepind zodat CI niet uit de pas loopt met het werkstation.
-  # Bump samen met requirements.txt en collections/requirements.yml.
-  ANSIBLE_CORE_VERSION: "2.21.4"
-  ANSIBLE_LINT_VERSION: "26.8.0"
-
 jobs:
   lint:
     name: ansible-lint
@@ -44,12 +38,11 @@ jobs:
       - name: Verify no secret is committed in plaintext
         run: bin/check-vaulted
 
+      # Zelfde pins als het werkstation: requirements.txt is de enige bron.
       - name: Install Ansible and ansible-lint
         run: |
           python -m pip install --upgrade pip
-          pip install \
-            "ansible-core==${ANSIBLE_CORE_VERSION}" \
-            "ansible-lint==${ANSIBLE_LINT_VERSION}"
+          pip install -r requirements.txt
 
       - name: Cache Galaxy collections
         uses: actions/cache@v6

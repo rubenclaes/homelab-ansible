@@ -1,12 +1,13 @@
 # Control-node toolchain. Pinned so a workstation cannot drift away from CI
 # without noticing: .github/workflows/lint.yml installs these same versions.
 #
-#   pipx install --include-deps -r requirements.txt
-#   # or, in a venv:
-#   pip install -r requirements.txt
+#   pip install -r requirements.txt   # in a venv
+#
+# With pipx, see README: the libraries below must be injected into the
+# ansible-core venv, which `pipx install -r` does not do.
 #
 # Bump deliberately, together with collections/requirements.yml and the
-# ANSIBLE_*_VERSION values in the lint workflow.
+# the lint workflow, which installs from this file.
 ansible-core==2.21.4
 ansible-lint==26.8.0
 

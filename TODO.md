@@ -29,20 +29,6 @@
 
 ---
 
-## Semaphore
-
-Alle twaalf templates staan sinds 23-09 in
-`semaphore_templates_list` in `inventory/host_vars/semaphore/main.yml`, en
-`site.yml` roept `semaphore-templates.yml` aan. Wat wanneer draait staat in het
-runbook *Onderhoud*.
-
----
-
-## Opruimen in de estate
-
-
----
-
 ## Grotere projecten
 
 - [ ] **De upstream en clientinstellingen van AdGuard staan nog nergens.**

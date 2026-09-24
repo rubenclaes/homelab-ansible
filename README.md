@@ -13,7 +13,7 @@ Uitleg per taak staat op [docs.neodata.be](https://docs.neodata.be).
 
    ```bash
    pipx install "ansible-core==2.21.4" "ansible-lint==26.8.0"
-   pipx inject ansible-core proxmoxer requests
+   pipx inject ansible-core proxmoxer requests netaddr
    ansible-galaxy collection install -r collections/requirements.yml
    ```
 
