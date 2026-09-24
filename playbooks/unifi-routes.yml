@@ -1,0 +1,41 @@
+---
+# Controleert of elke Caddy-route naar een adres wijst dat een toestel in
+# UniFi nu echt heeft. Vangt een upstream die verhuisd of weg is.
+#
+#   ansible-playbook playbooks/unifi-routes.yml
+#
+# Leest alleen. Verandert niets in UniFi of Caddy.
+- name: Caddy routes against UniFi
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Routes die geen gewone client in UniFi zijn, met de reden erbij.
+    unifi_route_check_skip:
+      - unifi   # de UCG zelf: de gateway staat niet bij de clients
+  tasks:
+    - name: Read the clients from UniFi
+      ansible.builtin.import_tasks: tasks/unifi_clients.yml
+
+    - name: Collect every address UniFi knows
+      ansible.builtin.set_fact:
+        unifi_ips: >-
+          {{ unifi_clients.json.data
+             | selectattr('ipAddress', 'defined')
+             | map(attribute='ipAddress') | list }}
+
+    - name: Every route must point at an address a device really has
+      ansible.builtin.assert:
+        that: route_ip in unifi_ips
+        fail_msg: "{{ item.name }} wijst naar {{ route_ip }}, maar geen toestel in UniFi heeft dat adres."
+        success_msg: "{{ item.name }} -> {{ route_ip }} ok"
+        quiet: true
+      vars:
+        route_ip: >-
+          {{ (item.upstream | split(':') | first) if item.upstream is defined
+             else hostvars[item.host].ansible_host }}
+      when:
+        - item.name not in unifi_route_check_skip
+        - route_ip | ansible.utils.ipaddr('192.168.0.0/24')
+      loop: "{{ hostvars['caddy'].caddy_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
