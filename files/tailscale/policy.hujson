@@ -19,7 +19,8 @@
 
 	// Namen voor adressen, zodat de regels leesbaar blijven.
 	"hosts": {
-		"caddy": "192.168.0.25",
+		"caddy":    "192.168.0.25",
+		"mac-mini": "100.74.124.12",
 	},
 
 	"acls": [
@@ -41,6 +42,13 @@
 			"src":    ["autogroup:member"],
 			"dst":    ["tag:homelab:53"],
 		},
+		// Plex rechtstreeks op de Mac mini, zonder Caddy of subnet-router.
+		// Voor de Tailscale-boxen bij de TV's van de familie.
+		{
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			"dst":    ["mac-mini:32400"],
+		},
 	],
 
 	"ssh": [
@@ -54,7 +62,7 @@
 
 	"nodeAttrs": [
 		{
-			"target": ["autogroup:member"],
+			"target": ["rubes.claes@gmail.com"],
 			"attr":   ["funnel"],
 		},
 	],
@@ -69,6 +77,10 @@
 			"src":    "rubes.claes@gmail.com",
 			"accept": ["192.168.0.14:8006", "192.168.0.25:443", "100.84.46.18:53", "tag:work:22"],
 		},
+		{
+			"src":    "maarten.claes95@gmail.com",
+			"accept": ["100.74.124.12:32400", "192.168.0.25:443"],
+			"deny":   ["100.74.124.12:22", "192.168.0.14:8006"],
+		},
 	],
 }
-
