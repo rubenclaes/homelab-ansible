@@ -1,0 +1,32 @@
+---
+# Meldt toestellen op het netwerk die niet in unifi_known_macs staan.
+#
+#   ansible-playbook playbooks/unifi-watch.yml
+#
+# Leest alleen. Verandert niets in UniFi.
+- name: Unknown devices on the network
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read the clients from UniFi
+      ansible.builtin.import_tasks: tasks/unifi_clients.yml
+
+    - name: Pick out the devices that are not on the known list
+      ansible.builtin.set_fact:
+        unifi_unknown: >-
+          {{ unifi_clients.json.data
+             | rejectattr('macAddress', 'in', unifi_known_macs | map('lower') | list)
+             | list }}
+
+    - name: Send one message per unknown device
+      ansible.builtin.uri:
+        url: "{{ unifi_ntfy_url }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ unifi_ntfy_token }}"
+          Title: "Onbekend toestel op het netwerk"
+          Tags: "warning"
+        body: "{{ item.name | default('zonder naam') }} - {{ item.macAddress }} - {{ item.ipAddress | default('geen IP') }}"
+      loop: "{{ unifi_unknown }}"
+      loop_control:
+        label: "{{ item.macAddress }}"
