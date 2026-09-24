@@ -11,6 +11,11 @@ pve_lxc_defaults:
   template: local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
   bridge: vmbr0
   gateway: 192.168.0.1
+  # Zonder dit erft een container `search neodata.be` van pve01, en schrijft
+  # Proxmox `<ip> <naam>.neodata.be` in zijn /etc/hosts. Dan praat de
+  # container voor zijn eigen publieke naam met zichzelf in plaats van met
+  # Caddy: de smoketest vanuit Semaphore zag semaphore.neodata.be als stuk.
+  searchdomain: home.arpa
   unprivileged: true
   onboot: true
   pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHLNyIywwfWQG5AzOf6ZGXYDIeNz3gcthJnpkQPdoFRq ansible@neodata"

@@ -39,6 +39,7 @@
     netif:
       net0: "name=eth0,bridge={{ pve_lxc_defaults.bridge }},ip={{ item.ip }},gw={{ pve_lxc_defaults.gateway }}"
     pubkey: "{{ pve_lxc_defaults.pubkey }}"
+    searchdomain: "{{ pve_lxc_defaults.searchdomain }}"
     onboot: "{{ pve_lxc_defaults.onboot }}"
     cmode: tty
     state: present

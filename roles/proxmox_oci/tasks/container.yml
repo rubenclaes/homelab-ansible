@@ -153,6 +153,7 @@
                    ~ (',hwaddr=' ~ oci.hwaddr if oci.hwaddr is defined else ''),
            'unprivileged': 1,
            'onboot': 1,
+           'searchdomain': pve_lxc_defaults.searchdomain,
            'tags': 'oci',
            'description': proxmox_oci_description,
          } | combine(proxmox_oci_volumes) }}

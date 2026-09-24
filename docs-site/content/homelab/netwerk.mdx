@@ -40,6 +40,24 @@ het hele huis (DNS) en elke route aan één Fixed IP in UniFi.
 De Fixed IP's in UniFi blijven staan. Ze beslissen niets meer, maar ze
 beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
 
+## Zoekdomein van de containers: `home.arpa`
+
+Sinds 24-09 hebben de containers `searchdomain: home.arpa` in hun
+Proxmox-config (`pve_lxc_defaults` in `inventory/group_vars/proxmox/lxcs.yml`).
+
+Waarom: zonder zoekdomein neemt een container `search neodata.be` over van pve01.
+Proxmox zet dan `<ip> <naam>.neodata.be` in de `/etc/hosts` van de container.
+Vraagt de container zijn eigen publieke naam op, dan komt hij bij zichzelf uit
+en niet bij Caddy. Zo zag de dagelijkse smoketest in Semaphore
+`semaphore.neodata.be` als stuk, terwijl de site gewoon werkte.
+
+Nieuwe containers krijgen dit mee. Bestaande containers zet je één keer met de
+hand, want de role past bestaande containers niet aan:
+
+```bash
+ssh pve01 'pct set <vmid> --searchdomain home.arpa'   # daarna herstarten
+```
+
 ## Namen in de Query Log
 
 AdGuard toont bij een IP de naam die de UCG kent. Dat staat in AdGuard →
