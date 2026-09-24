@@ -3,10 +3,11 @@
 # list over the REST API (rewrites.yml).
 #
 # It does NOT manage AdGuardHome.yaml or data/. That file holds the admin
-# password hash, the upstream resolvers and every filter rule, it is edited
+# password hash, the DNS settings and every filter rule, it is edited
 # through the web UI, and it is genuine runtime state. Templating it would
-# mean this role fights the UI for ownership. The rewrites go through the API
-# for the same reason: the UI keeps the file, the inventory keeps the names.
+# mean this role fights the UI for ownership. The rewrites, blocklists and the
+# few DNS settings in adguard_dns go through the API for the same reason: the
+# UI keeps the file, the inventory keeps the values that matter.
 - name: Read the installed AdGuard Home version
   ansible.builtin.command: "{{ adguard_dir }}/AdGuardHome --version"
   register: adguard_installed
@@ -89,3 +90,7 @@
 - name: Sync the blocklists
   ansible.builtin.import_tasks: filters.yml
   when: adguard_filters | length > 0
+
+- name: Sync the DNS settings
+  ansible.builtin.import_tasks: dns.yml
+  when: adguard_dns | length > 0

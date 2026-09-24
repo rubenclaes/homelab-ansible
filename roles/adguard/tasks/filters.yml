@@ -11,9 +11,8 @@
 # list itself and it changes when upstream renames the list; the url is what
 # actually identifies it.
 #
-# Deliberately NOT managed here: upstream_dns. Getting that wrong takes DNS
-# down for the whole house at once, and it is one POST away from the rest of
-# this file. It deserves its own change, made on purpose.
+# upstream_dns is not here but in dns.yml, which tests a new upstream before
+# it switches: getting that wrong takes DNS down for the whole house at once.
 
 - name: Find the AdGuard API
   ansible.builtin.import_tasks: api.yml

@@ -61,9 +61,6 @@ machine staat, gaat naar git. Wie wat doet:
 
 Eerst wat het hele huis plat kan leggen:
 
-- [ ] AdGuard upstream (Quad9), per-client instellingen en de private
-      reverse DNS (`192.168.0.1`, op 24-09 via de API gezet) → zie "Grotere
-      projecten". Kan via Ansible (REST API, zoals de rewrites).
 - [ ] De `/dev/net/tun`-regels voor ct 107 en 108 staan met de hand in
       `/etc/pve/lxc/*.conf`. De API-token kan ze niet zetten; nakijken of
       OpenTofu dat via root@pam wel kan, anders blijft het een beschreven handstap.
@@ -142,12 +139,6 @@ Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 ---
 
 ## Grotere projecten
-
-- [ ] **De upstream en clientinstellingen van AdGuard staan nog nergens.**
-      Blocklists en rewrites zijn beschreven, de Quad9-upstream over DoH en de
-      per-client instellingen leven enkel in die container. Met opzet
-      overgeslagen: één verkeerde waarde legt de naamresolutie van het hele
-      huis plat, dus dit verdient een eigen wijziging op een rustig moment.
 
 - [ ] **De Duplicati-secrets roteren.** Ze staan sinds 22-09 in een gevaulte
       `.env`, maar ook nog in de historie van `rubenclaes/homelab`. Het

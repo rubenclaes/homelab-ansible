@@ -1,0 +1,111 @@
+---
+# Syncs the DNS settings in adguard_dns over the REST API.
+#
+# Only the keys named in adguard_dns are managed; every other setting stays
+# whatever the web UI made it. So this is not "the whole DNS page from git",
+# it is "these few values, which a rebuild would otherwise lose".
+#
+# Careful by design, because a wrong upstream takes DNS down for the whole
+# house at once:
+#   - only the keys that differ are sent, in one POST;
+#   - a changed upstream_dns is first tested with AdGuard's own upstream test,
+#     and nothing is written if any upstream fails it;
+#   - an empty upstream_dns is refused outright.
+
+- name: Find the AdGuard API
+  ansible.builtin.import_tasks: api.yml
+  when: adguard_http_port is not defined
+
+- name: Refuse an empty upstream list
+  ansible.builtin.assert:
+    that: adguard_dns.upstream_dns | default(['x']) | length > 0
+    fail_msg: >-
+      adguard_dns.upstream_dns is empty. That would leave AdGuard with nowhere
+      to send queries. Nothing was changed.
+    quiet: true
+
+- name: Read the current DNS settings
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/dns_info"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+    return_content: true
+  register: adguard_dns_info
+  check_mode: false
+  no_log: true
+
+# A key AdGuard does not know is an error, not a silent skip: a typo in the
+# inventory would otherwise look like a setting that is being enforced.
+- name: Require keys AdGuard knows
+  ansible.builtin.assert:
+    that: unknown | length == 0
+    fail_msg: "adguard_dns has keys AdGuard does not have: {{ unknown | join(', ') }}. Nothing was changed."
+    quiet: true
+  vars:
+    unknown: "{{ adguard_dns.keys() | reject('in', adguard_dns_info.json) | list }}"
+
+- name: Work out what differs
+  ansible.builtin.set_fact:
+    adguard_dns_changes: >-
+      {%- set out = {} -%}
+      {%- for k, v in adguard_dns.items() if adguard_dns_info.json[k] != v -%}
+      {%-   set _ = out.update({k: v}) -%}
+      {%- endfor -%}
+      {{ out }}
+
+# The API tasks run with no_log because they carry the password, so this is
+# the only place the run says what changes, and the only thing visible under
+# --check.
+- name: Report the DNS settings that will change
+  ansible.builtin.debug:
+    msg: >-
+      {%- set out = [] -%}
+      {%- for k, v in adguard_dns_changes.items() -%}
+      {%-   set _ = out.append(k ~ ': ' ~ adguard_dns_info.json[k] ~ ' -> ' ~ v) -%}
+      {%- endfor -%}
+      {{ out }}
+  changed_when: true
+  when: adguard_dns_changes | length > 0
+
+- name: Test a new upstream before switching to it
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/test_upstream_dns"
+    method: POST
+    body_format: json
+    body:
+      upstream_dns: "{{ adguard_dns_changes.upstream_dns }}"
+      bootstrap_dns: "{{ adguard_dns.bootstrap_dns | default(adguard_dns_info.json.bootstrap_dns) }}"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+    return_content: true
+  register: adguard_upstream_test
+  when: "'upstream_dns' in adguard_dns_changes"
+  no_log: true
+
+- name: Refuse an upstream that does not answer
+  ansible.builtin.assert:
+    that: failed | length == 0
+    fail_msg: "Deze upstream antwoordt niet: {{ failed | join(', ') }}. Er is niets veranderd."
+    quiet: true
+  vars:
+    failed: >-
+      {{ adguard_upstream_test.json | default({}) | dict2items
+         | rejectattr('value', 'eq', 'OK') | map(attribute='key') | list }}
+  when:
+    - "'upstream_dns' in adguard_dns_changes"
+    - not ansible_check_mode
+
+- name: Apply the DNS settings that differ
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/dns_config"
+    method: POST
+    body_format: json
+    body: "{{ adguard_dns_changes }}"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  changed_when: true
+  when: adguard_dns_changes | length > 0
+  no_log: true

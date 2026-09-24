@@ -57,3 +57,7 @@ adguard_api_url: "http://127.0.0.1:{{ adguard_http_port }}"
 # verwijderen, en dat is een dure manier om erachter te komen. De echte lijst
 # staat in inventory/host_vars/adguard/main.yml.
 adguard_filters: []
+
+# DNS settings synced over the API by tasks/dns.yml. Only the keys listed are
+# managed; the rest stays whatever the web UI made it. Empty: nothing synced.
+adguard_dns: {}

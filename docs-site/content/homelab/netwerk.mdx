@@ -67,8 +67,11 @@ ssh -t pve01 'sudo pct set <vmid> --searchdomain home.arpa && sudo pct reboot <v
 
 AdGuard toont bij een IP de naam die de UCG kent. Dat staat in AdGuard →
 **Settings** → **DNS settings** → **Private reverse DNS servers**:
-`192.168.0.1`, met **Use private reverse DNS resolvers** aan. Met de hand
-gezet op 24-09, via de API; de rol beheert het (nog) niet.
+`192.168.0.1`, met **Use private reverse DNS resolvers** aan. Staat in git
+onder `adguard_dns` (`inventory/host_vars/adguard/main.yml`), samen met de
+upstream (Quad9 over DoH) en de bootstrap-DNS. `roles/adguard` zet ze gelijk;
+een nieuwe upstream test hij eerst, en antwoordt die niet, dan verandert er
+niets.
 
 Blijft dat veld leeg, dan vraagt AdGuard het aan zijn eigen `nameserver`
 (`1.1.1.1`), en die kent geen thuisnamen: dan zie je alleen IP's.
