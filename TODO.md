@@ -1,5 +1,83 @@
 # Backlog
 
+## Lopend — thuis afwerken (gestart 24-09)
+
+- [ ] **A0. Eerst: vaste adressen na de verhuis naar de UCG.** In UniFi
+      nakijken dat caddy (`192.168.0.25`) en adguard (`192.168.0.29`) nog een
+      Fixed IP hebben. Beide containers draaien nog op DHCP (zie `lxcs.yml`).
+      Valt die reservatie weg, dan heeft na een herstart het hele huis geen DNS
+      meer en zijn alle routes dood.
+
+- [ ] **A1. Werk-pc `work-wsl` als beheerde host.** Ubuntu in WSL op de
+      werk-pc, beheerd vanaf thuis over de tailnet.
+  - [ ] SSH-server, alleen sleutels (`PasswordAuthentication no`), WSL in nat-modus.
+  - [ ] Publieke `ansible@neodata`-sleutel in `~/.ssh/authorized_keys`.
+  - [ ] Tag `tag:work` op de node in de Tailscale-console.
+  - [x] Groep `workstations` met `work-wsl` in `inventory/00-static.yml`
+        (bewust niet onder `linux`: vaak uit, en geen gepland playbook mag hem raken).
+  - [ ] Vanaf de mbp: `ansible work-wsl -m ping` → groene pong.
+
+- [ ] **A2. Tailscale-regels.** Afgesproken: `tag:work` krijgt geen enkele
+      regel als bron. Hij hoeft nergens heen; thuis → work-wsl dekt mijn eigen `*:*`.
+  - [ ] In de console: host `mac-mini` (`100.74.124.12`), regel
+        `autogroup:member` → `mac-mini:32400`, en een test met een echt
+        familie-account (accept Plex + Caddy, deny `:22` en Proxmox).
+  - [ ] `nodeAttrs` → funnel weghalen, of beperken tot mijn eigen account.
+        Funnel zet een dienst op het publieke internet.
+  - [ ] Policy uit de console kopiëren naar `files/tailscale/policy.hujson` en committen.
+
+      Stand in de repo: `policy.hujson` heeft de `mac-mini:32400`-regel, de
+      test met `maarten.claes95@gmail.com`, en funnel alleen voor mijn eigen
+      account. Nakijken of de console daar exact mee overeenkomt.
+
+- [ ] **A3. Plex voor de familie.** Via Tailscale op de boxen (Apple TV /
+      Google TV) aan de tv, geen port forward.
+  - [ ] Plex → Network → Custom server access URLs: `http://100.74.124.12:32400`.
+  - [ ] Plex → Relay uit.
+  - [ ] Per box: Tailscale + Plex, aanmelden met het account van die persoon,
+        kwaliteit op Original.
+  - [ ] Eerste stream: Dashboard toont Direct Play, niet Relay.
+
+- [ ] **A4. UniFi als gegevensbron (alleen lezen).** UniFi is een bron, geen
+      inventory: de toestellen zelf beheert Ansible niet. Alles leest, niets
+      schrijft naar UniFi.
+  - [ ] Stap 1 — `ansible.utils` en `netaddr` staan in de requirements. Thuis:
+        `pipx inject ansible-core netaddr` en
+        `ansible-galaxy collection install -r collections/requirements.yml`.
+  - [ ] Stap 2 — route `unifi` → UCG staat in `host_vars/caddy/main.yml`,
+        plus `group_vars/all/unifi.yml`, `playbooks/unifi-clients.yml` en
+        `playbooks/tasks/unifi_clients.yml`. Thuis:
+    - [ ] `caddy.yml --check --diff`, dan echt, dan `smoketest.yml`.
+    - [ ] API-sleutel maken: UniFi → Settings → Control Plane → Integrations.
+    - [ ] `ansible-vault create --encrypt-vault-id infra inventory/group_vars/all/vault.yml`
+          met `vault_unifi_api_key`.
+    - [ ] `unifi-clients.yml` draaien; veldnamen nakijken (`macAddress`,
+          `name`, `ipAddress`, `type`) en of de lijst volledig is (`totalCount`).
+  - [ ] Stap 3 — melding bij onbekend toestel: `playbooks/unifi-watch.yml`. Thuis:
+    - [ ] Eigen ntfy-token → `vault_ntfy_unifi_token`.
+    - [ ] `unifi_known_macs` vullen uit de uitvoer van stap 2.
+    - [ ] Op de telefoons van het gezin: Private Wi-Fi Address → Fixed.
+    - [ ] Testrun (verwacht: nul meldingen), dan Semaphore-template elke 15 minuten.
+  - [ ] Stap 4 — routes tegen UniFi: `playbooks/unifi-routes.yml`. Thuis:
+    - [ ] Draaien.
+    - [ ] Testen of de API-sleutel ook de oude API opent
+          (`/proxy/network/api/s/default/rest/user` → `use_fixedip`). Zo ja:
+          ook reservaties controleren, dan waarschuwt hij vóór een herstart
+          in plaats van erna.
+  - [ ] Stap 5 — namen in AdGuard, zonder Ansible:
+        `dig -x 192.168.0.26 @192.168.0.1 +short`, dan AdGuard → DNS →
+        Private reverse DNS servers `192.168.0.1` + "Use private reverse DNS
+        resolvers". Geen kopie van de lijst (zie `rewrites.yml`).
+  - [ ] Stap 6 — pagina Toestellen op de docs-site: `docs.yml` (block/rescue),
+        `toestellen.md.j2`, `_meta.js`. Zonder MAC-adressen.
+        **Let op: deze code staat nog niet in de repo** (geen
+        `toestellen.md.j2`, geen UniFi in `docs.yml`). Staat ze nog ergens
+        lokaal, bv. op de mbp? Thuis:
+    - [ ] `docs.yml` draaien, pagina bekijken.
+    - [ ] De rescue één keer testen met een foute `unifi_api_url`.
+
+---
+
 ## Nu — hier kan iets misgaan
 
 - [ ] **Een geplande job die faalt meldt zichzelf niet — voor Proxmox en PBS opgelost.**
