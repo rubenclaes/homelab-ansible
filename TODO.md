@@ -36,9 +36,11 @@
       schrijft naar UniFi.
   - [ ] Stap 3 — `unifi-watch.yml` draait elk kwartier in Semaphore. Nog:
         op de iPhones van het gezin Private Wi-Fi Address → Fixed.
-  - [ ] **WireGuard deelt DNS `192.168.0.26` uit**: de oude AdGuard op de
-        Mac mini, die er niet meer is. UniFi → VPN Server → Neodata VPN → DNS
-        naar `192.168.0.29`, daarna het profiel op de iPhone vernieuwen.
+  - [ ] **WireGuard: UniFi bewaart nog DNS `192.168.0.26`** (de oude AdGuard)
+        voor Neodata VPN. Het veld staat niet in de UI; zetten via de API
+        lukte niet (24-09). Een nieuw profiel krijgt dus `.26`: zet DNS in
+        de WireGuard-app met de hand op `.29`. Opnieuw proberen na een
+        UniFi-update, en dan de VPN terug in `unifi_expected_dns`.
   - [ ] De eerste iPhone (was `.171`) heet gewoon "iPhone": van wie? Alias
         geven zodra hij weer online is.
 

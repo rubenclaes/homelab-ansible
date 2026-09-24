@@ -60,6 +60,10 @@ unifi_ntfy_token: "{{ vault_ntfy_unifi_token }}"
 # Waarom het ertoe doet: deelt Home iets anders uit dan AdGuard, dan gaat
 # elk toestel er stil omheen. En `1.1.1.1` als tweede houdt het huis online
 # als ct 107 stilstaat (zie de Homelab-pagina Netwerk).
+#
+# Niet de VPN: UniFi bewaart daar nog `192.168.0.26` (de oude AdGuard), maar
+# toont dat veld nergens in de UI, en de API-sleutel schrijft het niet. Wat
+# een VPN-client echt gebruikt staat in zijn profiel: op de iPhone met de
+# hand op `.29` gezet. Zie TODO.md.
 unifi_expected_dns:
   Home: [192.168.0.29, 1.1.1.1]
-  Neodata VPN: [192.168.0.29]
