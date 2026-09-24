@@ -65,20 +65,20 @@
   - [x] Stap 1 — `ansible.utils` en `netaddr` staan in de requirements. Thuis:
         `pipx inject ansible-core netaddr` en
         `ansible-galaxy collection install -r collections/requirements.yml`.
-  - [ ] Stap 2 — route `unifi` → UCG staat in `host_vars/caddy/main.yml`,
+  - [x] Stap 2 — route `unifi` → UCG staat in `host_vars/caddy/main.yml`,
         plus `group_vars/all/unifi.yml`, `playbooks/unifi-clients.yml` en
         `playbooks/tasks/unifi_clients.yml`. Thuis:
     - [x] `caddy.yml --check --diff`, dan echt, dan `smoketest.yml`.
           (24-09: route werkt. Smoketest faalt enkel op `work-wsl.home.arpa`
           tot A1 klaar is en `adguard.yml` gedraaid is.)
-    - [ ] API-sleutel maken: UniFi → Settings → Control Plane → Integrations.
-    - [ ] `ansible-vault create --encrypt-vault-id infra inventory/group_vars/all/vault.yml`
+    - [x] API-sleutel maken: UniFi → Settings → Control Plane → Integrations.
+    - [x] `ansible-vault create --encrypt-vault-id infra inventory/group_vars/all/vault.yml`
           met `vault_unifi_api_key`.
-    - [ ] `unifi-clients.yml` draaien; veldnamen nakijken (`macAddress`,
+    - [x] `unifi-clients.yml` draaien; veldnamen nakijken (`macAddress`,
           `name`, `ipAddress`, `type`) en of de lijst volledig is (`totalCount`).
   - [ ] Stap 3 — melding bij onbekend toestel: `playbooks/unifi-watch.yml`. Thuis:
-    - [ ] Eigen ntfy-token → `vault_ntfy_unifi_token`.
-    - [ ] `unifi_known_macs` vullen uit de uitvoer van stap 2.
+    - [x] Eigen ntfy-token → `vault_ntfy_unifi_token`.
+    - [x] `unifi_known_macs` vullen uit de uitvoer van stap 2.
     - [ ] Op de telefoons van het gezin: Private Wi-Fi Address → Fixed.
     - [ ] Testrun (verwacht: nul meldingen), dan Semaphore-template elke 15 minuten.
   - [ ] Stap 4 — routes tegen UniFi: `playbooks/unifi-routes.yml`. Thuis:

@@ -10,7 +10,43 @@ unifi_api_key: "{{ vault_unifi_api_key }}"
 # Wat hier niet in staat, komt als melding op de telefoon (unifi-watch.yml).
 # Leeg laat unifi-watch.yml weigeren, anders krijg je elk toestel als melding.
 # Eerste vulling: de uitvoer van playbooks/unifi-clients.yml, nagelopen.
-unifi_known_macs: []
+unifi_known_macs:
+  # Netwerk
+  - "60:32:b1:5d:4e:36"  # TP-Link switch, .100
+  # pve01 en zijn guests (bc:24:11 = Proxmox)
+  - "c0:18:03:65:45:01"  # pve01, 2,5GbE-poort, .10
+  - "bc:24:11:3d:b4:6a"  # pbs (VM 100), .181
+  - "02:8c:f5:a4:e6:15"  # haos (VM 101), .31
+  - "bc:24:11:4b:cd:e4"  # docker-grafana-stack (VM 102), .17
+  - "02:12:f8:7b:9d:7d"  # docker (VM 103), .15
+  - "bc:24:11:c6:bd:4e"  # semaphore (ct 104), .30
+  - "bc:24:11:b4:e6:74"  # caddy (ct 106), .25
+  - "bc:24:11:46:1e:bc"  # adguard (ct 107), .29
+  - "bc:24:11:7b:fa:28"  # tailscale (ct 108), .50
+  - "bc:24:11:2a:34:48"  # ntfy (ct 109), .32
+  # Macs en telefoons
+  - "80:69:1a:dc:cc:ac"  # Mac mini, .26
+  - "62:9e:a1:2a:9d:21"  # MacBook Pro M4 Pro, .86
+  - "8a:48:d6:12:ae:29"  # iPhone Ruben, .212
+  - "5a:0b:93:78:9a:2a"  # iPhone 9a:2a, .171
+  - "d4:35:38:37:70:ba"  # Xiaomi, .234
+  # Tv en media
+  - "48:e1:5c:6d:4a:16"  # Apple TV, .20
+  - "2c:2b:f9:7b:08:68"  # LG webOS tv, .6
+  - "90:56:82:82:ac:b0"  # Powernode, .70
+  - "90:56:82:65:85:a7"  # Pulse L, .98
+  - "90:56:82:65:84:c7"  # Pulse R, .19
+  # Huis
+  - "0e:00:cf:35:fb:c9"  # Home assistant, .45
+  - "2c:9f:fb:f0:af:a5"  # Airco bureau, .7
+  - "8c:8e:76:01:29:4b"  # Dobbis, .2
+  - "70:c9:32:5b:62:3a"  # Dreame, .115
+  - "94:34:69:d6:67:d8"  # Nuki Smart Lock 2, .152
+  - "b4:4c:3b:09:fc:05"  # camera NOMI-IPC-A46L, .38
+  - "1c:4d:89:01:f8:a7"  # camera NOMI-IPC-GS7E, .154
+  - "00:40:ad:b2:08:d0"  # SMA omvormer, .24
+  - "f8:0d:ac:3c:1c:07"  # HP printer, .60
+  - "b0:8c:b3:d8:ad:88"  # Bambu Lab X1C, .127
 
 # ntfy, rechtstreeks op het IP: net als de Proxmox-meldingen mag dit niet
 # afhangen van Caddy of AdGuard.

@@ -197,6 +197,13 @@ semaphore_templates_list:
     description: "Trekt de compose-stacks gelijk met de repo en zet ze op."
     schedule: "30 5 * * *"
 
+  # Elk kwartier, want een vreemd toestel wil je zien terwijl het er nog is.
+  # Leest alleen; een melding per onbekend toestel naar ntfy.
+  - name: "UniFi watch"
+    playbook: playbooks/unifi-watch.yml
+    description: "Meldt toestellen op het netwerk die niet in unifi_known_macs staan."
+    schedule: "*/15 * * * *"
+
 # Hiermee staat elke template van dit project in git. Komt er een bij in de UI,
 # zet hem dan ook hier neer - anders is dit bestand weer een deellijst en
 # geloof je hem ten onrechte.
