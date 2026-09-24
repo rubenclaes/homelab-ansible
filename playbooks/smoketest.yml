@@ -123,6 +123,10 @@
     # Per naam vergelijken kan niet in één selectattr - die kent maar één kant
     # van het paar. Een lus die de kapotte gevallen opschrijft leest beter dan
     # de Jinja waarmee dat wél in één uitdrukking zou passen.
+    #
+    # Een host met een naam als ansible_host (work-wsl) krijgt een CNAME, en
+    # dig schrijft die volledig: met een punt achteraan. Zonder die punt weg
+    # te halen klopt zo'n naam nooit.
     - name: Work out which names answer wrong
       ansible.builtin.set_fact:
         dns_smoketest_broken: >-
@@ -132,7 +136,7 @@
       loop: "{{ dns_smoketest_answers.results }}"
       loop_control:
         label: "{{ item.item.split(' ') | first }}"
-      when: item.item.split(' ') | last not in item.stdout_lines
+      when: item.item.split(' ') | last not in (item.stdout_lines | map('regex_replace', '\.$', '') | list)
 
     - name: Require every rewrite to answer with the inventory's address
       ansible.builtin.assert:
