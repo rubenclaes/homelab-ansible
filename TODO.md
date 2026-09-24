@@ -127,16 +127,40 @@ Eerst wat het hele huis plat kan leggen:
 
 Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 
-- [ ] Beslissen waar de state staat. Die bevat geheimen: OpenTofu kan hem
-      zelf versleutelen, dan mag hij in git.
-- [ ] Tailscale (provider `tailscale/tailscale`): de policy uit
-      `policy.hujson`, de globale nameserver, de goedgekeurde subnet-route van
-      ct 108, de tags. Vervangt A2's "console → git". Vraagt een OAuth-client
-      die de policy mag schrijven; de huidige mag alleen sleutels maken.
+- [ ] State in een bucket buiten het huis: Cloudflare R2 (S3-compatibel,
+      gratis voor dit formaat). Niet in git: git heeft geen slot, en twee runs
+      tegelijk (mbp en Semaphore) overschrijven elkaar. Niet op de homelab zelf:
+      ligt pve01 plat, dan is ook de kaart van wat er moet staan weg.
+  - [ ] Backend `s3` met `use_lockfile = true` (OpenTofu ≥ 1.10): het slot
+        staat als bestand naast de state, geen aparte database nodig.
+  - [ ] State-versleuteling van OpenTofu aan (`encryption`-blok, pbkdf2).
+        De state bevat geheimen; zo leest Cloudflare alleen onleesbare bytes.
+        De passphrase in de `infra`-vault.
+  - [ ] De R2-sleutel alleen voor die ene bucket, ook in de `infra`-vault.
+- [ ] Tailscale eerst: klein, en een fout is snel hersteld. Provider
+      `tailscale/tailscale`: de policy uit `policy.hujson`, de globale
+      nameserver, de goedgekeurde subnet-route van ct 108, de tags. Vervangt
+      A2's "console → git".
+  - [ ] Een nieuwe OAuth-client alleen voor OpenTofu, met de scopes
+        `policy_file`, `dns` en `devices`. De bestaande blijft enkel
+        sleutels maken: twee clients, elk met zo weinig mogelijk rechten, en
+        je kunt de ene intrekken zonder de andere. In de `infra`-vault.
+  - [ ] `tofu import` van de bestaande policy, dan `tofu plan` → verwacht:
+        geen wijziging. Pas daarna iets aanpassen.
+  - [ ] Daarna in de console "edits beperken" aanzetten, zodat niemand er nog
+        buiten git om iets verandert.
 - [ ] Proxmox (provider `bpg/proxmox`): de VM's uit `vms.yml` en de LXC's
       uit `lxcs.yml`, eerst met `tofu import` zodat niets opnieuw gebouwd
       wordt. Dan verdwijnen "NOTHING READS THIS FILE" en "existing containers
       are never modified". Ook gebruikers en rechten uit `access.yml`.
+  - [ ] Op elke bestaande guest `lifecycle { prevent_destroy = true }`. Na een
+        import toont `tofu plan` soms "replace" voor een VM, en een replace is
+        een lege schijf. Nooit een plan toepassen dat een bestaande guest
+        vernietigt; eerst de config aanpassen tot het plan leeg is.
+  - [ ] Zodra OpenTofu een ding beheert, de oude plek weghalen: `vms.yml`,
+        `pve_lxcs` in `lxcs.yml` en `roles/proxmox_lxc`, `access.yml` en
+        `roles/proxmox_access`. Blijven beide staan, dan zijn er weer twee
+        bronnen, en dat is net wat we weg willen.
 - [ ] PBS: datastore-, prune- en verify-jobs. Nakijken of daar een bruikbare
       provider voor is; zo niet, de Ansible-rol laten corrigeren in plaats van
       alleen toevoegen.
