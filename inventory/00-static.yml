@@ -63,8 +63,4 @@ all:
     # zou hier elke nacht falen.
     workstations:
       hosts:
-        work-wsl:
-          {
-            ansible_host: work-wsl.brill-atlas.ts.net,
-            ansible_user: rubenclaes,
-          }
+        work-wsl: { ansible_host: work-wsl.brill-atlas.ts.net, ansible_user: rubenclaes }
