@@ -38,16 +38,10 @@
         op de iPhones van het gezin Private Wi-Fi Address → Fixed.
   - [ ] Wat `unifi-routes.yml` op 24-09 vond. Pas als hij groen is, een
         Semaphore-template (dagelijks) zodat hij vóór een herstart waarschuwt:
-    - [ ] **Fixed IP in UniFi** voor `.15` docker, `.17` docker-grafana-stack,
+    - [ ] **Fixed IP in UniFi** voor `.10` pve01, `.15` docker, `.17` docker-grafana-stack,
           `.181` pbs, `.25` caddy, `.29` adguard, `.30` semaphore, `.31` haos,
           `.32` ntfy. Alleen de Mac mini en Dobbis hebben er een, en de
           DHCP-range is `.6`–`.254`: de UCG kan `.29` aan een telefoon geven.
-    - [ ] **pve01 zit op `.10`, niet op `.14`.** `.10` staat op `vmbr0`
-          (2,5GbE, `enp3s0`); `.14` op `vmbr1`, en daar zit geen kabel in
-          (`nic0` NO-CARRIER). `.14` werkt alleen omdat Linux op elke poort
-          antwoordt voor al zijn adressen. Kiezen: overal `.10` (inventory,
-          AdGuard, Caddy, docs), of `.14` naar `vmbr0` verhuizen. Pas bij een
-          rustig moment: dit is de hypervisor.
   - [ ] **WireGuard deelt DNS `192.168.0.26` uit**: de oude AdGuard op de
         Mac mini, die er niet meer is. UniFi → VPN Server → Neodata VPN → DNS
         naar `192.168.0.29`, daarna het profiel op de iPhone vernieuwen.
