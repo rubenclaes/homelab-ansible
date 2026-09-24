@@ -7,4 +7,4 @@ pve_api_token_secret: "{{ vault_pve_api_token_secret }}"
 # run on localhost (report.yml, proxmox_lxc), and a nested hostvars lookup
 # inside a var is not resolvable in every context - it fails with
 # "'hostvars' is undefined" at task-arg finalisation.
-pve_api_host: 192.168.0.14
+pve_api_host: 192.168.0.10

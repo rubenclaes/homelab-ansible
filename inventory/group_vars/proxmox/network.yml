@@ -2,7 +2,7 @@
 # Node-level bridges on pve01, transcribed from /etc/network/interfaces.
 #
 # READ THIS BEFORE CHANGING A VALUE HERE. Ansible reaches this node on
-# 192.168.0.14, which is vmbr1. The default route is on vmbr0. A wrong value
+# 192.168.0.10, which is vmbr0, and so does the default route. A wrong value
 # in this file does not produce a failed task - it produces an unreachable
 # hypervisor and a trip to wherever the machine physically is.
 #
@@ -23,6 +23,10 @@ pve_node_interfaces:
 
   - iface: vmbr1
     iface_type: bridge
+    # Geen kabel in nic0 (NO-CARRIER). Tot 24-09 stond alles op .14 en werkte
+    # dat enkel omdat Linux op vmbr0 ook voor dit adres antwoordt; sindsdien
+    # wijst alles naar .10. Steek je hier ooit een kabel in: twee poorten in
+    # hetzelfde /24 geeft asymmetrische routes. Dan eerst dit adres weghalen.
     cidr: 192.168.0.14/24
     bridge_ports: nic0
     autostart: true

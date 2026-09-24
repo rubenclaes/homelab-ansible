@@ -45,7 +45,7 @@ Wat je nodig hebt buiten deze repo:
 
 #### Installeer Proxmox op hetzelfde adres
 
-Met de hand, van USB, met vast adres **`192.168.0.14`**. Dat adres staat hard
+Met de hand, van USB, met vast adres **`192.168.0.10`**, op de 2,5GbE-poort (`enp3s0`, `vmbr0`). Dat adres staat hard
 in `inventory/00-static.yml` en in `pve_api_host`. Een ander adres breekt alles.
 
 #### Importeer de ZFS-pool `vm-hdd`
@@ -109,8 +109,8 @@ Semaphore draait vanuit git. Zonder push werkt hij straks met het oude token.
 #### Vertrouw de nieuwe hostkey van pve01
 
 ```bash
-ssh-keygen -R 192.168.0.14      # vergeet de oude
-ssh root@192.168.0.14 exit      # accepteer de nieuwe, typ 'yes'
+ssh-keygen -R 192.168.0.10      # vergeet de oude
+ssh root@192.168.0.10 exit      # accepteer de nieuwe, typ 'yes'
 ```
 
 Een herinstallatie geeft pve01 een nieuwe hostkey. Zonder deze stap weigert

@@ -26,7 +26,7 @@ krijgt een ander adres.
 
 <Callout type="error">
 Dit is het gevaarlijkste playbook in de repo. Ansible bereikt `pve01` op
-`192.168.0.14`, en dat ís `vmbr1`. Een fout geeft geen rode taak, maar een
+`192.168.0.10`, en dat ís `vmbr0`. Een fout geeft geen rode taak, maar een
 onbereikbare hypervisor. **Weet waar de machine fysiek staat** voor je begint.
 </Callout>
 
@@ -209,8 +209,8 @@ tailscaled zelf voor MagicDNS.
 #### Controleer de resolver
 
 ```bash
-ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.14 - vanaf de host zelf
-dig +short pve01.home.arpa                 # 192.168.0.14 - vanaf je werkstation
+ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.10 - vanaf de host zelf
+dig +short pve01.home.arpa                 # 192.168.0.10 - vanaf je werkstation
 dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Caddy
 ```
 

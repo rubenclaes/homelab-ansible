@@ -32,7 +32,7 @@ caddy_sites:
   - { name: ntfy, host: ntfy, port: 80, upstream: "192.168.0.32:80", desc: "ntfy — meldingen van de homelab naar je telefoon" }
 
   # --- Beheer ---
-  # Caddy draait op pve01: hou https://192.168.0.14:8006 in je bladwijzers.
+  # Caddy draait op pve01: hou https://192.168.0.10:8006 in je bladwijzers.
   - { name: proxmox, host: pve01, port: 8006, https: true, desc: "Proxmox VE — de hypervisor" }
   - { name: backup, host: pbs, port: 8007, https: true, desc: "Proxmox Backup Server — de back-ups en hun verificatie" }
   - { name: dns, host: adguard, port: 80, desc: "AdGuard Home — DNS voor de hele estate, en filtering" }

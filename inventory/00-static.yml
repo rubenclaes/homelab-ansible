@@ -17,7 +17,7 @@ all:
           hosts:
             # De hypervisor zelf. Staat in exclude_nodes van de dynamische
             # inventory, want een node is geen guest van zichzelf.
-            pve01: { ansible_host: 192.168.0.14 }
+            pve01: { ansible_host: 192.168.0.10 }
 
     # Guests met Docker. Proxmox weet dat niet, dus staat het hier. De hosts
     # zelf komen uit de dynamische inventory; hier worden ze enkel gegroepeerd.
