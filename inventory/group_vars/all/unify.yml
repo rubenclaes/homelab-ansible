@@ -1,0 +1,7 @@
+---
+# UniFi Network als bron van gegevens, niet als inventory: welke toestellen
+# er op het netwerk zitten. Gelezen door playbooks/unifi-*.yml.
+#
+# Via Caddy, zodat het certificaat klopt en validate_certs aan kan blijven.
+unifi_api_url: https://unifi.neodata.be/proxy/network/integration/v1
+unifi_api_key: "{{ vault_unifi_api_key }}"

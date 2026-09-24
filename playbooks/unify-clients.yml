@@ -1,0 +1,28 @@
+---
+# Leest de toestellen uit UniFi en toont ze. Stap 2 van het UniFi-project:
+# nog niets controleren, alleen kijken wat de API teruggeeft.
+#
+#   ansible-playbook playbooks/unifi-clients.yml
+- name: UniFi clients
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Find the site
+      ansible.builtin.uri:
+        url: "{{ unifi_api_url }}/sites"
+        headers:
+          X-API-KEY: "{{ unifi_api_key }}"
+      register: unifi_sites
+
+    - name: Read the clients of that site
+      ansible.builtin.uri:
+        url: "{{ unifi_api_url }}/sites/{{ unifi_sites.json.data[0].id }}/clients?limit=200"
+        headers:
+          X-API-KEY: "{{ unifi_api_key }}"
+      register: unifi_clients
+
+    - name: Show what came back
+      ansible.builtin.debug:
+        msg:
+          - "{{ unifi_clients.json.data | length }} of {{ unifi_clients.json.totalCount }} clients"
+          - "{{ unifi_clients.json.data | map(attribute='name') | list }}"
