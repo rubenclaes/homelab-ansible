@@ -55,7 +55,7 @@ Nieuwe containers krijgen dit mee. Bestaande containers zet je één keer met de
 hand, want de role past bestaande containers niet aan:
 
 ```bash
-ssh pve01 'pct set <vmid> --searchdomain home.arpa'   # daarna herstarten
+ssh -t pve01 'sudo pct set <vmid> --searchdomain home.arpa && sudo pct reboot <vmid>'
 ```
 
 ## Namen in de Query Log
