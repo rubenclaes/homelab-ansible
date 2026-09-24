@@ -20,6 +20,7 @@ caddy_config_readers:
 # https:     upstream doet TLS met een zelfondertekend certificaat
 # host_header, forwarded: Host doorgeven / X-Real-IP en X-Forwarded-* toevoegen
 caddy_sites:
+  - { name: vault, host: docker, port: 8086, stack: vaultwarden, desc: "Vaultwarden — wachtwoordkluis voor de familie, met de Bitwarden-apps" }
   - { name: memos, host: docker, port: 5230, stack: memos, desc: "Memos - snelle notities" }
 
   # --- Infra ---

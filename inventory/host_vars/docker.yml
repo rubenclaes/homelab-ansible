@@ -1,5 +1,6 @@
 ---
 docker_stacks_list:
+  - { name: vaultwarden, path: vaultwarden }
   - { name: memos, path: memos }
   - { name: utils, path: utils }
   - { name: homepage, path: homepage }
@@ -109,6 +110,7 @@ homepage_tiles:
   shelfmark: { title: Shelfmark, group: Downloads, icon: shelfmark.png }
   metube: { title: MeTube, group: Downloads, icon: metube.png }
 
+  vault: { title: Vaultwarden, group: Handig, icon: vaultwarden.png }
   memos: { title: Memos, group: Handig, icon: memos.png }
   spullen: { title: Homebox, group: Handig, icon: homebox.png }
   pairdrop: { title: PairDrop, group: Handig, icon: pairdrop.png }

@@ -130,9 +130,10 @@ pve_oci_lxcs:
       NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
       NTFY_AUTH_USERS: "ruben:{{ vault_ntfy_ruben_hash }}:admin,proxmox:{{ vault_ntfy_proxmox_hash }}:user"
       NTFY_AUTH_ACCESS: "proxmox:homelab:wo"
-      # Drie tokens voor hetzelfde schrijf-account: Proxmox, PBS en
-      # unifi-watch.yml. Zo trek je het ene in zonder de andere.
-      NTFY_AUTH_TOKENS: "proxmox:{{ vault_ntfy_proxmox_token }}:proxmox,proxmox:{{ vault_ntfy_pbs_token }}:pbs,proxmox:{{ vault_ntfy_unifi_token }}:unifi"
+      # Vier tokens voor hetzelfde schrijf-account: Proxmox, PBS,
+      # unifi-watch.yml en de Vaultwarden-back-up. Zo trek je het ene in
+      # zonder de andere.
+      NTFY_AUTH_TOKENS: "proxmox:{{ vault_ntfy_proxmox_token }}:proxmox,proxmox:{{ vault_ntfy_pbs_token }}:pbs,proxmox:{{ vault_ntfy_unifi_token }}:unifi,proxmox:{{ vault_ntfy_vaultwarden_token }}:vaultwarden"
 
 # The vmid playbooks/restore-drill.yml restores onto and destroys. It is declared
 # here, not guessed at run time, so a glance at this file shows the one id a
