@@ -1,14 +1,19 @@
 ---
-title: Werkplek
+title: Je laptop
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Werkplek
+# Je laptop
 
-Alles wat je op je laptop (`mbp`) doet om vlot met de homelab te werken:
-de repo klaarzetten, hosts bij naam bereiken, korte shell-commando's, veilig
-playbooks draaien en de docs-site bijwerken.
+Alles op je laptop (`mbp`) om met de repo te werken: klaarzetten, hosts bij
+naam bereiken, korte commando's, en veilig een playbook draaien.
+
+<Callout type="info">
+Nog nooit met deze repo gewerkt op deze laptop? Begin bij
+[Laptop klaarzetten](#laptop-klaarzetten). Zonder de `ansible`-sleutel en de
+vault-wachtwoorden werkt niets anders.
+</Callout>
 
 ## Welk geval ben jij?
 
@@ -23,13 +28,6 @@ playbooks draaien en de docs-site bijwerken.
 | Je wil **snel iets weten** van een host, zonder in te loggen | welke Caddy-versie draait er, leven ze nog | [Snel iets vragen](#snel-iets-vragen-aan-een-host) |
 | Je wil een playbook draaien, maar eerst **zien wat het doet** | `site.yml` na een wijziging in de inventory | [Veilig een playbook proberen](#veilig-een-playbook-proberen) |
 | Je hebt net een playbook gedraaid: **wat nu?** | na `caddy.yml`, `update.yml`, `stacks.yml` | [Na een run](#na-een-run) |
-| Je veranderde iets in de inventory of de runbooks en wil het **op de docs-site** | een nieuwe route, een aangepast runbook | [Docs-site bijwerken](#de-docs-site-bijwerken) |
-
-<Callout type="info">
-Nog nooit met deze repo gewerkt op deze laptop? Begin bij
-[Laptop klaarzetten](#laptop-klaarzetten). Zonder de
-`ansible`-sleutel en de vault-wachtwoorden werkt geen enkel ander geval.
-</Callout>
 
 ## Laptop klaarzetten
 
@@ -78,7 +76,7 @@ in `ansible.cfg`: niet hernoemen.
 
 <Callout type="error">
 Maak deze sleutel **niet** opnieuw aan. Elke host kent de bestaande. Echt
-kwijt? Zie [Herstellen → Ansible-sleutel kwijt](/runbooks/stuk/pve01/#de-ansible-sleutel-is-kwijt).
+kwijt? Zie [Herstellen → Ansible-sleutel kwijt](/proxmox/pve01/#de-ansible-sleutel-is-kwijt).
 </Callout>
 
 #### Zet de twee vault-wachtwoorden neer
@@ -201,7 +199,7 @@ eigen gebruiker en dezelfde `ansible`-sleutel.
 ## Nieuwe machine bij naam bereiken
 
 Er is een machine bij en `ssh <naam>` werkt nog niet. Voorbeeld: je hebt net
-`vaultwarden` gebouwd met [Nieuwe machine](/runbooks/toevoegen/).
+`vaultwarden` gebouwd met [Nieuwe machine](/proxmox/guests/).
 
 <Steps>
 
@@ -435,65 +433,7 @@ of de rest laten bijtrekken.
 `report.yml` publiceert naar [report.neodata.be](https://report.neodata.be):
 de snelste blik op de hele vloot (schijf, uptime, herstarts, openstaande
 updates, back-ups, route-drift). Waarom deze controle-playbooks niet in
-`site.yml` zitten staat in [Onderhoud](/runbooks/onderhoud/).
-
-## De docs-site bijwerken
-
-Je veranderde iets in de inventory of de runbooks. `playbooks/docs.yml` maakt
-de pagina's onder Homelab (Diensten en Machines) opnieuw, bouwt de site en zet hem op `caddy`.
-
-<Steps>
-
-#### Commit en push je wijziging eerst
-
-```bash
-git add inventory docs-site && git commit -m '...' && git push
-```
-
-<Callout type="warning">
-Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
-lokaal hebt, staat de volgende ochtend weer niet online.
-</Callout>
-
-#### Bouw en publiceer
-
-```bash
-ansible-playbook playbooks/docs.yml
-```
-
-Verzamelt eerst facts van `linux:macs`, genereert de pagina's, en draait dan
-`npm ci` en `npm run build` op je eigen machine; alleen het resultaat gaat naar
-de `caddy`-host.
-
-#### Kijk de site na
-
-Open [docs.neodata.be](https://docs.neodata.be). Werkt alleen vanaf het LAN of
-de tailnet.
-
-</Steps>
-
-### Wat waar vandaan komt
-
-| Deel | Bron |
-| --- | --- |
-| **Homelab → [Machines](/homelab/machines/)**: elke machine met adres, diensten en stacks | gegenereerd uit de inventory door `docs.yml` |
-| **Homelab → [Diensten](/homelab/diensten/)**: één pagina per route in `caddy_sites`, plus diensten zonder route uit `docker_services_without_route` | gegenereerd uit de inventory door `docs.yml` |
-| **Runbooks** (zoals deze pagina) | met de hand geschreven, alleen meegenomen |
-
-Bewerk dus nooit een pagina onder Machines of Diensten: de volgende run
-overschrijft hem. Een geschrapte route laat geen pagina achter: die wordt
-vanzelf opgeruimd, pas nadat de rest opnieuw gerenderd is.
-
-<Callout type="info">
-Draai dit na **elke** wijziging in de inventory. Een site die iets beweert wat
-niet meer waar is, is erger dan geen documentatie: je gelooft hem.
-</Callout>
-
-<Callout type="warning">
-Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
-niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
-er is dan niets geschreven. Zie [Guests en API-token](/runbooks/onderhoud/nakijken/#guests-en-api-token-checken).
-</Callout>
+`site.yml` zitten staat in [Onderhoud](/proxmox/onderhoud/).
 
 ## Goed om te weten
 
@@ -562,3 +502,9 @@ iTerm-escapecodes stuurt voor en na de echte `ssh`. Buiten iTerm is het gewone
 schrijft: de routes uit `caddy_sites`, de hosts uit `linux` en `macs`. Een
 nieuwe route of host staat er dus pas in na `ap playbooks/dotfiles.yml`. `hl
 logs` vraagt het live, en is daarom altijd bij.
+
+### De vault-wachtwoorden staan ook op Semaphore
+
+De `semaphore`-rol kopieert ze naar de Semaphore-container, zodat die zijn
+geplande jobs kan draaien. Een back-up van `semaphore` (ct 104) bevat ze dus
+ook. Handig als je werkstation weg is, maar bewaar ze toch apart.

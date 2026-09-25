@@ -1,0 +1,86 @@
+---
+title: OpenTofu
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# OpenTofu
+
+OpenTofu beheert de dingen die geen Ansible zijn: nu de Tailscale-regels
+(wie mag waar), de DNS-instellingen en de tags van de tailnet. De bestanden
+staan in `tofu/`, en je draait alles via `bin/tofu`.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil **veranderen wie waar mag** op de tailnet | Maarten moet ook bij Audiobookshelf, iemand mag niet meer bij Plex | [Tailscale-regels aanpassen](#tailscale-regels-aanpassen) |
+
+## Tailscale-regels aanpassen
+
+Wie op de tailnet waar mag komen, staat in `files/tailscale/policy.hujson`.
+OpenTofu zet dat bestand in Tailscale. In de console kan je de regels niet
+meer aanpassen: git is de enige weg.
+
+<Steps>
+
+#### Eenmalig op een nieuwe computer
+
+OpenTofu installeren en de vault-wachtwoorden neerzetten zoals in de README,
+dan:
+
+```bash
+brew install opentofu
+bin/tofu tailscale init
+```
+
+#### Pas het bestand aan
+
+`files/tailscale/policy.hujson`. Zet bij een nieuwe regel ook een regel in
+`tests`: wie mag erbij en wie niet. Dan weigert Tailscale een fout in plaats
+van hem stil door te laten.
+
+#### Kijk wat er zou veranderen
+
+```bash
+bin/tofu tailscale plan
+```
+
+Alleen `tailscale_acl.this` mag veranderen. Staat er iets anders? Stop en
+zoek eerst uit waarom.
+
+#### Doen
+
+```bash
+bin/tofu tailscale apply
+```
+
+Faalt het met `test(s) failed`: een regel en een test spreken elkaar tegen.
+Er is dan niets veranderd.
+
+#### Commit en push
+
+`policy.hujson` is de bron. Een wijziging die niet in git staat, bestaat
+niet.
+
+</Steps>
+
+Ook de DNS van de tailnet (adguard als nameserver), de goedgekeurde route van
+ct 108 en de tag van adguard staan zo in `tofu/tailscale/`. Zelfde stappen.
+
+## Goed om te weten
+
+### Waarom OpenTofu en niet de console
+
+Git beslist: elke wijziging heeft een diff en een reden, en `plan` toont
+vooraf wat er gebeurt. OpenTofu houdt bij wat hij beheert in een state. Die
+staat versleuteld in Cloudflare R2, niet op de homelab: ligt pve01 plat, dan
+weet OpenTofu nog wat er moet staan. De geheimen staan in `tofu/secrets.env`
+(vault `infra`); de passphrase van de state staat ook in Vaultwarden, want
+zonder is de state onleesbaar.
+
+### Noodgeval zonder laptop
+
+Zet in de Tailscale-console **Prevent edits in the admin console** even uit,
+pas de regels aan, en zet het daarna terug aan. Thuis: `policy.hujson`
+gelijkzetten tot `bin/tofu tailscale plan` leeg is, en committen.

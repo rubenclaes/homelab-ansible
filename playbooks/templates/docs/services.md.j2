@@ -2,15 +2,7 @@
 title: Diensten
 ---
 
-import { Callout } from 'nextra/components'
-
 # Diensten
-
-<Callout type="warning">
-Gegenereerd uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus
-`docker_services_without_route` voor diensten zonder webadres. Bewerk de
-inventory, niet deze pagina.
-</Callout>
 
 Wat er draait, per machine. Een dienst met een webroute staat op
 `https://<naam>.{{ caddy_domain }}`; klik de naam voor het adres, de poort en
@@ -35,3 +27,5 @@ Zo komt een bezoek aan een dienst binnen:
 {% endfor %}
 
 {% endfor %}
+
+<small>Deze pagina wordt automatisch gemaakt uit de inventory. Iets fout? Pas de inventory aan, niet deze pagina. Zie [Deze docs](/ansible/docs/#wat-waar-vandaan-komt).</small>

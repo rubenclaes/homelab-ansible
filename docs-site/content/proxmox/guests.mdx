@@ -1,20 +1,21 @@
 ---
-title: Nieuwe machine
+title: Guests maken en weghalen
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Nieuwe machine
+# Guests maken en weghalen
 
-Gebruik dit als je een **extra machine** op pve01 nodig hebt: een container
-(LXC) of een virtuele machine (VM). Na een container of VM ga je verder met
-[Afwerken](#afwerken): dienst erop, adres, back-up, commit, docs. Een
-OCI-container heeft zijn eigen, kortere pad: de dienst ís de container.
+Een extra machine op pve01 maken, of er een weghalen: een container (LXC),
+een OCI-container of een virtuele machine (VM).
+
+Twijfel je tussen container en VM? Kies de **container**. Die start in een
+seconde, kost bijna geen geheugen, en alles gaat automatisch. Een VM is voor als
+het echt niet anders kan, bv. een eigen besturingssysteem zoals Home Assistant OS.
 
 <Callout type="info">
 Wil je gewoon een **Docker-app** draaien (Memos, Jellyfin…)? Dan heb je **geen
-nieuwe machine** nodig. Die komt op de bestaande machine `docker`. Volg
-[Dienst toevoegen → Nieuwe Docker-app](/runbooks/toevoegen/dienst/#een-nieuwe-docker-app).
+nieuwe machine** nodig. Zie [Dienst toevoegen](/docker/toevoegen/).
 </Callout>
 
 ## Welk geval ben jij?
@@ -25,12 +26,9 @@ nieuwe machine** nodig. Die komt op de bestaande machine `docker`. Volg
 | Je wil **één programma uit een Docker-image** dat moet blijven werken als de docker-VM plat ligt | `ntfy` | [OCI-container](#een-oci-container) |
 | Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Virtuele machine](#een-virtuele-machine) |
 | Je container of VM staat er en heeft de baseline | `vaultwarden` na het bouwen | [Afwerken](#afwerken) |
-| Een container die **al in de lijst staat** is weg en je wil hem opnieuw bouwen | `adguard` na een herinstallatie van pve01 | [Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen) |
-
-Twijfel je tussen container en VM: kies de **container**. Die start in een
-seconde, kost nauwelijks geheugen, en het hele pad is geautomatiseerd. Een VM
-is voor als het echt niet anders kan, bv. een eigen besturingssysteem zoals
-Home Assistant OS.
+| Een **container of VM** op pve01 mag weg | een test-LXC | [Machine weghalen](#een-machine-weghalen) |
+| Je wil weten welke guests er echt draaien, of het API-token nog werkt | Ansible ziet een host niet | [Guests en API-token checken](#guests-en-api-token-checken) |
+| Na een herbouw starten guests **niet mee op** als pve01 opstart | na een restore staat de helft op `onboot: 0` | [Guests mee laten opstarten](#guests-mee-laten-opstarten) |
 
 ## Een nieuwe container
 
@@ -184,7 +182,7 @@ hem opnieuw. Dat sloopt de container **en zijn volumes**, daarom staat alles
 wat moet overleven in `env`. Voor ntfy zijn dat de gebruikers, rechten en
 tokens; je verliest alleen de berichtcache van de laatste uren.
 
-De stappen staan in [Updates → OCI-containers](/runbooks/onderhoud/updates/#oci-containers).
+De stappen staan in [Updates → OCI-containers](/proxmox/onderhoud/#oci-containers).
 
 ### ntfy op je iPhone
 
@@ -233,7 +231,7 @@ Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Neem cores,
 geheugen, schijfgrootte en vooral het **MAC-adres** exact over uit
 `inventory/group_vars/proxmox/vms.yml`. Aan het MAC-adres hangt zijn vaste
 adres in UniFi. Meestal wil je dan geen nieuwe VM maar een back-up terugzetten:
-zie [Herstellen](/runbooks/stuk/).
+zie [Herstellen](/proxmox/herstellen/).
 </Callout>
 
 <Steps>
@@ -375,7 +373,7 @@ en zorg je dat hij overal meetelt. Voorbeeld: `vaultwarden`.
 #### Installeer de dienst
 
 Voor software zonder Docker schrijf je een rol. Dat staat in
-[Dienst toevoegen → Eigen rol](/runbooks/toevoegen/dienst/#een-eigen-rol-zonder-docker).
+[Dienst toevoegen → Eigen rol](/ansible/rol/#een-eigen-rol-zonder-docker).
 
 #### Geef hem een adres (optioneel)
 
@@ -391,7 +389,7 @@ ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ```
 
-Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/runbooks/toevoegen/dienst/#alle-velden-van-een-route).
+Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/netwerk/caddy/#alle-velden-van-een-route).
 
 #### Zet hem in de wekelijkse back-up
 
@@ -451,6 +449,123 @@ gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
 Een half gebouwde container is niet erg: het playbook mag altijd opnieuw. Wat
 al bestaat wordt niet nog eens gemaakt.
 
+## Een machine weghalen
+
+Een container (LXC of OCI) of VM op pve01.
+
+<Steps>
+
+#### Haal eerst alles erop weg
+
+Elke route naar deze machine, en elke stack erop: zie de twee gevallen
+hierboven. Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
+niet meer bestaat.
+
+#### Haal hem uit de lijsten
+
+| Bestand | Wat |
+| --- | --- |
+| `inventory/group_vars/proxmox/lxcs.yml` | zijn item in `pve_lxcs` of `pve_oci_lxcs` |
+| `inventory/group_vars/proxmox/vms.yml` | zijn item, als het een VM is |
+| `inventory/group_vars/proxmox/backup.yml` | zijn vmid in de wekelijkse job naar de Mac mini (de PBS-job neemt `all` en past zich zelf aan) |
+| `inventory/group_vars/all/unifi.yml` | zijn MAC in `unifi_known_macs` |
+
+#### Vernietig hem in Proxmox
+
+Met de hand: Proxmox → de guest → **More** → **Remove**, met **Purge** aan. Of
+als root op pve01:
+
+```bash
+pct destroy <vmid> --purge   # container
+qm destroy <vmid> --purge    # VM
+```
+
+Geen playbook doet dit, met opzet: de rollen maken en wijzigen, maar
+vernietigen nooit. Een typfout in een vmid mag geen machine kosten.
+
+#### Ruim op buiten git
+
+| Waar | Wat |
+| --- | --- |
+| UniFi → Client Devices | Fixed IP en alias van de machine |
+| Tailscale → Machines | de node, als hij op de tailnet zat |
+
+#### Laat de rest zich aanpassen
+
+```bash
+ansible-playbook playbooks/adguard.yml   # haalt <naam>.home.arpa weg
+ansible-playbook playbooks/docs.yml      # haalt hem van de pagina Machines
+git add -A && git commit -m "chore: remove <naam>" && git push
+```
+
+De Proxmox-inventory vindt hem vanzelf niet meer. `adguard.yml` haalt elke
+naam weg die niet meer in de inventory staat.
+
+</Steps>
+
+## Guests mee laten opstarten
+
+Na een herbouw of restore starten guests niet mee op als pve01 opstart: ze
+staan op `onboot: 0`.
+
+<Steps>
+
+#### Bedenk welke guests níét mogen meestarten
+
+Het playbook zet `onboot` aan op **elke** guest die het uit heeft staan, ook op
+een guest die je bewust uit liet.
+
+#### Draai het playbook
+
+```bash
+ansible-playbook playbooks/proxmox-autostart.yml
+```
+
+De uitvoer toont per aangepaste guest `<vmid> <naam>`.
+
+#### Zet de uitzonderingen terug uit
+
+```bash
+ssh pve01 sudo pct set <vmid> --onboot 0    # voor een LXC
+ssh pve01 sudo qm set <vmid> --onboot 0     # voor een VM
+```
+
+</Steps>
+
+<Callout type="info">
+Waarom dit niet in `site.yml` zit: zie
+[Goed om te weten](#waarom-proxmox-autostartyml-niet-in-siteyml-zit).
+</Callout>
+
+## Guests en API-token checken
+
+Ansible ziet een host niet? Kijk eerst of Proxmox hem kent, en of het
+API-token nog werkt.
+
+<Steps>
+
+#### Vraag de inventory op
+
+```bash
+ansible-inventory --graph
+```
+
+De guests komen uit `homelab.proxmox.yml`, via het API-token. Zie je alleen
+`pve01` en de Macs, dan werkt het token niet (of ontbreekt `proxmoxer`, zie
+[Laptop](/ansible/laptop/#laptop-klaarzetten)). Dát is dan je probleem, niet de host
+die je zocht.
+
+#### Vraag Proxmox zelf
+
+```bash
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'
+```
+
+Toont elke guest met vmid, naam en status, ook als het token stuk is. Staat
+hij hier wel en in de inventory niet, dan ligt het aan het token.
+
+</Steps>
+
 ## Goed om te weten
 
 ### Waar het adres van een container vandaan komt
@@ -506,3 +621,8 @@ Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
 instellingen. Hem opnieuw aanmaken uit een lijst geeft je een correcte, maar
 lege machine. Het echte herstel is een back-up terugzetten uit PBS. Daarom
 staat `vms.yml` er alleen als naslag.
+
+### Waarom `proxmox-autostart.yml` niet in `site.yml` zit
+
+Een guest die bewust níét meestart, zou bij elke run stilletjes weer aangezet
+worden. Meestal draai je dit één keer, na een herbouw.

@@ -1,0 +1,84 @@
+---
+title: Woorden
+---
+
+# Woorden
+
+**Ad-hoc-commando**: één commando op een host via `ansible`, zonder playbook.
+
+**API-token**: de login waarmee Ansible aan Proxmox vraagt welke machines er zijn.
+
+**Baseline**: het minimum dat elke Linux-machine krijgt: tijdzone,
+basispakketten, automatische beveiligingsupdates, inloggen met wachtwoord uit.
+
+**Bootstrap**: de eerste keer inloggen als root en de gebruiker `ansible` aanmaken.
+
+**Bridge**: de virtuele netwerkkaart van pve01 (`vmbr0`, `vmbr1`) waar de
+guests en de node zelf aan hangen.
+
+**Cask**: een Homebrew-*app* op een Mac, iets met een venster zoals Spotify of VLC.
+
+**Converge**: `site.yml` draaien, zodat elke host weer gelijk is aan de repo.
+
+**Demper**: een regel in de host_vars die een melding in het rapport bewust
+stilzet, mét reden.
+
+**Dotfiles**: je persoonlijke configbestanden (`~/.zshrc`, `~/.ssh/config`,
+`~/.gitconfig`). Het playbook `dotfiles.yml` schrijft ze voor je.
+
+**Drift**: een host die niet meer overeenkomt met wat de repo beschrijft.
+
+**Dynamische inventory**: `inventory/homelab.proxmox.yml`. Haalt de lijst
+guests live uit Proxmox, via het API-token.
+
+**Fixed IP**: een vast adres in UniFi, zodat een toestel na een herstart
+hetzelfde adres houdt.
+
+**Formula**: een Homebrew-*pakket* op een Mac, commandoregel-gereedschap zoals
+`jq` of `ffmpeg`.
+
+**Guest**: een container (LXC, commando's `pct`) of virtuele machine (VM,
+commando's `qm`) op pve01. Elke guest heeft een nummer, de *vmid*. Samen de
+groep `guests`.
+
+**Hypervisor** of **node**: de fysieke machine `pve01` (`192.168.0.10`), met
+Proxmox erop. Gaat die uit, dan gaat alles uit.
+
+**Inventory**: de lijst van alle machines en hun instellingen, in `inventory/`.
+
+**NeoGate**: je eigen app op [neogate.neodata.be](https://neogate.neodata.be).
+Maakt accounts aan in Plex, Immich en de andere diensten, en haalt ze weer weg.
+
+**PBS**: Proxmox Backup Server, VM 100. Bewaart de dagelijkse back-ups,
+versleuteld, op de schijf `vm-hdd` van pve01.
+
+**`pve_lxcs`**: de lijst met containers in `inventory/group_vars/proxmox/lxcs.yml`.
+Wat daar niet in staat, kan het playbook niet bouwen.
+
+**Resolver**: de DNS-server die een toestel vraagt "welk adres hoort bij deze
+naam?". Hier is dat AdGuard in ct 107 (`192.168.0.29`).
+
+**Rol**: een installatierecept in `roles/` dat software direct op een machine
+zet, zoals je met de hand `apt install` zou doen. Geen Docker.
+
+**Route**: één regel in `caddy_sites` die zegt: "stuur `naam.neodata.be` door
+naar deze machine op deze poort".
+
+**Stack**: één Docker-app: een map in de `containers`-repo met een
+`docker-compose.yml` en een `.env`.
+
+**Tailnet**: alle toestellen die via Tailscale met elkaar verbonden zijn. Wie
+erop zit, komt aan je diensten.
+
+**Template**: een job in Semaphore: een playbook, argumenten en eventueel een
+schema (cron).
+
+**Tweede kopie**: de wekelijkse back-up naar de Mac mini (`macmini-backup`).
+Niet versleuteld.
+
+**Vault-wachtwoord**: ontgrendelt de versleutelde bestanden in de repo. Er zijn
+er twee: `infra` en `stacks`.
+
+**vmid**: het unieke nummer van een guest in Proxmox (bv. `107` is `adguard`).
+
+**WireGuard**: de VPN op de UniFi-gateway. Geeft het hele thuisnetwerk.

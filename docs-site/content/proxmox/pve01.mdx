@@ -1,13 +1,19 @@
 ---
-title: pve01 of alles
+title: pve01 of alles weg
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# pve01 of alles
+# pve01 of alles weg
 
-De grote gevallen: `pve01` zelf is weg, de PBS-back-ups zijn onbruikbaar, of
-de `ansible`-sleutel is kwijt.
+De grote gevallen: `pve01` zelf is weg, de back-ups op PBS zijn onbruikbaar,
+alles in huis is weg, of de `ansible`-sleutel is kwijt.
+
+<Callout type="info">
+Deze site draait op `caddy`, een container op pve01. Is pve01 weg, dan is deze
+site ook weg. Dezelfde tekst staat in elke clone van de repo, in
+`docs-site/content/proxmox/pve01.mdx`.
+</Callout>
 
 ## Welk geval ben jij?
 
@@ -30,14 +36,14 @@ er een over en je loopt vast op iets dat er niet uitziet als het echte
 probleem.
 
 Zorg eerst dat je laptop klaarstaat (repo, Ansible, `ansible`-sleutel,
-vault-wachtwoorden), zie [Werkplek → Laptop](/runbooks/toegang/werkplek/#laptop-klaarzetten). Zonder
+vault-wachtwoorden), zie [Werkplek → Laptop](/ansible/laptop/#laptop-klaarzetten). Zonder
 sleutel en vault-wachtwoorden begint hier niets.
 </Callout>
 
 Wat je nodig hebt buiten deze repo:
 
 - een USB-stick met Proxmox VE
-- de **PBS-encryptiesleutel** (je papieren kopie, zie [Vooraf](/runbooks/stuk/#vooraf-doe-dit-nu))
+- de **PBS-encryptiesleutel** (je papieren kopie, zie [Vooraf](/proxmox/backups/#vooraf-doe-dit-nu))
 - het wachtwoord van `pve@pbs` (niet in de repo)
 - op de Mac mini: de gedeelde schijf `/Volumes/media01`
 
@@ -261,7 +267,7 @@ Guests met data komen uit PBS, `caddy`, `tailscale` en `ntfy` bouw je nieuw.
 
 #### Zet de guests met data terug uit PBS
 
-Volg [Terugzetten uit back-up](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up)
+Volg [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up)
 voor `adguard` (107, als eerste: DNS), `semaphore` (104), `haos` (101),
 `docker-grafana-stack` (102) en `docker` (103). Ze bestaan nog niet, dus laat
 `--force` weg.
@@ -272,7 +278,7 @@ back-up. Je hoeft 101 tot 103 niet eerst met de hand te maken.
 <Callout type="warning">
 Kijk na de restore van `adguard` of onderaan `/etc/pve/lxc/107.conf` de twee
 `/dev/net/tun`-regels nog staan (zie
-[Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen)).
+[Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen)).
 Ontbreken ze, zet ze erbij en doe `pct reboot 107`.
 </Callout>
 
@@ -296,7 +302,7 @@ ansible-playbook playbooks/new-guest.yml -e guest=tailscale
 ```
 
 Eén per keer. Vergeet de `/dev/net/tun`-regels voor `tailscale` niet (zie
-[Container herbouwen](/runbooks/stuk/dienst/#een-container-opnieuw-bouwen)).
+[Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen)).
 
 ```bash
 ansible-playbook playbooks/proxmox-oci.yml
@@ -367,7 +373,7 @@ Namen zoals `macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst`
 
 #### Zet de dump terug
 
-Precies zoals in [Terugzetten uit back-up](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up),
+Precies zoals in [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up),
 alleen met deze naam:
 
 ```bash
@@ -387,7 +393,7 @@ ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
 Hij begint zonder back-ups. Koppel hem daarna als opslag `pbs` zoals in
 [pve01 is weg](#pve01-is-weg), met een
 **nieuwe** encryptiesleutel, en maak daar meteen een papieren kopie van (zie
-[Vooraf](/runbooks/stuk/#vooraf-doe-dit-nu)).
+[Vooraf](/proxmox/backups/#vooraf-doe-dit-nu)).
 
 </Steps>
 
@@ -581,7 +587,7 @@ terug naar de eerste stap.
 
 Alleen als er echt nergens nog een kopie is: niet op een andere Mac, niet in
 de wachtwoordkluis. Heb je wel een kopie, zet die dan gewoon terug op
-`~/.ssh/ansible_ed25519` (zie [Werkplek → Laptop](/runbooks/toegang/werkplek/#laptop-klaarzetten)).
+`~/.ssh/ansible_ed25519` (zie [Werkplek → Laptop](/ansible/laptop/#laptop-klaarzetten)).
 
 <Callout type="error">
 `-u root -k` (inloggen met wachtwoord) helpt je hier **niet**. De baseline zet
@@ -645,77 +651,6 @@ Zet een kopie in de wachtwoordkluis, zodat je dit nooit meer moet doen.
 </Steps>
 
 ## Goed om te weten
-
-### De twee back-upjobs
-
-| | Dagelijks | Wekelijks |
-| --- | --- | --- |
-| Wanneer | elke nacht 02:30 | zondag 01:00 |
-| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
-| Welke guests | alle behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 |
-| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps |
-| Bewaart | 7 | 2 |
-| Versleuteld | ja | **nee** |
-| Redt je van | een kapotte guest | een pve01 die weg is |
-
-De dagelijkse is de hoofdkopie. Maar die staat op pve01 zelf: sterft die
-machine met zijn schijven, dan gaan guests en back-ups samen. Daarvoor is de
-wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
-
-### Buiten het huis: Cloudflare R2
-
-De dagelijkse en de wekelijkse kopie staan allebei in huis. Sinds 25-09-2026
-gaat er elke nacht om 04:00 ook een kopie naar Cloudflare R2, maar **alleen
-wat git niet kan herbouwen** (zie [Terughalen uit R2](#terughalen-uit-r2)). Zo
-past het in de gratis 10 GB: op 25-09 was het 3,1 GB.
-
-| Tijd | Wat |
-| --- | --- |
-| 02:00 | `docker` maakt een back-up van zijn app-data en foto's naar PBS (`docker-data-backup.timer`) |
-| 02:30 | de gewone back-up van alle machines naar PBS |
-| 04:00 | `r2-guard` telt wat er in R2 staat. Onder de drempel start hij zelf de kopie van de gekozen groepen naar R2 (de laatste 3 versies), en meet daarna opnieuw |
-
-**Waarom r2-guard.** Cloudflare kent voor R2 geen harde uitgavengrens. Alleen
-onze PBS schrijft in de bucket. De sync job heeft daarom in PBS **geen
-schema**: alleen r2-guard start hem, na een check. Crasht r2-guard, of kan
-hij het niet nagaan, dan gaat er die nacht niets naar R2. Twijfel is stop.
-Hij stopt boven 8 GB, boven 800.000 Class A- of 8.000.000 Class B-operaties
-deze maand. Vanaf 6,5 GB krijg je een waarschuwing.
-
-**Waarom 8 GB en niet 10.** Wat één nacht uploadt, weet r2-guard pas achteraf.
-Die 2 GB ruimte vangt een drukke nacht op; na de sync meet hij opnieuw en
-stopt dan de volgende nacht.
-
-**Waarom opslag zelf tellen.** De cijfers van Cloudflare lopen tot een dag
-achter (op 25-09 toonden ze 0 GB bij 3 GB). r2-guard telt daarom de bucket
-zelf, een paar Class A-operaties per nacht.
-
-**Waarom nooit wissen in R2.** De sync heeft `remove-vanished` uit. Anders
-zou een lege `store1` (na een herbouw, of na ransomware) alles in R2
-wissen, precies wanneer je het nodig hebt. Oude versies ruimt de prune job
-op. Ansible dwingt beide af: komt er een schema of `remove-vanished` bij,
-dan haalt de volgende run het weg.
-
-De dumps op de Mini zijn niet versleuteld: iedereen die die NFS-share kan
-mounten, kan ze lezen. Die in R2 wel: Cloudflare ziet alleen versleutelde
-blokken.
-
-### Faalt de wekelijkse job, dan meldt niemand dat
-
-Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job stil. Kijk
-af en toe zelf:
-
-```bash
-ssh pve01 'sudo pvesm list macmini-backup'
-ssh pve01 'df -h /mnt/pve/macmini-backup'
-```
-
-### Waarom maar twee dumps bewaren
-
-`media01` op de Mini is bijna vol en draagt ook Time Machine.
-Daarom staat `prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je
-meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken beide
-back-ups tegelijk.
 
 ### Het API-token staat op twee plekken
 

@@ -1,0 +1,77 @@
+---
+title: Deze docs
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Deze docs
+
+Deze site: waar de pagina's vandaan komen en hoe je hem bijwerkt.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je veranderde iets in de inventory of een pagina en wil het **op de docs-site** | een nieuwe route, een aangepaste pagina | [Docs-site bijwerken](#de-docs-site-bijwerken) |
+
+## De docs-site bijwerken
+
+Je veranderde iets in de inventory of een pagina. `playbooks/docs.yml` maakt
+de pagina's onder Homelab opnieuw, bouwt de site en zet hem op `caddy`.
+
+<Steps>
+
+#### Commit en push je wijziging eerst
+
+```bash
+git add inventory docs-site && git commit -m '...' && git push
+```
+
+<Callout type="warning">
+Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
+lokaal hebt, staat de volgende ochtend weer niet online.
+</Callout>
+
+#### Bouw en publiceer
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+Verzamelt eerst facts van `linux:macs`, genereert de pagina's, en draait dan
+`npm ci` en `npm run build` op je eigen machine; alleen het resultaat gaat naar
+de `caddy`-host.
+
+#### Kijk de site na
+
+Open [docs.neodata.be](https://docs.neodata.be). Werkt alleen vanaf het LAN of
+de tailnet.
+
+</Steps>
+
+### Wat waar vandaan komt
+
+Alles onder **Homelab** maakt `docs.yml` zelf. Onderaan zo'n pagina staat een
+grijze regel die dat zegt. Bewerk die pagina's nooit: de volgende run
+overschrijft ze. Pas de bron aan.
+
+| Pagina | Bron |
+| --- | --- |
+| [Diensten](/homelab/diensten/), één pagina per dienst | `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus `docker_services_without_route` van elke docker-host |
+| [Machines](/homelab/machines/) | `inventory/00-static.yml`, de Proxmox-guests die `homelab.proxmox.yml` live ophaalt, `pve_lxcs` en elke `docker_stacks_list` |
+| [Toestellen](/homelab/toestellen/) | UniFi (Client Devices). Is UniFi onbereikbaar, dan blijft de vorige versie staan |
+| Alle andere pagina's | met de hand geschreven, in `docs-site/content/` |
+
+Een geschrapte route laat geen pagina achter: die wordt vanzelf opgeruimd,
+pas nadat de rest opnieuw gemaakt is.
+
+<Callout type="info">
+Draai dit na **elke** wijziging in de inventory. Een site die iets beweert wat
+niet meer waar is, is erger dan geen documentatie: je gelooft hem.
+</Callout>
+
+<Callout type="warning">
+Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
+niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
+er is dan niets geschreven. Zie [Guests en API-token](/proxmox/guests/#guests-en-api-token-checken).
+</Callout>

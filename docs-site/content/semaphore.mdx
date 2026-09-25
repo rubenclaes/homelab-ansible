@@ -1,13 +1,13 @@
 ---
-title: Wat draait er vanzelf
+title: Semaphore
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Wat draait er vanzelf
+# Semaphore
 
-Alles wat loopt zonder dat jij iets typt, en hoe je een schema in Semaphore
-toevoegt of wijzigt.
+Semaphore draait playbooks vanzelf, op een schema. Hier zie je wat er loopt
+en wanneer, en hoe je een schema aanpast.
 
 ## Welk geval ben jij?
 
@@ -58,7 +58,7 @@ De back-ups draaien op de cron van Proxmox. Ze staan in `pve_backup_jobs` in
 | dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
 | wekelijks | zondag 01:00 | de Mac mini, over NFS | tweede kopie, voor als pve01 zelf weg is |
 
-Terugzetten: [Herstellen](/runbooks/stuk/dienst/#terugzetten-uit-de-back-up), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/runbooks/stuk/pve01/#terugvallen-op-de-tweede-kopie).
+Terugzetten: [Herstellen](/proxmox/herstellen/#terugzetten-uit-de-back-up), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/proxmox/pve01/#terugvallen-op-de-tweede-kopie).
 
 <Callout type="warning">
 **Niets hiervan meldt zichzelf als het faalt**, niet in Semaphore en niet op

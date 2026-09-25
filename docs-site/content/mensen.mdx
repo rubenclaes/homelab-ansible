@@ -1,0 +1,286 @@
+---
+title: Mensen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Mensen
+
+Iemand toegang geven tot je diensten, de wachtwoordkluis of het hele
+netwerk, en die toegang weer afnemen. Dit gebeurt met de hand in NeoGate,
+Vaultwarden, UniFi en Tailscale.
+
+<Callout type="info">
+De knoppen hier zijn uit de documentatie gehaald, niet in het scherm nagelopen.
+Heet een knop anders, zoek hem in hetzelfde menu.
+</Callout>
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Iemand wil een **dienst** gebruiken | je zus wil Immich en Plex | [Iemand diensten geven](#iemand-diensten-geven) |
+| Iemand wil een **wachtwoordkluis** | je ouders in Vaultwarden | [Iemand in Vaultwarden zetten](#iemand-in-vaultwarden-zetten) |
+| Iemand moet aan het **hele thuisnetwerk** | iemand die mee beheert | [Iemand VPN geven](#iemand-vpn-geven) |
+| Er komt iemand **op bezoek** | wifi, bestanden delen | [Gast op bezoek](#gast-op-bezoek) |
+| Iemand moet er **niet meer bij** | een ex-huisgenoot | [Toegang afnemen](#iemand-zijn-toegang-afnemen) |
+
+## Iemand diensten geven
+
+Voorbeeld: je zus wil foto's in Immich en films in Plex.
+
+<Callout type="info">
+Dit gaat **altijd via NeoGate**, nooit met de hand in de app zelf. NeoGate
+maakt de accounts, en kan ze later ook weer weghalen. Een account dat je met de
+hand maakt, kent NeoGate niet.
+</Callout>
+
+<Steps>
+
+#### Open NeoGate
+
+[neogate.neodata.be](https://neogate.neodata.be) → **Gezin**. Die pagina zie
+je alleen als eigenaar.
+
+#### Nodig de persoon uit
+
+Klik **Uitnodigen**. Heeft de persoon al accounts in de diensten (van vroeger)?
+Gebruik dan niet Uitnodigen maar **Importeren** (de knop ernaast): dan koppelt
+NeoGate die accounts in plaats van nieuwe te maken.
+
+#### Vink de diensten aan
+
+In het toegangsraster. Wat NeoGate kan aanmaken:
+
+| Dienst | Wat de persoon krijgt |
+| --- | --- |
+| Plex | een managed gebruiker met toegang tot de bibliotheken |
+| Jellyfin | een account (Jellyfin draait sinds 22-09 niet meer, dus nu niet aanvinken) |
+| Immich | een account |
+| Seerr | een account om films en series aan te vragen |
+| Grimmory | een account |
+| Tailscale ("netwerk") | een uitnodiging per e-mail voor de tailnet |
+
+Vaultwarden staat hier niet bij: dat gaat apart, zie
+[Iemand in Vaultwarden zetten](#iemand-in-vaultwarden-zetten).
+
+#### Stuur de uitnodiging door
+
+`⋯` bij de persoon → **Uitnodiging kopiëren**, en stuur de link via bv.
+WhatsApp.
+
+#### Controleer in Gezin
+
+De persoon staat in **Gezin**, met de diensten die je aanvinkte.
+
+</Steps>
+
+Later iets bijgeven of afnemen: open de persoon in **Gezin** en vink een dienst
+aan of uit.
+
+<Callout type="info">
+Tailscale geeft de persoon alleen je **diensten** (`*.neodata.be`, via Caddy)
+en DNS, niet het thuisnetwerk. Dat regelen de toegangsregels in
+`files/tailscale/policy.hujson`: jij mag alles, de anderen alleen Caddy en
+AdGuard. Wil je iemand het hele LAN geven, zie
+[Iemand VPN geven](#iemand-vpn-geven).
+</Callout>
+
+## Iemand in Vaultwarden zetten
+
+Voorbeeld: je ouders krijgen een wachtwoordkluis op
+[vault.neodata.be](https://vault.neodata.be). Ze gebruiken de gewone
+**Bitwarden**-apps; alleen de server is de jouwe.
+
+<Callout type="warning">
+Ze moeten eerst **op de tailnet** zitten
+([Iemand diensten geven](#iemand-diensten-geven), vink Tailscale aan). Zonder
+tailnet kan de app buitenshuis niet synchroniseren. Wat al op het toestel
+staat, blijft wel leesbaar.
+</Callout>
+
+<Steps>
+
+#### Open de beheerpagina
+
+[vault.neodata.be/admin](https://vault.neodata.be/admin). Het wachtwoord staat
+als commentaar in de versleutelde `.env`:
+
+```bash
+ansible-vault view files/env/vaultwarden.env
+```
+
+Het is de regel onder "Admin page", niet `VW_ADMIN_TOKEN` (dat is de hash).
+
+#### Nodig de persoon uit
+
+**Users** → **Invite User** → het e-mailadres van de persoon.
+
+Er gaat geen mail uit: Vaultwarden heeft geen SMTP. De uitnodiging zet dat adres
+alleen op de lijst van wie zich mag registreren.
+
+#### Laat de persoon zich registreren
+
+Samen, op hun toestel:
+
+1. Installeer de **Bitwarden**-app.
+2. Kies bij aanmelden **Zelf gehost** (self-hosted) en vul als server
+   `https://vault.neodata.be` in.
+3. **Account aanmaken** met precies het uitgenodigde e-mailadres.
+4. Kies een **hoofdwachtwoord** dat ze kunnen onthouden. Schrijf het op papier
+   en leg het ergens veilig.
+
+#### Test
+
+Log op een tweede toestel in, of in de browser op
+[vault.neodata.be](https://vault.neodata.be). Zie je dezelfde kluis, dan werkt
+de synchronisatie.
+
+</Steps>
+
+Iemand weghalen: `/admin` → **Users** → **Delete**. Doe dat vóór je hem van de
+tailnet haalt, anders weet je later niet meer dat hij er nog stond.
+
+## Iemand VPN geven
+
+| | WireGuard | Tailscale |
+| --- | --- | --- |
+| Geeft | het hele thuisnetwerk (`192.168.0.0/24`) | alleen de diensten (`*.neodata.be`, via Caddy) |
+| Per | toestel: één profiel per toestel | persoon: hij logt zelf in |
+| Beheer | UniFi | NeoGate + Tailscale-console |
+| Kies als | iemand echt bij een machine thuis moet, niet alleen bij een dienst | iemand je diensten van buitenaf moet kunnen gebruiken |
+
+Twijfel je: **Tailscale**. Die geeft iemand alleen de diensten. Een
+WireGuard-profiel geeft het hele thuisnetwerk: pve01, Proxmox, SSH, de Mac mini.
+
+Dat Tailscale zo beperkt is, komt door de toegangsregels van de tailnet: jij
+mag alles, de anderen alleen Caddy en DNS. Ze staan in
+`files/tailscale/policy.hujson`, zie
+[Netwerk → Wie mag wat via Tailscale](/netwerk/overzicht/#wie-mag-wat-via-tailscale).
+
+### WireGuard-profiel
+
+<Steps>
+
+#### Controleer de DNS: `192.168.0.29`
+
+Bij de VPN-server moet de DNS-server `192.168.0.29` zijn (AdGuard).
+
+<Callout type="warning">
+De DNS zit **ingebakken** in het profiel. Klopt hij niet en pas je hem achteraf
+aan, dan moet elk toestel zijn profiel opnieuw importeren. Kijk het dus na vóór
+je de client aanmaakt.
+</Callout>
+
+#### Maak een client aan in UniFi
+
+| Scherm | Wat |
+| --- | --- |
+| UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** | **Add Client**, naam `persoon-toestel`, bv. `lies-iphone` |
+
+Eén profiel per toestel: dan kan je er later één intrekken zonder de andere.
+
+#### Geef het profiel door
+
+Toon de **QR-code** en laat de persoon hem scannen met de WireGuard-app, of
+stuur het `.conf`-bestand.
+
+Het profiel is een sleutel tot je netwerk: stuur het niet via een kanaal dat
+het bewaart (e-mail). Scannen terwijl je erbij staat is het veiligst.
+
+#### Test samen
+
+Wifi uit op het toestel, VPN aan, open
+[photos.neodata.be](https://photos.neodata.be). Laadt die, dan werkt het.
+
+</Steps>
+
+### Tailscale
+
+Dat gaat via NeoGate: vink **Tailscale** ("netwerk") aan bij de persoon. Zie
+[Iemand diensten geven](#iemand-diensten-geven).
+
+Een toestel met een commandline (pc, NAS) zonder persoon erachter? Dat is een
+sleutel, zie [Tailscale-sleutel voor een apparaat](/netwerk/vpn/#tailscale-sleutel-voor-een-apparaat).
+
+## Gast op bezoek
+
+Iemand komt langs en wil iets gebruiken. Voor het meeste heb je niets te doen.
+
+| De gast wil… | Wat je doet |
+| --- | --- |
+| internet | het wachtwoord van het gewone wifi geven |
+| bestanden uitwisselen met jou | [pairdrop.neodata.be](https://pairdrop.neodata.be) openen, op allebei de toestellen. Werkt meteen, zolang jullie op hetzelfde wifi zitten |
+| foto's van een feest krijgen | in Immich een **deellink** maken van het album. Geen account nodig, maar werkt alleen op het wifi thuis: Immich staat niet op internet |
+| blijvend films kijken of foto's bewaren | een account via NeoGate: [Iemand diensten geven](#iemand-diensten-geven) |
+| er van bij hem thuis bij kunnen | [Iemand VPN geven](#iemand-vpn-geven) |
+
+<Callout type="warning">
+Er is **geen gastennetwerk**. Een gast zit op hetzelfde netwerk als pve01, de
+Macs en alle diensten. Zijn toestel ziet ze dus, al moet hij voor de meeste nog
+inloggen. Een apart gastennetwerk staat op de TODO.
+</Callout>
+
+## Iemand zijn toegang afnemen
+
+Iemand hoeft er niet meer bij. Je sluit drie plekken af: NeoGate, Tailscale en
+WireGuard.
+
+Alleen een toestel kwijt, niet de persoon? Zie
+[Toestel kwijt](/netwerk/toestellen/#een-toestel-is-kwijt-of-weg).
+
+<Steps>
+
+#### NeoGate
+
+[neogate.neodata.be](https://neogate.neodata.be) → **Gezin** → `⋯` bij de
+persoon (of lang drukken) →
+
+| Kies | Doet |
+| --- | --- |
+| **Toegang intrekken** | haalt al zijn accounts weg, de persoon blijft in de lijst |
+| **Verwijderen** | hetzelfde, en haalt hem uit de lijst |
+| één dienst uitvinken | alleen die ene dienst weg |
+
+Loopt een dienst mis (foutmelding), probeer dan die dienst opnieuw uit te
+vinken.
+
+#### Tailscale-console
+
+<Callout type="warning">
+NeoGate trekt bij Tailscale alleen de **uitnodiging** in. Had de persoon die al
+aanvaard, dan blijft hij lid van de tailnet. Deze stap is dus niet optioneel.
+</Callout>
+
+| Scherm | Wat |
+| --- | --- |
+| [Tailscale admin console](https://login.tailscale.com/admin/users) → **Users** | de persoon → `⋯` → **Remove user** |
+| **Machines** | kijk of er nog toestellen van hem staan → **Remove** |
+
+#### WireGuard
+
+| Scherm | Wat |
+| --- | --- |
+| UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** | elk clientprofiel van die persoon → verwijderen |
+
+#### Controleer of alles weg is
+
+De persoon staat niet meer in NeoGate **Gezin**, niet meer onder **Users** in
+Tailscale, en heeft geen profiel meer in UniFi.
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom Vaultwarden niet via NeoGate
+
+NeoGate heeft geen koppeling met Vaultwarden, dus het account maak je in
+`/admin`. Registreren staat uit (`SIGNUPS_ALLOWED=false`): alleen wie jij
+uitnodigt, kan een account maken.
+
+### Het hoofdwachtwoord kan jij niet terugzetten
+
+De kluis is versleuteld met het hoofdwachtwoord van de persoon zelf. Vergeten
+ze het, dan is de kluis weg: niet jij, niet de beheerpagina, niet de back-up
+krijgt hem nog open. Daarom staat het op papier. Wil je een vangnet, laat ze in
+de app een **noodtoegang** (Emergency Access) voor jou instellen.

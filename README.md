@@ -79,4 +79,4 @@ Voor je commit: `bin/check-vaulted && ansible-lint`
 | `files/env/` | versleutelde instellingen van de Docker-apps |
 | `docs-site/` | de documentatie |
 
-Iets gewijzigd? Pas dan ook de uitleg aan in `docs-site/content/runbooks/`.
+Iets gewijzigd? Pas dan ook de uitleg aan in `docs-site/content/`, op de pagina van het onderwerp (Proxmox, Docker, Netwerk, ...).

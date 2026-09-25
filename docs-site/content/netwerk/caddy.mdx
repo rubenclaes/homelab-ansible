@@ -1,0 +1,228 @@
+---
+title: Adressen (Caddy)
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Adressen (Caddy)
+
+Caddy geeft elke dienst een adres zoals `naam.neodata.be`. Hier voeg je een
+adres toe of haal je het weg, werk je Caddy bij en doorzoek je de logs.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Het ding **draait al** ergens, je wil er alleen een mooi adres voor | Plex op de Mac mini, Home Assistant, de webpagina van je printer | [Alleen een adres](#alleen-een-adres) |
+| Een dienst blijft draaien, maar zijn **mooie adres** mag weg | een route naar een oude printer | [Alleen het adres](#alleen-het-adres-weghalen) |
+| Je wil zien wie er aanklopte bij de reverse proxy | 500-fouten op `plex.neodata.be` | [Caddy-logs doorzoeken](#caddy-logs-doorzoeken) |
+| Je wil **Caddy** upgraden | een nieuwe Caddy-versie | [Caddy](#caddy) |
+
+## Alleen een adres
+
+De dienst **draait al**, je wil hem alleen bereiken op `naam.neodata.be` in
+plaats van op `192.168.0.26:32400`. Je hoeft niets te installeren. Je voegt
+alleen een route toe.
+
+Voorbeeld: Plex draait op de Mac mini op poort 32400.
+
+<Steps>
+
+#### Voeg één regel toe aan `caddy_sites`
+
+```bash
+$EDITOR inventory/host_vars/caddy/main.yml
+```
+
+Zet onder `caddy_sites:`:
+
+```yaml
+  - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
+```
+
+- `name` — wordt het adres: `plex.neodata.be`
+- `host` — de naam van de machine **zoals in de inventory** (niet het IP)
+- `port` — de poort waar de dienst op luistert
+- `desc` — korte uitleg, komt op deze docs-site
+- `stack` — de stack uit `docker_stacks_list` waar de container in zit. Laat
+  weg als het geen beheerde stack is (Plex, een VM). Hiermee linkt de site
+  dienst en stack aan elkaar: een stack als `media` zegt op zichzelf niet
+  wat erin draait.
+
+<Callout type="info">
+Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
+`upstream: "192.168.0.50:80"` in plaats van `host` en `port`.
+</Callout>
+
+#### Zet hem live en test
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
+ansible-playbook playbooks/stacks.yml --tags homepage   # de tegel op home.neodata.be
+ansible-playbook playbooks/docs.yml
+```
+
+#### Commit en push
+
+```bash
+git add inventory && git commit -m 'Route voor plex' && git push
+```
+
+</Steps>
+
+### Alle velden van een route
+
+| Veld | Doet |
+| --- | --- |
+| `name` | wordt `name.neodata.be` |
+| `host` | een **inventory-hostnaam**; zijn adres wordt de bestemming |
+| `port` | de poort waar de dienst luistert |
+| `upstream` | alternatief voor `host` + `port`, voor iets dat niet in de inventory staat |
+| `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
+| `host_header` | stuur de oorspronkelijke `Host`-header door |
+| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij (Home Assistant wil dit) |
+| `auth` | zet een login (tinyauth) voor de dienst |
+
+Waarom `host` en niet gewoon een IP? Verhuist een machine naar een ander adres,
+dan pas je dat op één plek aan en volgen alle routes vanzelf.
+
+## Alleen het adres weghalen
+
+De dienst zelf blijft, alleen `naam.neodata.be` gaat weg.
+
+<Steps>
+
+#### Haal de route weg
+
+Verwijder de regel uit `caddy_sites` en draai `caddy.yml`, zoals hierboven.
+Daarna `ansible-playbook playbooks/stacks.yml --tags homepage`, zodat ook de
+tegel op home.neodata.be weggaat.
+
+#### Docs, commit en push
+
+```bash
+ansible-playbook playbooks/docs.yml
+git add -A && git commit -m "chore: drop the <naam> route" && git push
+```
+
+#### Het Fixed IP (optioneel)
+
+Had het toestel alleen een Fixed IP in UniFi omdat er een route naar wees? Dan
+mag dat weg. `unifi-routes.yml` vraagt het niet meer.
+
+</Steps>
+
+## Caddy
+
+`caddy` doet **niet** mee met `update.yml`: het pakket staat vast
+(`baseline_held_packages` in `inventory/host_vars/caddy/main.yml`). Upgraden
+doe je bewust, met een eigen playbook.
+[Waarom](#waarom-caddy-vaststaat).
+
+<Steps>
+
+#### Upgrade Caddy
+
+```bash
+ansible-playbook playbooks/caddy-upgrade.yml
+```
+
+Dit draait `caddy upgrade`, herstart Caddy en controleert dat de
+Cloudflare-module er nog in zit. Ontbreekt die, dan faalt hij en zegt hij
+welk commando het herstelt.
+
+#### Controleer de uitkomst
+
+De smoketest zit al in dit playbook. Is "Smoke test all Caddy sites" groen,
+dan werkt elk `*.neodata.be`-adres nog.
+
+</Steps>
+
+<Callout type="warning">
+Gebruik niet `ansible caddy -a "caddy upgrade"`. Dat vervangt de binary, maar
+herstart Caddy niet en controleert niets.
+</Callout>
+
+## Caddy-logs doorzoeken
+
+Elk verzoek van buiten gaat langs `caddy`. Grafana Alloy stuurt die logs naar
+Loki in de monitoring-stack.
+
+<Steps>
+
+#### Open Grafana
+
+Ga naar [monitoring.neodata.be](https://monitoring.neodata.be) en zoek in Loki.
+
+#### Kies wat je wil zien
+
+| Query | Wat je ziet |
+| --- | --- |
+| `{job="caddy"}` | elk verzoek dat de reverse proxy afhandelde |
+| `{job="caddy-runtime"}` | wat Caddy zelf meldt: certificaten, herladen, fouten |
+
+#### Filter met `| json`
+
+```
+{job="caddy"} | json | status >= 500
+{job="caddy"} | json | request_host = "plex.neodata.be"
+```
+
+</Steps>
+
+### Andere logbestanden versturen
+
+<Steps>
+
+#### Pas de lijst aan
+
+```bash
+$EDITOR inventory/host_vars/caddy/main.yml   # alloy_log_targets
+```
+
+Welke hosts een agent krijgen, staat in de groep `alloy_hosts` in
+`inventory/00-static.yml`. Nu is dat alleen `caddy`.
+
+#### Zet het live
+
+```bash
+ansible-playbook playbooks/alloy.yml
+```
+
+#### Commit en push de logbestanden
+
+```bash
+git add inventory && git commit -m 'Alloy: extra logbestand' && git push
+```
+
+</Steps>
+
+<Callout type="warning">
+Zet de Docker-hosts **niet** in `alloy_hosts`. De Alloy ín de monitoring-stack
+haalt hun containerlogs al via de Docker-socket; een tweede agent stuurt alles
+dubbel.
+</Callout>
+
+Waarom `caddy_log_mode` op `0640` staat en een `reload` niet volstaat:
+[Goed om te weten](#goed-om-te-weten).
+
+## Goed om te weten
+
+### Waarom Caddy vaststaat
+
+Caddy is hier een eigen build met de plugin `caddy-dns/cloudflare`. Een gewone
+`apt full-upgrade` verving hem ooit door de standaardversie. Die weigert te
+starten met de Cloudflare-module in de Caddyfile, en elk `*.neodata.be`-adres
+lag plat. `apt full-upgrade` en `cleanup.yml` respecteren de hold, dus ze raken
+hem niet aan. `caddy upgrade` bouwt opnieuw mét de plugins.
+
+### Alloy en de rechten op de logbestanden
+
+Alloy draait als gebruiker `alloy`, niet als root, en leest via groep `caddy`.
+Daarom staat `caddy_log_mode` op `0640`. Caddy past die mode toe bij het
+**openen** van een bestand: na `systemctl reload caddy` bleef het `0600`, pas
+na `systemctl restart caddy` (of de rotatie om middernacht) werd het `0640`.
+
+De regels zijn JSON en krijgen geen label per statuscode of pad, omdat Loki op
+labels indexeert: pel af bij het zoeken, niet bij het schrijven.

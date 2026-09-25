@@ -1,0 +1,166 @@
+---
+title: Nakijken
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Nakijken
+
+Is alles gezond, en klopt elke host nog met wat de repo zegt? Kijken, niets
+veranderen. Alle commando's draai je vanuit de root van de repo.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil in één oogopslag zien of alles gezond is | openstaande updates, certificaat bijna verlopen, een poort zonder route | [Gezondheidsrapport](#gezondheidsrapport) |
+| Je vermoedt dat er iets met de hand gewijzigd is | iemand paste een config aan op `caddy` buiten de repo om | [Drift zoeken](#drift-zoeken) |
+
+## Gezondheidsrapport
+
+Eén pagina met de toestand van alle hosts. Leest alleen, verandert niets.
+Semaphore draait hem ook elke zondag om 08:00.
+
+<Steps>
+
+#### Draai het rapport
+
+```bash
+ansible-playbook playbooks/report.yml   # leest alleen, verandert niets
+```
+
+Draai hem **zonder** `--limit`, of neem `localhost` erin mee
+(`--limit docker:localhost`). De HTML wordt op `localhost` gemaakt.
+
+#### Open het rapport
+
+Ga naar [report.neodata.be](https://report.neodata.be). Werkt alleen vanaf het
+LAN of de tailnet.
+
+Per host: openstaande updates, herstart nodig, schijfgebruik. Daarnaast de
+PBS-back-ups, de vervaldatum van het wildcard-certificaat en de vergelijkingen
+hieronder.
+
+Wil je zien welke updates klaarliggen? Open het tabblad **Updates**. Per host
+één regel per pakket: de versie die er nu staat en de versie die klaarligt.
+Security-updates staan bovenaan bij hun host. Daar staat ook welke hosts een
+**herstart nodig** hebben. Bijwerken zelf: zie
+[Updates](/proxmox/onderhoud/).
+
+<Callout type="warning">
+Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
+Die doet `update.yml` níét: het playbook werkt alleen Homebrew bij. macOS zelf
+update je met de hand op de Mac.
+</Callout>
+
+#### Lees de vergelijkingen
+
+| Vergelijking | Staat hier iets, dan betekent het |
+| --- | --- |
+| route → draaiende container | een naam die nergens heen wijst; tijdens een storing kost hij je tien minuten |
+| container → route | een dienst die je niet hebt afgemaakt, alleen bereikbaar als `host:poort` |
+| draaiend project → `docker_stacks_list` | draait wel, maar niets kan hem terugzetten |
+| `wait_for_mounts` → `nfs_mounts` | een herbouwde host blijft bij het opstarten hangen op een mount die nooit komt |
+| back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat; kost ruimte |
+
+Een poort zonder route is meestal een dienst die je vergeten bent af te maken:
+volg dan [Dienst toevoegen](/proxmox/guests/).
+
+#### Demp wat bewust zo is
+
+Is een melding gewild? Zet ze in de host_vars van die host, bijvoorbeeld
+`inventory/host_vars/docker.yml`:
+
+```yaml
+docker_ports_without_route:
+  - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
+
+docker_routes_without_container:
+  - { port: 8089, why: "qbittorrent draait met host-netwerk, geen poortmapping" }
+```
+
+| Var | Voor |
+| --- | --- |
+| `docker_ports_without_route` | een gepubliceerde poort die bewust geen route heeft |
+| `docker_routes_without_container` | een route waarvan de backend géén containerpoort is (qbittorrent met `network_mode: host`, Plex als macOS-app) |
+
+<Callout type="warning">
+Zet er **altijd** een `why:` bij. Een gedempte melding zonder reden is over
+een half jaar niet te onderscheiden van een vergissing.
+</Callout>
+
+#### Commit en push de demper
+
+```bash
+git add inventory && git commit -m 'Rapport: poort 21115 gedempt' && git push
+```
+
+</Steps>
+
+Over welke hosts de vergelijkingen lopen, en waarom het rapport niet publiek
+is: [Goed om te weten](#goed-om-te-weten).
+
+## Drift zoeken
+
+Is er iets met de hand gewijzigd, buiten de repo om? Semaphore kijkt dit
+dagelijks om 06:00 na.
+
+<Steps>
+
+#### Draai de driftcheck
+
+```bash
+ansible-playbook playbooks/drift.yml                     # samenvatting
+ansible-playbook playbooks/drift.yml -e drift_fail=true  # rood bij drift
+```
+
+Draait `site.yml --check --diff` en geeft één regel per host, plus de namen van
+de taken die iets zouden wijzigen. Verandert zelf niets.
+
+#### Controleer of elke host bereikt is
+
+Staat er `NIET BEREIKT` in plaats van `gelijk aan de repo`? Dan is er op die
+host **niets gecontroleerd**.
+
+<Callout type="error">
+Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
+er in het totaal uit als een host zonder drift. Lees dus de regel per host.
+</Callout>
+
+#### Lees de echte diffs
+
+```bash
+less .drift/site-check.log
+```
+
+De samenvatting zegt wie en wat. Hoe precies, staat in dit log (gitignored).
+
+#### Kies wie gelijk heeft
+
+- **De repo klopt** → trek de host gelijk:
+  `ansible-playbook playbooks/site.yml --limit <host>`
+- **De host klopt** → zet de wijziging in de repo (inventory of rol), commit
+  en push, en draai `drift.yml` opnieuw.
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom deze playbooks niet in `site.yml` zitten
+
+`site.yml` trekt gelijk. `report.yml` is traag en hoort op een schema,
+`drift.yml` en `smoketest.yml` controleren alleen, en `cleanup.yml`
+verwijdert. Uitzondering: `semaphore-templates.yml` zit er wél in, sinds 23-09.
+
+### De rapportvergelijkingen lopen over alle containerhosts
+
+`docker`, `docker-grafana-stack` en de Mac mini (`docker_hosts` plus `macs`,
+dezelfde regel als `stacks.yml`). Tot 22-09 keek hij alleen naar `docker`, en
+zo bleven drie dode routes en een dienst zonder compose-bestand op de Mini
+maandenlang onopgemerkt. Een nieuwe host komt er vanzelf bij.
+
+### docs en report zijn niet publiek
+
+`docs.neodata.be` en `report.neodata.be` staan niet in `caddy_sites` maar als
+vaste blokken in de Caddyfile. Ze serveren van schijf en geven een 403 buiten
+het LAN en de tailnet: ze beschrijven de binnenkant van het netwerk.

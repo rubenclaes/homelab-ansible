@@ -1,10 +1,10 @@
 ---
-title: Netwerk
+title: Hoe het in elkaar zit
 ---
 
 import { Callout } from 'nextra/components'
 
-# Hoe het netwerk staat
+# Hoe het netwerk in elkaar zit
 
 Naslag: hoe DNS, Tailscale en de VPN nu in elkaar zitten.
 
@@ -75,7 +75,7 @@ Welke naam je dan te zien krijgt:
 <Callout type="info">
 De **alias** in UniFi (bv. "iPhone Karen") telt hier **niet**. Alleen het
 Local DNS Record. Hoe je dat zet: zie
-[Een toestel een naam geven](/runbooks/onderhoud/netwerk/#een-toestel-een-naam-geven).
+[Een toestel een naam geven](/netwerk/dns/#een-toestel-een-naam-geven).
 Welke toestellen er al een hebben: zie de kolom **DNS-naam** op
 [Toestellen](/homelab/toestellen/).
 </Callout>
@@ -193,7 +193,7 @@ NeoGate Tailscale kreeg, kon toen ook bij pve01, Proxmox, SSH en de Mac mini.
 
 Git is de bron. OpenTofu zet `files/tailscale/policy.hujson` in Tailscale, en
 de console is dicht voor wijzigingen. Hoe: [Tailscale-regels
-aanpassen](/runbooks/toegang/toestellen/#tailscale-regels-aanpassen).
+aanpassen](/opentofu/#tailscale-regels-aanpassen).
 
 Gevolg voor Plex: de Plex-app van een ander probeert soms eerst de Mac mini
 rechtstreeks (`192.168.0.26:32400`). Dat is dicht, dus hij valt terug op de

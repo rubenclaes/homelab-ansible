@@ -1,30 +1,31 @@
 ---
-title: Overzicht
+title: Start
 ---
 
 # neodata.homelab
 
-Automated door
-[homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
+Alles over de homelab: wat er draait, en hoe je iets doet. Alles wordt beheerd
+vanuit [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
 
-## Iets doen
+## Snel naar
 
 | Ik wil… | Ga naar |
 | --- | --- |
-| iets is stuk of weg | [Er is iets stuk](/runbooks/stuk/) |
-| een nieuwe machine, dienst of adres | [Iets toevoegen](/runbooks/toevoegen/) |
-| updaten, nakijken, schijf vol, netwerk en Proxmox | [Onderhoud](/runbooks/onderhoud/) |
-| een toestel of iemand toegang geven, mijn laptop klaarzetten | [Toegang en werkplek](/runbooks/toegang/) |
+| weten op welk adres een dienst draait | [Diensten](/homelab/diensten/) |
+| weten wat er op een machine draait | [Machines](/homelab/machines/) |
+| een nieuwe app draaien | [Dienst toevoegen](/docker/toevoegen/) |
+| een adres voor iets dat al draait | [Een adres toevoegen](/netwerk/caddy/#alleen-een-adres) |
+| alles bijwerken | [Guests patchen](/proxmox/onderhoud/#guests-patchen-en-herstarten) |
+| zien of alles gezond is | [Gezondheidsrapport](/ansible/nakijken/#gezondheidsrapport) |
+| een container of VM terug | [Een guest terugzetten](/proxmox/herstellen/) |
+| geen DNS meer, niets laadt | [Geen DNS](/netwerk/dns/#geen-dns) |
+| pve01 is weg, of alles | [pve01 of alles weg](/proxmox/pve01/) |
+| iemand toegang geven | [Mensen](/mensen/) |
+| wie waar mag op Tailscale | [OpenTofu](/opentofu/) |
+| mijn laptop klaarzetten | [Je laptop](/ansible/laptop/#laptop-klaarzetten) |
 
-## Iets opzoeken
-
-| Ik zoek… | Ga naar |
-| --- | --- |
-| op welk adres Sonarr, Plex of Immich draait | [Diensten](/homelab/diensten/) |
-| welke machines er zijn, en wat erop draait | [Machines](/homelab/machines/) |
-| hoe DNS, Tailscale en de VPN in elkaar zitten | [Netwerk](/homelab/netwerk/) |
-
-Diensten en Machines komen uit de inventory en worden bij elke
-`playbooks/docs.yml` overschreven. De runbooks zijn met de hand geschreven.
+Niet gevonden? Kies links het onderwerp, of zoek bovenaan. Elke pagina begint
+met een tabel **Welk geval ben jij?**; het waarom staat onderaan, onder
+**Goed om te weten**.
 
 [NeoGate](https://neogate.neodata.be)

@@ -1,0 +1,160 @@
+---
+title: Toestellen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Toestellen
+
+Een toestel dat bijkomt, dat je niet kent, of dat kwijt is. Dit gebeurt met
+de hand in UniFi. De lijst van alle toestellen staat onder
+[Homelab → Toestellen](/homelab/toestellen/).
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Een **nieuw toestel** moet op het netwerk, met een vast adres | een printer, een NAS | [Nieuw toestel](#een-nieuw-toestel-op-het-netwerk) |
+| Je telefoon meldt **"Onbekend toestel op het netwerk"** | een vriend op het wifi, een nieuw stopcontact | [Onbekend toestel](#melding-onbekend-toestel) |
+| Een toestel is **kwijt of weg** | gestolen telefoon | [Toestel kwijt](#een-toestel-is-kwijt-of-weg) |
+
+## Een nieuw toestel op het netwerk
+
+Voorbeeld: een nieuwe printer of TV. Alles gebeurt in UniFi, met de hand.
+
+<Steps>
+
+#### Verbind het toestel met het wifi
+
+Gewoon het wifi van thuis. Er is geen apart gastennetwerk.
+
+#### Zoek het in UniFi
+
+| Scherm | Wat | Waarom |
+| --- | --- | --- |
+| UniFi Network → **Client Devices** | sorteer op **Connected** of zoek op de fabrikant | een nieuw toestel heeft nog geen naam, alleen een fabrikant of MAC-adres |
+
+#### Geef het een naam
+
+Open het toestel → **Settings** → vul een **Alias** in, bv. `printer-bureau`.
+
+Zo herken je het later in UniFi en in de Query Log van AdGuard, in plaats van
+een MAC-adres.
+
+#### Zet het op de lijst met bekende toestellen
+
+Anders meldt `unifi-watch.yml` het elk kwartier op je telefoon. Voeg een regel
+toe aan `unifi_known_macs` in `inventory/group_vars/all/unifi.yml` en commit:
+
+```yaml
+  - "aa:bb:cc:dd:ee:ff"  # printer-bureau, .61
+```
+
+Het MAC-adres staat in UniFi bij het toestel, of draai
+`ansible-playbook playbooks/unifi-clients.yml`: die toont elk toestel al als
+zo'n regel.
+
+#### Zet het adres vast, als iets het bij adres moet vinden
+
+Open het toestel → **Settings** → **Fixed IP** aan, op het adres dat
+het nu heeft.
+
+| Wel | Niet |
+| --- | --- |
+| printers, NAS'en, alles met een Caddy-route | telefoons, laptops, TV's die alleen zelf naar buiten gaan |
+
+#### Wil je het op een mooi adres (optioneel)?
+
+Bv. `printer.neodata.be` voor de webpagina van de printer. Dat is een route
+met `upstream:`, zie
+[Dienst toevoegen → Alleen een adres](/netwerk/caddy/#alleen-een-adres).
+
+</Steps>
+
+Waarom het zo zit: [Goed om te weten](#goed-om-te-weten).
+
+## Melding: onbekend toestel
+
+Elk kwartier vergelijkt Semaphore (template **UniFi watch**) de toestellen in
+UniFi met `unifi_known_macs`. Wat er niet in staat, komt als melding met naam,
+MAC en IP. Het leest alleen: het blokkeert niets.
+
+| Het is… | Doe |
+| --- | --- |
+| van jou of van het gezin | zet het op de lijst, zie [Nieuw toestel](#zet-het-op-de-lijst-met-bekende-toestellen) |
+| een gast | niets, of zet het op de lijst als hij vaker komt |
+| een telefoon die je kent, met een ander MAC | op die telefoon: wifi-netwerk → **Private Wi-Fi Address** op **Fixed**, dan de nieuwe MAC op de lijst |
+| niemand kent het | UniFi → **Client Devices** → het toestel → **Block** |
+
+Zolang het op het netwerk blijft, komt de melding elk kwartier terug.
+
+## Een toestel is kwijt of weg
+
+Een gestolen telefoon, een laptop die de deur uit gaat. Je sluit af wat dat
+toestel binnenlaat.
+
+<Callout type="warning">
+Dringend? Doe eerst stap 1 en 2: dat zijn de twee wegen naar binnen van
+buitenaf.
+</Callout>
+
+<Steps>
+
+#### Haal het van de tailnet
+
+| Scherm | Wat |
+| --- | --- |
+| [Tailscale admin console](https://login.tailscale.com/admin/machines) → **Machines** | het toestel → `⋯` → **Remove** |
+
+Het toestel kan daarna niet meer via Tailscale binnen. Is het account nog
+ingelogd op dat toestel (Google, Apple), dan kan iemand het wel opnieuw
+aanmelden: wijzig bij twijfel ook dat wachtwoord.
+
+#### Verwijder zijn WireGuard-profiel
+
+| Scherm | Wat |
+| --- | --- |
+| UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** | het clientprofiel van dat toestel → verwijderen |
+
+Heeft het toestel geen eigen profiel (nu heeft alleen jouw iPhone er een), sla
+dit over.
+
+#### Blokkeer het in UniFi (optioneel)
+
+Voor een gestolen toestel dat nog in wifi-bereik kan komen: UniFi → **Client
+Devices** → het toestel → **Block**. Haal ook zijn **Fixed IP** weg als het er
+een had.
+
+#### Haal het van de lijst met bekende toestellen
+
+Haal zijn regel weg uit `unifi_known_macs` in
+`inventory/group_vars/all/unifi.yml`. Komt het toestel ooit terug op het wifi,
+dan krijg je een melding.
+
+#### Log uit in de apps
+
+Bleef het toestel ingelogd in Immich, Plex of een andere app? Log de sessies
+uit in die app zelf (bij Immich: **Account Settings** → **Authorized
+Devices**).
+
+#### Moet de persoon zelf ook weg?
+
+Dan ook NeoGate en de Tailscale-gebruiker, zie
+[Toegang afnemen](/mensen/#iemand-zijn-toegang-afnemen).
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom geen `home.arpa`-naam
+
+`<naam>.home.arpa` bestaat alleen voor machines in de Ansible-inventory
+(pve01, de guests, de Macs). Een printer of TV staat daar niet in en krijgt
+dus geen naam in AdGuard. Voor een mooi adres gebruik je een Caddy-route.
+
+### Waarom UniFi met de hand
+
+Er was een Ansible-rol die namen en vaste adressen in UniFi zette. Die werkte,
+maar is bewust weggehaald: een vast adres kost twintig seconden klikken, één
+keer per toestel. Daartegenover stonden een apart account, een vault-bestand en
+onderhoud aan een API die Ubiquiti bezit.

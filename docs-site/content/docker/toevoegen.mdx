@@ -1,29 +1,22 @@
 ---
-title: Nieuwe dienst
+title: Dienst toevoegen
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Nieuwe dienst
+# Dienst toevoegen
 
-Je wil iets nieuws bereikbaar maken op `naam.neodata.be`. Hoe je dat doet,
-hangt af van één vraag: **wat heb je al?**
+Een nieuwe app die als Docker-image bestaat, zoals Memos of Jellyfin. Hij komt
+op de bestaande machine `docker`, dus je hebt geen nieuwe machine nodig.
 
-<Callout type="info">
-Moet je dienst op een **nieuwe machine** (LXC) draaien? Bouw die dan eerst met
-[Nieuwe machine](/runbooks/toevoegen/). Alle drie de gevallen gaan
-ervan uit dat de machine al bestaat.
-</Callout>
+Het ding draait al en je wil er alleen een adres voor? Zie
+[Een adres toevoegen](/netwerk/caddy/#alleen-een-adres).
 
 ## Welk geval ben jij?
 
 | Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
 | Je wil een **nieuwe app** draaien en die bestaat als Docker-image | Memos, Vaultwarden, Jellyfin | [Nieuwe Docker-app](#een-nieuwe-docker-app) |
-| Het ding **draait al** ergens, je wil er alleen een mooi adres voor | Plex op de Mac mini, Home Assistant, de webpagina van je printer | [Alleen een adres](#alleen-een-adres) |
-| Je wil software **rechtstreeks op een machine** installeren, zonder Docker | AdGuard, Caddy, PBS | [Eigen rol](#een-eigen-rol-zonder-docker) |
-
-Twijfel je: het is bijna altijd een **Docker-app**. Een eigen rol heb je zelden nodig.
 
 ## Een nieuwe Docker-app
 
@@ -171,142 +164,6 @@ mee praat)? Dan hoort hij niet in `caddy_sites` maar in
 `docker_services_without_route` in de host_vars van zijn machine, met `name`,
 `stack`, `ports`, `desc` en eventueel `how`. Zo krijgt hij toch een pagina
 onder Diensten.
-
-</Steps>
-
-## Alleen een adres
-
-De dienst **draait al**, je wil hem alleen bereiken op `naam.neodata.be` in
-plaats van op `192.168.0.26:32400`. Je hoeft niets te installeren. Je voegt
-alleen een route toe.
-
-Voorbeeld: Plex draait op de Mac mini op poort 32400.
-
-<Steps>
-
-#### Voeg één regel toe aan `caddy_sites`
-
-```bash
-$EDITOR inventory/host_vars/caddy/main.yml
-```
-
-Zet onder `caddy_sites:`:
-
-```yaml
-  - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
-```
-
-- `name` — wordt het adres: `plex.neodata.be`
-- `host` — de naam van de machine **zoals in de inventory** (niet het IP)
-- `port` — de poort waar de dienst op luistert
-- `desc` — korte uitleg, komt op deze docs-site
-- `stack` — de stack uit `docker_stacks_list` waar de container in zit. Laat
-  weg als het geen beheerde stack is (Plex, een VM). Hiermee linkt de site
-  dienst en stack aan elkaar: een stack als `media` zegt op zichzelf niet
-  wat erin draait.
-
-<Callout type="info">
-Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
-`upstream: "192.168.0.50:80"` in plaats van `host` en `port`.
-</Callout>
-
-#### Zet hem live en test
-
-```bash
-ansible-playbook playbooks/caddy.yml
-ansible-playbook playbooks/smoketest.yml --tags caddy
-ansible-playbook playbooks/stacks.yml --tags homepage   # de tegel op home.neodata.be
-ansible-playbook playbooks/docs.yml
-```
-
-#### Commit en push
-
-```bash
-git add inventory && git commit -m 'Route voor plex' && git push
-```
-
-</Steps>
-
-### Alle velden van een route
-
-| Veld | Doet |
-| --- | --- |
-| `name` | wordt `name.neodata.be` |
-| `host` | een **inventory-hostnaam**; zijn adres wordt de bestemming |
-| `port` | de poort waar de dienst luistert |
-| `upstream` | alternatief voor `host` + `port`, voor iets dat niet in de inventory staat |
-| `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
-| `host_header` | stuur de oorspronkelijke `Host`-header door |
-| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij (Home Assistant wil dit) |
-| `auth` | zet een login (tinyauth) voor de dienst |
-
-Waarom `host` en niet gewoon een IP? Verhuist een machine naar een ander adres,
-dan pas je dat op één plek aan en volgen alle routes vanzelf.
-
-## Een eigen rol (zonder Docker)
-
-Dit is voor software die je **rechtstreeks op een machine** installeert, zonder
-Docker. Denk aan dingen die laag in het netwerk zitten of een eigen machine
-horen te hebben: DNS (AdGuard), de reverse proxy (Caddy), de backupserver (PBS).
-
-<Callout type="warning">
-Bestaat er een Docker-image van je app? Dan wil je [Nieuwe Docker-app](#een-nieuwe-docker-app).
-Een rol is meer werk: jij schrijft zelf de installatiestappen.
-</Callout>
-
-Voorbeeld: Vaultwarden op een eigen LXC.
-
-<Steps>
-
-#### Zorg dat de machine bestaat
-
-Maak de LXC met [Nieuwe container](/runbooks/toevoegen/machine/#een-nieuwe-container).
-
-#### Kopieer een bestaande rol
-
-Neem de rol die het meest op de jouwe lijkt. `adguard` is een goed
-vertrekpunt: één binary, één config, één dienst.
-
-```bash
-cp -r roles/adguard roles/vaultwarden
-cp playbooks/adguard.yml playbooks/vaultwarden.yml
-```
-
-Pas in `playbooks/vaultwarden.yml` de naam, `hosts:`, de rol en de tags aan.
-In de rol: hernoem de variabelen (`adguard_*` wordt `vaultwarden_*`) en zet de
-beschrijving in `meta/main.yml` goed.
-
-#### Schrijf de installatiestappen
-
-```bash
-$EDITOR roles/vaultwarden/tasks/main.yml
-```
-
-Houd het vaste patroon aan dat alle rollen hier volgen:
-
-1. installeer een vaste versie
-2. schrijf de configuratie (en laat die controleren vóór ze actief wordt)
-3. zet de dienst aan
-4. herstart hem als de configuratie verandert
-
-#### Zet hem in `site.yml`
-
-```bash
-$EDITOR playbooks/site.yml
-```
-
-De volgorde telt: eerst waar je dienst van afhangt, daarna je dienst.
-
-#### Probeer droog, dan echt
-
-```bash
-ansible-playbook playbooks/vaultwarden.yml --check --diff   # toont wat er zou veranderen
-ansible-playbook playbooks/vaultwarden.yml                  # doet het echt
-```
-
-#### Geef hem een adres
-
-Volg [Alleen een adres](#alleen-een-adres) om een route toe te voegen.
 
 </Steps>
 

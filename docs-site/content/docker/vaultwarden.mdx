@@ -1,0 +1,87 @@
+---
+title: Vaultwarden terugzetten
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Vaultwarden terugzetten
+
+De wachtwoordkluis moet terug, maar de machine `docker` zelf is in orde.
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| De **wachtwoordkluis** moet terug, maar `docker` zelf is in orde | een verkeerde update, een gewiste kluis | [Vaultwarden terugzetten](#vaultwarden-terugzetten) |
+
+## Vaultwarden terugzetten
+
+Vaultwarden maakt elke nacht om **02:00** zijn eigen back-up: een versleuteld
+7z-bestand, op twee plaatsen.
+
+| Waar | Pad |
+| --- | --- |
+| op `docker` | `/opt/containers/data/vaultwarden/backups/` |
+| op de Mac mini | `/Volumes/media01/backups/vaultwarden/` (op `docker`: `/mnt/media01/backups/vaultwarden/`) |
+
+Ze blijven 30 dagen staan. Is heel `docker` weg, zet dan eerst die machine terug
+met [Terugzetten uit de back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up); de kluis komt
+dan mee.
+
+<Steps>
+
+#### Zoek het bestand van de dag die je wil
+
+```bash
+ssh docker 'ls /opt/containers/data/vaultwarden/backups/'
+```
+
+De naam is `backup.JJJJMMDD.7z`.
+
+#### Zet Vaultwarden stil
+
+```bash
+ssh docker 'docker stop neodata-vaultwarden neodata-vaultwarden-backup'
+```
+
+#### Zet de back-up terug
+
+```bash
+ssh -t docker 'docker run --rm -it --user 1000:1000 \
+  -v /opt/containers/data/vaultwarden/data:/bitwarden/data \
+  -v /opt/containers/data/vaultwarden/backups:/bitwarden/restore \
+  ttionya/vaultwarden-backup:1.27.1 restore --zip-file backup.JJJJMMDD.7z'
+```
+
+Hij vraagt het wachtwoord van het archief. Dat is `VW_BACKUP_ZIP_PASSWORD` uit
+`ansible-vault view files/env/vaultwarden.env`. Dit overschrijft de huidige
+kluis.
+
+#### Start hem en test
+
+```bash
+ssh docker 'docker start neodata-vaultwarden neodata-vaultwarden-backup'
+```
+
+Log in op [vault.neodata.be](https://vault.neodata.be) en kijk of de items van
+die dag er staan.
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom Vaultwarden een eigen back-up heeft
+
+PBS neemt `docker` elke nacht mee, maar dat is een momentopname van een
+draaiende database. Voor de meeste apps is dat goed genoeg; voor de
+wachtwoorden van de familie niet. De eigen back-up gebruikt `sqlite3 .backup`,
+wat altijd een consistente kopie geeft, en komt om 02:00, vóór PBS om 02:30.
+Zo zit hij ook in de PBS-back-up: drie kopieën, op twee machines.
+
+Mislukt hij, dan krijg je een melding in ntfy. Een geslaagde back-up is stil.
+
+### Zonder het archiefwachtwoord is de back-up niets waard
+
+`VW_BACKUP_ZIP_PASSWORD` staat alleen in de versleutelde
+`files/env/vaultwarden.env`. Raak je de vault-wachtwoorden van deze repo kwijt,
+dan ook de back-ups van de kluis.

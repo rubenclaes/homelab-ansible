@@ -1,0 +1,83 @@
+---
+title: Eigen rol
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Eigen rol
+
+Software rechtstreeks op een machine zetten, zonder Docker, zoals AdGuard of
+Caddy. Twijfel je? Het is bijna altijd een [Docker-app](/docker/toevoegen/).
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Je wil software **rechtstreeks op een machine** installeren, zonder Docker | AdGuard, Caddy, PBS | [Eigen rol](#een-eigen-rol-zonder-docker) |
+
+## Een eigen rol (zonder Docker)
+
+Dit is voor software die je **rechtstreeks op een machine** installeert, zonder
+Docker. Denk aan dingen die laag in het netwerk zitten of een eigen machine
+horen te hebben: DNS (AdGuard), de reverse proxy (Caddy), de backupserver (PBS).
+
+<Callout type="warning">
+Bestaat er een Docker-image van je app? Dan wil je [Nieuwe Docker-app](/docker/toevoegen/#een-nieuwe-docker-app).
+Een rol is meer werk: jij schrijft zelf de installatiestappen.
+</Callout>
+
+Voorbeeld: Vaultwarden op een eigen LXC.
+
+<Steps>
+
+#### Zorg dat de machine bestaat
+
+Maak de LXC met [Nieuwe container](/proxmox/guests/#een-nieuwe-container).
+
+#### Kopieer een bestaande rol
+
+Neem de rol die het meest op de jouwe lijkt. `adguard` is een goed
+vertrekpunt: één binary, één config, één dienst.
+
+```bash
+cp -r roles/adguard roles/vaultwarden
+cp playbooks/adguard.yml playbooks/vaultwarden.yml
+```
+
+Pas in `playbooks/vaultwarden.yml` de naam, `hosts:`, de rol en de tags aan.
+In de rol: hernoem de variabelen (`adguard_*` wordt `vaultwarden_*`) en zet de
+beschrijving in `meta/main.yml` goed.
+
+#### Schrijf de installatiestappen
+
+```bash
+$EDITOR roles/vaultwarden/tasks/main.yml
+```
+
+Houd het vaste patroon aan dat alle rollen hier volgen:
+
+1. installeer een vaste versie
+2. schrijf de configuratie (en laat die controleren vóór ze actief wordt)
+3. zet de dienst aan
+4. herstart hem als de configuratie verandert
+
+#### Zet hem in `site.yml`
+
+```bash
+$EDITOR playbooks/site.yml
+```
+
+De volgorde telt: eerst waar je dienst van afhangt, daarna je dienst.
+
+#### Probeer droog, dan echt
+
+```bash
+ansible-playbook playbooks/vaultwarden.yml --check --diff   # toont wat er zou veranderen
+ansible-playbook playbooks/vaultwarden.yml                  # doet het echt
+```
+
+#### Geef hem een adres
+
+Volg [Alleen een adres](/netwerk/caddy/#alleen-een-adres) om een route toe te voegen.
+
+</Steps>

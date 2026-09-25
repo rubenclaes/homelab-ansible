@@ -8,14 +8,7 @@
 title: Toestellen
 ---
 
-import { Callout } from 'nextra/components'
-
 # Toestellen
-
-<Callout type="info">
-Deze pagina maakt `playbooks/docs.yml` zelf, uit UniFi. Pas hier niets aan:
-verander het in UniFi (Client Devices → het toestel → Settings).
-</Callout>
 
 {% if unifi_docs_clients | default(none) -%}
 Op {{ unifi_docs_generated }} zaten er {{ unifi_docs_clients | length }} toestellen op het netwerk.
@@ -23,7 +16,7 @@ Op {{ unifi_docs_generated }} zaten er {{ unifi_docs_clients | length }} toestel
 | Kolom | Betekent |
 | --- | --- |
 | **Toestel** | de naam in UniFi (de alias) |
-| **DNS-naam** | de naam die AdGuard toont. Leeg? Dan zie je daar een IP of `iPhone`. Zie [Een toestel een naam geven](/runbooks/onderhoud/netwerk/#een-toestel-een-naam-geven) |
+| **DNS-naam** | de naam die AdGuard toont. Leeg? Dan zie je daar een IP of `iPhone`. Zie [Een toestel een naam geven](/netwerk/dns/#een-toestel-een-naam-geven) |
 | **Vast adres** | "ja" = het toestel krijgt altijd hetzelfde IP |
 
 | Toestel | DNS-naam | Adres | Verbinding | Vast adres | Verbonden sinds |
@@ -39,3 +32,5 @@ Op {{ unifi_docs_generated }} zaten er {{ unifi_docs_clients | length }} toestel
 UniFi was niet bereikbaar toen deze pagina voor het eerst gemaakt werd.
 De volgende run van `playbooks/docs.yml` vult hem.
 {% endif %}
+
+<small>Deze pagina wordt automatisch gemaakt uit UniFi. Iets fout? Pas het aan in UniFi (Client Devices → het toestel → Settings). Zie [Deze docs](/ansible/docs/#wat-waar-vandaan-komt).</small>

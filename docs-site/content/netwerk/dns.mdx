@@ -1,0 +1,388 @@
+---
+title: DNS en AdGuard
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# DNS en AdGuard
+
+Namen opzoeken in het netwerk: AdGuard (ct 107, `192.168.0.29`). Hier haal je
+DNS terug, kijk je hem na, geef je toestellen een naam en blokkeer je sites.
+Hoe het in elkaar zit: [Overzicht](/netwerk/overzicht/).
+
+## Welk geval ben jij?
+
+| Jouw situatie | Voorbeeld | Ga naar |
+| --- | --- | --- |
+| Niets resolvet meer: geen `*.home.arpa`, geen `*.neodata.be` | `adguard` (ct 107) ligt plat | [Geen DNS](#geen-dns) |
+| Je wil weten of DNS nog klopt | `ssh pve01.home.arpa` vindt de host niet meer | [DNS controleren](#dns-controleren) |
+| Een host moet een **andere DNS-server** gebruiken | `caddy` wijst nog naar een oude resolver | [DNS-server van een host omzetten](#dns-server-van-een-host-omzetten) |
+| Een toestel staat in AdGuard als **kaal IP of `iPhone`** en je wil een echte naam | de iPhone van Karen, de Nuki | [Een toestel een naam geven](#een-toestel-een-naam-geven) |
+| Een site **laadt niet** of moet **geblokkeerd** | een link in een mail doet niets | [Blokkeren](#een-site-blokkeren-of-deblokkeren) |
+
+## Geen DNS
+
+Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Alle DNS van het
+huis loopt via één container: `adguard`, ct 107, `192.168.0.29`.
+
+**Ansible werkt nog.** De inventory gebruikt IP-adressen, geen namen.
+
+<Steps>
+
+#### Kijk of hij gewoon uit staat
+
+```bash
+ssh pve01 'sudo pct status 107'
+ssh pve01 'sudo pct start 107'     # als hij "stopped" zegt
+```
+
+#### Is hij stuk: zet hem terug uit de back-up
+
+Volg [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up)
+met vmid 107. Dat is de snelle en volledige weg.
+
+<Callout type="warning">
+Liever **niet** opnieuw bouwen. Een nieuwe AdGuard mist alles wat alleen in de
+container staat: je login en de upstream-resolvers. Bovendien
+vraagt een nieuwe container zijn DNS aan pve01, en die vraagt het aan…
+de AdGuard die er niet is. Dan faalt de installatie.
+</Callout>
+
+#### Geen back-up? Dan toch opnieuw bouwen
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
+```
+
+Loopt dit vast op het downloaden van pakketten, geef de container dan zijn
+eigen DNS en draai het opnieuw:
+
+```bash
+ssh pve01 'sudo pct set 107 --nameserver 1.1.1.1; sudo pct reboot 107'
+ansible-playbook playbooks/new-guest.yml -e guest=adguard
+```
+
+Daarna, met de hand:
+
+1. zet de `/dev/net/tun`-regels onderaan `/etc/pve/lxc/107.conf`, zoals in [Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen), en `pct reboot 107`
+2. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
+3. zet in AdGuard de upstream-DNS; de rewrites, ook `*.neodata.be`, zet `adguard.yml` terug
+
+```bash
+ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + filterlijsten
+```
+
+#### Test de DNS
+
+```bash
+ansible-playbook playbooks/smoketest.yml --tags dns
+```
+
+Vraagt elke naam uit de inventory op bij AdGuard, plus één publieke naam
+(`google.com`) om te zien of doorvragen werkt.
+
+#### Kwam hij terug op een ander adres?
+
+Pas dan de DNS-server aan in UniFi (DHCP). Anders blijft het huis zoeken naar
+`192.168.0.29`.
+
+</Steps>
+
+<Callout type="warning">
+UniFi deelt alleen `192.168.0.29` uit, zonder tweede DNS-server (sinds 25-09,
+zie [Hoe het netwerk staat](/netwerk/overzicht/#waarom-geen-tweede-dns-server)).
+Staat ct 107 stil, dan heeft het hele huis geen internet. Zet op het toestel
+waarmee je herstelt met de hand `9.9.9.9` als DNS, en haal het weg als ct 107
+terug is.
+</Callout>
+
+## DNS controleren
+
+Antwoordt DNS nog wat het moet? Deze test vraagt elke naam op bij AdGuard en
+vergelijkt met de inventory.
+
+<Steps>
+
+#### Draai de DNS-test
+
+```bash
+ansible-playbook playbooks/smoketest.yml --tags dns
+```
+
+Vraagt `<host>.home.arpa` op voor elke host met een adres, rechtstreeks bij
+AdGuard (`192.168.0.29`), en vergelijkt met het adres in de inventory. Daarna
+nog één publieke naam (`google.com`).
+
+#### Lees wat rood is
+
+Je krijgt de naam en beide adressen te zien.
+
+| Rood op | Betekent |
+| --- | --- |
+| een `.home.arpa`-naam | een rewrite ontbreekt of wijst naar een **oud adres** |
+| de publieke naam | AdGuards upstream is weg: het huis vindt geen enkele naam meer |
+
+Een andere publieke naam kies je met `-e dns_smoketest_public_name=...`.
+
+#### Zet de rewrites opnieuw en test
+
+```bash
+ansible-playbook playbooks/adguard.yml
+ansible-playbook playbooks/smoketest.yml --tags dns
+```
+
+Meer over DNS: [Netwerk](/netwerk/dns/).
+
+</Steps>
+
+<Callout type="info">
+Draait ook vanzelf, dagelijks om 06:30, samen met de check op de routes. Die
+vangt dit niet op: Caddy praat met adressen, dus een kapotte rewrite laat de
+`neodata.be`-routes gewoon werken terwijl `ssh pve01.home.arpa` stil stuk is.
+</Callout>
+
+Waarom de test zijn eigen namenlijst berekent:
+[Goed om te weten](#goed-om-te-weten).
+
+## DNS-server van een host omzetten
+
+Een host moet een andere resolver gebruiken. Voorbeeld: `caddy` (ct 106) moet
+`192.168.0.29` gebruiken.
+
+<Steps>
+
+#### Kijk eerst hoe de host zijn DNS regelt
+
+```bash
+ssh caddy 'ls -l /etc/resolv.conf'
+```
+
+- **Een pijl `->` in de uitvoer?** Dan beheert systemd-resolved het bestand. Ga naar de stap *Via netplan*.
+- **Geen pijl?** Dan is het een gewoon bestand. Ga naar de stap *Gewoon bestand*.
+
+<Callout type="warning">
+Een `sed` op een gesymlinkte `resolv.conf` lijkt te werken, maar is bij de
+volgende netwerkwijziging weer weg. Kijk dus altijd eerst welk van de
+mechanismen de host gebruikt.
+</Callout>
+
+#### Via netplan (bij een symlink)
+
+```bash
+ssh -t docker 'sudoedit /etc/netplan/90-default.yaml'   # zet 192.168.0.29 onder nameservers
+ssh docker 'sudo netplan apply'
+```
+
+Zo staat het op `docker` en `docker-grafana-stack`.
+
+#### Gewoon bestand (zonder symlink)
+
+```bash
+ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
+```
+
+#### Zet het ook in de LXC-config (alleen bij een LXC)
+
+```bash
+ssh pve01 'sudo pct config 106 | grep search'   # welk searchdomain heeft hij nu?
+ssh pve01 'sudo pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa'
+```
+
+Anders draait een herstart van de container je wijziging terug. Geef
+`--searchdomain` altijd mee (de waarde die je net zag), want die verschilt per
+container.
+
+<Callout type="error">
+Nooit op `tailscale` (ct 108): daar staat `100.100.100.100` en dat beheert
+tailscaled zelf voor MagicDNS.
+</Callout>
+
+#### Controleer de resolver
+
+```bash
+ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.10 - vanaf de host zelf
+dig +short pve01.home.arpa                 # 192.168.0.10 - vanaf je werkstation
+dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Caddy
+```
+
+`pve01.home.arpa` bewijst het: die naam kent alleen de AdGuard in ct 107.
+
+#### Controleer alle namen in één keer
+
+```bash
+ansible-playbook playbooks/smoketest.yml --tags dns
+```
+
+Vraagt elke naam uit de inventory op bij AdGuard en vergelijkt het antwoord.
+Zie [Onderhoud](/proxmox/onderhoud/) voor wat hij wel en niet dekt.
+
+</Steps>
+
+Welke host welke resolver hoort te hebben: zie
+[Hoe het netwerk nu staat](/netwerk/overzicht/#wie-gebruikt-welke-dns).
+
+## Een toestel een naam geven
+
+De Query Log van AdGuard toont `192.168.0.23` of `iPhone`, en je wil
+`iphone-karen`. De naam komt uit UniFi, niet uit AdGuard: AdGuard vraagt bij
+elk IP aan de UCG wie dat is.
+
+<Steps>
+
+#### Geef het toestel een vast adres en een DNS-record in UniFi
+
+| Waar | Veld | Waarde | Waarom |
+| --- | --- | --- | --- |
+| UniFi → Client Devices → het toestel → Settings | Fixed IP Address | aan, het huidige adres | zonder vast adres maakt UniFi geen record |
+| idem, net eronder | Local DNS Record | aan, `<naam>.home.arpa` | alleen `<naam>` weigert UniFi met "must be a valid hostname" |
+
+Kleine letters, cijfers en `-`, geen spaties.
+
+#### Zet het in git
+
+In `inventory/group_vars/all/unifi.yml`, onder `unifi_dns_names`:
+
+```yaml
+  "46:bf:32:25:e6:9c": iphone-karen
+```
+
+Zonder `.home.arpa`. De MAC staat in UniFi bij het toestel. Is het een nieuw
+toestel, zet de MAC dan ook in `unifi_known_macs`, anders blijft
+`unifi-watch.yml` erover melden.
+
+#### Controleer
+
+```bash
+dig +short -x 192.168.0.23 @192.168.0.29
+ansible-playbook playbooks/unifi-routes.yml
+```
+
+De eerste geeft `iphone-karen.home.arpa.`. De tweede is groen; hij draait ook
+elke ochtend in Semaphore en wordt rood als het record in UniFi verdwijnt of
+anders heet.
+
+#### Commit en push
+
+</Steps>
+
+<Callout type="info">
+Op een iPhone: **Settings → Wi-Fi → (i) bij je netwerk → Private Wi-Fi
+Address → Fixed**. Op **Rotating** krijgt de telefoon af en toe een nieuwe
+MAC. UniFi ziet dan een nieuw toestel, en het vaste adres en de naam horen bij
+het oude.
+</Callout>
+
+## Een site blokkeren of deblokkeren
+
+Alle toestellen thuis vragen hun DNS aan AdGuard. Daar wordt reclame en
+malware weggefilterd, en daar zet je iets aan of uit.
+
+| Je wil… | Waar | Blijft het staan? |
+| --- | --- | --- |
+| één site deblokkeren of blokkeren | AdGuard-scherm | ja |
+| weten waarom iets niet laadt | AdGuard-scherm → **Query Log** | |
+| een hele blocklist erbij of eraf | de inventory | ja, alleen zo |
+
+<Callout type="warning">
+Een **blocklist** toevoegen of uitzetten in het AdGuard-scherm houdt geen
+stand: de volgende Ansible-run haalt een nieuwe weg en zet een uitgezette
+terug aan. Losse regels (deblokkeren, blokkeren) mag
+je wél in het scherm zetten, die raakt Ansible niet.
+</Callout>
+
+### Eén site deblokkeren
+
+Voorbeeld: een link in een mail doet niets, of een app zegt "geen verbinding".
+
+<Steps>
+
+#### Zoek het in de Query Log
+
+[dns.neodata.be](https://dns.neodata.be) → **Query Log** → zoek op het domein,
+of filter op **Blocked**. Je ziet welk toestel het vroeg en welke lijst het
+tegenhield.
+
+#### Deblokkeer
+
+Klik bij die regel **Unblock**. AdGuard zet dan een uitzonderingsregel
+(`@@||domein…`) onder **Filters** → **Custom filtering rules**.
+
+#### Test op het toestel
+
+Probeer opnieuw op het toestel. Laadt het nog niet: wacht een minuut (de DNS
+van het toestel onthoudt het antwoord even), of zet wifi uit en weer aan.
+
+</Steps>
+
+Iets blokkeren gaat net zo: **Block** in de Query Log, of zelf een regel
+`||domein^` onder **Custom filtering rules**.
+
+### Een blocklist erbij of eraf
+
+<Steps>
+
+#### Pas de lijst aan
+
+```bash
+$EDITOR inventory/host_vars/adguard/main.yml   # adguard_filters
+```
+
+Elke lijst is een `name` en een `url`. Kies er een uit
+**Filters** → **DNS blocklists** → **Add blocklist** → **Choose from the list**
+in het scherm, en neem de URL over.
+
+#### Kijk droog, dan echt
+
+```bash
+ansible-playbook playbooks/adguard.yml --check --diff
+ansible-playbook playbooks/adguard.yml
+```
+
+#### Commit en push
+
+```bash
+git add inventory/host_vars/adguard/main.yml
+git commit -m "AdGuard: blocklist <naam> erbij"
+git push
+```
+
+</Steps>
+
+Waarom het zo zit: [Goed om te weten](#goed-om-te-weten).
+
+## Goed om te weten
+
+### De DNS-test rekent zelf
+
+`smoketest.yml` berekent de lijst namen op dezelfde manier als de
+`adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de lijst
+van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
+
+### Waarom de naam in UniFi staat en niet in AdGuard
+
+AdGuard kan zelf ook namen geven (Settings → Client settings). Dan zou elk
+toestel op twee plaatsen staan, en krijgt een toestel een ander IP, dan klopt
+AdGuard niet meer. Nu is UniFi de enige bron: hij deelt het adres uit en kent
+dus altijd de juiste naam. AdGuard vraagt het hem via `local_ptr_upstreams`.
+
+De **alias** in UniFi telt daarvoor niet. De UCG geeft AdGuard alleen het
+Local DNS Record, of anders de naam die het toestel zelf opgeeft (`iPhone`,
+`Mac`, `LGwebOSTV`).
+
+Ansible schrijft niet naar UniFi, net als bij de DNS die de netwerken
+uitdelen: `unifi-routes.yml` vergelijkt alleen. De eerste lading records is op
+25-09 wel via de API gezet, eenmalig.
+
+### Waarom DNS naar ct 107 moest
+
+De DNS van het huis hing eerst aan de AdGuard op de Mac mini, die in geen enkel
+playbook stond. Dat is dezelfde machine die de NFS-shares exporteert: viel hij
+om, dan verloor je naamresolutie én media-opslag tegelijk. ct 107 beschrijft
+Ansible en neemt PBS mee in de back-up.
+
+### Waarom blocklists in de inventory en losse regels niet
+
+Een blocklist die alleen in de container staat, ben je bij een herbouw stil
+kwijt: de `home.arpa`-namen (rewrites) komen terug, de filtering niet. Losse regels zijn klein en
+worden per geval gezet; die bijhouden in de repo zou elk "Unblock" een commit
+maken.

@@ -2,15 +2,7 @@
 title: Machines
 ---
 
-import { Callout } from 'nextra/components'
-
 # Machines
-
-<Callout type="warning">
-Gegenereerd door `playbooks/docs.yml` uit de inventory: `00-static.yml`, de
-Proxmox-guests die `homelab.proxmox.yml` live ophaalt, `pve_lxcs` en elke
-`docker_stacks_list`. Bewerk de inventory, niet deze pagina.
-</Callout>
 
 Alles waar iets op draait, op één pagina. Per machine zie je het adres, welke
 [diensten](/homelab/diensten/) erop staan en - bij een Docker-machine - in
@@ -147,3 +139,5 @@ Een verdwenen LXC-container wordt opnieuw gemaakt uit `pve_lxcs` in
 `inventory/group_vars/proxmox/lxcs.yml`, met template
 `local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst` op bridge `vmbr0`. Een
 bestaande container wordt nooit aangeraakt.
+
+<small>Deze pagina wordt automatisch gemaakt uit de inventory. Iets fout? Pas de inventory aan, niet deze pagina. Zie [Deze docs](/ansible/docs/#wat-waar-vandaan-komt).</small>

@@ -6,9 +6,10 @@
 # De pagina's onder homelab/ worden uit de inventory gegenereerd - de
 # machinepagina, en één pagina per route in caddy_sites (plus de diensten
 # zonder route uit docker_services_without_route) - en kunnen dus
-# niet uit de pas lopen. De runbooks zijn met de hand geschreven en worden
-# alleen meegenomen. Een geschrapte route laat geen pagina achter: die wordt
-# opgeruimd nadat de rest opnieuw gerenderd is.
+# niet uit de pas lopen. De rest van de site (Proxmox, Docker, Netwerk, ...)
+# is met de hand geschreven en wordt alleen meegenomen. Een geschrapte route
+# laat geen pagina achter: die wordt opgeruimd nadat de rest opnieuw
+# gerenderd is.
 #
 # Draait `npm ci` en `npm run build` op de controller, niet op caddy, en
 # stuurt alleen het resultaat door.
@@ -25,9 +26,10 @@
     # Eén pagina voor alle machines. Tot 23-09 waren dat er drie - hosts,
     # containers en stacks - die elk één laag toonden (Ansible, Proxmox,
     # Docker), zodat je ze moest combineren om te zien wat er op één machine
-    # staat. Sinds dezelfde dag staan machines en diensten onder homelab/
-    # (wat er is) en de runbooks onder runbooks/ (wat je doet); de oude
-    # splitsing homelab/technisch zei niet waar je iets moest zoeken.
+    # staat. Onder homelab/ staat alleen wat deze play maakt; de handgeschreven
+    # pagina's staan per onderwerp (proxmox/, docker/, netwerk/, ...). Tot 25-09
+    # stonden die in runbooks/, gesorteerd op soort taak (stuk, toevoegen,
+    # onderhoud), zodat één onderwerp over vier mappen verspreid lag.
     docs_pages: [machines]
     docs_services: "{{ docs_site }}/content/homelab/diensten"
     # Read straight off the caddy host. Safe here because none of these values

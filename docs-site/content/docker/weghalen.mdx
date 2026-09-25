@@ -1,19 +1,17 @@
 ---
-title: Iets weghalen
+title: Dienst weghalen
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Iets weghalen
+# Dienst weghalen
 
-Een dienst of machine die weg mag. Het omgekeerde van
-[Nieuwe dienst](/runbooks/toevoegen/dienst/) en
-[Nieuwe machine](/runbooks/toevoegen/machine/).
+Een Docker-app die weg mag.
 
 <Callout type="warning">
 Een container stoppen is het makkelijke deel. Wat je vergeet is de rest: een
 route die blijft staan, een stack die de volgende run terugzet, een wachtwoord
-dat nog geldig is. Daarom begint elk geval hieronder met **zoeken**.
+dat nog geldig is. Daarom begint het met **zoeken**.
 </Callout>
 
 ## Welk geval ben jij?
@@ -21,8 +19,7 @@ dat nog geldig is. Daarom begint elk geval hieronder met **zoeken**.
 | Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
 | Een **Docker-app** mag weg | termix (weggehaald op 24-09) | [Docker-app weghalen](#een-docker-app-weghalen) |
-| Een dienst blijft draaien, maar zijn **mooie adres** mag weg | een route naar een oude printer | [Alleen het adres](#alleen-het-adres-weghalen) |
-| Een **container of VM** op pve01 mag weg | een test-LXC | [Machine weghalen](#een-machine-weghalen) |
+| Een **dienst of machine mag weg** | termix, een test-LXC | [Iets weghalen](/docker/weghalen/) |
 
 ## Een Docker-app weghalen
 
@@ -120,86 +117,6 @@ git add -A && git commit -m "chore: remove <app>" && git push
 curl -sI https://<app>.neodata.be          # geen antwoord meer
 ansible-playbook playbooks/smoketest.yml   # de rest werkt nog
 ```
-
-</Steps>
-
-## Alleen het adres weghalen
-
-De dienst zelf blijft, alleen `naam.neodata.be` gaat weg.
-
-<Steps>
-
-#### Haal de route weg
-
-Verwijder de regel uit `caddy_sites` en draai `caddy.yml`, zoals hierboven.
-Daarna `ansible-playbook playbooks/stacks.yml --tags homepage`, zodat ook de
-tegel op home.neodata.be weggaat.
-
-#### Docs, commit en push
-
-```bash
-ansible-playbook playbooks/docs.yml
-git add -A && git commit -m "chore: drop the <naam> route" && git push
-```
-
-#### Het Fixed IP (optioneel)
-
-Had het toestel alleen een Fixed IP in UniFi omdat er een route naar wees? Dan
-mag dat weg. `unifi-routes.yml` vraagt het niet meer.
-
-</Steps>
-
-## Een machine weghalen
-
-Een container (LXC of OCI) of VM op pve01.
-
-<Steps>
-
-#### Haal eerst alles erop weg
-
-Elke route naar deze machine, en elke stack erop: zie de twee gevallen
-hierboven. Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
-niet meer bestaat.
-
-#### Haal hem uit de lijsten
-
-| Bestand | Wat |
-| --- | --- |
-| `inventory/group_vars/proxmox/lxcs.yml` | zijn item in `pve_lxcs` of `pve_oci_lxcs` |
-| `inventory/group_vars/proxmox/vms.yml` | zijn item, als het een VM is |
-| `inventory/group_vars/proxmox/backup.yml` | zijn vmid in de wekelijkse job naar de Mac mini (de PBS-job neemt `all` en past zich zelf aan) |
-| `inventory/group_vars/all/unifi.yml` | zijn MAC in `unifi_known_macs` |
-
-#### Vernietig hem in Proxmox
-
-Met de hand: Proxmox → de guest → **More** → **Remove**, met **Purge** aan. Of
-als root op pve01:
-
-```bash
-pct destroy <vmid> --purge   # container
-qm destroy <vmid> --purge    # VM
-```
-
-Geen playbook doet dit, met opzet: de rollen maken en wijzigen, maar
-vernietigen nooit. Een typfout in een vmid mag geen machine kosten.
-
-#### Ruim op buiten git
-
-| Waar | Wat |
-| --- | --- |
-| UniFi → Client Devices | Fixed IP en alias van de machine |
-| Tailscale → Machines | de node, als hij op de tailnet zat |
-
-#### Laat de rest zich aanpassen
-
-```bash
-ansible-playbook playbooks/adguard.yml   # haalt <naam>.home.arpa weg
-ansible-playbook playbooks/docs.yml      # haalt hem van de pagina Machines
-git add -A && git commit -m "chore: remove <naam>" && git push
-```
-
-De Proxmox-inventory vindt hem vanzelf niet meer. `adguard.yml` haalt elke
-naam weg die niet meer in de inventory staat.
 
 </Steps>
 
