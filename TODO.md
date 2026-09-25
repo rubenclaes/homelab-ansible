@@ -113,19 +113,8 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 - [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1. Zolang dat zo is
       bouwt Homebrew daar alles vanaf broncode (Tier 3), en daarom staat
       `macos_brew_upgrade` op de Mini uit.
-- [ ] **`proxmox-oci.yml --check` faalt altijd**: `uri` wordt in check mode
-      overgeslagen, dus `proxmox_oci_exists` heeft geen `.json`. Een echte run
-      werkt.
 - [ ] **ansible-lint**: de regel `NTFY_AUTH_TOKENS` in `lxcs.yml` is te lang,
       en `roles/pbs_client` heeft een taak die een handler hoort te zijn.
-- [ ] **`keyctl = true` voor een nieuwe container** nooit via OpenTofu getest.
-      Proxmox laat het misschien alleen root zetten; de omweg staat in de docs
-      bij "Een nieuwe container".
 - [ ] **Pre-commit voor OpenTofu** kijkt naar de bestanden op schijf, niet naar
       wat gestaged is; en `init` in de hook kan `.terraform.lock.hcl` herschrijven
       na het stagen bij een provider-update.
-- [ ] **`bin/tofu` leest `secrets.env` als shellcode.** Een waarde met `$`,
-      `#`, een backtick of een spatie loopt dan mis. De huidige waarden zijn in
-      orde; bij een nieuwe: alleen letters, cijfers en `-_./:=!`.
-- [ ] **Oude branch op GitHub weghalen:** `origin/opentofu-tailscale` (vóór de
-      rebase, alles zit al in master): `git push origin --delete opentofu-tailscale`.

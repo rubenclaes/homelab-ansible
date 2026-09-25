@@ -37,10 +37,21 @@ fi
 # Eerst in een variabele, niet `source <(...)`: faalt ansible-vault, dan stopt
 # set -e hier, in plaats van tofu te starten zonder sleutels.
 secrets="$(cd "$repo_root" && ansible-vault view tofu/secrets.env)"
-set -a
-# shellcheck disable=SC1091
-source /dev/stdin <<<"$secrets"
-set +a
+
+# NAAM=waarde per regel, de waarde letterlijk: geen shell, dus `$`, `#`, een
+# backtick of een spatie in een geheim blijft wat hij is. Geen aanhalingstekens.
+lineno=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+	lineno=$((lineno + 1))
+	[[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+	if [[ ! "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+		# De regel zelf niet tonen: er kan een geheim in staan.
+		echo "bin/tofu: tofu/secrets.env regel $lineno is geen NAAM=waarde" >&2
+		exit 1
+	fi
+	export "${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"
+done <<<"$secrets"
+unset secrets line
 
 # Wat elk systeem nodig heeft: de state in R2 en de versleuteling. De sleutels
 # van een provider controleert die provider zelf.

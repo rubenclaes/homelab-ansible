@@ -11,6 +11,7 @@
   delegate_to: localhost
   become: false
   register: proxmox_oci_templates
+  check_mode: false
   no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Read the existing guests
@@ -21,6 +22,7 @@
   delegate_to: localhost
   become: false
   register: proxmox_oci_guests
+  check_mode: false
   no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Converge each OCI container

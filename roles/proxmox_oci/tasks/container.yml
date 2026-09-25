@@ -83,6 +83,7 @@
   become: false
   register: proxmox_oci_before
   when: proxmox_oci_exists | bool
+  check_mode: false
   no_log: "{{ proxmox_oci_no_log }}"
 
 - name: Decide whether the running version differs - {{ oci.hostname }}
@@ -126,6 +127,7 @@
       ansible.builtin.include_tasks: wait.yml
       vars:
         proxmox_oci_upid: "{{ proxmox_oci_destroy.json.data }}"
+      when: proxmox_oci_destroy is not skipped
 
     - name: Treat the container as missing from here on - {{ oci.hostname }}
       ansible.builtin.set_fact:
@@ -171,82 +173,108 @@
     proxmox_oci_upid: "{{ proxmox_oci_create.json.data }}"
   when: proxmox_oci_create is not skipped
 
-# --- entrypoint and env ---------------------------------------------------
-- name: Read the live config of {{ oci.hostname }}
-  ansible.builtin.uri:
-    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
-    headers: "{{ proxmox_oci_headers }}"
-    validate_certs: false
-  delegate_to: localhost
-  become: false
-  register: proxmox_oci_live
-  no_log: "{{ proxmox_oci_no_log }}"
-
-- name: Compare entrypoint and env for {{ oci.hostname }}
-  ansible.builtin.set_fact:
-    proxmox_oci_config_differs: >-
-      {{ proxmox_oci_live.json.data.entrypoint | default('') != oci.entrypoint
-         or proxmox_oci_live.json.data.env | default('') != proxmox_oci_env }}
-  no_log: true
-
-# Over the API because env is NUL-separated, and no command-line argument can
-# carry a NUL. Form-encoding sends it as %00; Proxmox writes one
-# lxc.environment.runtime line per entry.
-- name: Set entrypoint and env on {{ oci.hostname }}
-  ansible.builtin.uri:
-    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
-    method: PUT
-    headers: "{{ proxmox_oci_headers }}"
-    body_format: form-urlencoded
-    body:
-      entrypoint: "{{ oci.entrypoint }}"
-      env: "{{ proxmox_oci_env }}"
-    validate_certs: false
-  delegate_to: localhost
-  become: false
-  when: proxmox_oci_config_differs | bool
+# uri skips its writes under --check, so these reports are all a dry run shows.
+- name: Report that the container would be created - {{ oci.hostname }}
+  ansible.builtin.debug:
+    msg: "{{ oci.hostname }} (vmid {{ oci.vmid }}) would be created from {{ oci.image }}:{{ oci.version }}"
   changed_when: true
-  no_log: "{{ proxmox_oci_no_log }}"
+  when:
+    - ansible_check_mode
+    - not (proxmox_oci_exists | bool)
 
-# --- running --------------------------------------------------------------
-- name: Read the state of {{ oci.hostname }}
-  ansible.builtin.uri:
-    url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/status/current"
-    headers: "{{ proxmox_oci_headers }}"
-    validate_certs: false
-  delegate_to: localhost
-  become: false
-  register: proxmox_oci_state
-  no_log: "{{ proxmox_oci_no_log }}"
+# Under --check a container that is not there yet has no config to read.
+- name: Converge the config and power state - {{ oci.hostname }}
+  when: (proxmox_oci_exists | bool) or not ansible_check_mode
+  block:
+    # --- entrypoint and env -----------------------------------------------
+    - name: Read the live config of {{ oci.hostname }}
+      ansible.builtin.uri:
+        url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
+        headers: "{{ proxmox_oci_headers }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: proxmox_oci_live
+      check_mode: false
+      no_log: "{{ proxmox_oci_no_log }}"
 
-# env is read at start, so a changed env on a running container means a
-# reboot. A stopped container is started either way: onboot says it should run.
-- name: Start or reboot {{ oci.hostname }}
-  ansible.builtin.uri:
-    url: >-
-      {{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/status/{{
-         'start' if proxmox_oci_state.json.data.status != 'running' else 'reboot' }}
-    method: POST
-    headers: "{{ proxmox_oci_headers }}"
-    validate_certs: false
-  delegate_to: localhost
-  become: false
-  register: proxmox_oci_power
-  when: proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
-  changed_when: true
-  no_log: "{{ proxmox_oci_no_log }}"
+    - name: Compare entrypoint and env for {{ oci.hostname }}
+      ansible.builtin.set_fact:
+        proxmox_oci_config_differs: >-
+          {{ proxmox_oci_live.json.data.entrypoint | default('') != oci.entrypoint
+             or proxmox_oci_live.json.data.env | default('') != proxmox_oci_env }}
+      no_log: true
 
-- name: Wait for the start
-  ansible.builtin.include_tasks: wait.yml
-  vars:
-    proxmox_oci_upid: "{{ proxmox_oci_power.json.data }}"
-  when: proxmox_oci_power is not skipped
+    # Over the API because env is NUL-separated, and no command-line argument
+    # can carry a NUL. Form-encoding sends it as %00; Proxmox writes one
+    # lxc.environment.runtime line per entry.
+    - name: Set entrypoint and env on {{ oci.hostname }}
+      ansible.builtin.uri:
+        url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
+        method: PUT
+        headers: "{{ proxmox_oci_headers }}"
+        body_format: form-urlencoded
+        body:
+          entrypoint: "{{ oci.entrypoint }}"
+          env: "{{ proxmox_oci_env }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      when: proxmox_oci_config_differs | bool
+      changed_when: true
+      no_log: "{{ proxmox_oci_no_log }}"
 
-- name: Wait for the service to listen - {{ oci.hostname }}
-  ansible.builtin.wait_for:
-    host: "{{ oci.ip | split('/') | first }}"
-    port: "{{ oci.port }}"
-    timeout: 60
-  delegate_to: localhost
-  become: false
-  when: oci.port is defined
+    # --- running ----------------------------------------------------------
+    - name: Read the state of {{ oci.hostname }}
+      ansible.builtin.uri:
+        url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/status/current"
+        headers: "{{ proxmox_oci_headers }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: proxmox_oci_state
+      check_mode: false
+      no_log: "{{ proxmox_oci_no_log }}"
+
+    - name: Report what a real run would change on {{ oci.hostname }}
+      ansible.builtin.debug:
+        msg: >-
+          {{ oci.hostname }}:
+          {{ 'entrypoint/env would be set; ' if proxmox_oci_config_differs | bool else '' }}
+          {{ 'would be started' if proxmox_oci_state.json.data.status != 'running' else 'would be rebooted' }}
+      changed_when: true
+      when:
+        - ansible_check_mode
+        - proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
+
+    # env is read at start, so a changed env on a running container means a
+    # reboot. A stopped container is started either way: onboot says it should run.
+    - name: Start or reboot {{ oci.hostname }}
+      ansible.builtin.uri:
+        url: >-
+          {{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/status/{{
+             'start' if proxmox_oci_state.json.data.status != 'running' else 'reboot' }}
+        method: POST
+        headers: "{{ proxmox_oci_headers }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      register: proxmox_oci_power
+      when: proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
+      changed_when: true
+      no_log: "{{ proxmox_oci_no_log }}"
+
+    - name: Wait for the start
+      ansible.builtin.include_tasks: wait.yml
+      vars:
+        proxmox_oci_upid: "{{ proxmox_oci_power.json.data }}"
+      when: proxmox_oci_power is not skipped
+
+    - name: Wait for the service to listen - {{ oci.hostname }}
+      ansible.builtin.wait_for:
+        host: "{{ oci.ip | split('/') | first }}"
+        port: "{{ oci.port }}"
+        timeout: 60
+      delegate_to: localhost
+      become: false
+      when: oci.port is defined
