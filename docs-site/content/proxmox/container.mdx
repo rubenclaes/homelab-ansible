@@ -62,7 +62,7 @@ Voeg in `local.containers` een blok toe, naast de andere:
       mac          = null
       keyctl       = false
       dns_servers  = ["192.168.0.29"]
-      searchdomain = "home.arpa"
+      searchdomain = local.guest_network.searchdomain
       tags         = []
     }
 ```

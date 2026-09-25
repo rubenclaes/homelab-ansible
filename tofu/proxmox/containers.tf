@@ -23,7 +23,7 @@ locals {
       dns_servers = ["192.168.0.29"]
       # Zonder dit erft hij `search neodata.be` van pve01, en praat hij voor
       # zijn eigen publieke naam met zichzelf in plaats van met Caddy.
-      searchdomain = "home.arpa"
+      searchdomain = local.guest_network.searchdomain
       tags         = []
     }
     caddy = {
@@ -37,7 +37,7 @@ locals {
       mac          = "BC:24:11:B4:E6:74"
       keyctl       = true
       dns_servers  = ["192.168.0.29"]
-      searchdomain = "home.arpa"
+      searchdomain = local.guest_network.searchdomain
       tags         = ["community-script", "webserver"]
     }
     adguard = {
@@ -117,7 +117,7 @@ resource "proxmox_virtual_environment_container" "this" {
 
   network_interface {
     name        = "eth0"
-    bridge      = "vmbr0"
+    bridge      = local.guest_network.bridge
     mac_address = each.value.mac
   }
 
@@ -127,7 +127,7 @@ resource "proxmox_virtual_environment_container" "this" {
     ip_config {
       ipv4 {
         address = each.value.ip
-        gateway = "192.168.0.1"
+        gateway = local.guest_network.gateway
       }
 
       dynamic "ipv6" {

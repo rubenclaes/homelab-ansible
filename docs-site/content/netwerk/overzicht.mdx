@@ -118,9 +118,10 @@ nooit aan een ander toestel geeft.
 
 ## Zoekdomein van de containers: `home.arpa`
 
-Elke container zoekt korte namen op onder `home.arpa`
-(`searchdomain = "home.arpa"` per container in `tofu/proxmox/containers.tf`;
-voor `ntfy` in `pve_guest_network` in `inventory/group_vars/proxmox/lxcs.yml`).
+Elke container zoekt korte namen op onder `home.arpa`. De waarde staat één
+keer, in `inventory/group_vars/proxmox/guest_network.yml`: Ansible (`ntfy`)
+en OpenTofu (`tofu/proxmox/containers.tf`) lezen allebei dat bestand. Per
+container kies je in `containers.tf` of hij hem krijgt.
 Sinds 24-09.
 
 Waarom: zonder die instelling nam een container `neodata.be` over van pve01.

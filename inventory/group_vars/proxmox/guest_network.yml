@@ -1,0 +1,12 @@
+---
+# Het netwerk van de guests op pve01: één plek voor Ansible (roles/proxmox_oci)
+# en OpenTofu (tofu/proxmox, via yamldecode). Daarom gewone YAML hier: geen
+# Jinja en geen vault, want OpenTofu leest dit bestand letterlijk.
+pve_guest_network:
+  bridge: vmbr0
+  gateway: 192.168.0.1
+  # Zonder erft een container `search neodata.be` van pve01, en schrijft
+  # Proxmox `<ip> <naam>.neodata.be` in zijn /etc/hosts. Dan praat de
+  # container voor zijn eigen publieke naam met zichzelf in plaats van met
+  # Caddy.
+  searchdomain: home.arpa

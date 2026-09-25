@@ -12,4 +12,6 @@ provider "proxmox" {
 
 locals {
   node = "pve01"
+  # Zelfde bestand als Ansible leest (roles/proxmox_oci): één plek.
+  guest_network = yamldecode(file("${path.module}/../../inventory/group_vars/proxmox/guest_network.yml")).pve_guest_network
 }

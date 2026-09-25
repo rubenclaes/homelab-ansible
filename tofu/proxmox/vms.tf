@@ -51,7 +51,7 @@ resource "proxmox_virtual_environment_vm" "pbs" {
   # Niets heeft hem nodig; zonder dit blok raakt OpenTofu hem niet aan.
 
   network_device {
-    bridge      = "vmbr0"
+    bridge      = local.guest_network.bridge
     model       = "virtio"
     mac_address = "BC:24:11:3D:B4:6A"
     firewall    = true
@@ -109,7 +109,7 @@ resource "proxmox_virtual_environment_vm" "haos" {
   }
 
   network_device {
-    bridge      = "vmbr0"
+    bridge      = local.guest_network.bridge
     model       = "virtio"
     mac_address = "02:8C:F5:A4:E6:15"
   }
@@ -169,7 +169,7 @@ resource "proxmox_virtual_environment_vm" "grafana" {
   }
 
   network_device {
-    bridge      = "vmbr0"
+    bridge      = local.guest_network.bridge
     model       = "virtio"
     mac_address = "BC:24:11:4B:CD:E4"
   }
@@ -231,7 +231,7 @@ resource "proxmox_virtual_environment_vm" "docker" {
   }
 
   network_device {
-    bridge      = "vmbr0"
+    bridge      = local.guest_network.bridge
     model       = "virtio"
     mac_address = "02:12:F8:7B:9D:7D"
   }

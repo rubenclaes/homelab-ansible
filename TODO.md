@@ -71,8 +71,7 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 - [ ] **AdGuard-versie**: nu update je in de web-UI en kopieer je de versie
       naar git. Omdraaien: versie in git, rol installeert.
 - [ ] **ntfy (ct 109) naar OpenTofu.** Nu nog `roles/proxmox_oci`, omdat zijn
-      geheimen in de Ansible-vault staan. Daarna kan `pve_guest_network` uit
-      `lxcs.yml` weg (staat nu dubbel met `tofu/proxmox/containers.tf`).
+      geheimen in de Ansible-vault staan.
 - [ ] **Tag op ct 108 (tailscale)?** Staat als mijn toestel op de tailnet,
       zonder tag. Een tag zetten maakt de tag eigenaar: beslissen, dan in
       `tofu/tailscale/devices.tf`.
@@ -98,10 +97,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
       tot dan is er geen vaste werkwijze om te beschrijven.
 - [ ] **Een apart gastennetwerk in UniFi.** Nu komt een gast op het gewone
       wifi, naast pve01, de Macs en alle diensten.
-- [ ] **NeoGate haalt een Tailscale-lid niet weg.** Bij intrekken trekt de
-      plugin alleen de uitnodiging in; wie ze al aanvaardde blijft op de
-      tailnet. Nu een handstap in de Tailscale-console. Beter: de Cleaner
-      verwijdert de gebruiker via de API.
 
 ---
 

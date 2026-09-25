@@ -4,17 +4,7 @@
 # De Debian-containers staan hier niet meer: OpenTofu maakt en beschrijft ze,
 # in tofu/proxmox/containers.tf.
 
-# Het netwerk van de containers die Ansible nog zelf maakt (ntfy, via
-# roles/proxmox_oci). Dezelfde drie waarden staan in tofu/proxmox/; één plek
-# zodra ntfy ook naar OpenTofu verhuist.
-pve_guest_network:
-  bridge: vmbr0
-  gateway: 192.168.0.1
-  # Zonder erft een container `search neodata.be` van pve01, en schrijft
-  # Proxmox `<ip> <naam>.neodata.be` in zijn /etc/hosts. Dan praat de
-  # container voor zijn eigen publieke naam met zichzelf in plaats van met
-  # Caddy.
-  searchdomain: home.arpa
+# Bridge, gateway en zoekdomein: guest_network.yml, gedeeld met OpenTofu.
 
 # Containers uit een OCI-image, gemaakt door roles/proxmox_oci
 # (playbooks/proxmox-oci.yml). Apart van de Debian-containers in OpenTofu, want
