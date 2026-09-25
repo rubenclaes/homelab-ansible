@@ -105,6 +105,7 @@ homepage_tiles:
   sonarr: { title: Sonarr, group: Downloads, icon: sonarr.png }
   radarr: { title: Radarr, group: Downloads, icon: radarr.png }
   bazarr: { title: Bazarr, group: Downloads, icon: bazarr.png }
+  cleanuparr: { title: Cleanuparr, group: Downloads, icon: cleanuparr.png }
   prowlarr: { title: Prowlarr, group: Downloads, icon: prowlarr.png }
   torrent: { title: qBittorrent, group: Downloads, icon: qbittorrent.png }
   openbooks: { title: OpenBooks, group: Downloads, icon: mdi-book-search }

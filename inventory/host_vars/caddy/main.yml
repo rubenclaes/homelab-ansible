@@ -60,6 +60,7 @@ caddy_sites:
   - { name: sonarr, host: docker, port: 8989, stack: media, desc: "Beheer van series" }
   - { name: radarr, host: docker, port: 7878, stack: media, desc: "Beheer van films" }
   - { name: bazarr, host: docker, port: 6767, stack: media, desc: "Bazarr — ondertitels voor series en films, Nederlands en Engels" }
+  - { name: cleanuparr, host: docker, port: 11011, stack: media, desc: "Cleanuparr — ruimt vastgelopen en valse downloads op" }
   - { name: books, host: docker, port: 6061, stack: media, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
   - { name: shelfmark, host: docker, port: 8087, stack: media, desc: "Shelfmark — zoekt boeken en legt ze in de bookdrop van Grimmory" }
 
