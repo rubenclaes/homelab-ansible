@@ -70,7 +70,11 @@ pve_oci_lxcs:
       # Vier tokens voor hetzelfde schrijf-account: Proxmox, PBS,
       # unifi-watch.yml en de Vaultwarden-back-up. Zo trek je het ene in
       # zonder de andere.
-      NTFY_AUTH_TOKENS: "proxmox:{{ vault_ntfy_proxmox_token }}:proxmox,proxmox:{{ vault_ntfy_pbs_token }}:pbs,proxmox:{{ vault_ntfy_unifi_token }}:unifi,proxmox:{{ vault_ntfy_vaultwarden_token }}:vaultwarden"
+      NTFY_AUTH_TOKENS: >-
+        {{ ['proxmox:' ~ vault_ntfy_proxmox_token ~ ':proxmox',
+            'proxmox:' ~ vault_ntfy_pbs_token ~ ':pbs',
+            'proxmox:' ~ vault_ntfy_unifi_token ~ ':unifi',
+            'proxmox:' ~ vault_ntfy_vaultwarden_token ~ ':vaultwarden'] | join(',') }}
 
 # Containers die /dev/net/tun krijgen, voor Tailscale: adguard (107, DNS van
 # de tailnet) en tailscale (108, subnet-router). Zie roles/proxmox_tun.

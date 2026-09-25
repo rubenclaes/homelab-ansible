@@ -35,10 +35,12 @@
     enabled: true
   register: pbs_client_repo
 
-- name: Refresh the package list when the repository changed
+# noqa: no-handler - een handler draait pas aan het eind van de play, ná de
+# installatie hieronder. Zie roles/alloy voor de volledige uitleg.
+- name: Refresh the package list when the repository changed # noqa: no-handler
   ansible.builtin.apt:
     update_cache: true
-  when: pbs_client_repo.changed
+  when: pbs_client_repo is changed
 
 - name: Install proxmox-backup-client
   ansible.builtin.apt:
