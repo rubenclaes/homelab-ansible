@@ -1,3 +1,19 @@
+// De toegangsregels van de tailnet (brill-atlas.ts.net).
+//
+// DIT IS DE BRON. OpenTofu zet dit bestand in Tailscale:
+//
+//     bin/tofu tailscale plan     # wat zou er veranderen
+//     bin/tofu tailscale apply    # doen
+//
+// In de console kan je de regels niet meer aanpassen ("edits beperken").
+// Tailscale draait bij elke apply de `tests` onderaan, en weigert als er een
+// faalt. Zie het runbook "Tailscale-regels aanpassen".
+//
+// Waarom deze regels: ct 108 biedt het hele thuisnetwerk aan (192.168.0.0/24)
+// en die route is goedgekeurd. Met de standaardregel "alles mag alles" kreeg
+// iedereen die je via NeoGate op de tailnet zet, dus ook pve01, Proxmox, SSH en
+// de Mac mini. Nu mag jij alles, en de anderen alleen wat ze nodig hebben: de
+// diensten, die allemaal via Caddy lopen, en DNS om hun namen op te lossen.
 {
 	"tagOwners": {
 		"tag:ci":      [],
@@ -59,16 +75,16 @@
 	"tests": [
 		{
 			"src":  "tag:work",
-			"deny": ["192.168.0.14:8006", "192.168.0.14:22", "100.84.46.18:53"],
+			"deny": ["192.168.0.10:8006", "192.168.0.10:22", "100.84.46.18:53"],
 		},
 		{
 			"src":    "rubes.claes@gmail.com",
-			"accept": ["192.168.0.14:8006", "192.168.0.25:443", "100.84.46.18:53", "tag:work:22"],
+			"accept": ["192.168.0.10:8006", "192.168.0.25:443", "100.84.46.18:53", "tag:work:22"],
 		},
 		{
 			"src":    "maarten.claes95@gmail.com",
 			"accept": ["100.74.124.12:32400", "192.168.0.25:443"],
-			"deny":   ["100.74.124.12:22", "192.168.0.14:8006"],
+			"deny":   ["100.74.124.12:22", "192.168.0.10:8006"],
 		},
 	],
 }
