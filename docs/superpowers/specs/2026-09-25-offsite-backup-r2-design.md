@@ -37,6 +37,7 @@ op GitHub.
 | Schema | `docker-data` 02:00, bestaande PBS-back-up 02:30, sync naar R2 04:00 | sync na alle back-ups |
 | Bewaren in R2 | laatste 3 per groep | ruimte |
 | Waarschuwing | dagelijks: R2-gebruik via de Cloudflare-API; boven 8 GB een ntfy-melding | R2 heeft geen harde uitgavengrens |
+| Harde stop | vóór elke sync een check via de Cloudflare-API: opslag van de bucket en Class A/B-operaties deze maand. Boven **9 GB** of **800.000 Class A** of **8.000.000 Class B** zet de check de sync job uit (`disable`) en stuurt ntfy. Pas weer aan met de hand | R2 heeft geen uitgavengrens die Cloudflare afdwingt; alleen onze PBS schrijft in de bucket (token alleen voor die bucket), dus een stop bij ons is een stop op alle kosten |
 | Sleutels | paperkey van beide sleutels op papier, en in Vaultwarden | zonder sleutel is de kopie in R2 waardeloos |
 | Beheer | in `roles/pbs` en een nieuwe taak op `docker`; geheimen in de vault | git is de bron |
 
@@ -46,6 +47,16 @@ op GitHub.
 - Een bestand uit `docker-data` én een LXC zijn uit `offsite` teruggezet en
   kloppen.
 - R2 toont minder dan 8 GB; de waarschuwing is getest met een lage drempel.
+- De harde stop is getest: met een drempel onder het huidige gebruik zet
+  hij de sync job uit en komt er een ntfy-melding.
+- De bucket staat op Standard (Infrequent Access telt niet mee voor de
+  gratis laag) en is niet publiek.
+
+Kan het nooit geld kosten? Niet door Cloudflare afgedwongen: R2 vraagt een
+betaalkaart en kent geen harde grens. Wel in de praktijk: alleen PBS
+schrijft, en PBS stopt zelf ruim onder de gratis grens. Opslag wordt per
+maandgemiddelde gerekend, dus een korte overschrijding kost fracties van
+een cent.
 - Beide sleutels staan op papier en in Vaultwarden.
 - Runbook "Herstellen van buiten het huis" staat op de docs-site.
 
