@@ -7,3 +7,6 @@ pbs_keyring: /usr/share/keyrings/proxmox-archive-keyring.gpg
 pbs_repo_uri: http://download.proxmox.com/debian/pbs
 pbs_repo_component: pbs-no-subscription
 pbs_repo_suite: "{{ ansible_facts['distribution_release'] }}"
+
+# Off-site kopie naar een S3-bucket. Leeg = uit. Zie offsite.yml.
+pbs_offsite: {}

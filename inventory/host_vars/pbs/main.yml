@@ -63,3 +63,28 @@ pbs_notification_matchers:
       match-severity: "warning,error"
       mode: all
       comment: "Waarschuwingen en fouten naar de telefoon"
+
+# Off-site kopie naar Cloudflare R2, sinds 25-09-2026. Alleen wat niet uit
+# git herbouwd kan worden, zodat het binnen de gratis 10 GB blijft. Het
+# waarom per groep staat in docs/superpowers/specs/2026-09-25-offsite-backup-r2-design.md.
+#
+# De drempels zijn ruim onder de gratis laag (10 GB, 1M Class A, 10M
+# Class B): R2 kent geen uitgavengrens, dus r2-guard stopt de sync zelf.
+pbs_offsite:
+  endpoint_id: cloudflare-r2
+  endpoint: "{{ vault_r2_account_id }}.r2.cloudflarestorage.com"
+  region: auto
+  access_key: "{{ vault_r2_access_key }}"
+  secret_key: "{{ vault_r2_secret_key }}"
+  bucket: neodata-pbs
+  datastore: offsite
+  cache_path: /mnt/datastore/offsite-cache
+  groups: [host/docker-data, vm/101, ct/107, ct/108, ct/109]
+  keep_last: 3
+  sync_job: offsite-r2
+  sync_schedule: "04:00"
+  guard_schedule: "03:50"
+  warn_gb: 8
+  stop_gb: 9
+  stop_class_a: 800000
+  stop_class_b: 8000000

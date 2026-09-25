@@ -1,0 +1,105 @@
+---
+# Off-site kopie naar een S3-bucket (Cloudflare R2): een S3-endpoint, een
+# datastore met S3-backend en een prune job erop. Zelfde aanpak als
+# config.yml: lees wat er is, maak wat ontbreekt, laat bestaande objecten
+# met rust.
+#
+# De sleutels van het endpoint worden wel bijgewerkt als ze in de vault
+# veranderen: een verlopen R2-token zou anders stil blijven hangen.
+
+- name: Read the current S3 endpoints
+  ansible.builtin.command: proxmox-backup-manager s3 endpoint list --output-format json
+  register: pbs_s3_current
+  changed_when: false
+  check_mode: false
+
+- name: Create or update the S3 endpoint
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - s3
+      - endpoint
+      - "{{ 'update' if pbs_offsite.endpoint_id in (pbs_s3_current.stdout | from_json | map(attribute='id') | list) else 'create' }}"
+      - "{{ pbs_offsite.endpoint_id }}"
+      - --endpoint
+      - "{{ pbs_offsite.endpoint }}"
+      - --region
+      - "{{ pbs_offsite.region }}"
+      - --path-style
+      - "true"
+      - --access-key
+      - "{{ pbs_offsite.access_key }}"
+      - --secret-key
+      - "{{ pbs_offsite.secret_key }}"
+  when: >-
+    pbs_offsite.endpoint_id not in (pbs_s3_current.stdout | from_json | map(attribute='id') | list)
+    or (pbs_s3_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.endpoint_id) | first).get('access-key') != pbs_offsite.access_key
+  changed_when: true
+  no_log: true
+
+# Faalt hier, dan klopt het token, de endpoint of de bucketnaam niet. Beter
+# nu dan om 04:00 in een sync job die niemand leest.
+- name: Check that the bucket answers
+  ansible.builtin.command:
+    argv: [proxmox-backup-manager, s3, check, "{{ pbs_offsite.endpoint_id }}", "{{ pbs_offsite.bucket }}"]
+  changed_when: false
+  check_mode: false
+  when: pbs_offsite.endpoint_id in (pbs_s3_current.stdout | from_json | map(attribute='id') | list) or not ansible_check_mode
+
+- name: Read the current datastores for the off-site store
+  ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
+  register: pbs_offsite_ds_current
+  changed_when: false
+  check_mode: false
+
+- name: Create the local cache directory of the off-site store
+  ansible.builtin.file:
+    path: "{{ pbs_offsite.cache_path }}"
+    state: directory
+    owner: backup
+    group: backup
+    mode: "0750"
+
+# counter-reset-schedule monthly en de drempels: PBS telt zelf de S3-
+# verzoeken en meldt (via de bestaande ntfy-matcher) als ze oplopen. Een
+# tweede vangnet naast r2-guard, dat wel stopt.
+- name: Create the off-site datastore
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - datastore
+      - create
+      - "{{ pbs_offsite.datastore }}"
+      - "{{ pbs_offsite.cache_path }}"
+      - --backend
+      - "type=s3,client={{ pbs_offsite.endpoint_id }},bucket={{ pbs_offsite.bucket }}"
+      - --gc-schedule
+      - daily
+      - --counter-reset-schedule
+      - monthly
+      - --notification-thresholds
+      - "s3-put=200000,s3-get=2000000"
+  when: pbs_offsite.datastore not in (pbs_offsite_ds_current.stdout | from_json | map(attribute='name') | list)
+  changed_when: true
+
+- name: Read the current prune jobs for the off-site store
+  ansible.builtin.command: proxmox-backup-manager prune-job list --output-format json
+  register: pbs_offsite_prune_current
+  changed_when: false
+  check_mode: false
+
+- name: Create the prune job of the off-site store
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - prune-job
+      - create
+      - "{{ pbs_offsite.datastore }}-prune"
+      - --store
+      - "{{ pbs_offsite.datastore }}"
+      - --schedule
+      - daily
+      - --keep-last
+      - "{{ pbs_offsite.keep_last }}"
+  when: (pbs_offsite.datastore ~ '-prune') not in (pbs_offsite_prune_current.stdout | from_json | map(attribute='id') | list)
+  changed_when: true

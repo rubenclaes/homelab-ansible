@@ -68,6 +68,11 @@
 - name: Datastore and job configuration
   ansible.builtin.import_tasks: config.yml
 
+- name: Off-site copy to S3
+  ansible.builtin.import_tasks: offsite.yml
+  when: pbs_offsite | length > 0
+  tags: [offsite]
+
 - name: Notification targets and matchers
   ansible.builtin.import_tasks: notifications.yml
 
