@@ -9,13 +9,6 @@ import { Steps, Callout } from 'nextra/components'
 Waar de back-ups staan, wat je **nu al** moet doen zodat terugzetten later
 lukt, en hoe je test dat terugzetten echt werkt.
 
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Er is **nu niets stuk** | je wil voorbereid zijn | [Vooraf: doe dit nu](#vooraf-doe-dit-nu) |
-| Je wil weten of herstellen echt werkt | na wijzigingen aan de back-upjobs | [Herstellen testen](#herstellen-testen) |
-
 ## Vooraf: doe dit nu
 
 Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
@@ -123,7 +116,7 @@ wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
 
 De dagelijkse en de wekelijkse kopie staan allebei in huis. Sinds 25-09-2026
 gaat er elke nacht om 04:00 ook een kopie naar Cloudflare R2, maar **alleen
-wat git niet kan herbouwen** (zie [Terughalen uit R2](/proxmox/pve01/#terughalen-uit-r2)). Zo
+wat git niet kan herbouwen** (zie [Terughalen uit R2](/proxmox/r2/#terughalen-uit-r2)). Zo
 past het in de gratis 10 GB: op 25-09 was het 3,1 GB.
 
 | Tijd | Wat |

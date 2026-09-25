@@ -8,12 +8,6 @@ import { Steps, Callout } from 'nextra/components'
 
 Deze site: waar de pagina's vandaan komen en hoe je hem bijwerkt.
 
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Je veranderde iets in de inventory of een pagina en wil het **op de docs-site** | een nieuwe route, een aangepaste pagina | [Docs-site bijwerken](#de-docs-site-bijwerken) |
-
 ## De docs-site bijwerken
 
 Je veranderde iets in de inventory of een pagina. `playbooks/docs.yml` maakt
@@ -73,5 +67,5 @@ niet meer waar is, is erger dan geen documentatie: je gelooft hem.
 <Callout type="warning">
 Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
 niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
-er is dan niets geschreven. Zie [Guests en API-token](/proxmox/guests/#guests-en-api-token-checken).
+er is dan niets geschreven. Zie [Guests en API-token](/proxmox/beheren/#guests-en-api-token-checken).
 </Callout>

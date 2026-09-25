@@ -2,30 +2,39 @@
 title: Start
 ---
 
+import { Cards } from 'nextra/components'
+
 # neodata.homelab
 
 Alles over de homelab: wat er draait, en hoe je iets doet. Alles wordt beheerd
 vanuit [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
 
-## Snel naar
+## Opzoeken
 
-| Ik wil… | Ga naar |
-| --- | --- |
-| weten op welk adres een dienst draait | [Diensten](/homelab/diensten/) |
-| weten wat er op een machine draait | [Machines](/homelab/machines/) |
-| een nieuwe app draaien | [Dienst toevoegen](/docker/toevoegen/) |
-| een adres voor iets dat al draait | [Een adres toevoegen](/netwerk/caddy/#alleen-een-adres) |
-| alles bijwerken | [Guests patchen](/proxmox/onderhoud/#guests-patchen-en-herstarten) |
-| zien of alles gezond is | [Gezondheidsrapport](/ansible/nakijken/#gezondheidsrapport) |
-| een container of VM terug | [Een guest terugzetten](/proxmox/herstellen/) |
-| geen DNS meer, niets laadt | [Geen DNS](/netwerk/dns/#geen-dns) |
-| pve01 is weg, of alles | [pve01 of alles weg](/proxmox/pve01/) |
-| iemand toegang geven | [Mensen](/mensen/) |
-| wie waar mag op Tailscale | [OpenTofu](/opentofu/) |
-| mijn laptop klaarzetten | [Je laptop](/ansible/laptop/#laptop-klaarzetten) |
+<Cards num={3}>
+  <Cards.Card title="Diensten" href="/homelab/diensten/" arrow />
+  <Cards.Card title="Machines" href="/homelab/machines/" arrow />
+  <Cards.Card title="Toestellen" href="/homelab/toestellen/" arrow />
+</Cards>
 
-Niet gevonden? Kies links het onderwerp, of zoek bovenaan. Elke pagina begint
-met een tabel **Welk geval ben jij?**; het waarom staat onderaan, onder
-**Goed om te weten**.
+## Iets doen
 
-[NeoGate](https://neogate.neodata.be)
+<Cards num={3}>
+  <Cards.Card title="Nieuwe app draaien" href="/docker/toevoegen/" arrow />
+  <Cards.Card title="Adres voor iets dat al draait" href="/netwerk/caddy/#alleen-een-adres" arrow />
+  <Cards.Card title="Nieuwe container" href="/proxmox/container/" arrow />
+  <Cards.Card title="Alles bijwerken" href="/proxmox/onderhoud/#guests-patchen-en-herstarten" arrow />
+  <Cards.Card title="Is alles gezond?" href="/ansible/nakijken/#gezondheidsrapport" arrow />
+  <Cards.Card title="Iemand toegang geven" href="/mensen/" arrow />
+</Cards>
+
+## Er is iets stuk
+
+<Cards num={3}>
+  <Cards.Card title="Een container of VM terug" href="/proxmox/herstellen/" arrow />
+  <Cards.Card title="Geen DNS, niets laadt" href="/netwerk/dns/#geen-dns" arrow />
+  <Cards.Card title="pve01 is weg" href="/proxmox/pve01/" arrow />
+</Cards>
+
+Niet gevonden? Kies links een onderwerp, of zoek bovenaan. Wat een woord
+betekent, staat onder [Woorden](/woorden/).

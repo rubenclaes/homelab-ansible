@@ -10,16 +10,6 @@ Namen opzoeken in het netwerk: AdGuard (ct 107, `192.168.0.29`). Hier haal je
 DNS terug, kijk je hem na, geef je toestellen een naam en blokkeer je sites.
 Hoe het in elkaar zit: [Overzicht](/netwerk/overzicht/).
 
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Niets resolvet meer: geen `*.home.arpa`, geen `*.neodata.be` | `adguard` (ct 107) ligt plat | [Geen DNS](#geen-dns) |
-| Je wil weten of DNS nog klopt | `ssh pve01.home.arpa` vindt de host niet meer | [DNS controleren](#dns-controleren) |
-| Een host moet een **andere DNS-server** gebruiken | `caddy` wijst nog naar een oude resolver | [DNS-server van een host omzetten](#dns-server-van-een-host-omzetten) |
-| Een toestel staat in AdGuard als **kaal IP of `iPhone`** en je wil een echte naam | de iPhone van Karen, de Nuki | [Een toestel een naam geven](#een-toestel-een-naam-geven) |
-| Een site **laadt niet** of moet **geblokkeerd** | een link in een mail doet niets | [Blokkeren](#een-site-blokkeren-of-deblokkeren) |
-
 ## Geen DNS
 
 Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Alle DNS van het

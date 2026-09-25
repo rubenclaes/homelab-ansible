@@ -1,0 +1,69 @@
+---
+title: Tweede kopie
+---
+
+import { Steps } from 'nextra/components'
+
+# Tweede kopie
+
+De back-ups op PBS zijn weg of onleesbaar. Dan zet je terug van de
+wekelijkse kopie op de Mac mini.
+
+## Terugvallen op de tweede kopie
+
+Gebruik dit als de PBS-back-ups niet bruikbaar zijn: `vm-hdd` is weg, of je
+hebt de encryptiesleutel niet meer. De tweede kopie op de Mac mini is
+hoogstens een week oud en heeft **geen sleutel nodig**.
+
+<Steps>
+
+#### Zorg dat pve01 de opslag ziet
+
+```bash
+ssh pve01 'sudo pvesm status | grep macmini-backup'
+```
+
+Staat hij er niet (herbouwde node)? Doe dan eerst *Maak de map voor de tweede
+kopie* en *Zet de overige opslag en de back-upjobs terug* uit
+[pve01 is weg](/proxmox/pve01/#pve01-is-weg).
+
+#### Zoek de dump
+
+```bash
+ssh pve01 'sudo pvesm list macmini-backup'
+```
+
+Namen zoals `macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst`
+(container) of `…vzdump-qemu-103-….vma.zst` (VM). Neem de nieuwste.
+
+#### Zet de dump terug
+
+Precies zoals in [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up),
+alleen met deze naam:
+
+```bash
+sudo pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst --storage vm-hdd
+```
+
+#### Maak PBS opnieuw, leeg
+
+PBS (VM 100) zit niet in de tweede kopie, met opzet. Hier mag OpenTofu hem
+wel maken, want beide schijven moeten toch leeg beginnen:
+
+```bash
+bin/tofu proxmox apply -target=proxmox_virtual_environment_vm.pbs
+```
+
+Hang de PBS-ISO eraan (Hardware → Add → CD/DVD), installeer PBS, en dan:
+
+```bash
+ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
+ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
+```
+
+Hij begint zonder back-ups. Koppel hem daarna als opslag `pbs` zoals in
+[pve01 is weg](/proxmox/pve01/#pve01-is-weg), met een
+**nieuwe** encryptiesleutel, en maak daar meteen een papieren kopie van (zie
+[Vooraf](/proxmox/backups/#vooraf-doe-dit-nu)).
+
+</Steps>

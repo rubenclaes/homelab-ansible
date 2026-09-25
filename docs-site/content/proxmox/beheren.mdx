@@ -1,0 +1,224 @@
+---
+title: Aanpassen en weghalen
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Aanpassen en weghalen
+
+Een bestaande guest meer geheugen of schijf geven, hem weghalen, of zorgen
+dat hij meestart met pve01.
+
+## Een machine aanpassen
+
+Een container of VM heeft meer geheugen, cores of schijf nodig. Voorbeeld:
+`docker` krijgt 20 GB geheugen in plaats van 16. Dat doe je in het
+`.tf`-bestand, **niet** in het Proxmox-scherm: het volgende plan zou je
+wijziging daar weer terugdraaien.
+
+<Steps>
+
+#### Pas het getal aan
+
+```bash
+$EDITOR tofu/proxmox/vms.tf          # een VM: zijn eigen blok
+$EDITOR tofu/proxmox/containers.tf   # een container: zijn regel in local.containers
+```
+
+Bij `docker`: `dedicated = 16384` wordt `dedicated = 20480` (in MB).
+
+#### Kijk wat OpenTofu gaat doen
+
+```bash
+bin/tofu proxmox plan
+```
+
+Alleen jouw veld mag veranderen, met `update in-place` erbij, en onderaan
+`0 to add, 1 to change, 0 to destroy`. Staat er `must be replaced`: stop,
+nooit `apply`. Dat betekent een lege schijf.
+
+#### Voer het uit
+
+```bash
+bin/tofu proxmox apply   # typ yes
+```
+
+Een container krijgt het meteen. Een VM krijgt nieuw geheugen of cores pas na
+een herstart: `ssh pve01 sudo qm reboot <vmid>` (alle diensten erop gaan even
+plat).
+
+#### Commit en push
+
+```bash
+git add tofu/proxmox/
+git commit -m "chore: docker 20 GB geheugen"
+git push
+```
+
+#### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina [Machines](/homelab/machines/) leest cores, geheugen en schijf live
+uit Proxmox, en staat daarna ook goed.
+
+</Steps>
+
+<Callout type="warning">
+Een schijf kan alleen **groter**. Een kleiner getal zet OpenTofu niet door:
+het plan wil de machine dan vervangen, en dat mag nooit.
+</Callout>
+
+## Een machine weghalen
+
+Een container (LXC of OCI) of VM op pve01.
+
+<Steps>
+
+#### Haal eerst alles erop weg
+
+Elke route naar deze machine, en elke stack erop: zie de twee gevallen
+hierboven. Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
+niet meer bestaat.
+
+#### Maak een back-up als je twijfelt
+
+Proxmox → de guest → **Backup** → **Backup now**, naar `pbs`. Zo kan je hem
+nog terugzetten als je je vergist.
+
+#### Vernietig hem in Proxmox
+
+Met de hand: Proxmox → de guest → **More** → **Remove**, met **Purge** aan. Of
+als root op pve01:
+
+```bash
+pct destroy <vmid> --purge   # container
+qm destroy <vmid> --purge    # VM
+```
+
+Geen playbook en geen `bin/tofu` doet dit, met opzet: elke guest heeft
+`prevent_destroy`. Een typfout mag geen machine kosten.
+
+#### Laat OpenTofu hem vergeten
+
+Sla dit over voor een OCI-container (ntfy): die staat niet in OpenTofu.
+
+```bash
+bin/tofu proxmox state list                                           # zoek zijn adres
+bin/tofu proxmox state rm 'proxmox_virtual_environment_container.this["vaultwarden"]'
+```
+
+Een VM heet bv. `proxmox_virtual_environment_vm.docker`. Haal daarna zijn
+regel uit `local.containers` in `tofu/proxmox/containers.tf`, of zijn blok uit
+`tofu/proxmox/vms.tf`.
+
+```bash
+bin/tofu proxmox plan   # moet "No changes" zeggen
+```
+
+#### Haal hem uit de lijsten
+
+| Bestand | Wat |
+| --- | --- |
+| `inventory/group_vars/proxmox/lxcs.yml` | alleen voor een OCI-container: zijn item in `pve_oci_lxcs` |
+| `inventory/group_vars/proxmox/backup.yml` | zijn vmid in de wekelijkse job naar de Mac mini (de PBS-job neemt `all` en past zich zelf aan) |
+| `inventory/group_vars/all/unifi.yml` | zijn MAC in `unifi_known_macs` |
+
+#### Ruim op buiten git
+
+| Waar | Wat |
+| --- | --- |
+| UniFi → Client Devices | Fixed IP en alias van de machine |
+| Tailscale → Machines | de node, als hij op de tailnet zat |
+
+#### Laat de rest zich aanpassen
+
+```bash
+ansible-playbook playbooks/adguard.yml   # haalt <naam>.home.arpa weg
+ansible-playbook playbooks/docs.yml      # haalt hem van de pagina Machines
+git add -A && git commit -m "chore: remove <naam>" && git push
+```
+
+De Proxmox-inventory vindt hem vanzelf niet meer. `adguard.yml` haalt elke
+naam weg die niet meer in de inventory staat.
+
+</Steps>
+
+## Guests mee laten opstarten
+
+Na een herbouw of restore starten guests niet mee op als pve01 opstart: ze
+staan op `onboot: 0`.
+
+<Steps>
+
+#### Bedenk welke guests níét mogen meestarten
+
+Het playbook zet `onboot` aan op **elke** guest die het uit heeft staan, ook op
+een guest die je bewust uit liet.
+
+#### Draai het playbook
+
+```bash
+ansible-playbook playbooks/proxmox-autostart.yml
+```
+
+De uitvoer toont per aangepaste guest `<vmid> <naam>`.
+
+#### Zet de uitzonderingen terug uit
+
+```bash
+ssh pve01 sudo pct set <vmid> --onboot 0    # voor een LXC
+ssh pve01 sudo qm set <vmid> --onboot 0     # voor een VM
+```
+
+</Steps>
+
+<Callout type="warning">
+De guests uit `tofu/proxmox/` (100–108) staan daar op meestarten
+(`on_boot` / `start_on_boot = true`). Zet je er een met de hand uit, dan wil
+het volgende `bin/tofu proxmox plan` hem weer aanzetten. Moet er een echt uit
+blijven, verander het dan in het `.tf`-bestand.
+</Callout>
+
+<Callout type="info">
+Waarom dit niet in `site.yml` zit: zie
+[Goed om te weten](#waarom-proxmox-autostartyml-niet-in-siteyml-zit).
+</Callout>
+
+## Guests en API-token checken
+
+Ansible ziet een host niet? Kijk eerst of Proxmox hem kent, en of het
+API-token nog werkt.
+
+<Steps>
+
+#### Vraag de inventory op
+
+```bash
+ansible-inventory --graph
+```
+
+De guests komen uit `homelab.proxmox.yml`, via het API-token. Zie je alleen
+`pve01` en de Macs, dan werkt het token niet (of ontbreekt `proxmoxer`, zie
+[Laptop](/ansible/laptop/)). Dát is dan je probleem, niet de host
+die je zocht.
+
+#### Vraag Proxmox zelf
+
+```bash
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'
+```
+
+Toont elke guest met vmid, naam en status, ook als het token stuk is. Staat
+hij hier wel en in de inventory niet, dan ligt het aan het token.
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom `proxmox-autostart.yml` niet in `site.yml` zit
+
+Een guest die bewust níét meestart, zou bij elke run stilletjes weer aangezet
+worden. Meestal draai je dit één keer, na een herbouw.

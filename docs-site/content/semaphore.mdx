@@ -9,14 +9,6 @@ import { Steps, Callout } from 'nextra/components'
 Semaphore draait playbooks vanzelf, op een schema. Hier zie je wat er loopt
 en wanneer, en hoe je een schema aanpast.
 
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Je wil weten **wat er vanzelf draait en wanneer** | "Wanneer loopt Drift check?", "Waar staan de back-ups?" | [Wat draait er vanzelf, en wanneer?](#wat-draait-er-vanzelf-en-wanneer) |
-| Je wil een schema in Semaphore toevoegen of wijzigen | Drift check een uur later laten lopen | [Een schema in Semaphore aanpassen](#een-schema-in-semaphore-aanpassen) |
-| Je wil weten waarom de tijden en limits zijn wat ze zijn | "Waarom `!mbp` in elke template?" | [Goed om te weten](#goed-om-te-weten) |
-
 ## Wat draait er vanzelf, en wanneer?
 
 Tijden zijn lokale tijd (Europe/Brussels).
@@ -58,7 +50,7 @@ De back-ups draaien op de cron van Proxmox. Ze staan in `pve_backup_jobs` in
 | dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
 | wekelijks | zondag 01:00 | de Mac mini, over NFS | tweede kopie, voor als pve01 zelf weg is |
 
-Terugzetten: [Herstellen](/proxmox/herstellen/#terugzetten-uit-de-back-up), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/proxmox/pve01/#terugvallen-op-de-tweede-kopie).
+Terugzetten: [Herstellen](/proxmox/herstellen/#terugzetten-uit-de-back-up), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/proxmox/tweede-kopie/#terugvallen-op-de-tweede-kopie).
 
 <Callout type="warning">
 **Niets hiervan meldt zichzelf als het faalt**, niet in Semaphore en niet op
@@ -153,6 +145,30 @@ een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
 **met de hand en zonder limit** draait. De geplande `Site converge` slaat hem
 over; zie
 [Een schema herschrijft zichzelf niet](#een-schema-herschrijft-zichzelf-niet).
+
+## Meldingen op je iPhone
+
+Installeer de app **ntfy**. Onder Instellingen → Standaardserver:
+`https://ntfy.neodata.be`, gebruiker `ruben`. Het wachtwoord staat in de vault:
+
+```bash
+ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_password
+```
+
+Abonneer op het topic `homelab`. Proxmox en PBS sturen daar hun
+waarschuwingen en fouten heen, elk met een eigen token (een mislukte back-up bijvoorbeeld), rechtstreeks naar
+`192.168.0.32` en dus niet via Caddy: een melding over een storing mag niet
+afhangen van Caddy of AdGuard. Geslaagde back-ups komen er bewust niet: wie
+elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
+
+Een mislukte back-up stuurt de hele log mee, en dat is al snel meer dan de
+4 KB die in één bericht past. Die komt binnen als "You received a file:
+attachment.txt": de titel zegt wat er misging, de bijlage is de log. Daarvoor
+staat `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n bericht
+en krijg je niets.
+
+Buitenshuis zonder VPN krijg je wel het seintje, maar kan de app de inhoud
+niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.
 
 ## Goed om te weten
 

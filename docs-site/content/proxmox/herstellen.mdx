@@ -11,13 +11,6 @@ back-up, of bouw hem opnieuw.
 
 Twijfel je tussen herbouwen en terugzetten? Kies **terugzetten**. Dat kan altijd.
 
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Een container of VM is stuk, en **wat erop stond** moet terug | `adguard`, `semaphore`, `docker`, Home Assistant | [Terugzetten uit de back-up](#terugzetten-uit-de-back-up) |
-| Een container is stuk, en er staat niets op dat je niet opnieuw kan maken | `caddy`, `tailscale` | [Een container opnieuw bouwen](#een-container-opnieuw-bouwen) |
-
 ## Terugzetten uit de back-up
 
 Voor alles waarvan de schijf het punt is: `adguard` (filterinstellingen,
@@ -244,7 +237,7 @@ wildcard-rewrite). Volg daarvoor [Geen DNS](/netwerk/dns/#geen-dns).
 | `caddy` | 106 | LXC | `vm-hdd` | [herbouwen](#een-container-opnieuw-bouwen) |
 | `adguard` | 107 | LXC | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) of [geen DNS](/netwerk/dns/#geen-dns) |
 | `tailscale` | 108 | LXC | `vm-hdd` | [herbouwen](#een-container-opnieuw-bouwen) |
-| `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/proxmox/guests/#een-oci-container) |
+| `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/proxmox/oci/#een-oci-container) |
 
 Bron: `tofu/proxmox/vms.tf` en `containers.tf`; `ntfy` uit
 `pve_oci_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.

@@ -1,0 +1,100 @@
+---
+title: Afwerken
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Afwerken
+
+Je container of VM staat er. Nu komt de rest: de dienst erop, een adres, de
+back-up, commit en de docs.
+
+## Een guest afwerken
+
+Je machine staat er en heeft de baseline, via
+[Nieuwe container](/proxmox/container/#een-nieuwe-container) of
+[Virtuele machine](/proxmox/vm/#een-virtuele-machine). Nu zet je er iets op
+en zorg je dat hij overal meetelt. Voorbeeld: `vaultwarden`.
+
+<Steps>
+
+#### Installeer de dienst
+
+Voor software zonder Docker schrijf je een rol. Dat staat in
+[Dienst toevoegen → Eigen rol](/ansible/rol/#een-eigen-rol-zonder-docker).
+
+#### Geef hem een adres (optioneel)
+
+Wil je hem op `https://vaultwarden.neodata.be`, zet dan een route in
+`inventory/host_vars/caddy/main.yml` onder `caddy_sites`:
+
+```yaml
+  - { name: vaultwarden, host: vaultwarden, port: 8080, desc: "Wachtwoordkluis" }
+```
+
+```bash
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/smoketest.yml --tags caddy
+```
+
+Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/netwerk/caddy/#alle-velden-van-een-route).
+
+#### Zet hem in de wekelijkse back-up
+
+De dagelijkse back-up naar PBS neemt elke guest vanzelf mee. De wekelijkse
+kopie naar de Mac mini **niet**: die heeft een vaste lijst.
+
+```bash
+$EDITOR inventory/group_vars/proxmox/backup.yml   # vmid toevoegen aan "101,102,…,108"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+#### Commit en push
+
+```bash
+git add inventory/ roles/ playbooks/
+git commit -m "vaultwarden erbij"
+git push
+```
+
+<Callout type="error">
+Sla dit niet over. Semaphore draait zijn geplande runs vanuit git, niet vanaf
+je laptop. Een route of rol die niet gepusht is, bestaat voor Semaphore niet
+en kan bij de volgende run weer verdwijnen.
+</Callout>
+
+#### Controleer
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff --limit vaultwarden
+```
+
+Verandert niets, toont alleen wat er nog zou veranderen. Staat er niets open,
+dan klopt alles.
+
+#### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina's met hosts en containers op deze site worden uit de inventory
+gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
+
+</Steps>
+
+## Als het misgaat
+
+| Wat je ziet | Wat het is |
+| --- | --- |
+| `new-guest.yml` stopt meteen met een lijst namen | Proxmox kent die naam niet: de container bestaat nog niet. Zet hem in `tofu/proxmox/containers.tf`, draai `bin/tofu proxmox apply` en dan opnieuw |
+| `bin/tofu proxmox plan` zegt `must be replaced` | OpenTofu wil de machine weggooien en leeg opnieuw maken. **Nooit** `apply` doen. Meestal staat er een veld in de `.tf` dat Proxmox anders heeft (template, opslag). `prevent_destroy` houdt het tegen, maar zoek de oorzaak |
+| `bin/tofu proxmox plan` wil iets terugzetten dat je in het Proxmox-scherm veranderde | Het `.tf`-bestand wint. Zet de waarde daar, zie [Machine aanpassen](/proxmox/beheren/#een-machine-aanpassen) |
+| Het blijft hangen bij "Wait for SSH" (3 minuten) | De container start niet, of het adres klopt niet. Kijk in het Proxmox-scherm of hij draait en welk adres hij heeft |
+| Een fout over een hostkey | Er stond al een andere machine op dat adres. `ssh-keygen -R <adres>` en opnieuw |
+| Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet. Zie de README |
+| Een VM staat niet in de inventory | De guest agent draait niet. Zie [Virtuele machine](/proxmox/vm/#controleer-dat-ansible-hem-ziet) |
+| Een OCI-container staat meteen weer op `stopped` | Meestal een ontbrekend `entrypoint`-argument of een map die niet bestaat. Zet `lxc.console.logfile: /tmp/ct.log` onderaan `/etc/pve/lxc/<vmid>.conf`, start hem, en lees dat bestand. Haal de regel daarna weer weg |
+
+Een half klaargezette container is niet erg: `new-guest.yml` mag altijd
+opnieuw. Wat al klaarstaat wordt niet nog eens gedaan.

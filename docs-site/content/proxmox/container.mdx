@@ -1,0 +1,158 @@
+---
+title: Nieuwe container
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Nieuwe container
+
+Een extra container (LXC) op pve01, bijvoorbeeld voor software die een eigen
+machine hoort te hebben. Twijfel je tussen container en VM? Kies de container:
+die start in een seconde, kost bijna geen geheugen, en alles gaat automatisch.
+
+Wil je gewoon een **Docker-app** draaien? Dan heb je geen nieuwe machine nodig,
+zie [Dienst toevoegen](/docker/toevoegen/).
+
+## Een nieuwe container
+
+Voorbeeld: Vaultwarden op een eigen LXC. Alles gebeurt vanaf je werkstation,
+het Proxmox-scherm heb je niet nodig. **OpenTofu** maakt de container (zie
+[OpenTofu](/opentofu/)), daarna zet Ansible hem klaar.
+
+<Steps>
+
+#### Zoek een vrij nummer
+
+```bash
+ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, naam, status
+```
+
+Kies een nummer dat daar niet in staat.
+
+<Callout type="warning">
+Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
+nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
+gereserveerd voor de restore-drill.
+</Callout>
+
+#### Zoek een vrij adres
+
+Kijk in `tofu/proxmox/containers.tf` welke adressen al gebruikt worden, en
+test of het adres echt vrij is:
+
+```bash
+ping -c 2 192.168.0.31   # geen antwoord = waarschijnlijk vrij
+```
+
+#### Zet de container in `containers.tf`
+
+```bash
+$EDITOR tofu/proxmox/containers.tf
+```
+
+Voeg in `local.containers` een blok toe, naast de andere:
+
+```hcl
+    vaultwarden = {
+      vm_id        = 111
+      cores        = 1
+      memory       = 512
+      swap         = 512
+      disk         = { datastore = "vm-hdd", size = 8 }
+      ip           = "192.168.0.31/24"
+      ipv6_auto    = false
+      mac          = null
+      keyctl       = false
+      dns_servers  = ["192.168.0.29"]
+      searchdomain = "home.arpa"
+      tags         = []
+    }
+```
+
+| Veld | Wat je invult |
+| --- | --- |
+| de naam (`vaultwarden`) | kleine letters, geen spaties. Wordt ook zijn naam in de inventory |
+| `vm_id` | het vrije nummer |
+| `cores` / `memory` / `swap` | geheugen in MB. Begin klein, ophogen kan later |
+| `disk` | opslag + grootte in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
+| `ip` | het vrije adres, met `/24` erachter |
+| `mac` | `null`: dan kiest Proxmox er een. Zet hem na het bouwen vast (zie hieronder) |
+| `dns_servers` / `searchdomain` | zoals hierboven: AdGuard als DNS, `home.arpa` als zoekdomein |
+
+Gateway, template en de Ansible-sleutel staan één keer onderaan hetzelfde
+bestand. Die hoef je niet in te vullen.
+
+#### Kijk wat OpenTofu gaat doen
+
+```bash
+bin/tofu proxmox plan
+```
+
+Onderaan moet `1 to add, 0 to change, 0 to destroy` staan. Staat er iets
+anders, stop en kijk eerst wat er nog verandert.
+
+#### Maak de container
+
+```bash
+bin/tofu proxmox apply
+```
+
+Hij toont het plan nog een keer; typ `yes`. De container staat er nu, met de
+Ansible-sleutel in root.
+
+#### Zet hem klaar met Ansible
+
+```bash
+ansible-playbook playbooks/new-guest.yml -e guest=vaultwarden
+```
+
+Dit wacht tot SSH luistert, vertrouwt zijn hostkey, zet het `ansible`-account
+erop en past de baseline toe. Aan het eind staat in beeld wat je hierna doet.
+
+#### Zet het MAC-adres vast
+
+Proxmox koos een MAC. Kijk welk, zet het in plaats van `null` bij `mac`, en
+draai `bin/tofu proxmox plan`: dat moet nu `No changes` zeggen. Zo krijgt
+een herbouw hetzelfde MAC, en dus hetzelfde adres in UniFi.
+
+```bash
+ssh pve01 'sudo pct config 111 | grep net0'   # hwaddr=BC:24:11:...
+```
+
+#### Commit en push
+
+```bash
+git add tofu/proxmox/containers.tf
+git commit -m "feat: vaultwarden container"
+git push
+```
+
+#### Werk de container af
+
+De machine staat er, maar is nog leeg. Ga verder met
+[Afwerken](/proxmox/afwerken/#een-guest-afwerken).
+
+</Steps>
+
+## Goed om te weten
+
+### Waar het adres van een container vandaan komt
+
+Het adres staat in `tofu/proxmox/containers.tf`; OpenTofu zet het bij het
+maken op de container. Daarna haalt de inventory het live uit Proxmox. Je
+schrijft het adres dus nergens anders op, en zet een guest **nooit** in
+`00-static.yml`: dat overschaduwt de live gegevens.
+
+### Waarom OpenTofu voor de machines
+
+OpenTofu onthoudt wat het gemaakt heeft, en toont eerst een plan: wat erbij
+komt, wat verandert, wat weg zou gaan. Pas na `yes` gebeurt er iets.
+
+Vroeger maakte Ansible de containers. Dat maakte alleen wat ontbrak, en raakte
+een bestaande guest nooit aan. Zette je `memory` hoger in de lijst, dan
+gebeurde er niets, en liepen lijst en werkelijkheid stilletjes uit elkaar.
+Nu toont elk plan zo'n verschil meteen.
+
+De taakverdeling: **PBS bewaart de inhoud** (de schijf), **OpenTofu de vorm**
+(cores, geheugen, schijfgrootte, adres, MAC). Samen krijg je een guest precies
+terug.

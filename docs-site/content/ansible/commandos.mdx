@@ -1,0 +1,111 @@
+---
+title: Handige commando's
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# Handige commando's
+
+Afkortingen die [dotfiles.yml](/ansible/laptop/) op je laptop zet. Ze werken
+vanuit elke map.
+
+## De afkortingen
+
+| Typ dit | Doet |
+| --- | --- |
+| `hl` | naar de repo (`cd ~/Development/homelab-ansible`) |
+| `ap` | menu met alle playbooks. Kiest, draait níét: het zet het commando klaar |
+| `ap playbooks/site.yml` | `ansible-playbook playbooks/site.yml` |
+| `hl go` | menu met alle diensten, Enter opent hem in je browser |
+| `hl go plex` | opent meteen `plex.neodata.be` |
+| `hl ssh` | menu met alle hosts, Enter logt in |
+| `hl ssh pve` | meteen `ssh pve01` |
+| `hl logs` | menu met alle containers, Enter volgt de logs live (`Ctrl-C` stopt) |
+| `hl logs sonarr` | meteen de logs van sonarr, op welke host hij ook staat |
+
+In elk menu: typ een paar letters om te filteren, pijltjes en Enter om te
+kiezen, `Esc` om te stoppen.
+
+## Snel iets vragen aan een host
+
+Zonder in te loggen:
+
+```bash
+ansible caddy -a "caddy version"        # één host
+ansible guests -a "uptime"              # een hele groep
+ansible linux -m ansible.builtin.ping   # leven ze allemaal nog?
+```
+
+| Groep | Wie |
+| --- | --- |
+| `linux` | alle Linux-machines, ook `pve01` |
+| `guests` | alle Linux-guests op `pve01` |
+| `docker_hosts` | `docker` en `docker-grafana-stack` |
+| `macs` | `macmini` en `mbp` |
+
+## Kleur per host in iTerm
+
+Doe je niets voor: typ `ssh <host>` in iTerm en het tabblad krijgt een kleur,
+met de hostnaam groot in de hoek.
+
+| Kleur | Hosts | Waarom opletten |
+| --- | --- | --- |
+| rood | `pve01`, `pbs` | een fout raakt alles, of de back-ups |
+| oranje | `adguard`, `caddy`, `tailscale` | DNS, de voordeur, de VPN |
+| paars | `semaphore` | de planner |
+| blauw | `docker`, `docker-grafana-stack` | de apps |
+| groen | `macmini` | media en de tweede back-up |
+
+## Een afkorting toevoegen
+
+Je afkortingen staan in de inventory, niet in `~/.zshrc`.
+
+<Steps>
+
+#### Voeg de regel toe
+
+In `inventory/host_vars/mbp.yml`, onder `dotfiles_zsh_block: |-`:
+
+```yaml
+  alias gs='git status'
+```
+
+#### Zet hem op je laptop
+
+```bash
+ansible-playbook playbooks/dotfiles.yml && exec zsh
+```
+
+#### Commit en push
+
+```bash
+git add inventory/host_vars/mbp.yml && git commit -m 'Alias gs' && git push
+```
+
+</Steps>
+
+<Callout type="warning">
+Bewerk `~/.zshrc` niet met de hand: de volgende run overschrijft hem (de oude
+blijft als `~/.zshrc.<datum>~` ernaast). Iets buiten de afkortingen? Pas
+`roles/dotfiles/templates/zshrc.j2` aan.
+</Callout>
+
+## Goed om te weten
+
+### Waarom `ap` niets draait
+
+Sommige playbooks herstarten of slopen iets (`update.yml`, `restore-drill.yml`).
+Eén Enter te veel mag dat niet doen. Dus zet het menu het commando klaar, en
+kies jij de vlaggen.
+
+### Waar de menu's hun lijst vandaan halen
+
+`hl go` en `hl ssh` lezen een lijst die `dotfiles.yml` uit de inventory
+schrijft. Een nieuwe dienst of host staat er pas in na
+`ap playbooks/dotfiles.yml`. `hl logs` vraagt het live, en is altijd bij. Een
+host die niet binnen 5 seconden antwoordt, valt uit die lijst.
+
+### De kleuren aanpassen
+
+De lijst staat in `dotfiles_host_colors` in `roles/dotfiles/defaults/main.yml`.
+Pas hem aan en draai `ap playbooks/dotfiles.yml`. Buiten iTerm is het gewone `ssh`.

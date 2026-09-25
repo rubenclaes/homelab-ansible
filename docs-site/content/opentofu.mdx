@@ -14,15 +14,6 @@ systeem, en je draait alles via `bin/tofu`.
 Elke keer dezelfde twee stappen: `plan` toont wat er zou veranderen, `apply`
 doet het, pas na `yes`.
 
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Je wil **veranderen wie waar mag** op de tailnet | Maarten moet ook bij Audiobookshelf, iemand mag niet meer bij Plex | [Tailscale-regels aanpassen](#tailscale-regels-aanpassen) |
-| Je wil weten **wat OpenTofu op pve01 beheert**, en wat niet | mag ik dit in het Proxmox-scherm veranderen? | [De machines op pve01](#de-machines-op-pve01) |
-| Je wil een **container of VM maken, groter maken of weghalen** | Vaultwarden op een eigen LXC, `docker` meer geheugen | [Guests maken en weghalen](/proxmox/guests/) |
-| pve01 is opnieuw geïnstalleerd en OpenTofu mag niet meer binnen | `bin/tofu proxmox plan` geeft `401` | [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
-
 ## Tailscale-regels aanpassen
 
 Wie op de tailnet waar mag komen, staat in `files/tailscale/policy.hujson`.
@@ -94,7 +85,7 @@ bin/tofu proxmox apply   # doe het (typ yes)
 ```
 
 Wat je ermee doet (maken, groter maken, weghalen) staat per geval in
-[Guests maken en weghalen](/proxmox/guests/).
+[Guests maken en weghalen](/proxmox/container/).
 
 <Callout type="error">
 Zegt een plan **`must be replaced`**, doe dan nooit `apply`. Vervangen
@@ -108,7 +99,7 @@ betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
 | --- | --- |
 | `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
 | `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen |
-| `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/guests/#een-oci-container) |
+| `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/#een-oci-container) |
 | opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
 | `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |
 

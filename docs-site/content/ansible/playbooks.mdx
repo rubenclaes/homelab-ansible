@@ -1,0 +1,42 @@
+---
+title: Een playbook draaien
+---
+
+import { Callout } from 'nextra/components'
+
+# Een playbook draaien
+
+Eerst kijken wat een playbook doet, dan pas draaien. En daarna nakijken of het
+klopt.
+
+## Veilig proberen
+
+| Wil je | Zet erachter | Voorbeeld |
+| --- | --- | --- |
+| zien welke hosts het raakt | `--list-hosts` | `ap playbooks/site.yml --list-hosts` |
+| zien welke onderdelen er zijn | `--list-tags` | `ap playbooks/site.yml --list-tags` |
+| zien wat er zou veranderen, zonder iets te doen | `--check --diff` | `ap playbooks/site.yml --check --diff` |
+| maar één host | `--limit <host>` | `--limit docker` |
+| alles behalve de hypervisor | `--limit 'linux:!proxmox'` | met aanhalingstekens, anders snapt de shell de `!` niet |
+| maar één onderdeel | `--tags <tag>` | `--tags dns` (alleen AdGuard) |
+
+Goed? Draai hetzelfde zonder `--check --diff`. Veranderde je iets in de repo,
+commit en push dan: de nachtelijke run in Semaphore draait uit git.
+
+## Na een run
+
+| Draaide je | Draai dan | Waarom |
+| --- | --- | --- |
+| `site.yml` | `site.yml --check --diff` | een tweede keer hoort niets meer te veranderen |
+| `new-guest.yml` | `site.yml --limit <host>`, dan `dotfiles.yml` | de dienst erop, en `ssh <host>` |
+| `caddy.yml` | `smoketest.yml` | vraagt elke route echt op |
+| `stacks.yml` (nieuwe stack) | `caddy.yml`, dan `docs.yml` | route en dienstpagina volgen |
+| `update.yml` | `report.yml` | de lijst openstaande updates hoort leeg te zijn |
+| iets in de inventory | `docs.yml` | Homelab op deze site komt daaruit |
+| wat dan ook, later | `drift.yml` | is er sindsdien iets met de hand gewijzigd? |
+
+<Callout type="info">
+[report.neodata.be](https://report.neodata.be) is de snelste blik op alles:
+schijf, uptime, herstarts, updates, back-ups. Zie
+[Nakijken](/ansible/nakijken/#gezondheidsrapport).
+</Callout>

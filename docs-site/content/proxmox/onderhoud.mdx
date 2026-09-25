@@ -1,25 +1,14 @@
 ---
-title: Bijwerken en onderhoud
+title: Bijwerken
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# Bijwerken en onderhoud
+# Bijwerken
 
-De guests en `pve01` zelf bijwerken, schijfruimte vrijmaken en de bridges van
-pve01 aanpassen. Eerst zien wat er openstaat? Dat staat in het
+De guests en pve01 zelf bijwerken, en schijfruimte vrijmaken. Eerst zien
+wat er openstaat? Kijk in het
 [Gezondheidsrapport](/ansible/nakijken/#gezondheidsrapport), tabblad **Updates**.
-
-## Welk geval ben jij?
-
-| Jouw situatie | Voorbeeld | Ga naar |
-| --- | --- | --- |
-| Een schijf loopt vol | oude kernels op `pve01`, oude images op `docker` | [Schijfruimte vrijmaken](#schijfruimte-vrijmaken) |
-| Je wil een **IP-adres of bridge** van de hypervisor aanpassen | `vmbr1` krijgt een ander adres | [Bridges van pve01 wijzigen](#bridges-van-pve01-wijzigen) |
-| Je wil de **guests patchen** (de gewone ronde) | `adguard`, `docker`, `pbs` bijwerken; Semaphore zelf patchen | [Guests patchen en herstarten](#guests-patchen-en-herstarten) |
-| Je wil **`pve01` zelf** bijwerken en herstarten | nieuwe Proxmox-kernel | [De hypervisor](#de-hypervisor) |
-| Je wil een **OCI-container** bijwerken | een nieuwe versie van `ntfy` | [OCI-containers](#oci-containers) |
-| Je wil een pakket of app **weg** van een Mac | een cask die je niet meer gebruikt | [Welke van de drie playbooks?](#welke-van-de-drie-playbooks) |
 
 ## Guests patchen en herstarten
 
@@ -124,59 +113,6 @@ Zonder de vlaggen patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
 krijgt dan een melding dat hij een reboot nodig heeft.
 </Callout>
 
-## OCI-containers
-
-`ntfy` en andere containers uit een OCI-image doen **niet** mee met
-`update.yml`: er zit geen apt in, alleen het programma. Bijwerken = een nieuwer
-image nemen = de container opnieuw bouwen.
-
-<Steps>
-
-#### Hoog de versie op
-
-```bash
-$EDITOR inventory/group_vars/proxmox/lxcs.yml
-```
-
-In `pve_oci_lxcs`, het veld `version`. Een vaste versie, nooit `latest`: dan
-weet je wat er draait, en een herbouw geeft je hetzelfde terug.
-
-#### Kijk eerst wat er zou gebeuren
-
-```bash
-ansible-playbook playbooks/proxmox-oci.yml
-```
-
-Zonder vlag verandert er niets: de rol waarschuwt alleen, meldt welke versie
-draait en welke je vraagt, en alles blijft staan.
-
-#### Bouw hem opnieuw
-
-```bash
-ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
-```
-
-De container **en zijn volumes** gaan weg en komen terug op het nieuwe image.
-
-<Callout type="warning">
-Daarom staat alles wat moet overleven in `env`, niet op de schijf. Voor ntfy
-is dat bewust aanvaard: gebruikers, rechten en tokens staan in `env` en zijn
-er na de start meteen weer. Alleen de berichtcache van de laatste uren is weg.
-</Callout>
-
-#### Commit en push
-
-```bash
-git add inventory/group_vars/proxmox/lxcs.yml
-git commit -m 'ntfy: nieuwe versie'
-git push
-```
-
-</Steps>
-
-Wat een OCI-container is en waarom hij anders werkt dan een gewone LXC: zie
-[Nieuwe machine → OCI-container](/proxmox/guests/#een-oci-container).
-
 ## Schijfruimte vrijmaken
 
 Een schijf loopt vol. `cleanup.yml` rapporteert eerst en verwijdert pas met een
@@ -241,106 +177,6 @@ Pakketten weghalen die je niet meer wil, doe je **niet** hier: dat gaat via de
 Waarom `brew cleanup` hier zit en niet in `update.yml`, en waarom build cache
 geen leeftijdsgrens heeft: [Goed om te weten](#goed-om-te-weten).
 
-## Bridges van pve01 wijzigen
-
-Een IP-adres of bridge van de hypervisor aanpassen, bijvoorbeeld `vmbr1`
-krijgt een ander adres.
-
-<Callout type="error">
-Dit is het gevaarlijkste playbook in de repo. Ansible bereikt `pve01` op
-`192.168.0.10`, en dat ís `vmbr0`. Een fout geeft geen rode taak, maar een
-onbereikbare hypervisor. **Weet waar de machine fysiek staat** voor je begint.
-</Callout>
-
-<Steps>
-
-#### Kijk wat er nu echt staat
-
-```bash
-ssh pve01 cat /etc/network/interfaces
-```
-
-Vergelijk dit met `inventory/group_vars/proxmox/network.yml`. Die waarden zijn
-één keer overgetikt en sindsdien niet opnieuw nagelopen. Verschillen ze al vóór
-jouw wijziging? Zet eerst de inventory recht.
-
-#### Pas de inventory aan
-
-```bash
-$EDITOR inventory/group_vars/proxmox/network.yml
-```
-
-De bridges staan onder `pve_node_interfaces`:
-
-| Veld | Voorbeeld | Doet |
-| --- | --- | --- |
-| `iface` | `vmbr1` | naam van de bridge |
-| `cidr` | `192.168.0.14/24` | adres van de node op die bridge |
-| `gateway` | `192.168.0.1` | alleen op `vmbr0`, daar zit de default route |
-| `bridge_ports` | `nic0` | de fysieke poort eronder |
-
-#### Kijk droog wat er zou veranderen
-
-```bash
-ansible-playbook playbooks/proxmox-network.yml --check --diff
-```
-
-`changed=0` betekent: de inventory en de node zijn het eens.
-
-#### Zet de wijziging klaar (nog niet actief)
-
-```bash
-ansible-playbook playbooks/proxmox-network.yml                        # schrijft alleen interfaces.new
-ssh pve01 diff /etc/network/interfaces /etc/network/interfaces.new    # dit gaat er veranderen
-```
-
-Zonder vlag schrijft het playbook alleen `/etc/network/interfaces.new`. Wat
-draait blijft ongemoeid.
-
-#### Pas toe
-
-```bash
-ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
-```
-
-Nu herlaadt de node zijn netwerk. Gaat er iets mis, dan zet de
-[dodemansknop](#de-dodemansknop)
-de oude config na 180 seconden vanzelf terug.
-
-<Callout type="warning">
-Weigert het playbook met `ansible-network-revert.timer is still armed`? Dan
-loopt er nog een terugzet-timer van een vorige run. De config die nu draait is
-misschien net de kapotte. Wacht tot de timer afgaat (max. 3 minuten), of, als
-je **zeker** weet dat wat draait goed is:
-
-```bash
-ssh pve01 sudo systemctl stop ansible-network-revert.timer
-```
-</Callout>
-
-#### Controleer de bridges
-
-```bash
-ssh pve01 systemctl is-active ansible-network-revert.timer   # moet 'inactive' zijn
-ssh pve01 cat /etc/network/interfaces                          # jouw nieuwe waarden?
-```
-
-Is de timer afgegaan en staat de oude config terug? Kijk waarom:
-
-```bash
-ssh pve01 journalctl -u ansible-network-revert.service
-```
-
-#### Commit en push
-
-```bash
-git add inventory/group_vars/proxmox/network.yml
-git commit -m 'pve01: bridges aangepast'
-git push
-```
-
-</Steps>
-
 ## Goed om te weten
 
 ### Welke van de drie playbooks?
@@ -393,31 +229,3 @@ niets upgradet.
 Images hebben een leeftijdsgrens (`cleanup_docker_until`), build cache niet. Een
 image dat toch nodig blijkt moet opnieuw over het netwerk; build cache wordt
 gewoon opnieuw gebouwd.
-
-### Waarom de bridges niet in `site.yml` zitten
-
-`proxmox_network_apply` staat op `false` in de rol-defaults en mag nergens in de
-inventory op `true`. Een gewone run die de bridges van de hypervisor kan
-herschrijven, kan in één keer alles platleggen. Toepassen doe je alleen per
-run, met de vlag op de commandline.
-
-### De dodemansknop
-
-Met de vlag gebeurt dit:
-
-1. de draaiende config wordt gekopieerd naar `/etc/network/interfaces.before-ansible`
-2. een `systemd-run`-timer wordt gewapend die die kopie na **180 seconden** terugzet en `ifreload -a` draait
-3. de nieuwe config wordt via de Proxmox-API toegepast
-4. vanaf je werkstation wordt elk adres uit `pve_node_interfaces` op poort 22 geprobeerd
-5. lukt dat, dan wordt de timer gestopt
-
-Valt het playbook ergens tussenuit, dan komt de node vanzelf terug op een
-config die werkte. De test draait bewust vanaf je werkstation: op de node zelf
-slaagt hij altijd, dus bewijst hij niets.
-
-### Waarom 180 seconden
-
-Kopiëren en wapenen duren elk een seconde, toepassen ongeveer vijftien, en de
-test in het slechtste geval twee keer twintig. Samen zo'n tachtig, plus marge.
-Te lang is veiliger dan te kort: te vroeg terugzetten kost je een nieuwe poging,
-te laat laat je wachten met een onbereikbare hypervisor.
