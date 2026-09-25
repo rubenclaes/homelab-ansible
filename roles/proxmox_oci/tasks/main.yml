@@ -1,8 +1,8 @@
 ---
 # Everything goes through the API with the automation token, from the
-# controller, like proxmox_lxc. Setting env and entrypoint needs
-# VM.Config.Options; pulling an image needs Datastore.AllocateTemplate. The
-# token has both (roles/proxmox_access/defaults/main.yml).
+# controller. Setting env and entrypoint needs VM.Config.Options; pulling an
+# image needs Datastore.AllocateTemplate. The token has both
+# (tofu/proxmox/access.tf).
 - name: Read the templates on {{ proxmox_oci_template_storage }}
   ansible.builtin.uri:
     url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/storage/{{ proxmox_oci_template_storage }}/content?content=vztmpl"

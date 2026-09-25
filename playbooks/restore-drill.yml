@@ -35,6 +35,15 @@
   gather_facts: true
   vars:
     restore_guest: "{{ guest | default(drill_restore_guest) }}"
+    # De Debian-containers op pve01, live uit Proxmox: alles in proxmox_all_lxc
+    # behalve de OCI-containers (appliances), die geen SSH of bestanden hebben
+    # om na te kijken.
+    drill_guests: >-
+      {{ groups['proxmox_all_lxc'] | default([])
+         | difference(groups['appliances'] | default([])) }}
+    drill_known_vmids: >-
+      {{ ((groups['proxmox_all_lxc'] | default([])) + (groups['proxmox_all_qemu'] | default([])))
+         | map('extract', hostvars, 'proxmox_vmid') | map('int') | list }}
   tasks:
     - name: Vraag om bevestiging
       ansible.builtin.assert:
@@ -46,28 +55,28 @@
           worden.
         success_msg: "Drill bevestigd voor vmid {{ drill_vmid }}"
 
-    - name: Eis een guest die de inventory kent
+    - name: Eis een container die Proxmox kent
       ansible.builtin.assert:
-        that: restore_guest in (pve_lxcs | map(attribute='hostname') | list)
+        that: restore_guest in drill_guests
         fail_msg: >-
-          '{{ restore_guest }}' staat niet in pve_lxcs. Kies er een:
-          {{ pve_lxcs | map(attribute='hostname') | sort | join(', ') }}.
+          '{{ restore_guest }}' is geen Debian-container op pve01. Kies er een:
+          {{ drill_guests | sort | join(', ') }}.
         success_msg: "Drill op de back-ups van {{ restore_guest }}"
 
-    - name: Onthoud wat de inventory over hem zegt
+    - name: Onthoud wat Proxmox over hem zegt
       ansible.builtin.set_fact:
-        restore_source: "{{ pve_lxcs | selectattr('hostname', 'eq', restore_guest) | first }}"
+        restore_vmid: "{{ hostvars[restore_guest].proxmox_vmid | int }}"
         restore_probe: "{{ drill_probes[restore_guest] | default('/etc/hostname') }}"
 
     # Twee wachten: dit playbook mag precies één vmid aanraken, en die mag
     # van niemand zijn.
-    - name: Weiger een vmid die de inventory claimt
+    - name: Weiger een vmid van een bekende guest
       ansible.builtin.assert:
-        that: drill_vmid not in (pve_lxcs | map(attribute='vmid') | list)
+        that: drill_vmid not in drill_known_vmids
         fail_msg: >-
-          vmid {{ drill_vmid }} hoort bij een echte container in pve_lxcs.
-          Dit playbook zou hem overschrijven. Verander drill_vmid.
-        success_msg: "vmid {{ drill_vmid }} wordt niet door pve_lxcs geclaimd"
+          vmid {{ drill_vmid }} hoort bij een echte guest. Dit playbook zou hem
+          overschrijven. Verander drill_vmid.
+        success_msg: "vmid {{ drill_vmid }} is van niemand"
 
     - name: Lees de guests die op de node bestaan
       community.proxmox.proxmox_vm_info:
@@ -112,7 +121,7 @@
         restore_candidates: >-
           {{ restore_content.stdout | from_json
              | selectattr('vmid', 'defined')
-             | selectattr('vmid', 'eq', restore_source.vmid)
+             | selectattr('vmid', 'eq', restore_vmid)
              | selectattr('volid', 'search', '/ct/')
              | sort(attribute='ctime') | list }}
 
@@ -121,7 +130,7 @@
         that: restore_candidates | length > 0
         fail_msg: >-
           Geen enkele container-back-up van {{ restore_guest }}
-          (vmid {{ restore_source.vmid }}) op storage
+          (vmid {{ restore_vmid }}) op storage
           '{{ drill_pbs_storage }}'. Dat is geen drill die faalt, dat is een
           back-up die niet bestaat - kijk naar de back-upjobs voor je verder
           gaat.
@@ -132,7 +141,7 @@
     - name: Zeg wat er teruggezet wordt
       ansible.builtin.debug:
         msg:
-          - "guest:    {{ restore_guest }} (vmid {{ restore_source.vmid }})"
+          - "guest:    {{ restore_guest }} (vmid {{ restore_vmid }})"
           - "back-up:  {{ restore_candidates[-1].volid }}"
           - "naar:     vmid {{ drill_vmid }} op {{ drill_storage }}"
           - "controle: {{ restore_probe }}"

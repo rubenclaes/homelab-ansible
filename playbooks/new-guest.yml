@@ -1,51 +1,40 @@
 ---
-# Eén nieuwe LXC-container op pve01, van niets tot een machine waar de rollen
-# op kunnen draaien.
+# Een nieuwe LXC-container klaarzetten, nadat OpenTofu hem gemaakt heeft.
 #
-#   ansible-playbook playbooks/new-guest.yml -e guest=<hostname>
+#   1. Een regel in tofu/proxmox/containers.tf, dan: bin/tofu proxmox apply
+#   2. ansible-playbook playbooks/new-guest.yml -e guest=<hostname>
 #
-# Vooraf: zet de container in `pve_lxcs`, in
-# inventory/group_vars/proxmox/lxcs.yml. Dat bestand is de bron van zijn adres
-# tot Proxmox hem kent; daarna neemt de dynamische inventory het over.
+# Wat dit doet: wachten tot hij luistert, zijn SSH-hostkey vertrouwen, het
+# `ansible`-serviceaccount aanmaken en de baseline toepassen. Daarna is het
+# een gewone host en mag site.yml erop.
 #
-# Wat dit doet: de container aanmaken, wachten tot hij luistert, zijn SSH-
-# hostkey vertrouwen, het `ansible`-serviceaccount aanmaken en de baseline
-# toepassen. Daarna is het een gewone host en mag site.yml erop.
-#
-# Wat dit NIET doet: de dienst installeren. Dat is per dienst een rol, of voor
-# een Docker-dienst playbooks/new-service.yml.
-#
-# De proxmox_lxc-rol is lijstgestuurd; hier krijgt hij alleen de genoemde
-# container. Zo blijven de nummers van guests die uit PBS terug moeten vrij.
-- name: Create the container and make it reachable
+# Wat dit NIET doet: de container maken (OpenTofu), of de dienst installeren
+# (een eigen rol, of playbooks/new-service.yml).
+- name: Make the new container reachable
   hosts: pve01
   gather_facts: true
   tasks:
-    - name: Require a guest that the inventory describes
+    - name: Require a container that Proxmox knows
       ansible.builtin.assert:
         that:
           - guest is defined
-          - guest in (pve_lxcs | map(attribute='hostname') | list)
+          - guest in (groups['proxmox_all_lxc'] | default([]))
+          - guest not in (groups['appliances'] | default([]))
         fail_msg: >-
-          Pass -e guest=<hostname>, one of:
-          {{ pve_lxcs | map(attribute='hostname') | sort | join(', ') }}.
-          A container that is not in pve_lxcs cannot be created; describe it
-          there first, in inventory/group_vars/proxmox/lxcs.yml.
-        success_msg: "Building {{ guest | default('?') }}"
+          Pass -e guest=<hostname> of a container that exists. Proxmox knows:
+          {{ groups['proxmox_all_lxc'] | default([]) | difference(groups['appliances'] | default([])) | sort | join(', ') }}.
+          A new one: add it to tofu/proxmox/containers.tf and run
+          `bin/tofu proxmox apply` first.
+        success_msg: "Preparing {{ guest | default('?') }}"
 
-    - name: Remember what the inventory says about it
+    - name: Remember what Proxmox says about it
       ansible.builtin.set_fact:
-        new_guest_entry: "{{ pve_lxcs | selectattr('hostname', 'eq', guest) | first }}"
-
-    - name: Create it, if the node lacks it
-      ansible.builtin.include_role:
-        name: proxmox_lxc
-      vars:
-        proxmox_lxc_list: ["{{ new_guest_entry }}"]
+        new_guest_ip: "{{ hostvars[guest].ansible_host }}"
+        new_guest_vmid: "{{ hostvars[guest].proxmox_vmid }}"
 
     - name: Wait for SSH on {{ guest }}
       ansible.builtin.wait_for:
-        host: "{{ new_guest_entry.ip | split('/') | first }}"
+        host: "{{ new_guest_ip }}"
         port: 22
         timeout: 180
       delegate_to: localhost
@@ -57,15 +46,15 @@
     # key taken from the machine's own disk instead of whatever answers on
     # that address.
     - name: Read its SSH host key through the hypervisor
-      ansible.builtin.command: pct exec {{ new_guest_entry.vmid }} -- cat /etc/ssh/ssh_host_ed25519_key.pub
+      ansible.builtin.command: pct exec {{ new_guest_vmid }} -- cat /etc/ssh/ssh_host_ed25519_key.pub
       register: new_guest_host_key
       changed_when: false
 
     - name: Trust that key on the controller
       ansible.builtin.known_hosts:
-        name: "{{ new_guest_entry.ip | split('/') | first }}"
+        name: "{{ new_guest_ip }}"
         key: >-
-          {{ new_guest_entry.ip | split('/') | first }}
+          {{ new_guest_ip }}
           {{ new_guest_host_key.stdout.split()[0] }}
           {{ new_guest_host_key.stdout.split()[1] }}
         state: present
@@ -78,10 +67,11 @@
     - name: Add it to this run's inventory
       ansible.builtin.add_host:
         name: "{{ guest }}"
-        ansible_host: "{{ new_guest_entry.ip | split('/') | first }}"
+        ansible_host: "{{ new_guest_ip }}"
         groups: new_guest
 
-# Root with a key, because pve_lxc_defaults.pubkey was injected at creation.
+# Root with a key, because OpenTofu puts the ansible@neodata key in root at
+# creation (tofu/proxmox/containers.tf, user_account).
 # A container that did NOT get that key needs `-u root -k` and a password; see
 # playbooks/bootstrap.yml.
 - name: Create the ansible service account
@@ -120,5 +110,5 @@
           - "   ansible-playbook playbooks/new-service.yml -e svc_name=... -e svc_port=... -e svc_image=..."
           - "2. Wil je hem op een naam bereiken, zet hem in caddy_sites"
           - "   (inventory/host_vars/caddy/main.yml) en draai playbooks/caddy.yml."
-          - "3. Commit pve_lxcs en de rest, anders bestaat deze machine alleen bij jou."
+          - "3. Commit tofu/proxmox/containers.tf en de rest, anders bestaat deze machine alleen bij jou."
           - "4. ansible-playbook playbooks/site.yml --check --diff, om te zien dat alles klopt."

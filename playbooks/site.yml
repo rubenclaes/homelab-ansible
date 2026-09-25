@@ -6,7 +6,6 @@
 # Safe to run repeatedly. Everything here is idempotent and non-destructive.
 #
 # Deliberately NOT included (run these by hand, they provision or reboot):
-#   proxmox-lxcs.yml       creates missing LXC containers
 #   proxmox-oci.yml        creates OCI containers, and can rebuild them
 #   proxmox-network.yml    can make the hypervisor unreachable
 #   proxmox-autostart.yml  flips onboot on every guest
@@ -48,7 +47,7 @@
 - name: Proxmox datacenter configuration
   ansible.builtin.import_playbook: proxmox-datacenter.yml
 
-- name: Proxmox API access
+- name: Proxmox API token check
   ansible.builtin.import_playbook: proxmox-access.yml
 
 - name: Docker stacks

@@ -5,7 +5,7 @@
 # role can be run safely without a flag: by itself it changes nothing that is
 # live.
 #
-# Unlike proxmox_datacenter, pbs and proxmox_access, this role has no
+# Unlike proxmox_datacenter and pbs, this role has no
 # verify.yml, no drift list and no proxmox_network_require_clean flag - it
 # relies on a plain `changed=0` under --check instead. That is a deliberate
 # choice, not an oversight: the drift-list pattern exists specifically to

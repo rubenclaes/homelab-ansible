@@ -5,7 +5,7 @@
 #   ansible-playbook playbooks/proxmox-oci.yml
 #   ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true   # na een versiewissel
 #
-# Niet in site.yml, om dezelfde reden als proxmox-lxcs.yml: dit maakt machines.
+# Niet in site.yml: dit maakt machines, en kan ze opnieuw bouwen.
 # Een tweede run zonder wijzigingen doet niets; een gewijzigde env herstart de
 # container, want env geldt pas na een start.
 #

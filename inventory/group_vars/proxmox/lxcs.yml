@@ -1,87 +1,24 @@
 ---
-# LXC definitions: used to (re)create containers that are missing.
-# Existing containers are never modified by the role.
+# ntfy (een OCI-container), /dev/net/tun en de restore-drill.
 #
-# The addresses here are deliberately literal, not derived from inventory.
-# This list describes containers that do not exist yet: a missing container
-# has no entry in the Proxmox dynamic inventory, so there is no ansible_host
-# to read. This file IS the source of truth for a container's address until
-# Proxmox knows about it, after which inventory takes over.
-pve_lxc_defaults:
-  template: local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
+# De Debian-containers staan hier niet meer: OpenTofu maakt en beschrijft ze,
+# in tofu/proxmox/containers.tf.
+
+# Het netwerk van de containers die Ansible nog zelf maakt (ntfy, via
+# roles/proxmox_oci). Dezelfde drie waarden staan in tofu/proxmox/; één plek
+# zodra ntfy ook naar OpenTofu verhuist.
+pve_guest_network:
   bridge: vmbr0
   gateway: 192.168.0.1
-  # Zonder dit erft een container `search neodata.be` van pve01, en schrijft
+  # Zonder erft een container `search neodata.be` van pve01, en schrijft
   # Proxmox `<ip> <naam>.neodata.be` in zijn /etc/hosts. Dan praat de
   # container voor zijn eigen publieke naam met zichzelf in plaats van met
-  # Caddy: de smoketest vanuit Semaphore zag semaphore.neodata.be als stuk.
+  # Caddy.
   searchdomain: home.arpa
-  unprivileged: true
-  onboot: true
-  pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHLNyIywwfWQG5AzOf6ZGXYDIeNz3gcthJnpkQPdoFRq ansible@neodata"
-
-pve_lxcs:
-  - vmid: 104
-    hostname: semaphore
-    cores: 2
-    memory: 2048
-    swap: 512
-    # 16G rather than the 8G the other containers get: Semaphore is the
-    # Ansible controller, so playbooks/docs.yml builds the Nextra site here.
-    # node_modules, the .next output and npm's cache together run to several
-    # gigabytes, on top of the Ansible virtualenv and Semaphore's per-template
-    # repository clones.
-    disk: { storage: local-lvm, size: 16 }
-    ip: 192.168.0.30/24
-    features: [nesting=1]
-
-  - vmid: 106
-    hostname: caddy
-    cores: 1
-    memory: 512
-    swap: 512
-    disk: { storage: vm-hdd, size: 6 }
-    ip: 192.168.0.25/24
-    features: [nesting=1, keyctl=1]
-
-  - vmid: 107
-    hostname: adguard
-    cores: 1
-    memory: 512
-    swap: 512
-    disk: { storage: vm-hdd, size: 2 }
-    ip: 192.168.0.29/24
-    features: [nesting=1, keyctl=1]
-    # Zit sinds 23-09 op de tailnet, zodat hij als globale nameserver kan
-    # dienen met een 100.x-adres. Tailscale heeft daarvoor /dev/net/tun nodig;
-    # zonder deze twee regels start tailscaled niet en faalt hij stil in een
-    # herstartlus. Na herbouw opnieuw zetten, als root op pve01 (de API-token
-    # kan geen rauwe lxc-sleutels zetten), en daarna de container herstarten,
-    # want een mount-entry geldt pas na een start:
-    # `pct set` weigert rauwe lxc-sleutels op deze versie ("400 unable to
-    # parse option"), dus rechtstreeks onderaan /etc/pve/lxc/107.conf:
-    #   lxc.cgroup2.devices.allow: c 10:200 rwm
-    #   lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
-    # en daarna `pct reboot 107`.
-
-  - vmid: 108
-    hostname: tailscale
-    cores: 4
-    memory: 1024
-    swap: 1024
-    disk: { storage: vm-hdd, size: 8 }
-    ip: 192.168.0.50/24
-    features: [nesting=1]
-    # Na herbouw, als root op pve01 (de API-token kan geen rauwe lxc-sleutels
-    # zetten). Niet met `pct set`: die weigert ze op deze versie, zie 107
-    # hierboven. Dus onderaan /etc/pve/lxc/108.conf:
-    #   lxc.cgroup2.devices.allow: c 10:200 rwm
-    #   lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
-    # en daarna `pct reboot 108`.
 
 # Containers uit een OCI-image, gemaakt door roles/proxmox_oci
-# (playbooks/proxmox-oci.yml). Apart van pve_lxcs, want die lijst gaat uit van
-# Debian, SSH en een baseline, en hier is er niets van dat: één programma uit
+# (playbooks/proxmox-oci.yml). Apart van de Debian-containers in OpenTofu, want
+# die gaan uit van SSH en een baseline, en hier is er niets van dat: één programma uit
 # een image, en alles wat het nodig heeft staat in env. De rol zet er tag `oci`
 # op, en daardoor houdt de inventory ze buiten `linux`.
 #
@@ -141,8 +78,8 @@ proxmox_tun_guests: [107, 108]
 
 # The vmid playbooks/restore-drill.yml restores onto and destroys. It is declared
 # here, not guessed at run time, so a glance at this file shows the one id a
-# playbook is allowed to destroy. 199 sits well above the range pve_lxcs uses
-# and is asserted free before every drill.
+# playbook is allowed to destroy. 199 sits well above the ids in
+# tofu/proxmox/ (100-108) and is asserted free before every drill.
 drill_vmid: 199
 
 # Wat playbooks/restore-drill.yml in de teruggezette container opzoekt. Eén

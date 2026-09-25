@@ -6,7 +6,7 @@
 # rather than no-ops, so a bare command would report changed on every run and
 # fail on the second.
 #
-# pbs_missing collects what would be created. As in proxmox_access, an absent
+# pbs_missing collects what would be created. An absent
 # datastore or job is not an error here: creating it is exactly what this
 # role is for. Reporting and asserting on this list happens in verify.yml,
 # imported last from main.yml, not here.
@@ -29,7 +29,7 @@
   changed_when: false
   check_mode: false
 
-# Recorded before creating, same as proxmox_access's users.yml: the record
+# Recorded before creating: the record
 # has to reflect what's about to happen even under --check, where the
 # command task right below never runs.
 - name: Record the datastores that would be created

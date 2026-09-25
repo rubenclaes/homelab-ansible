@@ -1,19 +1,14 @@
 ---
-# Grants the Proxmox API token the privileges this repo needs, then proves it
-# worked. Run after rebuilding a node, or after changing the privilege list.
+# Proves that Ansible's API token (ansible@pve!automation) can see what the
+# dynamic inventory needs. The privileges themselves live in
+# tofu/proxmox/access.tf; run this after changing them there.
 #
 #   ansible-playbook playbooks/proxmox-access.yml
 #
-# The verification play queries the guest-agent endpoint through the API TOKEN
-# rather than with pvesh. pvesh runs as root and would succeed regardless of
-# the token's privileges, so it proves nothing about what the inventory plugin
-# can actually see.
-- name: Proxmox API access
-  hosts: proxmox
-  roles:
-    - proxmox_access
-  tags: [proxmox, access]
-
+# It queries the guest-agent endpoint through the API TOKEN rather than with
+# pvesh. pvesh runs as root and would succeed regardless of the token's
+# privileges, so it proves nothing about what the inventory plugin can
+# actually see.
 - name: Verify the token can reach the guest agent
   hosts: proxmox
   gather_facts: true

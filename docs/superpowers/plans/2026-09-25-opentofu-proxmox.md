@@ -866,10 +866,10 @@ Expected: `exit=0`.
 **Files:**
 - Create: `roles/proxmox_tun/tasks/main.yml`, `roles/proxmox_tun/handlers/main.yml`, `roles/proxmox_tun/defaults/main.yml`, `roles/proxmox_tun/meta/main.yml`
 - Modify: `playbooks/proxmox-datacenter.yml` (rol erbij)
-- Modify: `inventory/group_vars/proxmox/lxcs.yml` (lijst `pve_tun_guests`, en de oude commentaren bij 107/108 weg)
+- Modify: `inventory/group_vars/proxmox/lxcs.yml` (lijst `proxmox_tun_guests`, en de oude commentaren bij 107/108 weg)
 
 **Interfaces:**
-- Consumes: `pve_tun_guests: [107, 108]`.
+- Consumes: `proxmox_tun_guests: [107, 108]`.
 
 - [ ] **Step 1: De rol**
 
@@ -879,7 +879,7 @@ Expected: `exit=0`.
 ---
 # Containers die /dev/net/tun krijgen (Tailscale). Staat in
 # inventory/group_vars/proxmox/lxcs.yml.
-pve_tun_guests: []
+proxmox_tun_guests: []
 ```
 
 `roles/proxmox_tun/meta/main.yml`:
@@ -917,7 +917,7 @@ dependencies: []
   changed_when: false
   failed_when: proxmox_tun_sections.stdout | int > 0
   check_mode: false
-  loop: "{{ pve_tun_guests }}"
+  loop: "{{ proxmox_tun_guests }}"
 
 - name: Read which tun lines are present
   ansible.builtin.command: grep -cxF -e '{{ proxmox_tun_lines[0] }}' -e '{{ proxmox_tun_lines[1] }}' /etc/pve/lxc/{{ item }}.conf
@@ -925,7 +925,7 @@ dependencies: []
   changed_when: false
   failed_when: false
   check_mode: false
-  loop: "{{ pve_tun_guests }}"
+  loop: "{{ proxmox_tun_guests }}"
 
 - name: Add the tun lines
   ansible.builtin.shell: >-
@@ -979,7 +979,7 @@ In `inventory/group_vars/proxmox/lxcs.yml`, onder `pve_oci_lxcs` (vóór `drill_
 ```yaml
 # Containers die /dev/net/tun krijgen, voor Tailscale: adguard (107, DNS van
 # de tailnet) en tailscale (108, subnet-router). Zie roles/proxmox_tun.
-pve_tun_guests: [107, 108]
+proxmox_tun_guests: [107, 108]
 ```
 
 In `playbooks/proxmox-datacenter.yml`, `roles:` wordt:

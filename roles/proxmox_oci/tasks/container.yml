@@ -149,11 +149,11 @@
            'memory': oci.memory,
            'swap': 0,
            'rootfs': oci.disk.storage ~ ':' ~ oci.disk.size,
-           'net0': 'name=eth0,bridge=' ~ pve_lxc_defaults.bridge ~ ',ip=' ~ oci.ip ~ ',gw=' ~ pve_lxc_defaults.gateway
+           'net0': 'name=eth0,bridge=' ~ pve_guest_network.bridge ~ ',ip=' ~ oci.ip ~ ',gw=' ~ pve_guest_network.gateway
                    ~ (',hwaddr=' ~ oci.hwaddr if oci.hwaddr is defined else ''),
            'unprivileged': 1,
            'onboot': 1,
-           'searchdomain': pve_lxc_defaults.searchdomain,
+           'searchdomain': pve_guest_network.searchdomain,
            'tags': 'oci',
            'description': proxmox_oci_description,
          } | combine(proxmox_oci_volumes) }}
