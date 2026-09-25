@@ -20,8 +20,9 @@ Klaar als:
 - Een guest aanpassen (bv. meer geheugen) gaat via een getal in
   `tofu/proxmox/`, `plan`, `apply`, en niet meer via de GUI plus overtikken.
 - `vms.yml`, `access.yml`, `pve_lxcs`, `roles/proxmox_lxc`,
-  `roles/proxmox_access`, `playbooks/proxmox-lxcs.yml` en
-  `playbooks/proxmox-access.yml` zijn weg, en niets breekt.
+  `roles/proxmox_access` en `playbooks/proxmox-lxcs.yml` zijn weg,
+  `playbooks/proxmox-access.yml` is alleen nog de controle van het token, en
+  niets breekt.
 - De `/dev/net/tun`-regels van ct 107 en 108 zijn geen handstap meer.
 
 ## Beslist
