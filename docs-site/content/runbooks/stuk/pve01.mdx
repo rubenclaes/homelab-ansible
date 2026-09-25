@@ -15,6 +15,8 @@ de `ansible`-sleutel is kwijt.
 | --- | --- | --- |
 | `pve01` zelf is weg | bootschijf dood, Proxmox van USB opnieuw geïnstalleerd | [pve01 is weg](#pve01-is-weg) |
 | De back-ups op PBS zijn weg of onleesbaar | schijf `vm-hdd` kapot, of de sleutel kwijt | [Terugvallen op de tweede kopie](#terugvallen-op-de-tweede-kopie) |
+| **Alles in huis is weg**: pve01, PBS én de Mac mini | brand, diefstal, ransomware | [Terughalen uit R2](#terughalen-uit-r2) |
+| De R2-sync staat stil en je kreeg een melding "R2-sync gestopt" | R2 naderde de gratis 10 GB, of de check faalde | [De R2-sync weer aanzetten](#de-r2-sync-weer-aanzetten) |
 | De **`ansible`-sleutel is weg** en er is nergens nog een kopie | laptop kwijt, niet in de wachtwoordkluis | [De ansible-sleutel is kwijt](#de-ansible-sleutel-is-kwijt) |
 
 ## pve01 is weg
@@ -389,6 +391,141 @@ Hij begint zonder back-ups. Koppel hem daarna als opslag `pbs` zoals in
 
 </Steps>
 
+## Terughalen uit R2
+
+Alles in huis is weg. Elke nacht gaat een kopie naar **Cloudflare R2** (een
+opslag op het internet), bucket `neodata-pbs`. Daar staat alleen wat git niet
+kan herbouwen:
+
+| In R2 | Wat |
+| --- | --- |
+| `host/docker-data` | de data van alle apps op `docker` (Vaultwarden, Immich, Grimmory, instellingen), dumps van de databases, en de foto's van Immich |
+| `vm/101` | Home Assistant, heel |
+| `ct/107`, `ct/108`, `ct/109` | adguard, tailscale, ntfy |
+
+De rest (de VM's `docker` en `docker-grafana-stack`, caddy, semaphore) bouw
+je opnieuw met Ansible uit git.
+
+**Je hebt nodig:** het papier met de sleutels (twee PBS-sleutels en de twee
+vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
+
+<Steps>
+
+#### Bouw pve01 en PBS opnieuw
+
+Volg [pve01 is weg](#pve01-is-weg) tot en met *Breng PBS onder Ansible*. PBS
+begint leeg. `playbooks/pbs.yml` maakt meteen ook de koppeling met R2 (de
+datastore `offsite`): de sleutels daarvoor staan in de vault.
+
+#### Kijk wat er in R2 staat
+
+```bash
+ssh pbs 'sudo proxmox-backup-manager s3 check cloudflare-r2 neodata-pbs'
+```
+
+Geen fout? Dan ziet PBS de bucket. In de webinterface van PBS
+(`https://192.168.0.181:8007`) staat onder **Datastore → offsite** elke
+versie die in R2 staat.
+
+#### Geef pve01 leesrecht op `offsite`
+
+De kopieën in R2 zijn van de sync job, niet van pve01. Zonder dit ziet pve01
+ze niet:
+
+```bash
+ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id pve@pbs'
+```
+
+#### Koppel `offsite` in Proxmox, met de sleutel van papier
+
+Proxmox → Datacenter → Storage → Add → **Proxmox Backup Server**:
+
+| Veld | Waarde |
+| --- | --- |
+| ID | `offsite` |
+| Server | `192.168.0.181` |
+| Username | `pve@pbs` |
+| Datastore | `offsite` |
+| Encryption | **Upload an existing client encryption key**: de pve01-sleutel van het papier |
+
+#### Zet de machines terug
+
+Home Assistant, adguard, tailscale en ntfy: Proxmox → `offsite` → Backups →
+kies de nieuwste → **Restore**, met hun eigen nummer (101, 107, 108, 109).
+
+#### Zet de app-data terug op `docker`
+
+Eerst `docker` zelf opnieuw bouwen (Ansible, zie [pve01 is weg](#pve01-is-weg),
+deel 3), maar **start de stacks nog niet**. Dan:
+
+```bash
+ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup"'
+ssh docker
+sudo -i
+export PBS_REPOSITORY='docker-data@pbs!backup@192.168.0.181:offsite'
+export PBS_PASSWORD_FILE=/root/.config/proxmox-backup/token
+proxmox-backup-client snapshot list                       # neem de nieuwste
+proxmox-backup-client restore host/docker-data/<tijd> data.pxar /opt/containers/data \
+  --keyfile /root/.config/proxmox-backup/docker-data.key
+proxmox-backup-client restore host/docker-data/<tijd> photos.pxar /mnt/media01/Photos \
+  --keyfile /root/.config/proxmox-backup/docker-data.key
+```
+
+De token en de sleutel zet `playbooks/offsite.yml --limit docker` klaar uit de
+vault. De databases van Immich en Grimmory staan als dump in
+`/opt/containers/data/_dumps/`: start hun database-container leeg en lees de
+dump in (`zcat immich.sql.gz | docker exec -i immich-postgres psql -U immich`,
+en `zcat grimmory.sql.gz | docker exec -i grimmory-db sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'`).
+Daarna de stacks starten.
+
+#### Haal het leesrecht weer weg
+
+```bash
+ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id pve@pbs --delete'
+ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup" --delete'
+```
+
+</Steps>
+
+Getest op 25-09-2026: ntfy (ct 109) volledig teruggezet uit R2, en
+`grimmory/books` en de foto's uit `docker-data` waren identiek aan het origineel.
+
+## De R2-sync weer aanzetten
+
+Je kreeg de melding **"R2-sync gestopt"**. `r2-guard` heeft de nachtelijke
+kopie naar R2 stilgelegd, zodat het nooit geld kost. Er gaat niets meer naar
+R2 tot jij hem weer aanzet.
+
+<Steps>
+
+#### Lees waarom
+
+```bash
+ssh pbs 'sudo cat /var/lib/r2-guard/stopped; sudo journalctl -u r2-guard -n 5 --no-pager'
+```
+
+| Reden | Wat doen |
+| --- | --- |
+| "R2-check mislukt" | het Cloudflare-token werkt niet meer (verlopen, ingetrokken). Maak een nieuw aan (Account Analytics: Read), zet het in `inventory/host_vars/pbs/vault.yml` als `vault_cf_analytics_token`, draai `ansible-playbook playbooks/pbs.yml --tags offsite` |
+| boven 9 GB | er staat te veel in R2. Meestal groeien de foto's. Kies: minder versies (`keep_last` in `pbs_offsite`), foto's eruit, of bewust betalen (± €0,015 per GB per maand) |
+| te veel operaties | ongewoon; kijk in Cloudflare → R2 → Metrics wat er zo vaak gebeurde |
+
+#### Zet hem weer aan
+
+```bash
+ssh pbs 'sudo proxmox-backup-manager sync-job update offsite-r2 --schedule "$(sudo head -1 /var/lib/r2-guard/stopped)" && sudo rm /var/lib/r2-guard/stopped'
+```
+
+#### Controleer
+
+```bash
+ssh pbs 'sudo systemctl start r2-guard; sudo journalctl -u r2-guard -n 2 --no-pager'
+```
+
+Je ziet een regel `R2: … GB, Class A …, Class B …` en geen STOP.
+
+</Steps>
+
 ## De ansible-sleutel is kwijt
 
 Alleen als er echt nergens nog een kopie is: niet op een andere Mac, niet in
@@ -474,12 +611,32 @@ De dagelijkse is de hoofdkopie. Maar die staat op pve01 zelf: sterft die
 machine met zijn schijven, dan gaan guests en back-ups samen. Daarvoor is de
 wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
 
-### Het is geen off-site
+### Buiten het huis: Cloudflare R2
 
-Beide kopieën staan in hetzelfde huis, aan dezelfde stroom, op hetzelfde
-netwerk. Tegen brand, diefstal of ransomware helpt dit niet. En de dumps op de
-Mini zijn niet versleuteld: iedereen die die NFS-share kan mounten, kan ze
-lezen.
+De dagelijkse en de wekelijkse kopie staan allebei in huis. Sinds 25-09-2026
+gaat er elke nacht om 04:00 ook een kopie naar Cloudflare R2, maar **alleen
+wat git niet kan herbouwen** (zie [Terughalen uit R2](#terughalen-uit-r2)). Zo
+past het in de gratis 10 GB: op 25-09 was het 3,1 GB.
+
+| Tijd | Wat |
+| --- | --- |
+| 02:00 | `docker` maakt een back-up van zijn app-data en foto's naar PBS (`docker-data-backup.timer`) |
+| 02:30 | de gewone back-up van alle machines naar PBS |
+| 03:50 | `r2-guard` vraagt aan Cloudflare hoeveel er in R2 staat |
+| 04:00 | PBS kopieert de gekozen groepen naar R2, de laatste 3 versies |
+
+**Waarom r2-guard.** Cloudflare kent voor R2 geen harde uitgavengrens. Alleen
+onze PBS schrijft in de bucket, dus r2-guard stopt de kopie zelf: boven 9 GB,
+boven 800.000 Class A- of 8.000.000 Class B-operaties deze maand, of als hij
+het niet kan nagaan. Twijfel is stop. Vanaf 8 GB krijg je al een
+waarschuwing. Ansible zet een gestopte sync nooit zelf weer aan.
+
+**Waarom 9 GB en niet 10.** Cloudflare toont de opslag met vertraging (tot een
+dag). Die ene GB vangt dat op.
+
+De dumps op de Mini zijn niet versleuteld: iedereen die die NFS-share kan
+mounten, kan ze lezen. Die in R2 wel: Cloudflare ziet alleen versleutelde
+blokken.
 
 ### Faalt de wekelijkse job, dan meldt niemand dat
 

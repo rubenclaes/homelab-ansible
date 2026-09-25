@@ -28,6 +28,8 @@ weg, dan is deze site ook weg. Dezelfde tekst staat in elke clone van de repo:
 | De Mac mini is kapot of opnieuw geïnstalleerd | nieuwe schijf, macOS opnieuw | [De Mac mini is weg](/runbooks/stuk/mac-mini/#de-mac-mini-is-weg) |
 | `pve01` zelf is weg | bootschijf dood, Proxmox van USB opnieuw geïnstalleerd | [pve01 is weg](/runbooks/stuk/pve01/#pve01-is-weg) |
 | De back-ups op PBS zijn weg of onleesbaar | schijf `vm-hdd` kapot, of de sleutel kwijt | [Terugvallen op de tweede kopie](/runbooks/stuk/pve01/#terugvallen-op-de-tweede-kopie) |
+| **Alles in huis is weg**: pve01, PBS én de Mac mini | brand, diefstal, ransomware | [Terughalen uit R2](/runbooks/stuk/pve01/#terughalen-uit-r2) |
+| Je kreeg de melding **"R2-sync gestopt"** | R2 naderde de gratis 10 GB | [De R2-sync weer aanzetten](/runbooks/stuk/pve01/#de-r2-sync-weer-aanzetten) |
 | De **`ansible`-sleutel is weg** en er is nergens nog een kopie | laptop kwijt, niet in de wachtwoordkluis | [De ansible-sleutel is kwijt](/runbooks/stuk/pve01/#de-ansible-sleutel-is-kwijt) |
 | Je wil weten of herstellen echt werkt | na wijzigingen aan de back-upjobs | [Herstellen testen](#herstellen-testen) |
 
@@ -98,6 +100,19 @@ sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-f
 Print wat eruit komt, en bewaar het **buiten het huis** (bv. ook in de
 wachtwoordkluis). Zonder deze sleutel zijn de back-ups op PBS niet terug te
 zetten.
+
+Doe hetzelfde met de sleutel van `docker` (app-data en foto's, sinds 25-09):
+
+```bash
+ssh docker 'sudo proxmox-backup-client key paperkey /root/.config/proxmox-backup/docker-data.key --output-format text'
+```
+
+<Callout type="warning">
+Vaultwarden draait zelf in de homelab. Brandt het huis af, dan is Vaultwarden
+ook weg, en zit hij in R2 achter precies deze sleutels. **Papier** is dus het
+echte vangnet: sleutels en vault-wachtwoorden samen, liefst ook een kopie
+buiten het huis.
+</Callout>
 
 <Callout type="warning">
 `proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,

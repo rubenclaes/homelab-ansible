@@ -147,16 +147,12 @@ Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 
 ## Grotere projecten
 
-- [ ] **Off-site back-up. De 1 van 3-2-1 ontbreekt nog.** Sinds 23-09 zijn er
-      twee kopieen op twee machines - PBS op pve01, en wekelijks volledige
-      dumps naar de Mac mini - maar beide staan in hetzelfde huis, aan dezelfde
-      stroom. Tegen brand, diefstal of ransomware die allebei bereikt helpt dat
-      niet.
-
-      Op PBS staat geen enkele sync job (`/etc/proxmox-backup/sync.cfg` bestaat
-      niet). De datastore is al client-side versleuteld, dus het doel hoeft
-      niet vertrouwd te worden: een PBS remote naar een goedkope target, of
-      rclone van de datastore naar B2.
+- [x] **Off-site back-up** (25-09). Elke nacht naar Cloudflare R2, alleen wat
+      git niet kan herbouwen (app-data + foto's, Home Assistant, adguard,
+      tailscale, ntfy), 3,1 GB, binnen de gratis laag; r2-guard stopt de sync
+      voor het geld kost. Terugzetten getest. Zie runbook "Terughalen uit R2".
+  - [ ] Foto's in Immich groeien: bij de melding "R2 bijna vol" kiezen tussen
+        minder versies, foto's apart, of betalen.
 
 - [ ] **Action1 voor de pc van de ouders**, en voor de Macs.
 
