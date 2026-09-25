@@ -6,15 +6,22 @@ import { Steps, Callout } from 'nextra/components'
 
 # OpenTofu
 
-OpenTofu beheert de dingen die geen Ansible zijn: nu de Tailscale-regels
-(wie mag waar), de DNS-instellingen en de tags van de tailnet. De bestanden
-staan in `tofu/`, en je draait alles via `bin/tofu`.
+OpenTofu beheert de dingen die geen Ansible zijn: de **machines op pve01**
+(welke er zijn en hoe groot) en de **Tailscale-regels** (wie mag waar, de DNS
+en de tags van de tailnet). De bestanden staan in `tofu/`, één map per
+systeem, en je draait alles via `bin/tofu`.
+
+Elke keer dezelfde twee stappen: `plan` toont wat er zou veranderen, `apply`
+doet het, pas na `yes`.
 
 ## Welk geval ben jij?
 
 | Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
 | Je wil **veranderen wie waar mag** op de tailnet | Maarten moet ook bij Audiobookshelf, iemand mag niet meer bij Plex | [Tailscale-regels aanpassen](#tailscale-regels-aanpassen) |
+| Je wil weten **wat OpenTofu op pve01 beheert**, en wat niet | mag ik dit in het Proxmox-scherm veranderen? | [De machines op pve01](#de-machines-op-pve01) |
+| Je wil een **container of VM maken, groter maken of weghalen** | Vaultwarden op een eigen LXC, `docker` meer geheugen | [Guests maken en weghalen](/proxmox/guests/) |
+| pve01 is opnieuw geïnstalleerd en OpenTofu mag niet meer binnen | `bin/tofu proxmox plan` geeft `401` | [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
 
 ## Tailscale-regels aanpassen
 
@@ -32,6 +39,7 @@ dan:
 ```bash
 brew install opentofu
 bin/tofu tailscale init
+bin/tofu proxmox init
 ```
 
 #### Pas het bestand aan
@@ -68,7 +76,63 @@ niet.
 Ook de DNS van de tailnet (adguard als nameserver), de goedgekeurde route van
 ct 108 en de tag van adguard staan zo in `tofu/tailscale/`. Zelfde stappen.
 
+## De machines op pve01
+
+`tofu/proxmox/` beschrijft de guests op pve01 en de Proxmox-gebruiker van
+Ansible. Wat hier staat, verander je hier, niet in het Proxmox-scherm: het
+volgende plan zou je wijziging daar weer terugzetten.
+
+| Bestand | Wat erin staat |
+| --- | --- |
+| `vms.tf` | de VM's 100 `pbs`, 101 `haos`, 102 `docker-grafana-stack`, 103 `docker`: één blok per VM |
+| `containers.tf` | de Debian-containers 104 `semaphore`, 106 `caddy`, 107 `adguard`, 108 `tailscale`: één regel per container in `local.containers`, plus het template en de Ansible-sleutel voor nieuwe containers |
+| `access.tf` | de gebruiker `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten |
+
+```bash
+bin/tofu proxmox plan    # wat zou er veranderen?
+bin/tofu proxmox apply   # doe het (typ yes)
+```
+
+Wat je ermee doet (maken, groter maken, weghalen) staat per geval in
+[Guests maken en weghalen](/proxmox/guests/).
+
+<Callout type="error">
+Zegt een plan **`must be replaced`**, doe dan nooit `apply`. Vervangen
+betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
+`prevent_destroy`, dus OpenTofu weigert het ook zelf, maar zoek de oorzaak.
+</Callout>
+
+**Bewust niet in OpenTofu:**
+
+| Wat | Waar dan |
+| --- | --- |
+| `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
+| `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen |
+| `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/guests/#een-oci-container) |
+| opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
+| `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |
+
+### Na een ramp: eerst PBS, dan OpenTofu
+
+De state van OpenTofu staat in R2, dus na een herinstallatie van pve01 weet
+OpenTofu nog welke guests er horen. Een `apply` zou elke ontbrekende guest
+maken, als **lege** machine op zijn eigen nummer. Dan kan je back-up er niet
+meer op.
+
+Daarom: **zet eerst alles terug uit PBS, dan pas `bin/tofu proxmox plan`**.
+Wil het plan een guest *maken* die uit PBS moet komen: stop. Na de restores
+hoort het plan `No changes` te zeggen, of alleen te maken wat je echt opnieuw
+bouwt. De volledige volgorde: [pve01 is weg](/proxmox/pve01/#deel-3--de-machines-en-diensten).
+
 ## Goed om te weten
+
+### PBS bewaart de inhoud, OpenTofu de vorm
+
+Een back-up in PBS is de schijf van een guest: alles wat erop staat. OpenTofu
+kent de vorm: cores, geheugen, schijfgrootte, adres, MAC. Samen krijg je een
+guest precies terug. Vroeger maakte Ansible de containers, maar alleen als ze
+ontbraken; een bestaande guest raakte het nooit aan. Nu toont elk plan het
+meteen als Proxmox en de repo uit elkaar lopen.
 
 ### Waarom OpenTofu en niet de console
 

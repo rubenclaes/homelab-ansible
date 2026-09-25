@@ -20,7 +20,7 @@ vault-wachtwoorden werkt niets anders.
 | Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
 | Je wil vanaf een **nieuwe laptop** playbooks draaien en `ssh caddy` typen | nieuwe MacBook, de `mbp` opnieuw geïnstalleerd, of `~/.zshrc` kwijt | [Laptop klaarzetten](#laptop-klaarzetten) |
-| Er is een **nieuwe machine** bij en `ssh <naam>` werkt nog niet | net een LXC gebouwd met `new-guest.yml` | [Nieuwe machine bij naam](#nieuwe-machine-bij-naam-bereiken) |
+| Er is een **nieuwe machine** bij en `ssh <naam>` werkt nog niet | net een LXC gemaakt met `bin/tofu proxmox apply` en `new-guest.yml` | [Nieuwe machine bij naam](#nieuwe-machine-bij-naam-bereiken) |
 | Je wil een **afkorting** toevoegen of aanpassen in je shell | een alias zoals `gs` voor `git status` | [Shell-afkorting aanpassen](#shell-afkorting-aanpassen) |
 | Je weet niet meer **hoe een playbook heet** of wat het doet | "was het `smoketest.yml` of `dns-smoketest.yml`?" | [Een playbook kiezen met `ap`](#een-playbook-kiezen-met-ap) |
 | Je wil **snel** een dienst openen, op een host inloggen of **logs** van een container zien | Plex openen, `ssh pve01`, de logs van Sonarr | [Snel naar een dienst, host of log](#snel-naar-een-dienst-host-of-log) |
@@ -199,7 +199,7 @@ eigen gebruiker en dezelfde `ansible`-sleutel.
 ## Nieuwe machine bij naam bereiken
 
 Er is een machine bij en `ssh <naam>` werkt nog niet. Voorbeeld: je hebt net
-`vaultwarden` gebouwd met [Nieuwe machine](/proxmox/guests/).
+`vaultwarden` gebouwd met [Nieuwe container](/proxmox/guests/#een-nieuwe-container).
 
 <Steps>
 
@@ -209,7 +209,8 @@ Er is een machine bij en `ssh <naam>` werkt nog niet. Voorbeeld: je hebt net
 ansible-inventory --graph linux   # vaultwarden moet in de lijst staan
 ```
 
-Staat hij er niet, dan kent Proxmox hem nog niet. Draai eerst `new-guest.yml` af.
+Staat hij er niet, dan kent Proxmox hem nog niet. Maak hem eerst, zie
+[Nieuwe container](/proxmox/guests/#een-nieuwe-container).
 
 #### Draai het dotfiles-playbook voor de nieuwe host
 

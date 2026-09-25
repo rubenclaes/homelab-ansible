@@ -43,30 +43,31 @@ met vmid 107. Dat is de snelle en volledige weg.
 
 <Callout type="warning">
 Liever **niet** opnieuw bouwen. Een nieuwe AdGuard mist alles wat alleen in de
-container staat: je login en de upstream-resolvers. Bovendien
-vraagt een nieuwe container zijn DNS aan pve01, en die vraagt het aan…
-de AdGuard die er niet is. Dan faalt de installatie.
+container staat: je login en de upstream-resolvers.
 </Callout>
 
 #### Geen back-up? Dan toch opnieuw bouwen
 
 ```bash
+ssh pve01 'sudo pct destroy 107'                    # als hij nog half bestaat
+bin/tofu proxmox plan                               # alleen adguard: "1 to add"
+bin/tofu proxmox apply
 ansible-playbook playbooks/new-guest.yml -e guest=adguard
+ansible-playbook playbooks/proxmox-datacenter.yml   # zet /dev/net/tun terug
 ```
 
-Loopt dit vast op het downloaden van pakketten, geef de container dan zijn
-eigen DNS en draai het opnieuw:
+`bin/tofu` heeft internet nodig: de state staat in Cloudflare R2. Vraagt je
+laptop zijn DNS ook aan AdGuard, zet daar dan even `1.1.1.1` als DNS.
 
-```bash
-ssh pve01 'sudo pct set 107 --nameserver 1.1.1.1; sudo pct reboot 107'
-ansible-playbook playbooks/new-guest.yml -e guest=adguard
-```
+OpenTofu maakt hem opnieuw met nummer 107, adres `192.168.0.29` en zijn oude
+MAC. Hij vraagt zijn eigen DNS aan `1.1.1.1` (staat zo in
+`tofu/proxmox/containers.tf`), dus de installatie loopt ook zonder werkende
+AdGuard. Zie [Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen).
 
 Daarna, met de hand:
 
-1. zet de `/dev/net/tun`-regels onderaan `/etc/pve/lxc/107.conf`, zoals in [Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen), en `pct reboot 107`
-2. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
-3. zet in AdGuard de upstream-DNS; de rewrites, ook `*.neodata.be`, zet `adguard.yml` terug
+1. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
+2. zet in AdGuard de upstream-DNS; de rewrites, ook `*.neodata.be`, zet `adguard.yml` terug
 
 ```bash
 ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + filterlijsten
@@ -181,16 +182,19 @@ Zo staat het op `docker` en `docker-grafana-stack`.
 ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
 ```
 
-#### Zet het ook in de LXC-config (alleen bij een LXC)
+#### Zet het ook in `containers.tf` (alleen bij een LXC)
+
+In `tofu/proxmox/containers.tf`, bij de regel van de container:
+`dns_servers = ["192.168.0.29"]`. Laat `searchdomain` staan zoals het is.
 
 ```bash
-ssh pve01 'sudo pct config 106 | grep search'   # welk searchdomain heeft hij nu?
-ssh pve01 'sudo pct set 106 --nameserver 192.168.0.29 --searchdomain home.arpa'
+bin/tofu proxmox plan    # alleen zijn dns, "update in-place"
+bin/tofu proxmox apply
 ```
 
-Anders draait een herstart van de container je wijziging terug. Geef
-`--searchdomain` altijd mee (de waarde die je net zag), want die verschilt per
-container.
+Anders draait een herstart van de container je wijziging terug. Niet met
+`pct set --nameserver`: het volgende plan zet het dan weer terug. Commit en
+push daarna.
 
 <Callout type="error">
 Nooit op `tailscale` (ct 108): daar staat `100.100.100.100` en dat beheert

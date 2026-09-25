@@ -58,7 +58,7 @@ overschrijft ze. Pas de bron aan.
 | Pagina | Bron |
 | --- | --- |
 | [Diensten](/homelab/diensten/), één pagina per dienst | `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus `docker_services_without_route` van elke docker-host |
-| [Machines](/homelab/machines/) | `inventory/00-static.yml`, de Proxmox-guests die `homelab.proxmox.yml` live ophaalt, `pve_lxcs` en elke `docker_stacks_list` |
+| [Machines](/homelab/machines/) | `inventory/00-static.yml`, de Proxmox-guests die `homelab.proxmox.yml` live ophaalt (ook hun cores, geheugen en schijf) en elke `docker_stacks_list` |
 | [Toestellen](/homelab/toestellen/) | UniFi (Client Devices). Is UniFi onbereikbaar, dan blijft de vorige versie staan |
 | Alle andere pagina's | met de hand geschreven, in `docs-site/content/` |
 

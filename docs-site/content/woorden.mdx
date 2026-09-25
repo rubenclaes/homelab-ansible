@@ -49,11 +49,13 @@ Proxmox erop. Gaat die uit, dan gaat alles uit.
 **NeoGate**: je eigen app op [neogate.neodata.be](https://neogate.neodata.be).
 Maakt accounts aan in Plex, Immich en de andere diensten, en haalt ze weer weg.
 
+**OpenTofu**: maakt en beschrijft de machines op pve01 (`tofu/proxmox/`) en
+de Tailscale-regels (`tofu/tailscale/`). Je draait het via `bin/tofu`. Eerst
+`plan` (tonen wat er zou veranderen), dan `apply` (het doen). De containers
+staan in `containers.tf`, de VM's in `vms.tf`.
+
 **PBS**: Proxmox Backup Server, VM 100. Bewaart de dagelijkse back-ups,
 versleuteld, op de schijf `vm-hdd` van pve01.
-
-**`pve_lxcs`**: de lijst met containers in `inventory/group_vars/proxmox/lxcs.yml`.
-Wat daar niet in staat, kan het playbook niet bouwen.
 
 **Resolver**: de DNS-server die een toestel vraagt "welk adres hoort bij deze
 naam?". Hier is dat AdGuard in ct 107 (`192.168.0.29`).

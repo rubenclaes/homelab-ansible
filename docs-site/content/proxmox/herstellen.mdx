@@ -104,6 +104,13 @@ ansible-playbook playbooks/site.yml --limit adguard
 De back-up draait de configuratie van toen. Deze run brengt hem naar wat de
 repo nu zegt.
 
+```bash
+bin/tofu proxmox plan   # moet "No changes" zeggen
+```
+
+Zo weet je dat cores, geheugen en MAC van de back-up kloppen met
+`tofu/proxmox/`. Wil het plan iets veranderen, kijk dan eerst wat.
+
 <Callout type="info">
 Terugzetten van `semaphore`? Gebruik dan `ansible-playbook playbooks/semaphore.yml`
 in plaats van `site.yml --limit semaphore`. Die laatste faalt: Semaphore moet
@@ -120,8 +127,8 @@ ssh-keygen -R 192.168.0.29    # het adres van de teruggezette guest
 
 ## Een container opnieuw bouwen
 
-Voor een container die in `pve_lxcs` staat maar stuk of weg is, en waar niets
-unieks op staat: `caddy` en `tailscale`. Nieuw bouwen gaat sneller dan een
+Voor een container uit `tofu/proxmox/containers.tf` die stuk of weg is, en
+waar niets unieks op staat: `caddy` en `tailscale`. Nieuw bouwen gaat sneller dan een
 back-up terugzetten, en is schoner.
 
 <Callout type="warning">
@@ -141,49 +148,48 @@ Voorbeeld: `caddy` (ct 106).
 ssh pve01 'sudo pct stop 106; sudo pct destroy 106'
 ```
 
-Het playbook maakt alleen wat ontbreekt. Een halve container blijft anders
+OpenTofu maakt alleen wat ontbreekt. Een halve container blijft anders
 gewoon staan.
 
-#### Bouw hem opnieuw
+#### Kijk wat OpenTofu gaat doen
+
+```bash
+bin/tofu proxmox plan
+```
+
+Er mag maar één ding bij komen: jouw container (`1 to add`). Wil hij nog een
+andere guest maken die uit PBS terug moet, stop dan: zet die eerst terug, zie
+[OpenTofu maakt de container](#opentofu-maakt-de-container-new-guestyml-zet-hem-klaar).
+
+#### Maak hem opnieuw
+
+```bash
+bin/tofu proxmox apply   # typ yes
+```
+
+Hij komt terug met hetzelfde nummer, adres en MAC-adres, uit
+`tofu/proxmox/containers.tf`.
+
+#### Zet hem klaar met Ansible
 
 ```bash
 ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ```
 
-Maakt de container, zet het `ansible`-account erop en doet de baseline.
-Meerdere tegelijk kwijt? Eén per keer, in deze volgorde: `adguard` (DNS),
-`caddy` (de voordeur), `tailscale`, `semaphore`.
+Zet het `ansible`-account erop en doet de baseline. Meerdere tegelijk kwijt?
+Eén per keer, in deze volgorde: `adguard` (DNS), `caddy` (de voordeur),
+`tailscale`, `semaphore`.
 
-#### Doe de handwerkstappen uit `lxcs.yml`
-
-Sommige containers hebben instellingen die het API-token niet kan zetten. Die
-staan als commentaar bij hun blok in `inventory/group_vars/proxmox/lxcs.yml`.
-Nu: `tailscale` (108) en `adguard` (107), allebei voor `/dev/net/tun`.
-
-Zet als root op pve01 deze twee regels onderaan `/etc/pve/lxc/<vmid>.conf`
-(voorbeeld 108):
+#### Alleen bij `tailscale` en `adguard`: zet `/dev/net/tun` terug
 
 ```bash
-ssh -t pve01 'sudoedit /etc/pve/lxc/108.conf'
+ansible-playbook playbooks/proxmox-datacenter.yml
 ```
 
-```
-lxc.cgroup2.devices.allow: c 10:200 rwm
-lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
-```
-
-```bash
-ssh pve01 'sudo pct reboot 108'   # een mount-entry geldt pas na een herstart
-```
-
-Zonder dit start `tailscaled` niet: hij faalt stil in een herstartlus. Geen
-playbook kan het voor je doen.
-
-<Callout type="warning">
-Niet met `pct set 108 -lxc.cgroup2.devices.allow …`: `pct set` weigert rauwe
-`lxc.`-sleutels op deze Proxmox-versie ("400 unable to parse option"). Schrijf
-de regels dus altijd rechtstreeks in het `.conf`-bestand.
-</Callout>
+Die twee hebben `/dev/net/tun` nodig. De rol `proxmox_tun` zet de twee
+`lxc.`-regels als root in hun config op pve01, en herstart de container alleen
+als hij ze net kreeg. `site.yml` doet het ook. Zonder start `tailscaled` niet:
+hij faalt stil in een herstartlus.
 
 #### Zet de dienst terug
 
@@ -240,23 +246,34 @@ wildcard-rewrite). Volg daarvoor [Geen DNS](/netwerk/dns/#geen-dns).
 | `tailscale` | 108 | LXC | `vm-hdd` | [herbouwen](#een-container-opnieuw-bouwen) |
 | `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/proxmox/guests/#een-oci-container) |
 
-Bron: `inventory/group_vars/proxmox/lxcs.yml` en `vms.yml`.
+Bron: `tofu/proxmox/vms.tf` en `containers.tf`; `ntfy` uit
+`pve_oci_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.
 
 ## Goed om te weten
 
-### `new-guest.yml` maakt alleen wat je noemt
+### OpenTofu maakt de container, `new-guest.yml` zet hem klaar
 
-De container-rol zelf maakt élke container uit `pve_lxcs` die ontbreekt.
-`new-guest.yml` geeft hem alleen de genoemde, zodat de nummers die nog uit
-PBS terug moeten vrij blijven.
+`bin/tofu proxmox apply` maakt élke container of VM uit `tofu/proxmox/` die
+ontbreekt. Niet alleen de ene die je bedoelt. Mist er ook een guest die uit
+PBS terug moet, dan maakt OpenTofu die als **lege** machine op zijn nummer, en
+kan je back-up er niet meer op.
 
-### `/dev/net/tun` gaat met de hand
+De regel: **eerst terugzetten uit PBS, dan pas `plan`**. Wil het plan een
+guest maken die uit PBS moet komen: stop. Na de restores hoort het plan alleen
+nog te maken wat je echt opnieuw wil bouwen.
+
+`new-guest.yml` maakt zelf niets meer. Het neemt een container die Proxmox al
+kent en zet hem klaar: SSH-sleutel, `ansible`-account, baseline. Een naam die
+Proxmox niet kent, weigert het, met de lijst van wat wel bestaat.
+
+### `/dev/net/tun` doet Ansible als root
 
 `tailscale` (108) en `adguard` (107, sinds 23-09 op de tailnet als globale
-nameserver) hebben `/dev/net/tun` nodig. Het API-token kan geen rauwe
-`lxc.`-sleutels zetten, en `pct set` weigert ze op deze Proxmox-versie. Dus:
-twee regels onderaan `/etc/pve/lxc/<vmid>.conf` en `pct reboot`. De bron is het
-commentaar in `inventory/group_vars/proxmox/lxcs.yml`.
+nameserver) hebben `/dev/net/tun` nodig. Een apparaat doorgeven mag van
+Proxmox alleen root, niet een API-token, dus OpenTofu kan het niet. `pct set`
+weigert de regels op deze Proxmox-versie. Daarom schrijft `roles/proxmox_tun`
+ze via SSH als root in `/etc/pve/lxc/<vmid>.conf`. Welke containers:
+`proxmox_tun_guests` in `inventory/group_vars/proxmox/lxcs.yml`.
 
 ### Niet alles komt uit een playbook terug
 

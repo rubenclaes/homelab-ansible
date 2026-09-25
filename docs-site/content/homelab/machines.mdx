@@ -101,7 +101,7 @@ Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
 
 ### ntfy
 
-`192.168.0.32`
+`192.168.0.32` · VMID 109 · 1 core · 256 MB · 2 GB
 
 Diensten: [ntfy](/homelab/diensten/ntfy/)
 
@@ -135,9 +135,7 @@ Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
 
 ---
 
-Een verdwenen LXC-container wordt opnieuw gemaakt uit `pve_lxcs` in
-`inventory/group_vars/proxmox/lxcs.yml`, met template
-`local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst` op bridge `vmbr0`. Een
-bestaande container wordt nooit aangeraakt.
+De machines op pve01 maakt en beschrijft OpenTofu, in `tofu/proxmox/`. Hoe:
+[Guests](/proxmox/guests/).
 
 <small>Deze pagina wordt automatisch gemaakt uit de inventory. Iets fout? Pas de inventory aan, niet deze pagina. Zie [Deze docs](/ansible/docs/#wat-waar-vandaan-komt).</small>

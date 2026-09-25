@@ -26,6 +26,7 @@ nieuwe machine** nodig. Zie [Dienst toevoegen](/docker/toevoegen/).
 | Je wil **één programma uit een Docker-image** dat moet blijven werken als de docker-VM plat ligt | `ntfy` | [OCI-container](#een-oci-container) |
 | Je hebt echt een **virtuele machine** nodig (eigen kernel, eigen OS) | zoals `haos` of `docker` | [Virtuele machine](#een-virtuele-machine) |
 | Je container of VM staat er en heeft de baseline | `vaultwarden` na het bouwen | [Afwerken](#afwerken) |
+| Een machine heeft **meer geheugen, cores of schijf** nodig | `docker` krijgt 20 GB in plaats van 16 | [Machine aanpassen](#een-machine-aanpassen) |
 | Een **container of VM** op pve01 mag weg | een test-LXC | [Machine weghalen](#een-machine-weghalen) |
 | Je wil weten welke guests er echt draaien, of het API-token nog werkt | Ansible ziet een host niet | [Guests en API-token checken](#guests-en-api-token-checken) |
 | Na een herbouw starten guests **niet mee op** als pve01 opstart | na een restore staat de helft op `onboot: 0` | [Guests mee laten opstarten](#guests-mee-laten-opstarten) |
@@ -33,7 +34,8 @@ nieuwe machine** nodig. Zie [Dienst toevoegen](/docker/toevoegen/).
 ## Een nieuwe container
 
 Voorbeeld: Vaultwarden op een eigen LXC. Alles gebeurt vanaf je werkstation,
-het Proxmox-scherm heb je niet nodig.
+het Proxmox-scherm heb je niet nodig. **OpenTofu** maakt de container (zie
+[OpenTofu](/opentofu/)), daarna zet Ansible hem klaar.
 
 <Steps>
 
@@ -53,53 +55,95 @@ gereserveerd voor de restore-drill.
 
 #### Zoek een vrij adres
 
-Kijk in `inventory/group_vars/proxmox/lxcs.yml` welke adressen al gebruikt
-worden, en test of het adres echt vrij is:
+Kijk in `tofu/proxmox/containers.tf` welke adressen al gebruikt worden, en
+test of het adres echt vrij is:
 
 ```bash
 ping -c 2 192.168.0.31   # geen antwoord = waarschijnlijk vrij
 ```
 
-#### Zet de container in de lijst
+#### Zet de container in `containers.tf`
 
 ```bash
-$EDITOR inventory/group_vars/proxmox/lxcs.yml
+$EDITOR tofu/proxmox/containers.tf
 ```
 
-Voeg onderaan in `pve_lxcs` een blok toe:
+Voeg in `local.containers` een blok toe, naast de andere:
 
-```yaml
-  - vmid: 111
-    hostname: vaultwarden
-    cores: 1
-    memory: 512
-    swap: 512
-    disk: { storage: vm-hdd, size: 8 }
-    ip: 192.168.0.31/24
-    features: [nesting=1]
+```hcl
+    vaultwarden = {
+      vm_id        = 111
+      cores        = 1
+      memory       = 512
+      swap         = 512
+      disk         = { datastore = "vm-hdd", size = 8 }
+      ip           = "192.168.0.31/24"
+      ipv6_auto    = false
+      mac          = null
+      keyctl       = false
+      dns_servers  = ["192.168.0.29"]
+      searchdomain = "home.arpa"
+      tags         = []
+    }
 ```
 
 | Veld | Wat je invult |
 | --- | --- |
-| `vmid` | het vrije nummer |
-| `hostname` | kleine letters, geen spaties. Wordt ook zijn naam in de inventory |
+| de naam (`vaultwarden`) | kleine letters, geen spaties. Wordt ook zijn naam in de inventory |
+| `vm_id` | het vrije nummer |
 | `cores` / `memory` / `swap` | geheugen in MB. Begin klein, ophogen kan later |
 | `disk` | opslag + grootte in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
 | `ip` | het vrije adres, met `/24` erachter |
-| `features` | `nesting=1` zet je er altijd bij (Docker heeft het nodig, de rest heeft er geen last van) |
+| `mac` | `null`: dan kiest Proxmox er een. Zet hem na het bouwen vast (zie hieronder) |
+| `dns_servers` / `searchdomain` | zoals hierboven: AdGuard als DNS, `home.arpa` als zoekdomein |
 
-Gateway, template en de Ansible-sleutel komen uit `pve_lxc_defaults` bovenaan
-hetzelfde bestand. Die hoef je niet in te vullen.
+Gateway, template en de Ansible-sleutel staan één keer onderaan hetzelfde
+bestand. Die hoef je niet in te vullen.
 
-#### Bouw de container
+#### Kijk wat OpenTofu gaat doen
+
+```bash
+bin/tofu proxmox plan
+```
+
+Onderaan moet `1 to add, 0 to change, 0 to destroy` staan. Staat er iets
+anders, stop en kijk eerst wat er nog verandert.
+
+#### Maak de container
+
+```bash
+bin/tofu proxmox apply
+```
+
+Hij toont het plan nog een keer; typ `yes`. De container staat er nu, met de
+Ansible-sleutel in root.
+
+#### Zet hem klaar met Ansible
 
 ```bash
 ansible-playbook playbooks/new-guest.yml -e guest=vaultwarden
 ```
 
-Dit maakt de container, wacht tot SSH luistert, vertrouwt zijn hostkey, zet
-het `ansible`-account erop en past de baseline toe. Aan het eind staat in beeld
-wat je hierna doet.
+Dit wacht tot SSH luistert, vertrouwt zijn hostkey, zet het `ansible`-account
+erop en past de baseline toe. Aan het eind staat in beeld wat je hierna doet.
+
+#### Zet het MAC-adres vast
+
+Proxmox koos een MAC. Kijk welk, zet het in plaats van `null` bij `mac`, en
+draai `bin/tofu proxmox plan`: dat moet nu `No changes` zeggen. Zo krijgt
+een herbouw hetzelfde MAC, en dus hetzelfde adres in UniFi.
+
+```bash
+ssh pve01 'sudo pct config 111 | grep net0'   # hwaddr=BC:24:11:...
+```
+
+#### Commit en push
+
+```bash
+git add tofu/proxmox/containers.tf
+git commit -m "feat: vaultwarden container"
+git push
+```
 
 #### Werk de container af
 
@@ -210,9 +254,10 @@ niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.
 
 ## Een virtuele machine
 
-Een VM maak je **met de hand** in het Proxmox-scherm
-([waarom](#waarom-vms-niet-automatisch)).
-Daarna neemt Ansible het over, net als bij een container.
+OpenTofu maakt de lege VM, uit een blok in `tofu/proxmox/vms.tf`. Debian
+installeren doe je **met de hand** in de console
+([waarom](#waarom-vms-niet-automatisch)). Daarna neemt Ansible het over, net
+als bij een container.
 
 Voorbeeld: een VM `nieuwehost` met Debian.
 
@@ -220,18 +265,20 @@ Voorbeeld: een VM `nieuwehost` met Debian.
 
 | Stap | Waar | Wat |
 | --- | --- | --- |
-| 1–3 | Proxmox-scherm | Debian-ISO ophalen, VM aanmaken, Debian installeren |
+| 1 | Proxmox-scherm | Debian-ISO ophalen |
+| 2 | je werkstation | blok in `vms.tf`, `bin/tofu proxmox apply` |
+| 3 | Proxmox-console | Debian installeren |
 | 4 | in de VM | guest agent aanzetten |
 | 5 | UniFi | adres vastzetten |
 | 6–8 | je werkstation | Ansible hem laten zien, sleutel erop, `bootstrap` + `baseline` |
-| 9 | je werkstation | opschrijven in `vms.yml` |
+| 9 | je werkstation | MAC vastzetten, commit en push |
 
 <Callout type="info">
-Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Neem cores,
-geheugen, schijfgrootte en vooral het **MAC-adres** exact over uit
-`inventory/group_vars/proxmox/vms.yml`. Aan het MAC-adres hangt zijn vaste
-adres in UniFi. Meestal wil je dan geen nieuwe VM maar een back-up terugzetten:
-zie [Herstellen](/proxmox/herstellen/).
+Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Dan maak je
+geen nieuwe VM: je zet een back-up terug uit PBS, zie
+[Herstellen](/proxmox/herstellen/). Zijn vorm (cores, geheugen, schijf en
+vooral het **MAC-adres**, waar zijn vaste adres in UniFi aan hangt) staat al
+in `tofu/proxmox/vms.tf`.
 </Callout>
 
 <Steps>
@@ -249,30 +296,83 @@ Eén keer; staat hij er al, sla dit over.
 #### Maak de VM aan
 
 Kies een vrij nummer en een naam zoals bij
-[een container](#zoek-een-vrij-nummer).
-Klik rechtsboven op **Create VM** en vul per tabblad in. Alles wat hier niet
-staat laat je op de standaardwaarde.
+[een container](#zoek-een-vrij-nummer). Zet dan een blok onderaan
+`tofu/proxmox/vms.tf`:
 
-| Tabblad | Veld | Waarde | Waarom |
-| --- | --- | --- | --- |
-| General | VM ID | het vrije nummer | |
-| | Name | `nieuwehost` | wordt zijn naam in de inventory: kleine letters, geen spaties |
-| | Start at boot | aan | komt terug na een herstart van pve01 |
-| OS | ISO image | het Debian-ISO | |
-| System | Machine | `q35` | zoals de andere VM's |
-| | BIOS | `OVMF (UEFI)` | |
-| | EFI Storage | `vm-hdd` | |
-| | Qemu Agent | **aan** | zonder dit vindt Ansible zijn adres niet |
-| Disks | Storage | `vm-hdd` | |
-| | Disk size | bv. `32` | in GB, groter maken kan later |
-| | Discard, SSD emulation | aan | geeft vrije ruimte terug aan de opslag |
-| CPU | Cores | bv. `2` | |
-| | Type | `host` | volle snelheid van de processor |
-| Memory | Memory | bv. `2048` | in MB. Zie [hoeveel geheugen](#hoeveel-geheugen-een-vm-krijgt) |
-| Network | Bridge | `vmbr0` | het thuisnetwerk |
-| | Model | `VirtIO` | |
+```hcl
+resource "proxmox_virtual_environment_vm" "nieuwehost" {
+  node_name     = local.node
+  vm_id         = 112
+  name          = "nieuwehost"
+  on_boot       = true
+  bios          = "ovmf"
+  machine       = "q35"
+  scsi_hardware = "virtio-scsi-single"
+  boot_order    = ["scsi0", "ide2"]
 
-Klik **Finish**. Selecteer daarna de VM en klik **Start**, dan **Console**.
+  agent {
+    enabled = true
+  }
+
+  cpu {
+    cores = 2
+    type  = "host"
+  }
+
+  memory {
+    dedicated = 2048
+  }
+
+  efi_disk {
+    datastore_id = "vm-hdd"
+  }
+
+  disk {
+    interface    = "scsi0"
+    datastore_id = "vm-hdd"
+    size         = 32
+    discard      = "on"
+    ssd          = true
+  }
+
+  cdrom {
+    interface = "ide2"
+    file_id   = "local:iso/debian-13.1.0-amd64-netinst.iso"
+  }
+
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
+  }
+
+  operating_system {
+    type = "l26"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+```
+
+| Veld | Waarom |
+| --- | --- |
+| `"nieuwehost"` en `name` | wordt zijn naam in de inventory: kleine letters, geen spaties |
+| `on_boot` | komt terug na een herstart van pve01 |
+| `agent` | **aan**: zonder vindt Ansible zijn adres niet |
+| `cpu.type = "host"` | volle snelheid van de processor |
+| `memory` | in MB. Zie [hoeveel geheugen](#hoeveel-geheugen-een-vm-krijgt) |
+| `disk.size` | in GB, groter maken kan later. `discard` geeft vrije ruimte terug aan de opslag |
+| `cdrom.file_id` | het ISO uit de vorige stap, precies zoals Proxmox het noemt |
+| `prevent_destroy` | OpenTofu mag hem nooit weggooien |
+
+```bash
+bin/tofu proxmox plan    # moet eindigen op "1 to add"
+bin/tofu proxmox apply   # typ yes
+```
+
+Selecteer de VM daarna in het Proxmox-scherm en klik **Start**, dan
+**Console**.
 
 #### Installeer Debian
 
@@ -343,17 +443,21 @@ ansible-playbook playbooks/baseline.yml --limit nieuwehost
 sudo-wachtwoord. `bootstrap` maakt het `ansible`-account; vanaf `baseline`
 gebruikt alles dat account.
 
-#### Schrijf hem op in `vms.yml`
+#### Zet het MAC-adres vast en commit
 
-Op pve01 (bv. via **pve01 → Shell** in het Proxmox-scherm):
+Proxmox koos een MAC. Kijk welk, en zet het als `mac_address` in het
+`network_device`-blok:
 
 ```bash
-qm config <vmid>
+ssh pve01 'sudo qm config 112 | grep net0'   # virtio=BC:24:11:...
+bin/tofu proxmox plan                         # moet "No changes" zeggen
+git add tofu/proxmox/vms.tf
+git commit -m "feat: nieuwehost VM"
+git push
 ```
 
-Neem die waarden over in `inventory/group_vars/proxmox/vms.yml`, in dezelfde
-vorm als de VM's die er al staan. Geen playbook leest dit bestand: het is je
-geheugen voor als pve01 ooit weg is.
+Aan dat MAC hangt zijn vaste adres in UniFi. Staat het vast, dan krijgt een
+herbouw hetzelfde adres.
 
 #### Werk de VM af
 
@@ -439,15 +543,79 @@ gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
 
 | Wat je ziet | Wat het is |
 | --- | --- |
-| Het playbook stopt meteen met een lijst namen | Je naam staat niet in `pve_lxcs`. Zet hem erbij en draai opnieuw |
+| `new-guest.yml` stopt meteen met een lijst namen | Proxmox kent die naam niet: de container bestaat nog niet. Zet hem in `tofu/proxmox/containers.tf`, draai `bin/tofu proxmox apply` en dan opnieuw |
+| `bin/tofu proxmox plan` zegt `must be replaced` | OpenTofu wil de machine weggooien en leeg opnieuw maken. **Nooit** `apply` doen. Meestal staat er een veld in de `.tf` dat Proxmox anders heeft (template, opslag). `prevent_destroy` houdt het tegen, maar zoek de oorzaak |
+| `bin/tofu proxmox plan` wil iets terugzetten dat je in het Proxmox-scherm veranderde | Het `.tf`-bestand wint. Zet de waarde daar, zie [Machine aanpassen](#een-machine-aanpassen) |
 | Het blijft hangen bij "Wait for SSH" (3 minuten) | De container start niet, of het adres klopt niet. Kijk in het Proxmox-scherm of hij draait en welk adres hij heeft |
 | Een fout over een hostkey | Er stond al een andere machine op dat adres. `ssh-keygen -R <adres>` en opnieuw |
 | Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet. Zie de README |
 | Een VM staat niet in de inventory | De guest agent draait niet. Zie [Virtuele machine](#controleer-dat-ansible-hem-ziet) |
 | Een OCI-container staat meteen weer op `stopped` | Meestal een ontbrekend `entrypoint`-argument of een map die niet bestaat. Zet `lxc.console.logfile: /tmp/ct.log` onderaan `/etc/pve/lxc/<vmid>.conf`, start hem, en lees dat bestand. Haal de regel daarna weer weg |
 
-Een half gebouwde container is niet erg: het playbook mag altijd opnieuw. Wat
-al bestaat wordt niet nog eens gemaakt.
+Een half klaargezette container is niet erg: `new-guest.yml` mag altijd
+opnieuw. Wat al klaarstaat wordt niet nog eens gedaan.
+
+## Een machine aanpassen
+
+Een container of VM heeft meer geheugen, cores of schijf nodig. Voorbeeld:
+`docker` krijgt 20 GB geheugen in plaats van 16. Dat doe je in het
+`.tf`-bestand, **niet** in het Proxmox-scherm: het volgende plan zou je
+wijziging daar weer terugdraaien.
+
+<Steps>
+
+#### Pas het getal aan
+
+```bash
+$EDITOR tofu/proxmox/vms.tf          # een VM: zijn eigen blok
+$EDITOR tofu/proxmox/containers.tf   # een container: zijn regel in local.containers
+```
+
+Bij `docker`: `dedicated = 16384` wordt `dedicated = 20480` (in MB).
+
+#### Kijk wat OpenTofu gaat doen
+
+```bash
+bin/tofu proxmox plan
+```
+
+Alleen jouw veld mag veranderen, met `update in-place` erbij, en onderaan
+`0 to add, 1 to change, 0 to destroy`. Staat er `must be replaced`: stop,
+nooit `apply`. Dat betekent een lege schijf.
+
+#### Voer het uit
+
+```bash
+bin/tofu proxmox apply   # typ yes
+```
+
+Een container krijgt het meteen. Een VM krijgt nieuw geheugen of cores pas na
+een herstart: `ssh pve01 sudo qm reboot <vmid>` (alle diensten erop gaan even
+plat).
+
+#### Commit en push
+
+```bash
+git add tofu/proxmox/
+git commit -m "chore: docker 20 GB geheugen"
+git push
+```
+
+#### Werk de docs bij
+
+```bash
+ansible-playbook playbooks/docs.yml
+```
+
+De pagina [Machines](/homelab/machines/) leest cores, geheugen en schijf live
+uit Proxmox, en staat daarna ook goed.
+
+</Steps>
+
+<Callout type="warning">
+Een schijf kan alleen **groter**. Een kleiner getal zet OpenTofu niet door:
+het plan wil de machine dan vervangen, en dat mag nooit.
+</Callout>
 
 ## Een machine weghalen
 
@@ -461,14 +629,10 @@ Elke route naar deze machine, en elke stack erop: zie de twee gevallen
 hierboven. Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
 niet meer bestaat.
 
-#### Haal hem uit de lijsten
+#### Maak een back-up als je twijfelt
 
-| Bestand | Wat |
-| --- | --- |
-| `inventory/group_vars/proxmox/lxcs.yml` | zijn item in `pve_lxcs` of `pve_oci_lxcs` |
-| `inventory/group_vars/proxmox/vms.yml` | zijn item, als het een VM is |
-| `inventory/group_vars/proxmox/backup.yml` | zijn vmid in de wekelijkse job naar de Mac mini (de PBS-job neemt `all` en past zich zelf aan) |
-| `inventory/group_vars/all/unifi.yml` | zijn MAC in `unifi_known_macs` |
+Proxmox → de guest → **Backup** → **Backup now**, naar `pbs`. Zo kan je hem
+nog terugzetten als je je vergist.
 
 #### Vernietig hem in Proxmox
 
@@ -480,8 +644,33 @@ pct destroy <vmid> --purge   # container
 qm destroy <vmid> --purge    # VM
 ```
 
-Geen playbook doet dit, met opzet: de rollen maken en wijzigen, maar
-vernietigen nooit. Een typfout in een vmid mag geen machine kosten.
+Geen playbook en geen `bin/tofu` doet dit, met opzet: elke guest heeft
+`prevent_destroy`. Een typfout mag geen machine kosten.
+
+#### Laat OpenTofu hem vergeten
+
+Sla dit over voor een OCI-container (ntfy): die staat niet in OpenTofu.
+
+```bash
+bin/tofu proxmox state list                                           # zoek zijn adres
+bin/tofu proxmox state rm 'proxmox_virtual_environment_container.this["vaultwarden"]'
+```
+
+Een VM heet bv. `proxmox_virtual_environment_vm.docker`. Haal daarna zijn
+regel uit `local.containers` in `tofu/proxmox/containers.tf`, of zijn blok uit
+`tofu/proxmox/vms.tf`.
+
+```bash
+bin/tofu proxmox plan   # moet "No changes" zeggen
+```
+
+#### Haal hem uit de lijsten
+
+| Bestand | Wat |
+| --- | --- |
+| `inventory/group_vars/proxmox/lxcs.yml` | alleen voor een OCI-container: zijn item in `pve_oci_lxcs` |
+| `inventory/group_vars/proxmox/backup.yml` | zijn vmid in de wekelijkse job naar de Mac mini (de PBS-job neemt `all` en past zich zelf aan) |
+| `inventory/group_vars/all/unifi.yml` | zijn MAC in `unifi_known_macs` |
 
 #### Ruim op buiten git
 
@@ -532,6 +721,13 @@ ssh pve01 sudo qm set <vmid> --onboot 0     # voor een VM
 
 </Steps>
 
+<Callout type="warning">
+De guests uit `tofu/proxmox/` (100–108) staan daar op meestarten
+(`on_boot` / `start_on_boot = true`). Zet je er een met de hand uit, dan wil
+het volgende `bin/tofu proxmox plan` hem weer aanzetten. Moet er een echt uit
+blijven, verander het dan in het `.tf`-bestand.
+</Callout>
+
 <Callout type="info">
 Waarom dit niet in `site.yml` zit: zie
 [Goed om te weten](#waarom-proxmox-autostartyml-niet-in-siteyml-zit).
@@ -570,16 +766,24 @@ hij hier wel en in de inventory niet, dan ligt het aan het token.
 
 ### Waar het adres van een container vandaan komt
 
-Zolang de container niet bestaat, is `lxcs.yml` de enige plek met zijn adres.
-Zodra hij bestaat, haalt de inventory het live uit Proxmox. Je schrijft het
-adres dus nergens anders op, en zet een guest **nooit** in `00-static.yml`:
-dat overschaduwt de live gegevens.
+Het adres staat in `tofu/proxmox/containers.tf`; OpenTofu zet het bij het
+maken op de container. Daarna haalt de inventory het live uit Proxmox. Je
+schrijft het adres dus nergens anders op, en zet een guest **nooit** in
+`00-static.yml`: dat overschaduwt de live gegevens.
 
-### Bestaande containers worden nooit aangepast
+### Waarom OpenTofu voor de machines
 
-De rol kijkt alleen welke vmid ontbreekt. Pas je later `memory` of `cores` aan
-in `lxcs.yml`, dan verandert er niets aan een draaiende container. Doe dat in
-het Proxmox-scherm en zet het ook in `lxcs.yml`, zodat een herbouw klopt.
+OpenTofu onthoudt wat het gemaakt heeft, en toont eerst een plan: wat erbij
+komt, wat verandert, wat weg zou gaan. Pas na `yes` gebeurt er iets.
+
+Vroeger maakte Ansible de containers. Dat maakte alleen wat ontbrak, en raakte
+een bestaande guest nooit aan. Zette je `memory` hoger in de lijst, dan
+gebeurde er niets, en liepen lijst en werkelijkheid stilletjes uit elkaar.
+Nu toont elk plan zo'n verschil meteen.
+
+De taakverdeling: **PBS bewaart de inhoud** (de schijf), **OpenTofu de vorm**
+(cores, geheugen, schijfgrootte, adres, MAC). Samen krijg je een guest precies
+terug.
 
 ### Hoeveel geheugen een VM krijgt
 
@@ -600,12 +804,12 @@ free -m                   # kijk naar "used", niet naar "buff/cache"
 docker stats --no-stream  # per container
 ```
 
-Aanpassen doe je op pve01, en daarna ook in `vms.yml`:
+Aanpassen doe je in `tofu/proxmox/vms.tf`, zie
+[Machine aanpassen](#een-machine-aanpassen). Het gaat pas in na een herstart:
 
 ```bash
-qm set <vmid> --memory 16384   # gaat pas in na een herstart
-qm pending <vmid>              # toont wat er nog wacht
-qm reboot <vmid>               # herstart hem netjes, alle diensten erop gaan even plat
+ssh pve01 sudo qm pending <vmid>   # toont wat er nog wacht
+ssh pve01 sudo qm reboot <vmid>    # herstart hem netjes, alle diensten erop gaan even plat
 ```
 
 ### Waarom de hostkey via Proxmox gelezen wordt
@@ -618,9 +822,11 @@ en niet wat er toevallig op dat adres antwoordt.
 ### Waarom VM's niet automatisch
 
 Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
-instellingen. Hem opnieuw aanmaken uit een lijst geeft je een correcte, maar
-lege machine. Het echte herstel is een back-up terugzetten uit PBS. Daarom
-staat `vms.yml` er alleen als naslag.
+instellingen. OpenTofu maakt de lege machine met de juiste vorm, maar het
+besturingssysteem erop installeren doe je één keer met de hand: elke VM is
+anders (Home Assistant OS, PBS, Debian). Een bestaande VM kwijt? Dan maak je
+hem niet opnieuw, je zet een back-up terug uit PBS. `tofu/proxmox/vms.tf`
+houdt daarna zijn vorm juist.
 
 ### Waarom `proxmox-autostart.yml` niet in `site.yml` zit
 

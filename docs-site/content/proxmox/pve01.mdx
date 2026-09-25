@@ -69,22 +69,64 @@ zpool import vm-hdd      # "in use by another system"? dan: zpool import -f vm-h
   over tot *Maak de map voor de tweede kopie*, doe deel 2 verder af, en ga dan
   naar [Tweede kopie](#terugvallen-op-de-tweede-kopie).
 
-#### Maak het API-token
+#### Maak de gebruiker van OpenTofu
+
+OpenTofu praat met Proxmox als zijn eigen gebruiker `tofu@pve`. Die maak je
+met de hand, want OpenTofu kan zichzelf niet aanmaken. Op pve01, als root:
+
+```bash
+pveum user add tofu@pve --comment "OpenTofu (homelab-ansible, tofu/proxmox)"
+pveum role add OpenTofu -privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,Pool.Audit,SDN.Audit,SDN.Use,Sys.Audit,Sys.Modify,User.Modify,Permissions.Modify,Realm.AllocateUser,VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.GuestAgent.Audit,VM.PowerMgmt"
+pveum aclmod / -user tofu@pve -role OpenTofu
+pveum user token add tofu@pve opentofu --privsep=0   # toont het secret, maar één keer
+```
+
+Kopieer het secret meteen.
+
+#### Zet dat token in `tofu/secrets.env`
+
+Op je laptop:
+
+```bash
+ansible-vault edit tofu/secrets.env
+```
+
+Vervang de regel `PROXMOX_VE_API_TOKEN=` door
+`PROXMOX_VE_API_TOKEN=tofu@pve!opentofu=<het secret>`.
+
+#### Laat OpenTofu de gebruiker van Ansible maken
+
+```bash
+bin/tofu proxmox init   # alleen op een nieuwe laptop
+bin/tofu proxmox apply \
+  -target=proxmox_virtual_environment_user.ansible \
+  -target=proxmox_virtual_environment_role.ansible \
+  -target=proxmox_virtual_environment_acl.ansible
+```
+
+Dit maakt `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten, uit
+`tofu/proxmox/access.tf`. Typ `yes`.
+
+<Callout type="error">
+Alleen met die drie `-target`s. Een gewone `bin/tofu proxmox apply` zou nu
+élke guest leeg opnieuw maken, en dan kan je back-up er niet meer op. Zie
+[Deel 3](#deel-3--de-machines-en-diensten).
+</Callout>
+
+#### Maak het token van Ansible
 
 Op pve01, als root:
 
 ```bash
-pveum role add AnsibleAutomation --privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use,Sys.Audit,VM.Allocate,VM.Audit,VM.Config.CPU,VM.Config.Disk,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.PowerMgmt,VM.GuestAgent.Audit"
-pveum user add ansible@pve
-pveum acl modify / --user ansible@pve --role AnsibleAutomation
 pveum user token add ansible@pve automation --privsep 0   # toont het secret, maar één keer
 ```
 
 Kopieer het secret meteen.
 
 <Callout type="info">
-Waarom met de hand? De inventory vindt de guests via dit token. Een playbook
-heeft het token dus al nodig om te draaien, en kan het niet zelf aanmaken.
+Waarom de tokens met de hand? De inventory vindt de guests via het token van
+Ansible, en OpenTofu heeft zijn eigen token nodig om te mogen praten. Een
+programma kan niet het token maken dat het zelf nodig heeft om te draaien.
 </Callout>
 
 #### Zet het secret in de twee vault-bestanden
@@ -107,12 +149,13 @@ ziet Ansible geen enkele guest.
 #### Commit en push
 
 ```bash
-git add inventory/group_vars/proxmox/vault.yml inventory/homelab.proxmox.yml
-git commit -m 'Nieuw Proxmox API-token na herinstallatie pve01'
+git add inventory/group_vars/proxmox/vault.yml inventory/homelab.proxmox.yml tofu/secrets.env
+git commit -m 'Nieuwe Proxmox API-tokens na herinstallatie pve01'
 git push
 ```
 
 Semaphore draait vanuit git. Zonder push werkt hij straks met het oude token.
+`tofu/secrets.env` is versleuteld, net als de vault.
 
 #### Vertrouw de nieuwe hostkey van pve01
 
@@ -144,8 +187,9 @@ stopt Ansible met een melding daarover.
 ansible-playbook playbooks/proxmox-access.yml
 ```
 
-Trekt de rechten van het token gelijk en bewijst dat het werkt. Groen = de
-inventory kan de guests zien.
+Bewijst dat het token van Ansible werkt en de guest agents mag lezen. Groen =
+de inventory kan de guests zien. Dit controleert alleen; de rechten zelf staan
+in `tofu/proxmox/access.tf`.
 
 </Steps>
 
@@ -171,7 +215,9 @@ De PBS-datastore staat op die pool.
 
 #### Maak de PBS-VM (100) met de hand
 
-Exact volgens `vmid: 100` in `pve_vms` (`inventory/group_vars/proxmox/vms.yml`).
+Exact volgens het blok `pbs` in `tofu/proxmox/vms.tf`: cores, geheugen,
+schijven en MAC-adres. **Niet** met `bin/tofu proxmox apply`: die zou `scsi1`
+als nieuwe, lege schijf maken.
 
 - **MAC-adres overnemen** (`BC:24:11:3D:B4:6A`): daar hangt de DHCP-reservering aan.
 - Systeemschijf `scsi0`: nieuw, 32G op `local-lvm`.
@@ -191,8 +237,10 @@ stuk is nog nooit gelopen; ga langzaam.
 
 #### Installeer PBS in de VM
 
-Van de ISO (`ide2` in `vms.yml`). De oude systeemschijf stond op `local-lvm`
-en is met de herinstallatie verdwenen.
+Van de PBS-ISO: haal de nieuwste van
+[proxmox.com/downloads](https://www.proxmox.com/en/downloads) via **local →
+ISO Images → Download from URL**, en hang hem aan als CD/DVD. De oude
+systeemschijf stond op `local-lvm` en is met de herinstallatie verdwenen.
 
 Zorg daarna dat de datastore van `scsi1` weer op `/mnt/datastore/store1` hangt.
 
@@ -209,8 +257,8 @@ ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
 ansible-playbook playbooks/pbs.yml
 ```
 
-De inventory vindt het adres van een VM via de guest-agent (`agent: "1"` in
-`vms.yml`). Geen agent in de VM = geen adres = Ansible vindt `pbs` niet.
+De inventory vindt het adres van een VM via de guest-agent (`agent` in
+`tofu/proxmox/vms.tf`). Geen agent in de VM = geen adres = Ansible vindt `pbs` niet.
 
 #### Koppel PBS in Proxmox
 
@@ -263,6 +311,18 @@ node" zolang die er niet is.
 
 Guests met data komen uit PBS, `caddy`, `tailscale` en `ntfy` bouw je nieuw.
 
+<Callout type="error">
+**Eerst alles uit PBS terugzetten, pas dan `bin/tofu proxmox plan`.**
+
+OpenTofu weet nog welke guests er horen te staan (zijn state staat in R2, niet
+op pve01). Een `apply` nu zou elke ontbrekende guest maken, als **lege**
+machine op zijn eigen nummer. Daarna kan de back-up daar niet meer op.
+
+Wil het plan een guest *maken* die uit PBS moet komen: stop. Zet die eerst
+terug. Na de restores mag het plan alleen nog `caddy` en `tailscale` willen
+maken.
+</Callout>
+
 <Steps>
 
 #### Zet de guests met data terug uit PBS
@@ -273,14 +333,7 @@ voor `adguard` (107, als eerste: DNS), `semaphore` (104), `haos` (101),
 `--force` weg.
 
 `qmrestore` maakt de VM zelf aan, met de instellingen en het MAC-adres uit de
-back-up. Je hoeft 101 tot 103 niet eerst met de hand te maken.
-
-<Callout type="warning">
-Kijk na de restore van `adguard` of onderaan `/etc/pve/lxc/107.conf` de twee
-`/dev/net/tun`-regels nog staan (zie
-[Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen)).
-Ontbreken ze, zet ze erbij en doe `pct reboot 107`.
-</Callout>
+back-up. Je hoeft 101 tot 103 niet eerst te maken.
 
 #### Haal het container-template op
 
@@ -291,28 +344,51 @@ pveam update
 pveam download local debian-13-standard_13.1-2_amd64.tar.zst
 ```
 
-Een verse Proxmox heeft het niet, en de rol haalt het niet zelf op. Het staat
-in `pve_lxc_defaults.template` (`lxcs.yml`).
+Een verse Proxmox heeft het niet, en OpenTofu haalt het niet zelf op. Het
+staat als `lxc_template` in `tofu/proxmox/containers.tf`.
 
-#### Bouw de rest opnieuw
+#### Kijk wat OpenTofu wil maken
 
 ```bash
+bin/tofu proxmox plan
+```
+
+Lees de lijst. Alleen `caddy` en `tailscale` mogen erbij komen
+(`2 to add`). Staat er een andere guest bij, of `must be replaced`: stop, en
+zet die guest eerst terug uit PBS.
+
+#### Maak `caddy` en `tailscale`
+
+```bash
+bin/tofu proxmox apply   # typ yes
 ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ansible-playbook playbooks/new-guest.yml -e guest=tailscale
 ```
 
-Eén per keer. Vergeet de `/dev/net/tun`-regels voor `tailscale` niet (zie
-[Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen)).
+OpenTofu maakt ze met hun oude nummer, adres en MAC-adres. `new-guest.yml`
+zet ze daarna klaar, één per keer.
+
+#### Geef `adguard` en `tailscale` hun `/dev/net/tun`
+
+```bash
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+De rol `proxmox_tun` zet de twee `lxc.`-regels als root in hun config, en
+herstart een container alleen als hij ze net kreeg. Zonder start
+`tailscaled` niet.
+
+#### Bouw `ntfy`
 
 ```bash
 ansible-playbook playbooks/proxmox-oci.yml
 ```
 
-Dat is `ntfy`. Hij komt niet uit PBS maar wordt nieuw gebouwd: gebruikers,
-rechten en tokens staan in `lxcs.yml` en de vault, dus er gaat niets verloren
-behalve de berichten van de laatste uren. Het image komt van Docker Hub, dus
-pve01 moet al internet hebben. Tot hij draait, komen de meldingen van Proxmox
-alleen in `mail-to-root` terecht.
+`ntfy` komt niet uit PBS maar wordt nieuw gebouwd: gebruikers, rechten en
+tokens staan in `lxcs.yml` en de vault, dus er gaat niets verloren behalve de
+berichten van de laatste uren. Het image komt van Docker Hub, dus pve01 moet
+al internet hebben. Tot hij draait, komen de meldingen van Proxmox alleen in
+`mail-to-root` terecht.
 
 #### Zet de diensten op de nieuwe containers
 
@@ -332,7 +408,11 @@ ansible-playbook playbooks/site.yml --check --diff    # lees dit echt: back-up v
 ansible-playbook playbooks/site.yml
 ansible-playbook playbooks/docs.yml
 ansible-playbook playbooks/report.yml
+bin/tofu proxmox plan                                  # moet "No changes" zeggen
 ```
+
+Zegt het plan niet `No changes`, dan wijkt een teruggezette guest af van
+`tofu/proxmox/`. Kijk wat, en beslis welke kant klopt.
 
 <Callout type="info">
 Stopt `stacks.yml` met een deploy-key? Dat gebeurt alleen op een host die
@@ -382,8 +462,14 @@ sudo pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.ta
 
 #### Maak PBS opnieuw, leeg
 
-PBS (VM 100) zit niet in de tweede kopie, met opzet. Maak hem met de hand
-volgens `vms.yml` (MAC-adres overnemen), en dan:
+PBS (VM 100) zit niet in de tweede kopie, met opzet. Hier mag OpenTofu hem
+wel maken, want beide schijven moeten toch leeg beginnen:
+
+```bash
+bin/tofu proxmox apply -target=proxmox_virtual_environment_vm.pbs
+```
+
+Hang de PBS-ISO eraan (Hardware → Add → CD/DVD), installeer PBS, en dan:
 
 ```bash
 ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
@@ -410,7 +496,8 @@ kan herbouwen:
 | `ct/107`, `ct/108`, `ct/109` | adguard, tailscale, ntfy |
 
 De rest (de VM's `docker` en `docker-grafana-stack`, caddy, semaphore) bouw
-je opnieuw met Ansible uit git.
+je opnieuw met OpenTofu en Ansible uit git. Ook hier: eerst terugzetten wat
+uit R2 komt, pas dan `bin/tofu proxmox plan`.
 
 **Je hebt nodig:** het papier met de sleutels (twee PBS-sleutels en de twee
 vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
@@ -611,8 +698,8 @@ Als root op `pve01` (via het Proxmox-scherm → Shell), per container:
 pct exec <vmid> -- tee -a /home/ansible/.ssh/authorized_keys <<< "<inhoud van ansible_ed25519.pub>"
 ```
 
-De vmids staan in `inventory/group_vars/proxmox/lxcs.yml` (104 semaphore,
-106 caddy, 107 adguard, 108 tailscale).
+De vmids staan in `tofu/proxmox/containers.tf` (104 semaphore, 106 caddy,
+107 adguard, 108 tailscale).
 
 #### Zet hem in de VM's, pve01 en de Mac mini
 
@@ -625,15 +712,16 @@ De vmids staan in `inventory/group_vars/proxmox/lxcs.yml` (104 semaphore,
 #### Zet de nieuwe publieke sleutel in de inventory
 
 ```bash
-$EDITOR inventory/group_vars/proxmox/lxcs.yml   # pve_lxc_defaults.pubkey
+$EDITOR tofu/proxmox/containers.tf   # ansible_pubkey, onderaan local
 ```
 
-Anders krijgt elke nieuw gebouwde container de oude sleutel mee.
+Anders krijgt elke nieuw gebouwde container de oude sleutel mee. Een plan
+toont hier niets: de sleutel telt alleen bij het maken van een container.
 
 #### Commit en push de nieuwe sleutel
 
 ```bash
-git add inventory/group_vars/proxmox/lxcs.yml
+git add tofu/proxmox/containers.tf
 git commit -m 'Nieuwe ansible-sleutel'
 git push
 ```
@@ -679,11 +767,18 @@ een herbouwde node: "de inventory is de waarheid, maak het aan". Alleen jij
 weet welke van de twee het is. Daarom zet je de vlag zelf, en alleen bij een
 herbouw.
 
-### Waarom VM's niet uit een playbook komen
+### Waarom VM's uit PBS komen, niet uit OpenTofu
 
-`vms.yml` beschrijft de vier VM's, maar niets leest dat bestand. Een VM
-opnieuw maken geeft een lege schijf, en de waarde zit in de schijf. Voor
-101–103 doet `qmrestore` het beter: die zet de schijf én de instellingen
-terug. `vms.yml` is er voor PBS (100) en voor als er geen back-up is. Neem dan
-zeker het MAC-adres over: daar hangt de DHCP-reservering aan, en `haos`
+`tofu/proxmox/vms.tf` beschrijft de vier VM's: cores, geheugen, schijven,
+MAC-adres. Maar een VM opnieuw maken geeft een lege schijf, en de waarde zit
+in de schijf. Voor 101–103 doet `qmrestore` het beter: die zet de schijf én
+de instellingen terug. OpenTofu houdt daarna de vorm juist, PBS de inhoud.
+Het MAC-adres telt het meest: daar hangt de DHCP-reservering aan, en `haos`
 herkent zichzelf eraan.
+
+### Waarom OpenTofu een eigen gebruiker heeft
+
+`tofu@pve` mag gebruikers en rechten zetten, `ansible@pve` alleen wat Ansible
+nodig heeft. Zo heeft elk programma zijn eigen token, trek je het ene in
+zonder het andere, en hoeft geen van beide root te zijn. `tofu@pve` zelf
+staat niet in OpenTofu: je kan niet de sleutel beheren waarmee je binnenkomt.

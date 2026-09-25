@@ -68,9 +68,10 @@ machine staat, gaat naar git. Wie wat doet:
 
 Eerst wat het hele huis plat kan leggen:
 
-- [ ] De `/dev/net/tun`-regels voor ct 107 en 108 staan met de hand in
+- [x] De `/dev/net/tun`-regels voor ct 107 en 108 staan met de hand in
       `/etc/pve/lxc/*.conf`. De API-token kan ze niet zetten; nakijken of
       OpenTofu dat via root@pam wel kan, anders blijft het een beschreven handstap.
+      Ansible zet ze nu als root (roles/proxmox_tun).
 
 Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 
@@ -99,15 +100,16 @@ Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
         geen wijziging. Pas daarna iets aanpassen.
   - [ ] Daarna in de console "edits beperken" aanzetten, zodat niemand er nog
         buiten git om iets verandert.
-- [ ] Proxmox (provider `bpg/proxmox`): de VM's uit `vms.yml` en de LXC's
+- [x] Proxmox (provider `bpg/proxmox`): de VM's uit `vms.yml` en de LXC's
       uit `lxcs.yml`, eerst met `tofu import` zodat niets opnieuw gebouwd
       wordt. Dan verdwijnen "NOTHING READS THIS FILE" en "existing containers
       are never modified". Ook gebruikers en rechten uit `access.yml`.
-  - [ ] Op elke bestaande guest `lifecycle { prevent_destroy = true }`. Na een
+      Deel 2 klaar op 25-09; ntfy (ct 109) blijft bij roles/proxmox_oci.
+  - [x] Op elke bestaande guest `lifecycle { prevent_destroy = true }`. Na een
         import toont `tofu plan` soms "replace" voor een VM, en een replace is
         een lege schijf. Nooit een plan toepassen dat een bestaande guest
         vernietigt; eerst de config aanpassen tot het plan leeg is.
-  - [ ] Zodra OpenTofu een ding beheert, de oude plek weghalen: `vms.yml`,
+  - [x] Zodra OpenTofu een ding beheert, de oude plek weghalen: `vms.yml`,
         `pve_lxcs` in `lxcs.yml` en `roles/proxmox_lxc`, `access.yml` en
         `roles/proxmox_access`. Blijven beide staan, dan zijn er weer twee
         bronnen, en dat is net wat we weg willen.

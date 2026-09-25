@@ -124,18 +124,21 @@ nooit aan een ander toestel geeft.
 ## Zoekdomein van de containers: `home.arpa`
 
 Elke container zoekt korte namen op onder `home.arpa`
-(`searchdomain: home.arpa` in `pve_lxc_defaults`, in
-`inventory/group_vars/proxmox/lxcs.yml`). Sinds 24-09.
+(`searchdomain = "home.arpa"` per container in `tofu/proxmox/containers.tf`;
+voor `ntfy` in `pve_guest_network` in `inventory/group_vars/proxmox/lxcs.yml`).
+Sinds 24-09.
 
 Waarom: zonder die instelling nam een container `neodata.be` over van pve01.
 Dan kwam `semaphore.neodata.be` bij de container zelf uit in plaats van bij
 Caddy, en zag de dagelijkse test de site als stuk, terwijl hij werkte.
 
-Nieuwe containers krijgen dit vanzelf. Een oude container zet je één keer met
-de hand:
+Een nieuwe container krijgt dit als je het in zijn regel zet. Mist een
+bestaande container het, zet het dan in zijn regel en:
 
 ```bash
-ssh -t pve01 'sudo pct set <vmid> --searchdomain home.arpa && sudo pct reboot <vmid>'
+bin/tofu proxmox plan    # alleen zijn dns, "update in-place"
+bin/tofu proxmox apply
+ssh pve01 'sudo pct reboot <vmid>'
 ```
 
 ## Twee wegen naar binnen
