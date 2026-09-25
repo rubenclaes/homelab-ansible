@@ -19,6 +19,7 @@ macos_brew_packages_extra:
   - nicotine-plus
   - nvm
   - ollama
+  - opentofu
   - pnpm
   - postgresql@14
   - ripgrep

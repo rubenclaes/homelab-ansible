@@ -22,6 +22,8 @@ patterns=(
 	'inventory/group_vars/*/vault.yml'
 	'inventory/host_vars/*/vault.yml'
 	'roles/semaphore/files/config.json'
+	# De geheimen van OpenTofu: R2-sleutel, state-passphrase, provider-clients.
+	'tofu/secrets.env'
 	# Dynamic inventory plugin configs: they carry the Proxmox API token
 	# inline, because inventory sources are parsed before group_vars and so
 	# cannot reference a vaulted variable.

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# OpenTofu met de geheimen uit de vault.
+#
+#     bin/tofu tailscale plan
+#     bin/tofu tailscale apply
+#
+# De geheimen staan in tofu/secrets.env, versleuteld met de vault-id `infra`
+# (zelfde wachtwoord als de rest). Dit script opent hem, zet elke regel als
+# env-variabele en draait tofu in tofu/<systeem>. Zo staat er geen geheim in
+# een .tf-bestand en niets in je shellgeschiedenis.
+#
+# Eén map en één state per systeem: een fout in tailscale raakt proxmox niet.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+
+system="${1:-}"
+if [[ -z "$system" ]]; then
+	echo "gebruik: bin/tofu <systeem> <tofu-commando> ..." >&2
+	echo "systemen: $(cd "$repo_root/tofu" 2>/dev/null && ls -d */ 2>/dev/null | tr -d / | tr '\n' ' ')" >&2
+	exit 1
+fi
+shift
+
+dir="$repo_root/tofu/$system"
+if [[ ! -d "$dir" ]]; then
+	echo "bin/tofu: geen map tofu/$system" >&2
+	exit 1
+fi
+
+secrets_file="$repo_root/tofu/secrets.env"
+if [[ ! -f "$secrets_file" ]]; then
+	echo "bin/tofu: tofu/secrets.env ontbreekt. Zie het runbook 'Tailscale-regels aanpassen'." >&2
+	exit 1
+fi
+
+# Eerst in een variabele, niet `source <(...)`: faalt ansible-vault, dan stopt
+# set -e hier, in plaats van tofu te starten zonder sleutels.
+secrets="$(cd "$repo_root" && ansible-vault view tofu/secrets.env)"
+set -a
+# shellcheck disable=SC1091
+source /dev/stdin <<<"$secrets"
+set +a
+
+# Wat elk systeem nodig heeft: de state in R2 en de versleuteling. De sleutels
+# van een provider controleert die provider zelf.
+for var in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_ENDPOINT_URL_S3 TF_VAR_state_passphrase; do
+	if [[ -z "${!var:-}" ]]; then
+		echo "bin/tofu: $var ontbreekt in tofu/secrets.env" >&2
+		exit 1
+	fi
+done
+
+exec tofu -chdir="$dir" "$@"

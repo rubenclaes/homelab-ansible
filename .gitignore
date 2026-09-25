@@ -33,3 +33,10 @@ vault_pass
 
 # Droogloop-logs van playbooks/drift.yml.
 .drift/
+
+# OpenTofu: providers en werkbestanden. De state staat in R2, nooit hier.
+# .terraform.lock.hcl hoort WEL in git.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
