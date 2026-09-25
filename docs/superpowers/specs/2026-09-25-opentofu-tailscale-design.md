@@ -31,7 +31,7 @@ Klaar als:
 | Slot | `use_lockfile = true` in de `s3`-backend | slot als bestand naast de state, geen database nodig (OpenTofu ≥ 1.10) |
 | Versleuteling van de state | `encryption`-blok, `pbkdf2`, `enforced = true`, ook voor plan-bestanden | de state bevat geheimen; zo leest Cloudflare alleen bytes. `enforced` weigert per ongeluk een leesbare state te schrijven |
 | Geheimen | één gevaulte `tofu/secrets.env` (vault `infra`), `bin/tofu` zet ze als env-variabelen | één kluis, één wachtwoord, geen tweede systeem zoals SOPS |
-| Tailscale-toegang | een nieuwe OAuth-client alleen voor OpenTofu: scopes `policy_file`, `dns`, `devices` | de bestaande client maakt alleen sleutels. Twee clients, elk zo weinig mogelijk rechten |
+| Tailscale-toegang | een nieuwe OAuth-client alleen voor OpenTofu: scopes `policy_file`, `dns`, `devices:core`, `devices:routes` (tag `tag:homelab`) | de bestaande client maakt alleen sleutels. Twee clients, elk zo weinig mogelijk rechten |
 | Waar staan de regels | `files/tailscale/policy.hujson`, zelfde bestand en formaat | OpenTofu leest het met `file()`; de commentaren blijven, want Tailscale bewaart HuJSON zoals het is |
 | Versies | `required_version = ">= 1.10"`, provider `tailscale/tailscale` vast op een minor (`~> 0.x`), `.terraform.lock.hcl` in git | dezelfde provider op elke machine, met controlesom |
 
@@ -66,6 +66,7 @@ Wat in `secrets.env` staat:
 | Variabele | Voor |
 | --- | --- |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | de R2-token, alleen voor die ene bucket |
+| `AWS_ENDPOINT_URL_S3` | het R2-endpoint; zo staat het account-ID niet in git |
 | `TF_VAR_state_passphrase` | de versleuteling van de state |
 | `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_CLIENT_SECRET` | de OpenTofu-client |
 
@@ -96,10 +97,11 @@ Niets verandert in Tailscale voor stap 6. Tot dan is terug gaan: de map
    git):
    - Cloudflare: bucket `homelab-tofu-state` in R2, en een API-token met
      Object Read & Write op alleen die bucket.
-   - Tailscale: een nieuwe OAuth-client met `policy_file`, `dns`, `devices`.
+   - Tailscale: een nieuwe OAuth-client met `policy_file`, `dns`,
+     `devices:core`, `devices:routes`.
    - Een passphrase van minstens 16 tekens, ook in de wachtwoordkluis (zonder
      passphrase is de state onleesbaar, ook voor jou).
-   - De vijf waarden in `tofu/secrets.env`, versleuteld met
+   - De zes waarden in `tofu/secrets.env`, versleuteld met
      `--encrypt-vault-id infra`.
 2. **Tooling**: `opentofu` in de Homebrew-lijst van de mbp; `bin/tofu`;
    `tofu/secrets.env` in `bin/check-vaulted`; `.terraform/`, `*.tfstate*` en
@@ -123,8 +125,10 @@ Niets verandert in Tailscale voor stap 6. Tot dan is terug gaan: de map
 8. **Controle vóór commit**: `.githooks/pre-commit` draait `tofu fmt -check`
    en `tofu validate` als er iets onder `tofu/` gewijzigd is.
 9. **Docs en TODO**:
-   - Nieuwe runbook-pagina "Tailscale-regels aanpassen" (onder
-     `runbooks/toegang/`), met wat eenmalig op een nieuwe computer moet.
+   - Runbook: sectie "Tailscale-regels aanpassen" op de bestaande pagina
+     `runbooks/toegang/toestellen.mdx` (de runbook-stijl: een nieuw geval is
+     een sectie, geen nieuwe pagina), met wat eenmalig op een nieuwe computer
+     moet.
    - `homelab/netwerk.mdx`: de console is niet meer de bron.
    - De header van `policy.hujson`: "GEEN PLAYBOOK LEEST DIT BESTAND" wordt
      "dit is de bron, OpenTofu zet het in Tailscale".
