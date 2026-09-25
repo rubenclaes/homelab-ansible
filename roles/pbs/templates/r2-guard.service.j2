@@ -1,11 +1,13 @@
 # {{ ansible_managed }}
 [Unit]
-Description=r2-guard: houdt Cloudflare R2 binnen de gratis laag
+Description=r2-guard: check Cloudflare R2, dan de sync naar R2
 Wants=network-online.target
-After=network-online.target
+After=network-online.target proxmox-backup-proxy.service
 
 [Service]
 Type=oneshot
-# Exit 2 = gestopt of stilgelegd; dat is een bewuste uitkomst, geen fout.
+# De sync zelf draait binnen deze service en kan uren duren.
+TimeoutStartSec=infinity
+# Exit 2 = bewust gestopt of stilgelegd; geen fout van de service.
 SuccessExitStatus=2
-ExecStart=/usr/local/sbin/r2-guard --job {{ pbs_offsite.sync_job }} --warn-gb {{ pbs_offsite.warn_gb }} --stop-gb {{ pbs_offsite.stop_gb }} --stop-class-a {{ pbs_offsite.stop_class_a }} --stop-class-b {{ pbs_offsite.stop_class_b }}
+ExecStart=/usr/local/sbin/r2-guard

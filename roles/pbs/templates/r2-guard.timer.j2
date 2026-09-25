@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 [Unit]
-Description=r2-guard, vlak voor de sync naar R2
+Description=r2-guard en de sync naar R2, na de nachtelijke back-ups
 
 [Timer]
 OnCalendar=*-*-* {{ pbs_offsite.guard_schedule }}:00

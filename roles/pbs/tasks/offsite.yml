@@ -79,6 +79,12 @@
       - monthly
       - --notification-thresholds
       - "s3-put=200000,s3-get=2000000"
+      # Na een herbouw van PBS staat de bucket al vol: dan met
+      # -e pbs_offsite_reuse=true, zie de runbook "Terughalen uit R2".
+      - --reuse-datastore
+      - "{{ pbs_offsite_reuse | default(false) | string | lower }}"
+      - --overwrite-in-use
+      - "{{ pbs_offsite_reuse | default(false) | string | lower }}"
   when: pbs_offsite.datastore not in (pbs_offsite_ds_current.stdout | from_json | map(attribute='name') | list)
   changed_when: true
 
@@ -113,25 +119,37 @@
 # Lokaal (geen --remote): van store1 naar de R2-datastore, alleen de
 # gekozen groepen, alleen versleutelde snapshots, laatste N.
 #
-# Alleen aanmaken, nooit bijwerken: r2-guard haalt het schema weg om de
-# sync te stoppen, en een Ansible-run mag dat niet stil terugdraaien.
-# Weer aanzetten doe je met de hand, zie de runbook.
+# Zonder schema: alleen r2-guard start hem, na een geslaagde check. En
+# nooit remove-vanished: na een herbouw is store1 leeg, en dan zou de sync
+# alles in R2 wissen, precies wanneer je het nodig hebt. Opruimen in R2
+# doet de prune job (keep-last).
 - name: Create the sync job to the off-site store
   ansible.builtin.command:
     argv: >-
       {{ ['proxmox-backup-manager', 'sync-job', 'create', pbs_offsite.sync_job,
           '--store', pbs_offsite.datastore,
           '--remote-store', pbs_datastores[0].name,
-          '--schedule', pbs_offsite.sync_schedule,
           '--transfer-last', pbs_offsite.keep_last | string,
-          '--remove-vanished', 'true',
+          '--remove-vanished', 'false',
           '--encrypted-only', 'true',
-          '--comment', 'Naar Cloudflare R2; r2-guard stopt hem bij te veel gebruik']
+          '--comment', 'Naar Cloudflare R2; alleen r2-guard start hem']
          + (pbs_offsite.groups | map('regex_replace', '^', 'group:') | map('regex_replace', '^', '--group-filter=') | list) }}
   when: pbs_offsite.sync_job not in (pbs_offsite_sync_current.stdout | from_json | map(attribute='id') | list)
   changed_when: true
 
-# r2-guard: zie het script. Draait vlak voor de sync, en stopt hem als R2
+# De twee instellingen die over "nooit wissen" en "nooit zonder check" gaan,
+# worden wel afgedwongen: een schema of remove-vanished dat er met de hand
+# (of in de web-UI) bij kwam, gaat er weer af.
+- name: Keep the sync job unscheduled and non-destructive
+  ansible.builtin.command:
+    argv: [proxmox-backup-manager, sync-job, update, "{{ pbs_offsite.sync_job }}", --delete, schedule, --delete, remove-vanished]
+  when: >-
+    (pbs_offsite_sync_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.sync_job) | list | length > 0)
+    and (((pbs_offsite_sync_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.sync_job) | first).get('schedule', '') | length > 0)
+         or ((pbs_offsite_sync_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.sync_job) | first).get('remove-vanished', false) | bool))
+  changed_when: true
+
+# r2-guard: zie het script. Meet R2 en start dan pas de sync; stopt als R2
 # de gratis laag nadert of als hij het gebruik niet kan opvragen.
 - name: Create the r2-guard directories
   ansible.builtin.file:
@@ -147,6 +165,14 @@
     content: |
       CF_ACCOUNT={{ vault_r2_account_id }}
       CF_TOKEN={{ vault_cf_analytics_token }}
+      R2_ACCESS_KEY={{ pbs_offsite.access_key }}
+      R2_SECRET_KEY={{ pbs_offsite.secret_key }}
+      BUCKET={{ pbs_offsite.bucket }}
+      JOB={{ pbs_offsite.sync_job }}
+      WARN_GB={{ pbs_offsite.warn_gb }}
+      STOP_GB={{ pbs_offsite.stop_gb }}
+      STOP_CLASS_A={{ pbs_offsite.stop_class_a }}
+      STOP_CLASS_B={{ pbs_offsite.stop_class_b }}
       NTFY_URL={{ pbs_notification_webhooks | selectattr('name', 'eq', 'ntfy') | map(attribute='url') | first }}
       NTFY_TOKEN={{ hostvars['pve01'].vault_ntfy_pbs_token }}
     dest: /etc/r2-guard/env

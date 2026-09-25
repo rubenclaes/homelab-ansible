@@ -1,28 +1,24 @@
 #!/usr/bin/env python3
 # {{ ansible_managed }}
 #
-# r2-guard: houdt Cloudflare R2 binnen de gratis laag.
+# r2-guard: houdt Cloudflare R2 binnen de gratis laag, en start de sync.
 #
-# Vraagt aan de Cloudflare-API hoeveel er in R2 staat en hoeveel
-# operaties er deze maand waren. Boven de stop-drempel, of als de vraag
-# mislukt, haalt hij het schema van de sync job weg: dan schrijft PBS niets
-# meer naar R2 tot iemand hem met de hand weer aanzet. Twijfel = stop.
+# De sync job naar R2 heeft in PBS geen schema. Alleen dit script start hem,
+# en alleen na een geslaagde check. Zo is elke fout een stop: crasht dit
+# script, is Cloudflare onbereikbaar, of klopt er iets niet, dan gaat er die
+# nacht niets naar R2. Twijfel = stop.
 #
-# Alleen onze PBS schrijft in de bucket (het token werkt alleen daarvoor),
-# dus een stop hier is een stop op alle kosten.
-import argparse, datetime, json, os, subprocess, sys, urllib.request
+# Opslag: rechtstreeks geteld in de bucket (S3 ListObjectsV2, een paar
+# Class A-operaties per nacht), niet via de analytics van Cloudflare: die
+# lopen tot een dag achter en gaven 0 GB terwijl er 3 GB stond.
+# Operaties deze maand: via de analytics, voor het hele account.
+#
+# Gestopt blijft gestopt: /var/lib/r2-guard/stopped. Weer aanzetten doe je
+# met de hand (runbook: De R2-sync weer aanzetten).
+import argparse, collections, datetime, json, os, re, subprocess, sys, urllib.parse, urllib.request
 
-p = argparse.ArgumentParser()
-p.add_argument("--warn-gb", type=float, required=True)
-p.add_argument("--stop-gb", type=float, required=True)
-p.add_argument("--stop-class-a", type=int, required=True)
-p.add_argument("--stop-class-b", type=int, required=True)
-p.add_argument("--job", required=True)
-p.add_argument("--dry-run", action="store_true", help="niets stoppen, alleen melden wat hij zou doen")
-a = p.parse_args()
-
-env = dict(l.rstrip("\n").split("=", 1) for l in open("/etc/r2-guard/env") if "=" in l)
 STATE = "/var/lib/r2-guard/stopped"
+ENV_FILE = "/etc/r2-guard/env"
 
 # Gratis: deletes en aborts. Class B: lezen. Alles wat hier niet staat,
 # telt als Class A, de dure: een nieuwe soort operatie mag nooit gratis lijken.
@@ -31,11 +27,20 @@ CLASS_B = {"HeadBucket", "HeadObject", "GetObject", "UsageSummary", "GetBucketEn
            "GetBucketLocation", "GetBucketCors", "GetBucketLifecycleConfiguration",
            "GetBucketSippyConfiguration", "GetBucket"}
 
+p = argparse.ArgumentParser()
+p.add_argument("--dry-run", action="store_true",
+               help="alleen meten en tonen: geen sync, geen stop, geen melding")
+a = p.parse_args()
+env = {}
+
 
 def ntfy(title, msg, prio):
-    req = urllib.request.Request(env["NTFY_URL"], data=msg.encode(), method="POST", headers={
-        "Authorization": "Bearer " + env["NTFY_TOKEN"], "Title": title, "Priority": prio, "Tags": "cloud"})
+    if a.dry_run:
+        print("(dry-run, geen melding)", title)
+        return
     try:
+        req = urllib.request.Request(env["NTFY_URL"], data=msg.encode(), method="POST", headers={
+            "Authorization": "Bearer " + env["NTFY_TOKEN"], "Title": title, "Priority": prio, "Tags": "cloud"})
         urllib.request.urlopen(req, timeout=15).read()
     except Exception as e:  # een melding die niet aankomt, mag de stop niet tegenhouden
         print("ntfy mislukt:", e, file=sys.stderr)
@@ -43,46 +48,55 @@ def ntfy(title, msg, prio):
 
 def stop(reason):
     print("STOP:", reason)
-    if a.dry_run:
-        return 2
-    if not os.path.exists(STATE):
-        cur = json.loads(subprocess.check_output(
-            ["proxmox-backup-manager", "sync-job", "list", "--output-format", "json"]))
-        job = next((j for j in cur if j["id"] == a.job), None)
+    if not a.dry_run:
         os.makedirs(os.path.dirname(STATE), exist_ok=True)
         with open(STATE, "w") as f:
-            f.write((job or {}).get("schedule", "") + "\n" + reason + "\n")
-        if job and job.get("schedule"):
-            subprocess.check_call(["proxmox-backup-manager", "sync-job", "update", a.job, "--delete", "schedule"])
+            f.write(datetime.datetime.now().isoformat(timespec="seconds") + " " + reason + "\n")
     ntfy("R2-sync gestopt", reason + "\n\nPBS schrijft niets meer naar R2. Kijk het na en zet de sync "
-         "met de hand weer aan (runbook: Herstellen van buiten het huis).", "high")
+         "met de hand weer aan (runbook: De R2-sync weer aanzetten).", "high")
     return 2
 
 
-def query():
-    today = datetime.date.today()
-    first = today.replace(day=1)
+def bucket_bytes():
+    base = "https://%s.r2.cloudflarestorage.com/%s" % (env["CF_ACCOUNT"], env["BUCKET"])
+    tok, total = None, 0
+    while True:
+        q = "list-type=2&max-keys=1000" + ("&continuation-token=" + urllib.parse.quote(tok, safe="") if tok else "")
+        x = subprocess.check_output(["curl", "-sS", "--fail", "-m", "60", "--aws-sigv4", "aws:amz:auto:s3",
+                                     "--user", env["R2_ACCESS_KEY"] + ":" + env["R2_SECRET_KEY"],
+                                     base + "?" + q]).decode()
+        if "<ListBucketResult" not in x:
+            raise RuntimeError("onverwacht antwoord van R2 bij het tellen")
+        total += sum(int(s) for s in re.findall(r"<Size>(\d+)</Size>", x))
+        m = re.search(r"<NextContinuationToken>(.*?)</NextContinuationToken>", x)
+        if not m:
+            return total
+        tok = m.group(1)
+
+
+def analytics():
+    today = datetime.datetime.now(datetime.UTC).date()
     q = """query($a: String!, $s: Date!, $e: Date!, $y: Date!) { viewer { accounts(filter: {accountTag: $a}) {
-      storage: r2StorageAdaptiveGroups(limit: 100, filter: {date_geq: $y, date_leq: $e}, orderBy: [date_DESC]) {
+      storage: r2StorageAdaptiveGroups(limit: 1000, filter: {date_geq: $y, date_leq: $e}) {
         max { payloadSize metadataSize } dimensions { bucketName date } }
       ops: r2OperationsAdaptiveGroups(limit: 1000, filter: {date_geq: $s, date_leq: $e}) {
         sum { requests } dimensions { actionType } } } } }"""
-    body = json.dumps({"query": q, "variables": {"a": env["CF_ACCOUNT"], "s": str(first), "e": str(today),
-                                                 "y": str(today - datetime.timedelta(days=2))}}).encode()
+    body = json.dumps({"query": q, "variables": {"a": env["CF_ACCOUNT"], "s": str(today.replace(day=1)),
+                                                 "e": str(today), "y": str(today - datetime.timedelta(days=3))}}).encode()
     req = urllib.request.Request("https://api.cloudflare.com/client/v4/graphql", data=body, method="POST",
                                  headers={"Authorization": "Bearer " + env["CF_TOKEN"], "Content-Type": "application/json"})
     r = json.loads(urllib.request.urlopen(req, timeout=30).read())
     if r.get("errors"):
         raise RuntimeError("Cloudflare gaf fouten: %s" % r["errors"])
     acc = r["data"]["viewer"]["accounts"][0]
-    # Per bucket de meest recente dag, dan optellen over alle buckets: de
-    # gratis laag geldt per account, niet per bucket.
+    # Andere buckets op dit account (de gratis laag geldt per account): hun
+    # meest recente dag uit de analytics. Onze bucket tellen we zelf.
     latest = {}
     for g in acc["storage"]:
         b, d = g["dimensions"]["bucketName"], g["dimensions"]["date"]
-        if b not in latest or d > latest[b][0]:
+        if b != env["BUCKET"] and (b not in latest or d > latest[b][0]):
             latest[b] = (d, g["max"]["payloadSize"] + g["max"]["metadataSize"])
-    gb = sum(v[1] for v in latest.values()) / 1e9
+    other = sum(v[1] for v in latest.values())
     ca = cb = 0
     for g in acc["ops"]:
         t, n = g["dimensions"]["actionType"], g["sum"]["requests"]
@@ -92,22 +106,63 @@ def query():
             cb += n
         else:
             ca += n
+    return other, ca, cb
+
+
+def measure():
+    ours = bucket_bytes()
+    other, ca, cb = analytics()
+    gb = (ours + other) / 1e9
+    print("R2: %.2f GB (bucket %.2f, andere %.2f), Class A %d, Class B %d deze maand"
+          % (gb, ours / 1e9, other / 1e9, ca, cb))
     return gb, ca, cb
 
 
-if os.path.exists(STATE):
-    print("al gestopt:", open(STATE).read().strip().replace("\n", " | "))
-    ntfy("R2-sync staat nog stil", "Sinds de vorige melding niet weer aangezet.", "default")
-    sys.exit(2)
+def over(gb, ca, cb):
+    return (gb > float(env["STOP_GB"]) or ca > int(env["STOP_CLASS_A"]) or cb > int(env["STOP_CLASS_B"]))
+
+
+def main():
+    global env
+    env = dict(l.rstrip("\n").split("=", 1) for l in open(ENV_FILE) if "=" in l)
+    for k in ("CF_ACCOUNT", "CF_TOKEN", "R2_ACCESS_KEY", "R2_SECRET_KEY", "BUCKET", "JOB",
+              "NTFY_URL", "NTFY_TOKEN", "WARN_GB", "STOP_GB", "STOP_CLASS_A", "STOP_CLASS_B"):
+        if not env.get(k):
+            raise RuntimeError("%s ontbreekt in %s" % (k, ENV_FILE))
+
+    if os.path.exists(STATE):
+        print("gestopt sinds:", open(STATE).read().strip())
+        if not a.dry_run:
+            ntfy("R2-sync staat nog stil", "Geen sync vannacht. " + open(STATE).read().strip(), "default")
+        return 2
+
+    gb, ca, cb = measure()
+    limits = "Drempel: %s GB / %s A / %s B." % (env["STOP_GB"], env["STOP_CLASS_A"], env["STOP_CLASS_B"])
+    if over(gb, ca, cb):
+        return stop("R2: %.2f GB, Class A %d, Class B %d deze maand. %s" % (gb, ca, cb, limits))
+    if gb >= float(env["WARN_GB"]):
+        ntfy("R2 bijna vol", "R2: %.2f GB. Waarschuwing vanaf %s GB, stop boven %s GB."
+             % (gb, env["WARN_GB"], env["STOP_GB"]), "default")
+    if a.dry_run:
+        print("(dry-run, geen sync)")
+        return 0
+
+    rc = subprocess.call(["proxmox-backup-manager", "sync-job", "run", env["JOB"]])
+    if rc != 0:
+        ntfy("R2-sync mislukt", "sync-job %s gaf exit %d. journalctl -u r2-guard op pbs." % (env["JOB"], rc), "high")
+        return 1
+
+    # Nameten: groeide het vannacht over de drempel, dan morgen geen sync.
+    gb, ca, cb = measure()
+    if over(gb, ca, cb):
+        return stop("Na de sync: R2 %.2f GB, Class A %d, Class B %d. %s" % (gb, ca, cb, limits))
+    return 0
+
 
 try:
-    gb, ca, cb = query()
-except Exception as e:
-    sys.exit(stop("R2-check mislukt, dus uit voorzorg gestopt: %s" % e))
-
-line = "R2: %.2f GB, Class A %d, Class B %d deze maand" % (gb, ca, cb)
-print(line)
-if gb > a.stop_gb or ca > a.stop_class_a or cb > a.stop_class_b:
-    sys.exit(stop("%s. Drempel: %.0f GB / %d A / %d B." % (line, a.stop_gb, a.stop_class_a, a.stop_class_b)))
-if gb >= a.warn_gb:
-    ntfy("R2 bijna vol", "%s. Waarschuwing vanaf %.0f GB, stop bij %.0f GB." % (line, a.warn_gb, a.stop_gb), "default")
+    sys.exit(main())
+except SystemExit:
+    raise
+except BaseException as e:
+    # Elke onverwachte fout: stoppen en melden. Er is dan ook niet gesynct.
+    sys.exit(stop("r2-guard faalde, dus uit voorzorg gestopt: %s: %s" % (type(e).__name__, e)) if env else 1)

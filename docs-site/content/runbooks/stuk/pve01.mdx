@@ -413,9 +413,31 @@ vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
 
 #### Bouw pve01 en PBS opnieuw
 
-Volg [pve01 is weg](#pve01-is-weg) tot en met *Breng PBS onder Ansible*. PBS
-begint leeg. `playbooks/pbs.yml` maakt meteen ook de koppeling met R2 (de
-datastore `offsite`): de sleutels daarvoor staan in de vault.
+Volg [pve01 is weg](#pve01-is-weg) tot en met *Installeer PBS in de VM*. PBS
+begint leeg.
+
+#### Koppel R2 opnieuw, zonder iets te wissen
+
+De bucket staat al vol. Zeg dat tegen PBS, anders begint hij er een nieuwe,
+lege datastore in:
+
+```bash
+ansible-playbook playbooks/pbs.yml -e pbs_offsite_reuse=true
+```
+
+Dit maakt ook de sync job opnieuw, **zonder schema**: alleen `r2-guard` start
+hem, om 04:00. Die kopieert van `store1` naar R2 en wist nooit iets in R2
+(ook niet als `store1` leeg is). Wil je toch zeker zijn tot alles terug is,
+leg hem stil:
+
+```bash
+ssh pbs 'echo "$(date -Is) stilgelegd tijdens herstel" | sudo tee /var/lib/r2-guard/stopped'
+```
+
+<Callout type="warning">
+Start de sync **nooit** met "Run now" in de webinterface van PBS. Dan slaat
+hij de check van `r2-guard` over.
+</Callout>
 
 #### Kijk wat er in R2 staat
 
@@ -453,10 +475,29 @@ Proxmox → Datacenter → Storage → Add → **Proxmox Backup Server**:
 Home Assistant, adguard, tailscale en ntfy: Proxmox → `offsite` → Backups →
 kies de nieuwste → **Restore**, met hun eigen nummer (101, 107, 108, 109).
 
+#### Maak de back-upgebruiker van `docker` opnieuw
+
+Die gebruiker en zijn token stonden alleen op de oude PBS:
+
+```bash
+ssh pbs
+sudo proxmox-backup-manager user create docker-data@pbs
+sudo proxmox-backup-manager user generate-token docker-data@pbs backup   # toont het secret één keer
+sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id docker-data@pbs
+sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id 'docker-data@pbs!backup'
+sudo proxmox-backup-manager cert info | grep -i fingerprint              # de nieuwe vingerafdruk
+```
+
+Zet het secret in `inventory/group_vars/all/vault.yml`
+(`vault_pbs_docker_data_token`) en de vingerafdruk in
+`inventory/host_vars/docker.yml` (`pbs_client_fingerprint`). De sleutel
+(`vault_pbs_docker_data_key`) blijft dezelfde: die staat ook op papier.
+
 #### Zet de app-data terug op `docker`
 
 Eerst `docker` zelf opnieuw bouwen (Ansible, zie [pve01 is weg](#pve01-is-weg),
-deel 3), maar **start de stacks nog niet**. Dan:
+deel 3), maar **start de stacks nog niet**. Dan `ansible-playbook
+playbooks/offsite.yml --limit docker` (zet token en sleutel klaar), en:
 
 ```bash
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup"'
@@ -464,6 +505,7 @@ ssh docker
 sudo -i
 export PBS_REPOSITORY='docker-data@pbs!backup@192.168.0.181:offsite'
 export PBS_PASSWORD_FILE=/root/.config/proxmox-backup/token
+export PBS_FINGERPRINT='<de nieuwe vingerafdruk>'
 proxmox-backup-client snapshot list                       # neem de nieuwste
 proxmox-backup-client restore host/docker-data/<tijd> data.pxar /opt/containers/data \
   --keyfile /root/.config/proxmox-backup/docker-data.key
@@ -471,8 +513,7 @@ proxmox-backup-client restore host/docker-data/<tijd> photos.pxar /mnt/media01/P
   --keyfile /root/.config/proxmox-backup/docker-data.key
 ```
 
-De token en de sleutel zet `playbooks/offsite.yml --limit docker` klaar uit de
-vault. De databases van Immich en Grimmory staan als dump in
+De databases van Immich en Grimmory staan als dump in
 `/opt/containers/data/_dumps/`: start hun database-container leeg en lees de
 dump in (`zcat immich.sql.gz | docker exec -i immich-postgres psql -U immich`,
 en `zcat grimmory.sql.gz | docker exec -i grimmory-db sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'`).
@@ -492,37 +533,47 @@ Getest op 25-09-2026: ntfy (ct 109) volledig teruggezet uit R2, en
 
 ## De R2-sync weer aanzetten
 
-Je kreeg de melding **"R2-sync gestopt"**. `r2-guard` heeft de nachtelijke
-kopie naar R2 stilgelegd, zodat het nooit geld kost. Er gaat niets meer naar
-R2 tot jij hem weer aanzet.
+Je kreeg de melding **"R2-sync gestopt"** (of elke nacht "R2-sync staat nog
+stil"). `r2-guard` start de kopie naar R2 niet meer, zodat het nooit geld
+kost. Er gaat niets naar R2 tot jij hem weer aanzet.
 
 <Steps>
 
 #### Lees waarom
 
 ```bash
-ssh pbs 'sudo cat /var/lib/r2-guard/stopped; sudo journalctl -u r2-guard -n 5 --no-pager'
+ssh pbs 'sudo cat /var/lib/r2-guard/stopped'
 ```
 
 | Reden | Wat doen |
 | --- | --- |
-| "R2-check mislukt" | het Cloudflare-token werkt niet meer (verlopen, ingetrokken). Maak een nieuw aan (Account Analytics: Read), zet het in `inventory/host_vars/pbs/vault.yml` als `vault_cf_analytics_token`, draai `ansible-playbook playbooks/pbs.yml --tags offsite` |
-| boven 9 GB | er staat te veel in R2. Meestal groeien de foto's. Kies: minder versies (`keep_last` in `pbs_offsite`), foto's eruit, of bewust betalen (± €0,015 per GB per maand) |
-| te veel operaties | ongewoon; kijk in Cloudflare → R2 → Metrics wat er zo vaak gebeurde |
+| "r2-guard faalde" of "Cloudflare gaf fouten" | het Cloudflare-token werkt niet (verlopen, ingetrokken), of Cloudflare had een storing. Nieuw token nodig? Account Analytics: Read, in `inventory/host_vars/pbs/vault.yml` als `vault_cf_analytics_token`, dan `ansible-playbook playbooks/pbs.yml --tags offsite` |
+| boven 8 GB | er staat te veel in R2, meestal door de foto's. Zie hieronder |
+| te veel operaties | ongewoon: kijk in Cloudflare → R2 → Metrics wat er zo vaak gebeurde |
 
-#### Zet hem weer aan
+#### Te vol: minder versies bewaren
 
-```bash
-ssh pbs 'sudo proxmox-backup-manager sync-job update offsite-r2 --schedule "$(sudo head -1 /var/lib/r2-guard/stopped)" && sudo rm /var/lib/r2-guard/stopped'
-```
-
-#### Controleer
+De jobs staan al in PBS; `keep_last` in de inventory aanpassen verandert ze
+niet. Doe het met de hand, en pas daarna de inventory aan:
 
 ```bash
-ssh pbs 'sudo systemctl start r2-guard; sudo journalctl -u r2-guard -n 2 --no-pager'
+ssh pbs 'sudo proxmox-backup-manager prune-job update offsite-prune --keep-last 2'
+ssh pbs 'sudo proxmox-backup-manager sync-job update offsite-r2 --transfer-last 2'
 ```
 
-Je ziet een regel `R2: … GB, Class A …, Class B …` en geen STOP.
+R2 wordt pas kleiner na de prune (dagelijks) **en** de garbage collection
+(dagelijks) daarna. Zet de sync pas weer aan als de volgende stap onder
+de drempel meet.
+
+#### Meet, dan pas weer aan
+
+```bash
+ssh pbs 'sudo rm /var/lib/r2-guard/stopped && sudo /usr/local/sbin/r2-guard --dry-run'
+```
+
+Je ziet `R2: … GB …` en `(dry-run, geen sync)`, geen STOP. De sync loopt
+vannacht om 04:00 weer. Staat er toch STOP, dan is hij al opnieuw gestopt:
+terug naar de eerste stap.
 
 </Steps>
 
@@ -622,17 +673,28 @@ past het in de gratis 10 GB: op 25-09 was het 3,1 GB.
 | --- | --- |
 | 02:00 | `docker` maakt een back-up van zijn app-data en foto's naar PBS (`docker-data-backup.timer`) |
 | 02:30 | de gewone back-up van alle machines naar PBS |
-| 03:50 | `r2-guard` vraagt aan Cloudflare hoeveel er in R2 staat |
-| 04:00 | PBS kopieert de gekozen groepen naar R2, de laatste 3 versies |
+| 04:00 | `r2-guard` telt wat er in R2 staat. Onder de drempel start hij zelf de kopie van de gekozen groepen naar R2 (de laatste 3 versies), en meet daarna opnieuw |
 
 **Waarom r2-guard.** Cloudflare kent voor R2 geen harde uitgavengrens. Alleen
-onze PBS schrijft in de bucket, dus r2-guard stopt de kopie zelf: boven 9 GB,
-boven 800.000 Class A- of 8.000.000 Class B-operaties deze maand, of als hij
-het niet kan nagaan. Twijfel is stop. Vanaf 8 GB krijg je al een
-waarschuwing. Ansible zet een gestopte sync nooit zelf weer aan.
+onze PBS schrijft in de bucket. De sync job heeft daarom in PBS **geen
+schema**: alleen r2-guard start hem, na een check. Crasht r2-guard, of kan
+hij het niet nagaan, dan gaat er die nacht niets naar R2. Twijfel is stop.
+Hij stopt boven 8 GB, boven 800.000 Class A- of 8.000.000 Class B-operaties
+deze maand. Vanaf 6,5 GB krijg je een waarschuwing.
 
-**Waarom 9 GB en niet 10.** Cloudflare toont de opslag met vertraging (tot een
-dag). Die ene GB vangt dat op.
+**Waarom 8 GB en niet 10.** Wat één nacht uploadt, weet r2-guard pas achteraf.
+Die 2 GB ruimte vangt een drukke nacht op; na de sync meet hij opnieuw en
+stopt dan de volgende nacht.
+
+**Waarom opslag zelf tellen.** De cijfers van Cloudflare lopen tot een dag
+achter (op 25-09 toonden ze 0 GB bij 3 GB). r2-guard telt daarom de bucket
+zelf, een paar Class A-operaties per nacht.
+
+**Waarom nooit wissen in R2.** De sync heeft `remove-vanished` uit. Anders
+zou een lege `store1` (na een herbouw, of na ransomware) alles in R2
+wissen, precies wanneer je het nodig hebt. Oude versies ruimt de prune job
+op. Ansible dwingt beide af: komt er een schema of `remove-vanished` bij,
+dan haalt de volgende run het weg.
 
 De dumps op de Mini zijn niet versleuteld: iedereen die die NFS-share kan
 mounten, kan ze lezen. Die in R2 wel: Cloudflare ziet alleen versleutelde

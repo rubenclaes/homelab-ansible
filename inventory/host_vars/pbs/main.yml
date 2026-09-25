@@ -82,9 +82,12 @@ pbs_offsite:
   groups: [host/docker-data, vm/101, ct/107, ct/108, ct/109]
   keep_last: 3
   sync_job: offsite-r2
-  sync_schedule: "04:00"
-  guard_schedule: "03:50"
-  warn_gb: 8
-  stop_gb: 9
+  # r2-guard draait om 04:00, na de back-ups van 02:00 en 02:30, en start
+  # zelf de sync. De sync job heeft in PBS geen schema.
+  guard_schedule: "04:00"
+  # Stop boven 8 GB: 2 GB ruimte voor wat één nacht kan groeien, onder de
+  # gratis 10 GB.
+  warn_gb: 6.5
+  stop_gb: 8
   stop_class_a: 800000
   stop_class_b: 8000000
