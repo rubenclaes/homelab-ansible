@@ -136,3 +136,52 @@ git push
 
 Wat een OCI-container is en waarom hij anders werkt dan een gewone LXC: zie
 [Nieuwe machine → OCI-container](#een-oci-container).
+
+## Een ntfy-token erbij
+
+Elke app die meldingen stuurt, krijgt een eigen token op het account
+`proxmox` (mag schrijven op het topic `homelab`). Zo trek je er één in zonder
+de rest. Nu zijn dat er vijf: proxmox, pbs, unifi, vaultwarden en neogate.
+
+<Steps>
+
+#### Maak het token en versleutel het
+
+```bash
+TOKEN=tk_$(LC_ALL=C tr -dc a-z0-9 </dev/urandom | head -c 29)
+printf %s "$TOKEN" | ansible-vault encrypt_string --encrypt-vault-id infra \
+  --stdin-name vault_ntfy_<app>_token
+```
+
+Zet de uitvoer in `inventory/group_vars/all/vault.yml`
+(`ansible-vault edit`), of als los bestand ernaast zoals
+`ntfy_neogate.yml`.
+
+#### Zet het in de lijst
+
+Voeg `'proxmox:' ~ vault_ntfy_<app>_token ~ ':<app>'` toe aan
+`NTFY_AUTH_TOKENS` in `inventory/group_vars/proxmox/lxcs.yml`, dan:
+
+```bash
+ansible-playbook playbooks/proxmox-oci.yml --check   # "env would be set"
+ansible-playbook playbooks/proxmox-oci.yml           # ntfy herstart even
+```
+
+#### Test
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" -d test https://ntfy.neodata.be/homelab
+```
+
+Geeft `200`. Geef de app daarna `https://ntfy.neodata.be/homelab` en het token.
+
+</Steps>
+
+### Goed om te weten
+
+- **`printf %s`, niet `echo` of `< bestand`.** Een newline op het einde komt
+  mee in het token, en Proxmox weigert dan de hele env met
+  `400 Parameter verification failed`. De oude tokens blijven werken, het
+  nieuwe niet.
+- **`--encrypt-vault-id infra`** is verplicht: er zijn twee vault-id's en
+  `encrypt_string` kiest niet zelf.

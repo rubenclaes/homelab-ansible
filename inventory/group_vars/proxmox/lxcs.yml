@@ -63,14 +63,15 @@ pve_oci_lxcs:
       NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
       NTFY_AUTH_USERS: "ruben:{{ vault_ntfy_ruben_hash }}:admin,proxmox:{{ vault_ntfy_proxmox_hash }}:user"
       NTFY_AUTH_ACCESS: "proxmox:homelab:wo"
-      # Vier tokens voor hetzelfde schrijf-account: Proxmox, PBS,
-      # unifi-watch.yml en de Vaultwarden-back-up. Zo trek je het ene in
-      # zonder de andere.
+      # Vijf tokens voor hetzelfde schrijf-account: Proxmox, PBS,
+      # unifi-watch.yml, de Vaultwarden-back-up en NeoGate. Zo trek je het
+      # ene in zonder de andere.
       NTFY_AUTH_TOKENS: >-
         {{ ['proxmox:' ~ vault_ntfy_proxmox_token ~ ':proxmox',
             'proxmox:' ~ vault_ntfy_pbs_token ~ ':pbs',
             'proxmox:' ~ vault_ntfy_unifi_token ~ ':unifi',
-            'proxmox:' ~ vault_ntfy_vaultwarden_token ~ ':vaultwarden'] | join(',') }}
+            'proxmox:' ~ vault_ntfy_vaultwarden_token ~ ':vaultwarden',
+            'proxmox:' ~ vault_ntfy_neogate_token ~ ':neogate'] | join(',') }}
 
 # Containers die /dev/net/tun krijgen, voor Tailscale: adguard (107, DNS van
 # de tailnet) en tailscale (108, subnet-router). Zie roles/proxmox_tun.
