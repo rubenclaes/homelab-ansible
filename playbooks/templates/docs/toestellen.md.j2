@@ -12,23 +12,28 @@ import { Callout } from 'nextra/components'
 
 # Toestellen
 
-<Callout type="warning">
-Gegenereerd door `playbooks/docs.yml` uit UniFi, bij elke run. Een naam pas
-je aan in UniFi (Client Devices → het toestel → Alias), niet hier.
+<Callout type="info">
+Deze pagina maakt `playbooks/docs.yml` zelf, uit UniFi. Pas hier niets aan:
+verander het in UniFi (Client Devices → het toestel → Settings).
 </Callout>
 
 {% if unifi_docs_clients | default(none) -%}
-Wat er op {{ unifi_docs_generated }} op het netwerk zat: {{ unifi_docs_clients | length }}
-toestellen. **Vast adres** is een Fixed IP in UniFi. Zonder vast adres kan
-een toestel na een herstart op een ander adres uitkomen; voor alles met een
-Caddy-route moet het er staan (`playbooks/unifi-routes.yml` controleert dat).
+Op {{ unifi_docs_generated }} zaten er {{ unifi_docs_clients | length }} toestellen op het netwerk.
 
-| Toestel | Adres | Verbinding | Vast adres | Verbonden sinds |
-| --- | --- | --- | --- | --- |
+| Kolom | Betekent |
+| --- | --- |
+| **Toestel** | de naam in UniFi (de alias) |
+| **DNS-naam** | de naam die AdGuard toont. Leeg? Dan zie je daar een IP of `iPhone`. Zie [Een toestel een naam geven](/runbooks/onderhoud/netwerk/#een-toestel-een-naam-geven) |
+| **Vast adres** | "ja" = het toestel krijgt altijd hetzelfde IP |
+
+| Toestel | DNS-naam | Adres | Verbinding | Vast adres | Verbonden sinds |
+| --- | --- | --- | --- | --- | --- |
 {% for c in unifi_docs_clients | sort(attribute='sortkey') -%}
 {% set name = c.name | default('') -%}
 {% set name = '' if name is match(mac_re) else name | regex_replace('\\s([0-9a-fA-F]{2}:){1,2}[0-9a-fA-F]{2}$', '') | trim -%}
-| {{ name if name else '*zonder naam*' }} | `{{ c.ipAddress | default('—') }}` | {{ kinds[c.type] | default(c.type | default('—') | lower) }} | {{ 'ja' if c.ipAddress | default('') in unifi_reserved_ips else '—' }} | {{ (c.connectedAt | default(''))[:10] or '—' }} |
+{% set u = unifi_users.json.data | selectattr('mac', 'eq', c.macAddress | default('') | lower) | first | default({}) -%}
+{% set dns = u.local_dns_record | default('') if u.local_dns_record_enabled | default(false) else '' -%}
+| {{ name if name else '*zonder naam*' }} | {{ ('`' ~ dns ~ '`') if dns else '—' }} | `{{ c.ipAddress | default('—') }}` | {{ kinds[c.type] | default(c.type | default('—') | lower) }} | {{ 'ja' if c.ipAddress | default('') in unifi_reserved_ips else '—' }} | {{ (c.connectedAt | default(''))[:10] or '—' }} |
 {% endfor %}
 {% else -%}
 UniFi was niet bereikbaar toen deze pagina voor het eerst gemaakt werd.

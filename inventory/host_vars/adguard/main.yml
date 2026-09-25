@@ -46,8 +46,28 @@ adguard_filters:
 adguard_dns:
   # Quad9 over DoH, de variant met ECS (dns10 = zonder filtering door Quad9
   # zelf; filteren doen de blocklists hierboven).
+  # Twee Quad9-adressen, parallel gevraagd: het snelste antwoord wint. Met één
+  # wachtte het hele huis als dat ene traag was. dns.quad9.net filtert zelf
+  # ook, maar een naam die hij blokkeert is toch malware.
   upstream_dns:
     - https://dns10.quad9.net/dns-query
+    - https://dns.quad9.net/dns-query
+  upstream_mode: parallel
+  # 3 s in plaats van 10: een upstream die hangt, laat een site niet meer tien
+  # seconden bevriezen voor de andere het mag overnemen.
+  upstream_timeout: 3
+  # Laatste redmiddel als DoH zelf stukgaat (poort 443 dicht, certificaat).
+  # Gewone DNS, ook Quad9.
+  fallback_dns:
+    - 9.9.9.10
+  # Een verlopen naam meteen uit de cache beantwoorden en op de achtergrond
+  # vernieuwen. De grootste winst: bijna elke vraag wordt ~3 ms.
+  cache_optimistic: true
+  # Uit (was 20 per seconde per toestel). Sinds het hele huis hierlangs loopt,
+  # haalde een drukke host (docker, een Mac die updatet) dat, en dan vielen
+  # zijn vragen stil weg. AdGuard is niet van buiten bereikbaar, dus de
+  # limiet beschermde niets.
+  ratelimit: 0
   # Om dns10.quad9.net zelf op te zoeken. Ook Quad9, zodat geen enkele vraag
   # langs een andere partij loopt.
   bootstrap_dns:

@@ -8,86 +8,135 @@ import { Callout } from 'nextra/components'
 
 Naslag: hoe DNS, Tailscale en de VPN nu in elkaar zitten.
 
-## DNS: wie vraagt wat aan wie
+## DNS in het kort
 
-Sinds 23-09 loopt alle naamresolutie via de AdGuard in **ct 107**
-(`192.168.0.29`). De oude AdGuard op de Mac mini (`192.168.0.26`) is weg.
+**DNS is het telefoonboek van het netwerk.** Je typt een naam
+(`vault.neodata.be`), en DNS zoekt het adres op (`192.168.0.25`).
 
-| Wie | Resolver | Hoe |
+Bij ons doet **AdGuard** dat, op `192.168.0.29` (container 107 op pve01).
+Elk toestel in huis vraagt het aan AdGuard. Zo werkt het:
+
+| Je vraagt | AdGuard antwoordt | Waar hij het vandaan haalt |
 | --- | --- | --- |
-| pve01, pbs, caddy, semaphore | `192.168.0.29` | gewone `/etc/resolv.conf` |
-| docker, docker-grafana-stack | `192.168.0.29` | via netplan |
-| adguard zelf | `1.1.1.1` | `nameserver` in de Proxmox-config van ct 107; zo kan hij nog namen opzoeken (en updaten) als zijn eigen DNS stilstaat |
-| tailscale (ct 108) | `100.100.100.100` | **niet aankomen**, tailscaled beheert dit |
-| de Mac mini | `192.168.0.29` | sinds zijn eigen AdGuard weg is |
-| telefoons, laptops thuis | `192.168.0.29` | via DHCP in UniFi |
-| via WireGuard | `192.168.0.29` | ingesteld in UniFi, ingebakken in het profiel |
-| via de tailnet | `100.84.46.18` | het tailnet-adres van ct 107, globale nameserver in de Tailscale-console |
+| `vault.neodata.be`, of een andere dienst | `192.168.0.25` (Caddy) | één regel in AdGuard: *alles* van `neodata.be` gaat naar Caddy |
+| `pve01.home.arpa`, `iphone-karen.home.arpa` | het IP van dat toestel | de lijst in git, of het DNS-record in UniFi |
+| `google.com`, `nos.nl` | het echte adres | vraagt het door aan Quad9, op het internet |
+| een reclame- of malwaresite | niets | de blocklists |
 
 <Callout type="warning">
-Zet in UniFi altijd een tweede DNS-server naast `192.168.0.29`, bijvoorbeeld
-`1.1.1.1`. Staat ct 107 stil en is er geen tweede, dan heeft het hele huis geen
-internet, ook het toestel waarmee je het zou repareren niet.
+**AdGuard is de enige DNS-server.** Ligt hij plat, dan werkt het internet
+nergens in huis, want geen enkel toestel vindt nog een adres.
+
+Snel redden: zet op één toestel met de hand `9.9.9.9` als DNS. Daarmee
+kan je terug op internet om AdGuard te herstellen. Haal het daarna weer weg.
 </Callout>
 
-Wat elk netwerk hoort uit te delen staat in `unifi_expected_dns`
-(`inventory/group_vars/all/unifi.yml`). Ansible zet het niet in UniFi, maar
-`playbooks/unifi-routes.yml` vergelijkt het elke ochtend (Semaphore, 06:15) en
-wordt rood als het afwijkt.
+### Waarom geen tweede DNS-server?
+
+Tot 25-09 deelde UniFi ook `1.1.1.1` uit, als reserve. Maar een toestel vraagt
+**ze allebei**, en `1.1.1.1` kent onze namen niet. Kreeg je toevallig dat
+antwoord, dan opende `dns.neodata.be` niet ("This site can't be reached"), en
+kwam er reclame door.
+
+Nu deelt UniFi dus alleen AdGuard uit. De echte oplossing is een **tweede
+AdGuard** als reserve (staat in `TODO.md`, A5).
+
+Wat UniFi hoort uit te delen staat in `unifi_expected_dns`
+(`inventory/group_vars/all/unifi.yml`). Elke ochtend om 06:15 controleert
+Semaphore dat met `playbooks/unifi-routes.yml`. Wijkt UniFi af, dan wordt hij
+rood.
+
+### Wie gebruikt welke DNS
+
+Bijna alles gebruikt AdGuard. Er zijn drie uitzonderingen:
+
+| Toestel | Gebruikt | Waarom |
+| --- | --- | --- |
+| AdGuard zelf | `1.1.1.1` | hij kan zichzelf niet om hulp vragen; zo kan hij ook updaten als hij zelf stuk is |
+| de tailscale-container (108) | `100.100.100.100` | Tailscale regelt dat zelf. **Niet aankomen** |
+| wie via Tailscale binnenkomt | `100.84.46.18` | dat is ook AdGuard, maar zijn Tailscale-adres |
+
+De rest (telefoons, laptops, de Mac mini, alle servers, de WireGuard-VPN)
+gebruikt `192.168.0.29`.
+
+## Namen van toestellen in AdGuard
+
+In AdGuard (**Query Log** en **Top clients**) zie je per toestel wat het
+opvraagt. Wie dat toestel is, vraagt AdGuard aan UniFi.
+
+Welke naam je dan te zien krijgt:
+
+| In UniFi | Dan zie je in AdGuard | Voorbeeld |
+| --- | --- | --- |
+| het toestel heeft een **Local DNS Record** | die naam | `iphone-karen.home.arpa` |
+| geen record | de naam die het toestel zelf kiest | `iPhone`, `Mac` |
+| geen record, en het toestel kiest geen naam | alleen het IP | `192.168.0.23` |
+
+<Callout type="info">
+De **alias** in UniFi (bv. "iPhone Karen") telt hier **niet**. Alleen het
+Local DNS Record. Hoe je dat zet: zie
+[Een toestel een naam geven](/runbooks/onderhoud/netwerk/#een-toestel-een-naam-geven).
+Welke toestellen er al een hebben: zie de kolom **DNS-naam** op
+[Toestellen](/homelab/toestellen/).
+</Callout>
+
+### De drie soorten namen
+
+| Naam | Voorbeeld | Waar hij staat |
+| --- | --- | --- |
+| een dienst | `vault.neodata.be` | één regel in AdGuard (`*.neodata.be` → Caddy). Een nieuwe dienst heeft geen nieuwe regel nodig |
+| een server | `pve01.home.arpa` | Ansible zet hem in AdGuard, uit de inventory |
+| een ander toestel | `nuki.home.arpa` | UniFi, als Local DNS Record. De lijst staat in `unifi_dns_names` |
+
+Een regel die je met de hand in AdGuard zet, laat Ansible staan.
+
+## Instellingen van AdGuard
+
+Deze staan in git, in `adguard_dns` (`inventory/host_vars/adguard/main.yml`).
+Je past ze toe met `ansible-playbook playbooks/adguard.yml`. Verander je ze
+in de web-UI, dan zet de volgende run ze terug.
+
+| Instelling | Staat op | Wat het doet |
+| --- | --- | --- |
+| Upstream | twee Quad9-adressen, parallel | waar AdGuard gewone namen (`google.com`) navraagt. Hij vraagt beide en neemt het snelste antwoord |
+| Timeout | 3 seconden | antwoordt Quad9 niet, dan geeft hij na 3 s op, niet na 10 |
+| Fallback | `9.9.9.10` | reserve als de versleutelde verbinding naar Quad9 stuk is |
+| Optimistic cache | aan | een naam die hij al kent, geeft hij meteen, en hij ververst hem op de achtergrond |
+| Rate limit | uit | stond op 20 vragen per seconde per toestel. Een drukke server haalde dat, en kreeg dan geen antwoord meer |
+| Private reverse DNS | `192.168.0.1` | vraagt aan UniFi hoe een toestel heet (zie hierboven) |
+
+Een nieuwe upstream test de rol eerst. Antwoordt die niet, dan verandert er
+niets.
+
+Hoe snel: een nieuwe naam duurt zo'n 20 ms, een naam die AdGuard al kent 3 ms.
 
 ## Vaste adressen van caddy en adguard
 
-Sinds 24-09 zetten ct 106 (caddy, `192.168.0.25`) en ct 107 (adguard,
-`192.168.0.29`) hun adres zelf, in hun Proxmox-config (`net0`), en niet meer
-via DHCP. Waarom: vroeg de container het bij elke start aan de UCG, dan hing
-het hele huis (DNS) en elke route aan één Fixed IP in UniFi.
+Caddy (`192.168.0.25`) en AdGuard (`192.168.0.29`) vragen hun adres niet aan
+UniFi. Ze hebben het vast in hun eigen instellingen in Proxmox, sinds 24-09.
 
-De Fixed IP's in UniFi blijven staan. Ze beslissen niets meer, maar ze
-beletten dat de UCG `.25` of `.29` aan een ander toestel geeft.
+Waarom: anders hing het hele huis af van één instelling in UniFi. Ging daar
+iets mis, dan werkten DNS én alle diensten niet meer.
+
+In UniFi staan ze ook als Fixed IP. Dat is alleen zodat UniFi die adressen
+nooit aan een ander toestel geeft.
 
 ## Zoekdomein van de containers: `home.arpa`
 
-Sinds 24-09 hebben de containers `searchdomain: home.arpa` in hun
-Proxmox-config (`pve_lxc_defaults` in `inventory/group_vars/proxmox/lxcs.yml`).
+Elke container zoekt korte namen op onder `home.arpa`
+(`searchdomain: home.arpa` in `pve_lxc_defaults`, in
+`inventory/group_vars/proxmox/lxcs.yml`). Sinds 24-09.
 
-Waarom: zonder zoekdomein neemt een container `search neodata.be` over van pve01.
-Proxmox zet dan `<ip> <naam>.neodata.be` in de `/etc/hosts` van de container.
-Vraagt de container zijn eigen publieke naam op, dan komt hij bij zichzelf uit
-en niet bij Caddy. Zo zag de dagelijkse smoketest in Semaphore
-`semaphore.neodata.be` als stuk, terwijl de site gewoon werkte.
+Waarom: zonder die instelling nam een container `neodata.be` over van pve01.
+Dan kwam `semaphore.neodata.be` bij de container zelf uit in plaats van bij
+Caddy, en zag de dagelijkse test de site als stuk, terwijl hij werkte.
 
-Nieuwe containers krijgen dit mee. Bestaande containers zet je één keer met de
-hand, want de role past bestaande containers niet aan:
+Nieuwe containers krijgen dit vanzelf. Een oude container zet je één keer met
+de hand:
 
 ```bash
 ssh -t pve01 'sudo pct set <vmid> --searchdomain home.arpa && sudo pct reboot <vmid>'
 ```
-
-## Namen in de Query Log
-
-AdGuard toont bij een IP de naam die de UCG kent. Dat staat in AdGuard →
-**Settings** → **DNS settings** → **Private reverse DNS servers**:
-`192.168.0.1`, met **Use private reverse DNS resolvers** aan. Staat in git
-onder `adguard_dns` (`inventory/host_vars/adguard/main.yml`), samen met de
-upstream (Quad9 over DoH) en de bootstrap-DNS. `roles/adguard` zet ze gelijk;
-een nieuwe upstream test hij eerst, en antwoordt die niet, dan verandert er
-niets.
-
-Blijft dat veld leeg, dan vraagt AdGuard het aan zijn eigen `nameserver`
-(`1.1.1.1`), en die kent geen thuisnamen: dan zie je alleen IP's.
-
-Je krijgt de naam die het toestel zelf opgeeft bij DHCP (`Mac`, `iPhone`,
-`LGwebOSTV`), niet de alias uit UniFi. Toestellen met een vast adres in hun
-eigen config (pve01, de guests) vragen niets aan DHCP en blijven een IP.
-
-## Twee soorten namen
-
-| Namen | Wijst naar | Beheerd door |
-| --- | --- | --- |
-| `*.home.arpa` | één regel per host | `roles/adguard`, uit de inventory |
-| `*.neodata.be` | één wildcard naar Caddy (`192.168.0.25`) | `roles/adguard`, uit `host_vars/adguard` |
-
-De rol raakt alleen deze twee aan. Een rewrite die je met de hand in AdGuard zet, blijft staan.
 
 ## Twee wegen naar binnen
 

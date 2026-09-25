@@ -297,10 +297,12 @@ Pas dan de DNS-server aan in UniFi (DHCP). Anders blijft het huis zoeken naar
 
 </Steps>
 
-<Callout type="info">
-Zet in UniFi altijd `1.1.1.1` als tweede DNS-server naast `192.168.0.29`.
-Zonder tweede heeft het hele huis geen internet als ct 107 stilstaat, ook het
-toestel waarmee je het wil repareren niet.
+<Callout type="warning">
+UniFi deelt alleen `192.168.0.29` uit, zonder tweede DNS-server (sinds 25-09,
+zie [Hoe het netwerk staat](/homelab/netwerk/#waarom-geen-tweede-dns-server)).
+Staat ct 107 stil, dan heeft het hele huis geen internet. Zet op het toestel
+waarmee je herstelt met de hand `9.9.9.9` als DNS, en haal het weg als ct 107
+terug is.
 </Callout>
 
 ## Vaultwarden terugzetten

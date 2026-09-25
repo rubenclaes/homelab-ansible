@@ -44,6 +44,13 @@
   - [ ] De eerste iPhone (was `.171`) heet gewoon "iPhone": van wie? Alias
         geven zodra hij weer online is.
 
+- [ ] **A5. Tweede AdGuard als DNS 2.** Sinds 25-09 deelt Home alleen
+      `192.168.0.29` uit (`1.1.1.1` eruit: die brak `*.neodata.be`). Staat
+      ct 107 of pve01 stil, dan heeft het hele huis geen DNS.
+  - [ ] Tweede instantie op een andere machine dan pve01 (de Mac mini?),
+        met dezelfde `roles/adguard`-instellingen, rewrites en blocklists.
+  - [ ] In UniFi als DNS 2, en in `unifi_expected_dns`.
+
 ---
 
 ## B. Git is de bron — wat nog buiten git leeft

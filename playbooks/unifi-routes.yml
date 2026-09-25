@@ -73,6 +73,33 @@
         unreserved: >-
           {{ checked.values() | unique | reject('in', unifi_reserved_ips) | sort | list }}
 
+    # De namen die AdGuard in zijn Query Log toont, komen van de UCG. Staat
+    # een record uit of anders dan in git, dan zie je daar weer een kaal IP
+    # of `iPhone`, zonder dat iets anders stukgaat.
+    - name: Every device in unifi_dns_names must have that Local DNS Record
+      ansible.builtin.assert:
+        that: wrong | length == 0
+        fail_msg: >-
+          Local DNS Record in UniFi wijkt af van unifi_dns_names: {{ wrong | join('; ') }}.
+          Zet het in UniFi: Client Devices -> het toestel -> Settings -> Fixed IP,
+          en daaronder Local DNS Record als <naam>.home.arpa.
+        quiet: true
+      vars:
+        wrong: >-
+          {%- set out = [] -%}
+          {%- for mac, name in unifi_dns_names.items() -%}
+          {%-   set u = unifi_users.json.data | selectattr('mac', 'eq', mac) | first | default(none) -%}
+          {%-   set want = name ~ '.home.arpa' -%}
+          {%-   if u is none -%}
+          {%-     set _ = out.append(name ~ ': UniFi kent ' ~ mac ~ ' niet') -%}
+          {%-   elif not u.use_fixedip | default(false) -%}
+          {%-     set _ = out.append(name ~ ': geen Fixed IP') -%}
+          {%-   elif not u.local_dns_record_enabled | default(false) or u.local_dns_record | default('') != want -%}
+          {%-     set _ = out.append(name ~ ': ' ~ (u.local_dns_record | default('') or 'geen record') ~ ' in plaats van ' ~ want) -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{ out }}
+
     # Het oude API-pad, net als de reservaties: de nieuwe API toont geen
     # DHCP-instellingen.
     - name: Read the network settings from UniFi

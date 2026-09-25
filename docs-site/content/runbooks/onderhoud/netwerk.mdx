@@ -16,6 +16,7 @@ Iets aan het netwerk of aan de Proxmox-node zelf. Geen van deze dingen zit in
 | Je wil een **IP-adres of bridge** van de hypervisor aanpassen | `vmbr1` krijgt een ander adres | [Bridges van pve01 wijzigen](#bridges-van-pve01-wijzigen) |
 | Na een herbouw starten guests **niet mee op** als pve01 opstart | na een restore staat de helft op `onboot: 0` | [Guests mee laten opstarten](#guests-mee-laten-opstarten) |
 | Een host moet een **andere DNS-server** gebruiken | `caddy` wijst nog naar een oude resolver | [DNS-server van een host omzetten](#dns-server-van-een-host-omzetten) |
+| Een toestel staat in AdGuard als **kaal IP of `iPhone`** en je wil een echte naam | de iPhone van Karen, de Nuki | [Een toestel een naam geven](#een-toestel-een-naam-geven) |
 | Je wil nakijken of je **van buitenaf** nog binnenkomt | de VPN op je iPhone doet niets meer | [De VPN nakijken](#de-vpn-nakijken) |
 | Je wil weten **hoe DNS en de VPN nu in elkaar zitten** | "welke resolver gebruikt `docker`?" | [Hoe het netwerk nu staat](/homelab/netwerk/) |
 
@@ -228,7 +229,7 @@ Zie [Onderhoud](/runbooks/onderhoud/) voor wat hij wel en niet dekt.
 </Steps>
 
 Welke host welke resolver hoort te hebben: zie
-[Hoe het netwerk nu staat](/homelab/netwerk/#dns-wie-vraagt-wat-aan-wie).
+[Hoe het netwerk nu staat](/homelab/netwerk/#wie-gebruikt-welke-dns).
 
 ## De VPN nakijken
 
@@ -271,6 +272,57 @@ het. Werkt die naam, dan werkt de hele keten: VPN, route én DNS.
 Hoe de VPN nu staat (endpoint, subnet, profielen): zie
 [Twee wegen naar binnen](/homelab/netwerk/#twee-wegen-naar-binnen).
 
+## Een toestel een naam geven
+
+De Query Log van AdGuard toont `192.168.0.23` of `iPhone`, en je wil
+`iphone-karen`. De naam komt uit UniFi, niet uit AdGuard: AdGuard vraagt bij
+elk IP aan de UCG wie dat is.
+
+<Steps>
+
+#### Geef het toestel een vast adres en een DNS-record in UniFi
+
+| Waar | Veld | Waarde | Waarom |
+| --- | --- | --- | --- |
+| UniFi → Client Devices → het toestel → Settings | Fixed IP Address | aan, het huidige adres | zonder vast adres maakt UniFi geen record |
+| idem, net eronder | Local DNS Record | aan, `<naam>.home.arpa` | alleen `<naam>` weigert UniFi met "must be a valid hostname" |
+
+Kleine letters, cijfers en `-`, geen spaties.
+
+#### Zet het in git
+
+In `inventory/group_vars/all/unifi.yml`, onder `unifi_dns_names`:
+
+```yaml
+  "46:bf:32:25:e6:9c": iphone-karen
+```
+
+Zonder `.home.arpa`. De MAC staat in UniFi bij het toestel. Is het een nieuw
+toestel, zet de MAC dan ook in `unifi_known_macs`, anders blijft
+`unifi-watch.yml` erover melden.
+
+#### Controleer
+
+```bash
+dig +short -x 192.168.0.23 @192.168.0.29
+ansible-playbook playbooks/unifi-routes.yml
+```
+
+De eerste geeft `iphone-karen.home.arpa.`. De tweede is groen; hij draait ook
+elke ochtend in Semaphore en wordt rood als het record in UniFi verdwijnt of
+anders heet.
+
+#### Commit en push
+
+</Steps>
+
+<Callout type="info">
+Op een iPhone: **Settings → Wi-Fi → (i) bij je netwerk → Private Wi-Fi
+Address → Fixed**. Op **Rotating** krijgt de telefoon af en toe een nieuwe
+MAC. UniFi ziet dan een nieuw toestel, en het vaste adres en de naam horen bij
+het oude.
+</Callout>
+
 ## Goed om te weten
 
 ### Waarom de bridges niet in `site.yml` zitten
@@ -305,6 +357,21 @@ te laat laat je wachten met een onbereikbare hypervisor.
 
 Een guest die bewust níét meestart, zou bij elke run stilletjes weer aangezet
 worden. Meestal draai je dit één keer, na een herbouw.
+
+### Waarom de naam in UniFi staat en niet in AdGuard
+
+AdGuard kan zelf ook namen geven (Settings → Client settings). Dan zou elk
+toestel op twee plaatsen staan, en krijgt een toestel een ander IP, dan klopt
+AdGuard niet meer. Nu is UniFi de enige bron: hij deelt het adres uit en kent
+dus altijd de juiste naam. AdGuard vraagt het hem via `local_ptr_upstreams`.
+
+De **alias** in UniFi telt daarvoor niet. De UCG geeft AdGuard alleen het
+Local DNS Record, of anders de naam die het toestel zelf opgeeft (`iPhone`,
+`Mac`, `LGwebOSTV`).
+
+Ansible schrijft niet naar UniFi, net als bij de DNS die de netwerken
+uitdelen: `unifi-routes.yml` vergelijkt alleen. De eerste lading records is op
+25-09 wel via de API gezet, eenmalig.
 
 ### Waarom DNS naar ct 107 moest
 

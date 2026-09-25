@@ -28,6 +28,8 @@ unifi_known_macs:
   - "80:69:1a:dc:cc:ac"  # Mac mini, .26
   - "62:9e:a1:2a:9d:21"  # MacBook Pro M4 Pro, .86
   - "8a:48:d6:12:ae:29"  # iPhone Ruben, .212
+  - "46:bf:32:25:e6:9c"  # iPhone Karen, .23
+  - "6e:b4:59:24:1c:9c"  # iPhone Laura, .110
   - "5a:0b:93:78:9a:2a"  # iPhone 9a:2a, .171
   - "d4:35:38:37:70:ba"  # Xiaomi, .234
   # Tv en media
@@ -58,12 +60,58 @@ unifi_ntfy_token: "{{ vault_ntfy_unifi_token }}"
 # alleen, en faalt als het afwijkt. Wijzigt het hier, dan eerst in UniFi.
 #
 # Waarom het ertoe doet: deelt Home iets anders uit dan AdGuard, dan gaat
-# elk toestel er stil omheen. En `1.1.1.1` als tweede houdt het huis online
-# als ct 107 stilstaat (zie de Homelab-pagina Netwerk).
+# elk toestel er stil omheen.
+#
+# Alleen AdGuard, sinds 25-09. Tot dan stond `1.1.1.1` als tweede, zodat het
+# huis online bleef als ct 107 stilstond. Maar een Mac vraagt beide, en kreeg
+# van 1.1.1.1 "bestaat niet" voor elke *.neodata.be en *.home.arpa: sites
+# openden dan willekeurig niet, en de reclame kwam erdoor. Gekozen: namen die
+# altijd werken, met als prijs dat ct 107 nu alleen staat. De echte oplossing,
+# een tweede AdGuard als DNS 2, staat in TODO.md.
 #
 # Niet de VPN: UniFi bewaart daar nog `192.168.0.26` (de oude AdGuard), maar
 # toont dat veld nergens in de UI, en de API-sleutel schrijft het niet. Wat
 # een VPN-client echt gebruikt staat in zijn profiel: op de iPhone met de
 # hand op `.29` gezet. Zie TODO.md.
 unifi_expected_dns:
-  Home: [192.168.0.29, 1.1.1.1]
+  Home: [192.168.0.29]
+
+# De naam van een toestel in DNS: <naam>.home.arpa, per MAC. Staat in UniFi
+# als Local DNS Record, met een Fixed IP (zonder vast adres kan UniFi er geen
+# record van maken). Ansible schrijft het niet, net als hierboven:
+# playbooks/unifi-routes.yml vergelijkt en faalt als het afwijkt.
+#
+# Waarom in UniFi en niet in AdGuard: AdGuard vraagt de naam bij een IP al
+# aan de UCG (local_ptr_upstreams). Zo staat een naam op één plek. De alias
+# in UniFi telt daarvoor niet; alleen dit record, of anders de naam die het
+# toestel zelf opgeeft (`iPhone`, `Mac`).
+#
+# Servers staan hier ook in, hoewel roles/adguard hun *.home.arpa al zet:
+# die rewrite werkt alleen van naam naar IP, niet terug. Voor de Query Log
+# moet de UCG ze ook kennen. `mac-mini` en niet `macmini` zoals de inventory,
+# want zo stond hij al in UniFi; beide wijzen naar .26.
+unifi_dns_names:
+  "46:bf:32:25:e6:9c": iphone-karen
+  "8a:48:d6:12:ae:29": iphone-ruben
+  "6e:b4:59:24:1c:9c": iphone-laura
+  "8c:8e:76:01:29:4b": dobbis
+  "2c:9f:fb:f0:af:a5": airco-bureau
+  "b0:8c:b3:d8:ad:88": bambu-x1c
+  "0c:29:8f:6d:f3:72": mikrotik
+  "94:34:69:d6:67:d8": nuki
+  # Aan de Stal AP
+  "60:32:b1:5d:4e:36": switch-stal
+  "b4:4c:3b:09:fc:05": stal-cam-a46l
+  "1c:4d:89:01:f8:a7": stal-cam-gs7e
+  "d4:35:38:37:70:ba": xiaomi-stal
+  # Servers
+  "c0:18:03:65:45:01": pve01
+  "bc:24:11:3d:b4:6a": pbs
+  "02:8c:f5:a4:e6:15": haos
+  "bc:24:11:4b:cd:e4": docker-grafana-stack
+  "02:12:f8:7b:9d:7d": docker
+  "bc:24:11:c6:bd:4e": semaphore
+  "bc:24:11:b4:e6:74": caddy
+  "bc:24:11:7b:fa:28": tailscale
+  "bc:24:11:2a:34:48": ntfy
+  "80:69:1a:dc:cc:ac": mac-mini

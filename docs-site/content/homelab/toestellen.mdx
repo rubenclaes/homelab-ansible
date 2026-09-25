@@ -6,45 +6,51 @@ import { Callout } from 'nextra/components'
 
 # Toestellen
 
-<Callout type="warning">
-Gegenereerd door `playbooks/docs.yml` uit UniFi, bij elke run. Een naam pas
-je aan in UniFi (Client Devices → het toestel → Alias), niet hier.
+<Callout type="info">
+Deze pagina maakt `playbooks/docs.yml` zelf, uit UniFi. Pas hier niets aan:
+verander het in UniFi (Client Devices → het toestel → Settings).
 </Callout>
 
-Wat er op 24-09-2026 23:58 op het netwerk zat: 30
-toestellen. **Vast adres** is een Fixed IP in UniFi. Zonder vast adres kan
-een toestel na een herstart op een ander adres uitkomen; voor alles met een
-Caddy-route moet het er staan (`playbooks/unifi-routes.yml` controleert dat).
+Op 25-09-2026 09:37 zaten er 33 toestellen op het netwerk.
 
-| Toestel | Adres | Verbinding | Vast adres | Verbonden sinds |
-| --- | --- | --- | --- | --- |
-| Dobbis | `192.168.0.2` | kabel | ja | 2026-09-09 |
-| LGwebOSTV | `192.168.0.6` | wifi | — | 2026-09-13 |
-| Airco bureau | `192.168.0.7` | wifi | — | 2026-09-22 |
-| pve01 | `192.168.0.10` | kabel | ja | 2026-09-22 |
-| docker | `192.168.0.15` | kabel | ja | 2026-09-12 |
-| docker-grafana-stack | `192.168.0.17` | kabel | ja | 2026-09-12 |
-| PulseR | `192.168.0.19` | wifi | — | 2026-09-04 |
-| Apple TV | `192.168.0.20` | kabel | — | 2026-09-23 |
-| iPhone Karen | `192.168.0.23` | wifi | — | 2026-09-24 |
-| SMA | `192.168.0.24` | kabel | — | 2026-09-23 |
-| Caddy | `192.168.0.25` | kabel | ja | 2026-09-22 |
-| Mac Mini | `192.168.0.26` | kabel | ja | 2026-09-23 |
-| Adguard | `192.168.0.29` | kabel | ja | 2026-09-12 |
-| semaphore | `192.168.0.30` | kabel | ja | 2026-09-21 |
-| haos | `192.168.0.31` | kabel | ja | 2026-09-21 |
-| ntfy | `192.168.0.32` | kabel | ja | 2026-09-23 |
-| NOMI-IPC-A46L | `192.168.0.38` | kabel | — | 2026-09-12 |
-| Home assistant | `192.168.0.45` | kabel | — | 2026-09-12 |
-| tailscale | `192.168.0.50` | kabel | — | 2026-09-12 |
-| HP printer | `192.168.0.60` | wifi | — | 2026-09-13 |
-| Powernode | `192.168.0.70` | kabel | — | 2026-09-09 |
-| MacBook Pro  m4 pro | `192.168.0.86` | wifi | — | 2026-09-24 |
-| PULSEL | `192.168.0.98` | wifi | — | 2026-09-05 |
-| switch | `192.168.0.100` | kabel | — | 2026-09-12 |
-| Dreame | `192.168.0.115` | wifi | — | 2026-09-24 |
-| Bambu Lab X1C | `192.168.0.127` | wifi | — | 2026-09-14 |
-| Nuki Smart Lock 2 | `192.168.0.152` | wifi | — | 2026-09-16 |
-| NOMI-IPC-GS7E-5M0WE-C858 | `192.168.0.154` | kabel | — | 2026-09-12 |
-| pbs | `192.168.0.181` | kabel | ja | 2026-09-18 |
-| Xiaomi | `192.168.0.234` | wifi | — | 2026-09-18 |
+| Kolom | Betekent |
+| --- | --- |
+| **Toestel** | de naam in UniFi (de alias) |
+| **DNS-naam** | de naam die AdGuard toont. Leeg? Dan zie je daar een IP of `iPhone`. Zie [Een toestel een naam geven](/runbooks/onderhoud/netwerk/#een-toestel-een-naam-geven) |
+| **Vast adres** | "ja" = het toestel krijgt altijd hetzelfde IP |
+
+| Toestel | DNS-naam | Adres | Verbinding | Vast adres | Verbonden sinds |
+| --- | --- | --- | --- | --- | --- |
+| Dobbis | `dobbis.home.arpa` | `192.168.0.2` | kabel | ja | 2026-09-09 |
+| LGwebOSTV | — | `192.168.0.6` | wifi | — | 2026-09-13 |
+| Airco bureau | `airco-bureau.home.arpa` | `192.168.0.7` | wifi | ja | 2026-09-22 |
+| pve01 | `pve01.home.arpa` | `192.168.0.10` | kabel | ja | 2026-09-22 |
+| docker | `docker.home.arpa` | `192.168.0.15` | kabel | ja | 2026-09-12 |
+| docker-grafana-stack | `docker-grafana-stack.home.arpa` | `192.168.0.17` | kabel | ja | 2026-09-12 |
+| PulseR | — | `192.168.0.19` | wifi | — | 2026-09-04 |
+| Apple TV | — | `192.168.0.20` | kabel | — | 2026-09-23 |
+| iPhone Karen | `iphone-karen.home.arpa` | `192.168.0.23` | wifi | ja | 2026-09-25 |
+| SMA | — | `192.168.0.24` | kabel | ja | 2026-09-23 |
+| Caddy | `caddy.home.arpa` | `192.168.0.25` | kabel | ja | 2026-09-22 |
+| Mac Mini | `mac-mini.home.arpa` | `192.168.0.26` | kabel | ja | 2026-09-23 |
+| Adguard | — | `192.168.0.29` | kabel | ja | 2026-09-12 |
+| semaphore | `semaphore.home.arpa` | `192.168.0.30` | kabel | ja | 2026-09-21 |
+| haos | `haos.home.arpa` | `192.168.0.31` | kabel | ja | 2026-09-21 |
+| ntfy | `ntfy.home.arpa` | `192.168.0.32` | kabel | ja | 2026-09-23 |
+| NOMI-IPC-A46L | `stal-cam-a46l.home.arpa` | `192.168.0.38` | kabel | ja | 2026-09-12 |
+| Home assistant | — | `192.168.0.45` | kabel | — | 2026-09-12 |
+| tailscale | `tailscale.home.arpa` | `192.168.0.50` | kabel | ja | 2026-09-12 |
+| HP printer | — | `192.168.0.60` | wifi | — | 2026-09-13 |
+| Powernode | — | `192.168.0.70` | kabel | — | 2026-09-09 |
+| Laptop Ruben | — | `192.168.0.86` | wifi | ja | 2026-09-24 |
+| PULSEL | — | `192.168.0.98` | wifi | — | 2026-09-05 |
+| switch | `switch-stal.home.arpa` | `192.168.0.100` | kabel | ja | 2026-09-12 |
+| Laptop Karen | — | `192.168.0.108` | wifi | ja | 2026-09-25 |
+| Iphone Laura | `iphone-laura.home.arpa` | `192.168.0.110` | wifi | ja | 2026-09-25 |
+| Dreame | — | `192.168.0.115` | wifi | — | 2026-09-25 |
+| bambu-x1c | `bambu-x1c.home.arpa` | `192.168.0.127` | wifi | ja | 2026-09-14 |
+| nuki | `nuki.home.arpa` | `192.168.0.152` | wifi | ja | 2026-09-16 |
+| NOMI-IPC-GS7E-5M0WE-C858 | `stal-cam-gs7e.home.arpa` | `192.168.0.154` | kabel | ja | 2026-09-12 |
+| pbs | `pbs.home.arpa` | `192.168.0.181` | kabel | ja | 2026-09-18 |
+| iPhone Ruben | `iphone-ruben.home.arpa` | `192.168.0.212` | wifi | ja | 2026-09-25 |
+| Xiaomi | `xiaomi-stal.home.arpa` | `192.168.0.234` | wifi | ja | 2026-09-18 |
