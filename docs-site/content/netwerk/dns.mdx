@@ -2,7 +2,7 @@
 title: DNS en AdGuard
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, Callout, Tabs } from 'nextra/components'
 
 # DNS en AdGuard
 
@@ -15,7 +15,11 @@ Hoe het in elkaar zit: [Overzicht](/netwerk/overzicht/).
 Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Alle DNS van het
 huis loopt via één container: `adguard`, ct 107, `192.168.0.29`.
 
-**Ansible werkt nog.** De inventory gebruikt IP-adressen, geen namen.
+**Ansible werkt nog.** De inventory gebruikt IP-adressen, geen namen. Op het
+toestel waarmee je herstelt: zet met de hand `9.9.9.9` als DNS, en haal het weg
+als ct 107 terug is. UniFi deelt geen tweede DNS-server uit
+([waarom](/netwerk/overzicht/#waarom-geen-tweede-dns-server)), dus zolang ct 107
+stilstaat heeft het hele huis geen internet.
 
 <Steps>
 
@@ -29,12 +33,8 @@ ssh pve01 'sudo pct start 107'     # als hij "stopped" zegt
 #### Is hij stuk: zet hem terug uit de back-up
 
 Volg [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up)
-met vmid 107. Dat is de snelle en volledige weg.
-
-<Callout type="warning">
-Liever **niet** opnieuw bouwen. Een nieuwe AdGuard mist alles wat alleen in de
-container staat: je login en de upstream-resolvers.
-</Callout>
+met vmid 107. Dat is de snelle en volledige weg. Liever niet opnieuw bouwen:
+een nieuwe AdGuard mist je login en de upstream-resolvers.
 
 #### Geen back-up? Dan toch opnieuw bouwen
 
@@ -79,14 +79,6 @@ Pas dan de DNS-server aan in UniFi (DHCP). Anders blijft het huis zoeken naar
 
 </Steps>
 
-<Callout type="warning">
-UniFi deelt alleen `192.168.0.29` uit, zonder tweede DNS-server (sinds 25-09,
-zie [Hoe het netwerk staat](/netwerk/overzicht/#waarom-geen-tweede-dns-server)).
-Staat ct 107 stil, dan heeft het hele huis geen internet. Zet op het toestel
-waarmee je herstelt met de hand `9.9.9.9` als DNS, en haal het weg als ct 107
-terug is.
-</Callout>
-
 ## DNS controleren
 
 Antwoordt DNS nog wat het moet? Deze test vraagt elke naam op bij AdGuard en
@@ -122,18 +114,10 @@ ansible-playbook playbooks/adguard.yml
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
-Meer over DNS: [Netwerk](/netwerk/dns/).
-
 </Steps>
 
-<Callout type="info">
-Draait ook vanzelf, dagelijks om 06:30, samen met de check op de routes. Die
-vangt dit niet op: Caddy praat met adressen, dus een kapotte rewrite laat de
-`neodata.be`-routes gewoon werken terwijl `ssh pve01.home.arpa` stil stuk is.
-</Callout>
-
-Waarom de test zijn eigen namenlijst berekent:
-[Goed om te weten](#goed-om-te-weten).
+De test draait ook vanzelf, elke dag om 06:30. Waarom hij apart bestaat en
+zijn eigen namenlijst berekent: [Goed om te weten](#goed-om-te-weten).
 
 ## DNS-server van een host omzetten
 
@@ -148,16 +132,13 @@ Een host moet een andere resolver gebruiken. Voorbeeld: `caddy` (ct 106) moet
 ssh caddy 'ls -l /etc/resolv.conf'
 ```
 
-- **Een pijl `->` in de uitvoer?** Dan beheert systemd-resolved het bestand. Ga naar de stap *Via netplan*.
-- **Geen pijl?** Dan is het een gewoon bestand. Ga naar de stap *Gewoon bestand*.
+Een pijl `->` in de uitvoer betekent: systemd-resolved beheert het bestand.
+Bewerk het dan niet rechtstreeks; dat is bij de volgende netwerkwijziging weg.
 
-<Callout type="warning">
-Een `sed` op een gesymlinkte `resolv.conf` lijkt te werken, maar is bij de
-volgende netwerkwijziging weer weg. Kijk dus altijd eerst welk van de
-mechanismen de host gebruikt.
-</Callout>
+#### Zet de nieuwe DNS-server
 
-#### Via netplan (bij een symlink)
+<Tabs items={['Met pijl (netplan)', 'Zonder pijl (gewoon bestand)']}>
+<Tabs.Tab>
 
 ```bash
 ssh -t docker 'sudoedit /etc/netplan/90-default.yaml'   # zet 192.168.0.29 onder nameservers
@@ -166,11 +147,15 @@ ssh docker 'sudo netplan apply'
 
 Zo staat het op `docker` en `docker-grafana-stack`.
 
-#### Gewoon bestand (zonder symlink)
+</Tabs.Tab>
+<Tabs.Tab>
 
 ```bash
 ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
 ```
+
+</Tabs.Tab>
+</Tabs>
 
 #### Zet het ook in `containers.tf` (alleen bij een LXC)
 
@@ -207,8 +192,7 @@ dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Cad
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
-Vraagt elke naam uit de inventory op bij AdGuard en vergelijkt het antwoord.
-Zie [Onderhoud](/proxmox/onderhoud/) voor wat hij wel en niet dekt.
+Zie [DNS controleren](#dns-controleren) voor wat hij wel en niet dekt.
 
 </Steps>
 
@@ -257,14 +241,17 @@ anders heet.
 
 #### Commit en push
 
+```bash
+git add inventory/group_vars/all/unifi.yml
+git commit -m "UniFi: naam iphone-karen"
+git push
+```
+
 </Steps>
 
-<Callout type="info">
-Op een iPhone: **Settings → Wi-Fi → (i) bij je netwerk → Private Wi-Fi
-Address → Fixed**. Op **Rotating** krijgt de telefoon af en toe een nieuwe
-MAC. UniFi ziet dan een nieuw toestel, en het vaste adres en de naam horen bij
-het oude.
-</Callout>
+Op een iPhone zet je ook **Settings → Wi-Fi → (i) bij je netwerk → Private
+Wi-Fi Address → Fixed**. Op **Rotating** krijgt de telefoon af en toe een
+nieuwe MAC, en dan horen het vaste adres en de naam bij een "oud" toestel.
 
 ## Een site blokkeren of deblokkeren
 
@@ -277,12 +264,9 @@ malware weggefilterd, en daar zet je iets aan of uit.
 | weten waarom iets niet laadt | AdGuard-scherm → **Query Log** | |
 | een hele blocklist erbij of eraf | de inventory | ja, alleen zo |
 
-<Callout type="warning">
-Een **blocklist** toevoegen of uitzetten in het AdGuard-scherm houdt geen
-stand: de volgende Ansible-run haalt een nieuwe weg en zet een uitgezette
-terug aan. Losse regels (deblokkeren, blokkeren) mag
-je wél in het scherm zetten, die raakt Ansible niet.
-</Callout>
+Een blocklist in het scherm aanpassen houdt geen stand: de volgende
+Ansible-run zet het terug. Losse regels (deblokkeren, blokkeren) mag je wél in
+het scherm zetten.
 
 ### Eén site deblokkeren
 

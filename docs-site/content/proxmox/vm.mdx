@@ -2,7 +2,7 @@
 title: Nieuwe VM
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Nieuwe VM
 
@@ -31,13 +31,11 @@ Voorbeeld: een VM `nieuwehost` met Debian.
 | 6–8 | je werkstation | Ansible hem laten zien, sleutel erop, `bootstrap` + `baseline` |
 | 9 | je werkstation | MAC vastzetten, commit en push |
 
-<Callout type="info">
 Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Dan maak je
 geen nieuwe VM: je zet een back-up terug uit PBS, zie
 [Herstellen](/proxmox/herstellen/). Zijn vorm (cores, geheugen, schijf en
 vooral het **MAC-adres**, waar zijn vaste adres in UniFi aan hangt) staat al
 in `tofu/proxmox/vms.tf`.
-</Callout>
 
 <Steps>
 
@@ -55,7 +53,8 @@ Eén keer; staat hij er al, sla dit over.
 
 Kies een vrij nummer en een naam zoals bij
 [een container](/proxmox/container/#zoek-een-vrij-nummer). Zet dan een blok onderaan
-`tofu/proxmox/vms.tf`:
+`tofu/proxmox/vms.tf`. Kopieer het hele blok; meestal pas je alleen de naam,
+`vm_id`, `cores`, `memory` en `size` aan:
 
 ```hcl
 resource "proxmox_virtual_environment_vm" "nieuwehost" {

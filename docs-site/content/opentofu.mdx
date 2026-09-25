@@ -2,7 +2,7 @@
 title: OpenTofu
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, Callout, FileTree } from 'nextra/components'
 
 # OpenTofu
 
@@ -13,6 +13,32 @@ systeem, en je draait alles via `bin/tofu`.
 
 Elke keer dezelfde twee stappen: `plan` toont wat er zou veranderen, `apply`
 doet het, pas na `yes`.
+
+<FileTree>
+  <FileTree.Folder name="tofu" defaultOpen>
+    <FileTree.Folder name="proxmox" defaultOpen>
+      <FileTree.File name="vms.tf" />
+      <FileTree.File name="containers.tf" />
+      <FileTree.File name="access.tf" />
+      <FileTree.File name="backend.tf" />
+      <FileTree.File name="providers.tf" />
+      <FileTree.File name="versions.tf" />
+    </FileTree.Folder>
+    <FileTree.Folder name="tailscale" defaultOpen>
+      <FileTree.File name="policy.tf" />
+      <FileTree.File name="dns.tf" />
+      <FileTree.File name="devices.tf" />
+      <FileTree.File name="backend.tf" />
+      <FileTree.File name="providers.tf" />
+      <FileTree.File name="versions.tf" />
+    </FileTree.Folder>
+    <FileTree.File name="secrets.env" />
+  </FileTree.Folder>
+</FileTree>
+
+`backend.tf`, `providers.tf` en `versions.tf` zeggen waar de state staat en
+waarmee OpenTofu praat; daar kom je zelden aan. `secrets.env` is versleuteld
+(vault `infra`).
 
 ## Tailscale-regels aanpassen
 
@@ -84,8 +110,8 @@ bin/tofu proxmox plan    # wat zou er veranderen?
 bin/tofu proxmox apply   # doe het (typ yes)
 ```
 
-Wat je ermee doet (maken, groter maken, weghalen) staat per geval in
-[Guests maken en weghalen](/proxmox/container/).
+Wat je ermee doet: [een container maken](/proxmox/container/),
+[een VM maken](/proxmox/vm/), [een guest aanpassen of weghalen](/proxmox/beheren/).
 
 <Callout type="error">
 Zegt een plan **`must be replaced`**, doe dan nooit `apply`. Vervangen
@@ -105,15 +131,9 @@ betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
 
 ### Na een ramp: eerst PBS, dan OpenTofu
 
-De state van OpenTofu staat in R2, dus na een herinstallatie van pve01 weet
-OpenTofu nog welke guests er horen. Een `apply` zou elke ontbrekende guest
-maken, als **lege** machine op zijn eigen nummer. Dan kan je back-up er niet
-meer op.
-
-Daarom: **zet eerst alles terug uit PBS, dan pas `bin/tofu proxmox plan`**.
-Wil het plan een guest *maken* die uit PBS moet komen: stop. Na de restores
-hoort het plan `No changes` te zeggen, of alleen te maken wat je echt opnieuw
-bouwt. De volledige volgorde: [pve01 is weg](/proxmox/pve01/#deel-3--de-machines-en-diensten).
+**Zet eerst alles terug uit PBS, dan pas `bin/tofu proxmox plan`.** OpenTofu
+weet na een ramp nog welke guests er horen, en een `apply` zou ze leeg opnieuw
+maken. Waarom en hoe: [pve01 opnieuw opbouwen](/proxmox/pve01/#deel-3--de-machines-en-diensten).
 
 ## Goed om te weten
 

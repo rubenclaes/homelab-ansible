@@ -2,7 +2,7 @@
 title: Aanpassen en weghalen
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Aanpassen en weghalen
 
@@ -66,10 +66,8 @@ uit Proxmox, en staat daarna ook goed.
 
 </Steps>
 
-<Callout type="warning">
-Een schijf kan alleen **groter**. Een kleiner getal zet OpenTofu niet door:
+**Let op:** Een schijf kan alleen **groter**. Een kleiner getal zet OpenTofu niet door:
 het plan wil de machine dan vervangen, en dat mag nooit.
-</Callout>
 
 ## Een machine weghalen
 
@@ -79,8 +77,8 @@ Een container (LXC of OCI) of VM op pve01.
 
 #### Haal eerst alles erop weg
 
-Elke route naar deze machine, en elke stack erop: zie de twee gevallen
-hierboven. Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
+Elke route naar deze machine ([een adres weghalen](/netwerk/caddy/#alleen-het-adres-weghalen))
+en elke stack erop ([een dienst weghalen](/docker/weghalen/)). Anders wijst `unifi-routes.yml` elke ochtend naar een adres dat
 niet meer bestaat.
 
 #### Maak een back-up als je twijfelt
@@ -175,17 +173,13 @@ ssh pve01 sudo qm set <vmid> --onboot 0     # voor een VM
 
 </Steps>
 
-<Callout type="warning">
-De guests uit `tofu/proxmox/` (100–108) staan daar op meestarten
+**Let op:** De guests uit `tofu/proxmox/` (100–108) staan daar op meestarten
 (`on_boot` / `start_on_boot = true`). Zet je er een met de hand uit, dan wil
 het volgende `bin/tofu proxmox plan` hem weer aanzetten. Moet er een echt uit
 blijven, verander het dan in het `.tf`-bestand.
-</Callout>
 
-<Callout type="info">
 Waarom dit niet in `site.yml` zit: zie
 [Goed om te weten](#waarom-proxmox-autostartyml-niet-in-siteyml-zit).
-</Callout>
 
 ## Guests en API-token checken
 

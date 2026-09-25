@@ -2,7 +2,7 @@
 title: OCI-container
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # OCI-container
 
@@ -120,11 +120,9 @@ ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
 
 De container **en zijn volumes** gaan weg en komen terug op het nieuwe image.
 
-<Callout type="warning">
-Daarom staat alles wat moet overleven in `env`, niet op de schijf. Voor ntfy
+**Let op:** Daarom staat alles wat moet overleven in `env`, niet op de schijf. Voor ntfy
 is dat bewust aanvaard: gebruikers, rechten en tokens staan in `env` en zijn
 er na de start meteen weer. Alleen de berichtcache van de laatste uren is weg.
-</Callout>
 
 #### Commit en push
 

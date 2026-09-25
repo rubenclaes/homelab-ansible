@@ -2,7 +2,7 @@
 title: Handige commando's
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Handige commando's
 
@@ -84,11 +84,9 @@ git add inventory/host_vars/mbp.yml && git commit -m 'Alias gs' && git push
 
 </Steps>
 
-<Callout type="warning">
-Bewerk `~/.zshrc` niet met de hand: de volgende run overschrijft hem (de oude
+**Let op:** Bewerk `~/.zshrc` niet met de hand: de volgende run overschrijft hem (de oude
 blijft als `~/.zshrc.<datum>~` ernaast). Iets buiten de afkortingen? Pas
 `roles/dotfiles/templates/zshrc.j2` aan.
-</Callout>
 
 ## Goed om te weten
 

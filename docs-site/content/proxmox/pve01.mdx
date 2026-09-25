@@ -11,20 +11,15 @@ bouwt hem opnieuw op in drie delen: pve01 zelf, dan de back-ups, dan de
 machines. Deze site draait óp pve01; dezelfde tekst staat in elke clone van de
 repo, in `docs-site/content/proxmox/pve01.mdx`.
 
-## pve01 is weg
+## Voor je begint
 
-Proxmox opnieuw installeren en alles terugzetten. Dit is de lange weg.
-Hopelijk nooit nodig.
-
-<Callout type="warning">
 **De volgorde telt.** Elke stap heeft iets nodig dat de vorige achterlaat. Sla
 er een over en je loopt vast op iets dat er niet uitziet als het echte
 probleem.
 
 Zorg eerst dat je laptop klaarstaat (repo, Ansible, `ansible`-sleutel,
-vault-wachtwoorden), zie [Werkplek → Laptop](/ansible/laptop/). Zonder
+vault-wachtwoorden), zie [Laptop klaarzetten](/ansible/laptop/). Zonder
 sleutel en vault-wachtwoorden begint hier niets.
-</Callout>
 
 Wat je nodig hebt buiten deze repo:
 
@@ -33,7 +28,7 @@ Wat je nodig hebt buiten deze repo:
 - het wachtwoord van `pve@pbs` (niet in de repo)
 - op de Mac mini: de gedeelde schijf `/Volumes/media01`
 
-### Deel 1 — pve01 zelf
+## Deel 1 — pve01 zelf
 
 <Steps>
 
@@ -109,11 +104,9 @@ pveum user token add ansible@pve automation --privsep 0   # toont het secret, ma
 
 Kopieer het secret meteen.
 
-<Callout type="info">
 Waarom de tokens met de hand? De inventory vindt de guests via het token van
 Ansible, en OpenTofu heeft zijn eigen token nodig om te mogen praten. Een
 programma kan niet het token maken dat het zelf nodig heeft om te draaien.
-</Callout>
 
 #### Zet het secret in de twee vault-bestanden
 
@@ -124,13 +117,11 @@ ansible-vault edit inventory/group_vars/proxmox/vault.yml   # vault_pve_api_toke
 ansible-vault edit inventory/homelab.proxmox.yml            # token_secret
 ```
 
-<Callout type="warning">
 **Allebei.** `vault.yml` gebruiken de playbooks, `homelab.proxmox.yml` gebruikt
 de dynamische inventory. Die wordt gelezen vóór `group_vars`, en kan dus niet
 naar `vault_pve_api_token_secret` verwijzen: daarom is het hele bestand
 versleuteld en staat het secret er letterlijk in. Vergeet je de tweede, dan
 ziet Ansible geen enkele guest.
-</Callout>
 
 #### Commit en push
 
@@ -162,10 +153,8 @@ ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k   # vraagt het
 Een verse Proxmox laat root nog met een wachtwoord binnen. Na de baseline niet
 meer: dit is het enige moment waarop `-u root -k` werkt.
 
-<Callout type="warning">
-`-k` heeft het programma `sshpass` nodig op je laptop. Ontbreekt het, dan
+**Let op:** `-k` heeft het programma `sshpass` nodig op je laptop. Ontbreekt het, dan
 stopt Ansible met een melding daarover.
-</Callout>
 
 #### Controleer het token
 
@@ -179,7 +168,7 @@ in `tofu/proxmox/access.tf`.
 
 </Steps>
 
-### Deel 2 — Back-ups terug in beeld
+## Deel 2 — Back-ups terug in beeld
 
 PBS is VM 100 en draait op pve01 zelf. Hij moet dus bestaan vóór je zijn
 opslag kan koppelen.
@@ -230,10 +219,8 @@ systeemschijf stond op `local-lvm` en is met de herinstallatie verdwenen.
 
 Zorg daarna dat de datastore van `scsi1` weer op `/mnt/datastore/store1` hangt.
 
-<Callout type="warning">
-Doe dat vóór `pbs.yml` draait. Vindt de rol geen `store1`, dan maakt hij er
+**Let op:** Doe dat vóór `pbs.yml` draait. Vindt de rol geen `store1`, dan maakt hij er
 een nieuwe, lege aan.
-</Callout>
 
 #### Breng PBS onder Ansible
 
@@ -254,11 +241,9 @@ Met de hand: Datacenter → Storage → Add → Proxmox Backup Server.
 - datastore `store1`, gebruiker `pve@pbs` met zijn wachtwoord (niet in de repo; kwijt? zet een nieuw in het PBS-scherm)
 - de **encryptiesleutel** (je papieren kopie)
 
-<Callout type="warning">
-Dit staat met opzet in geen playbook: de definitie draagt de
+**Let op:** Dit staat met opzet in geen playbook: de definitie draagt de
 encryptiesleutel, en die hoort niet in git. Zonder die sleutel zijn je
 back-ups onleesbaar.
-</Callout>
 
 #### Maak de map voor de tweede kopie
 
@@ -293,7 +278,7 @@ node" zolang die er niet is.
 
 </Steps>
 
-### Deel 3 — De machines en diensten
+## Deel 3 — De machines en diensten
 
 Guests met data komen uit PBS, `caddy`, `tailscale` en `ntfy` bouw je nieuw.
 
@@ -400,13 +385,11 @@ bin/tofu proxmox plan                                  # moet "No changes" zegge
 Zegt het plan niet `No changes`, dan wijkt een teruggezette guest af van
 `tofu/proxmox/`. Kijk wat, en beslis welke kant klopt.
 
-<Callout type="info">
 Stopt `stacks.yml` met een deploy-key? Dat gebeurt alleen op een host die
 **nieuw** gebouwd is. Zet de getoonde publieke sleutel in GitHub onder
 Settings → Deploy keys (`docker` → `rubenclaes/containers`,
 `docker-grafana-stack` → `rubenclaes/monitoring-stack`) en draai opnieuw. Kwam
 de host uit PBS, dan staat de oude sleutel er nog.
-</Callout>
 
 </Steps>
 

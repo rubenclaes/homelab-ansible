@@ -2,7 +2,7 @@
 title: Terughalen uit R2
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Terughalen uit R2
 
@@ -32,7 +32,7 @@ vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
 
 #### Bouw pve01 en PBS opnieuw
 
-Volg [pve01 is weg](/proxmox/pve01/#pve01-is-weg) tot en met *Installeer PBS in de VM*. PBS
+Volg [pve01 is weg](/proxmox/pve01/) tot en met *Installeer PBS in de VM*. PBS
 begint leeg.
 
 #### Koppel R2 opnieuw, zonder iets te wissen
@@ -53,10 +53,8 @@ leg hem stil:
 ssh pbs 'echo "$(date -Is) stilgelegd tijdens herstel" | sudo tee /var/lib/r2-guard/stopped'
 ```
 
-<Callout type="warning">
-Start de sync **nooit** met "Run now" in de webinterface van PBS. Dan slaat
+**Let op:** Start de sync **nooit** met "Run now" in de webinterface van PBS. Dan slaat
 hij de check van `r2-guard` over.
-</Callout>
 
 #### Kijk wat er in R2 staat
 
@@ -112,14 +110,24 @@ Zet het secret in `inventory/group_vars/all/vault.yml`
 `inventory/host_vars/docker.yml` (`pbs_client_fingerprint`). De sleutel
 (`vault_pbs_docker_data_key`) blijft dezelfde: die staat ook op papier.
 
-#### Zet de app-data terug op `docker`
+#### Bouw `docker` opnieuw, zonder de stacks te starten
 
-Eerst `docker` zelf opnieuw bouwen (Ansible, zie [pve01 is weg](/proxmox/pve01/#pve01-is-weg),
-deel 3), maar **start de stacks nog niet**. Dan `ansible-playbook
-playbooks/offsite.yml --limit docker` (zet token en sleutel klaar), en:
+Zie [pve01 opnieuw opbouwen](/proxmox/pve01/), deel 3. Start de stacks nog
+**niet**. Zet dan token en sleutel klaar:
+
+```bash
+ansible-playbook playbooks/offsite.yml --limit docker
+```
+
+#### Geef `docker` leesrecht op `offsite`
 
 ```bash
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup"'
+```
+
+#### Zet de app-data en foto's terug
+
+```bash
 ssh docker
 sudo -i
 export PBS_REPOSITORY='docker-data@pbs!backup@192.168.0.181:offsite'
@@ -132,11 +140,17 @@ proxmox-backup-client restore host/docker-data/<tijd> photos.pxar /mnt/media01/P
   --keyfile /root/.config/proxmox-backup/docker-data.key
 ```
 
+#### Lees de databases in
+
 De databases van Immich en Grimmory staan als dump in
-`/opt/containers/data/_dumps/`: start hun database-container leeg en lees de
-dump in (`zcat immich.sql.gz | docker exec -i immich-postgres psql -U immich`,
-en `zcat grimmory.sql.gz | docker exec -i grimmory-db sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'`).
-Daarna de stacks starten.
+`/opt/containers/data/_dumps/`. Start hun database-container leeg, en dan:
+
+```bash
+zcat immich.sql.gz | docker exec -i immich-postgres psql -U immich
+zcat grimmory.sql.gz | docker exec -i grimmory-db sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'
+```
+
+Start daarna de stacks.
 
 #### Haal het leesrecht weer weg
 

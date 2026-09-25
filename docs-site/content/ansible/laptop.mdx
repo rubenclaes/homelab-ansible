@@ -35,10 +35,8 @@ brew install ansible ansible-lint
 ansible-galaxy collection install -r collections/requirements.yml
 ```
 
-<Callout type="warning">
-Zonder `proxmoxer` (zit in de brew-versie) ziet Ansible alleen `pve01` en de
+**Let op:** Zonder `proxmoxer` (zit in de brew-versie) ziet Ansible alleen `pve01` en de
 Macs, zonder foutmelding. Met pipx: `pipx inject ansible-core proxmoxer requests`.
-</Callout>
 
 #### 3. Zet de ansible-sleutel neer
 

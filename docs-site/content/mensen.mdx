@@ -2,7 +2,7 @@
 title: Mensen
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, Tabs } from 'nextra/components'
 
 # Mensen
 
@@ -10,20 +10,16 @@ Iemand toegang geven tot je diensten, de wachtwoordkluis of het hele
 netwerk, en die toegang weer afnemen. Dit gebeurt met de hand in NeoGate,
 Vaultwarden, UniFi en Tailscale.
 
-<Callout type="info">
 De knoppen hier zijn uit de documentatie gehaald, niet in het scherm nagelopen.
 Heet een knop anders, zoek hem in hetzelfde menu.
-</Callout>
 
 ## Iemand diensten geven
 
 Voorbeeld: je zus wil foto's in Immich en films in Plex.
 
-<Callout type="info">
 Dit gaat **altijd via NeoGate**, nooit met de hand in de app zelf. NeoGate
 maakt de accounts, en kan ze later ook weer weghalen. Een account dat je met de
 hand maakt, kent NeoGate niet.
-</Callout>
 
 <Steps>
 
@@ -68,13 +64,11 @@ De persoon staat in **Gezin**, met de diensten die je aanvinkte.
 Later iets bijgeven of afnemen: open de persoon in **Gezin** en vink een dienst
 aan of uit.
 
-<Callout type="info">
 Tailscale geeft de persoon alleen je **diensten** (`*.neodata.be`, via Caddy)
 en DNS, niet het thuisnetwerk. Dat regelen de toegangsregels in
 `files/tailscale/policy.hujson`: jij mag alles, de anderen alleen Caddy en
 AdGuard. Wil je iemand het hele LAN geven, zie
 [Iemand VPN geven](#iemand-vpn-geven).
-</Callout>
 
 ## Iemand in Vaultwarden zetten
 
@@ -82,12 +76,10 @@ Voorbeeld: je ouders krijgen een wachtwoordkluis op
 [vault.neodata.be](https://vault.neodata.be). Ze gebruiken de gewone
 **Bitwarden**-apps; alleen de server is de jouwe.
 
-<Callout type="warning">
-Ze moeten eerst **op de tailnet** zitten
+**Let op:** Ze moeten eerst **op de tailnet** zitten
 ([Iemand diensten geven](#iemand-diensten-geven), vink Tailscale aan). Zonder
 tailnet kan de app buitenshuis niet synchroniseren. Wat al op het toestel
 staat, blijft wel leesbaar.
-</Callout>
 
 <Steps>
 
@@ -148,7 +140,8 @@ mag alles, de anderen alleen Caddy en DNS. Ze staan in
 `files/tailscale/policy.hujson`, zie
 [Netwerk → Wie mag wat via Tailscale](/netwerk/overzicht/#wie-mag-wat-via-tailscale).
 
-### WireGuard-profiel
+<Tabs items={['WireGuard', 'Tailscale']}>
+<Tabs.Tab>
 
 <Steps>
 
@@ -156,11 +149,9 @@ mag alles, de anderen alleen Caddy en DNS. Ze staan in
 
 Bij de VPN-server moet de DNS-server `192.168.0.29` zijn (AdGuard).
 
-<Callout type="warning">
-De DNS zit **ingebakken** in het profiel. Klopt hij niet en pas je hem achteraf
+**Let op:** De DNS zit **ingebakken** in het profiel. Klopt hij niet en pas je hem achteraf
 aan, dan moet elk toestel zijn profiel opnieuw importeren. Kijk het dus na vóór
 je de client aanmaakt.
-</Callout>
 
 #### Maak een client aan in UniFi
 
@@ -185,13 +176,17 @@ Wifi uit op het toestel, VPN aan, open
 
 </Steps>
 
-### Tailscale
+</Tabs.Tab>
+<Tabs.Tab>
 
 Dat gaat via NeoGate: vink **Tailscale** ("netwerk") aan bij de persoon. Zie
 [Iemand diensten geven](#iemand-diensten-geven).
 
 Een toestel met een commandline (pc, NAS) zonder persoon erachter? Dat is een
 sleutel, zie [Tailscale-sleutel voor een apparaat](/netwerk/vpn/#tailscale-sleutel-voor-een-apparaat).
+
+</Tabs.Tab>
+</Tabs>
 
 ## Gast op bezoek
 
@@ -205,11 +200,9 @@ Iemand komt langs en wil iets gebruiken. Voor het meeste heb je niets te doen.
 | blijvend films kijken of foto's bewaren | een account via NeoGate: [Iemand diensten geven](#iemand-diensten-geven) |
 | er van bij hem thuis bij kunnen | [Iemand VPN geven](#iemand-vpn-geven) |
 
-<Callout type="warning">
-Er is **geen gastennetwerk**. Een gast zit op hetzelfde netwerk als pve01, de
+**Let op:** Er is **geen gastennetwerk**. Een gast zit op hetzelfde netwerk als pve01, de
 Macs en alle diensten. Zijn toestel ziet ze dus, al moet hij voor de meeste nog
 inloggen. Een apart gastennetwerk staat op de TODO.
-</Callout>
 
 ## Iemand zijn toegang afnemen
 
@@ -237,10 +230,8 @@ vinken.
 
 #### Tailscale-console
 
-<Callout type="warning">
-NeoGate trekt bij Tailscale alleen de **uitnodiging** in. Had de persoon die al
+**Let op:** NeoGate trekt bij Tailscale alleen de **uitnodiging** in. Had de persoon die al
 aanvaard, dan blijft hij lid van de tailnet. Deze stap is dus niet optioneel.
-</Callout>
 
 | Scherm | Wat |
 | --- | --- |

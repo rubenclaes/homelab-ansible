@@ -2,7 +2,7 @@
 title: VPN
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # VPN
 
@@ -42,11 +42,9 @@ dan [Netwerk → De VPN nakijken](#de-vpn-nakijken).
 
 </Steps>
 
-<Callout type="info">
 Geeft je provider je een ander WAN-adres, dan werkt UniFi `vpn.neodata.be`
 zelf bij (Dynamic DNS). Werkt WireGuard onderweg toch ineens niet, neem dan
 Tailscale en kijk thuis het adres na.
-</Callout>
 
 Waarom het zo zit: [Goed om te weten](#goed-om-te-weten).
 
@@ -75,11 +73,9 @@ forceren. Zie
 | --- | --- | --- | --- |
 | UniFi → de VPN-server "Neodata VPN" | DNS-server | `192.168.0.29` | de AdGuard in ct 107; alleen die kent de `*.home.arpa`-namen |
 
-<Callout type="warning">
-Heb je de DNS-server gewijzigd? **Importeer het profiel opnieuw op de
+**Let op:** Heb je de DNS-server gewijzigd? **Importeer het profiel opnieuw op de
 telefoon.** De waarde zit ingebakken in de clientconfig; alleen de server
 aanpassen is niet genoeg.
-</Callout>
 
 #### Test via mobiele data
 
@@ -109,10 +105,8 @@ ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 Tailscale-console wordt het `device-pc-ouders`: het enige spoor dat de
 sleutel achterlaat. Kies dus iets wat je over een half jaar nog herkent.
 
-<Callout type="warning">
-Draai dit **niet** vanuit Semaphore. De sleutel wordt afgedrukt en een
+**Let op:** Draai dit **niet** vanuit Semaphore. De sleutel wordt afgedrukt en een
 Semaphore-tasklog bewaart hem.
-</Callout>
 
 #### Gebruik hem binnen 10 minuten op het apparaat
 

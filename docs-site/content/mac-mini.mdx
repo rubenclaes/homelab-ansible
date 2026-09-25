@@ -2,17 +2,15 @@
 title: Mac mini
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Mac mini
 
 De Mac mini draagt de shares voor de media-apps, Plex en de tweede
 back-upkopie. Hier haal je de shares of de hele Mini terug, en werk je de Macs bij.
 
-<Callout type="info">
 Wil je een pakket of app **weg** van een Mac? Dat is `site.yml --tags macos`. Zie
 [Welke van de drie playbooks?](/proxmox/onderhoud/#welke-van-de-drie-playbooks).
-</Callout>
 
 ## De shares van de Mac mini
 
@@ -74,10 +72,8 @@ Wat je kwijt bent:
 
 pve01, PBS en de guests zijn ongemoeid.
 
-<Callout type="error">
-Dit pad is **nooit volledig gelopen**. `nfs.yml` heeft één keer echt gedraaid.
+**Let op:** Dit pad is **nooit volledig gelopen**. `nfs.yml` heeft één keer echt gedraaid.
 Reken op verrassingen, vooral rond Homebrew: de Mini draait macOS 14, waar alles vanaf broncode bouwt.
-</Callout>
 
 <Steps>
 
@@ -171,12 +167,10 @@ zichzelf updaten (Spotify, Chromium) laat hij met rust.
 
 Faalde er een Mac? Kijk dan in de output of de volgende nog gedraaid heeft.
 
-<Callout type="warning">
-Faalt één Mac, dan stopt de hele play: de Macs gaan één voor één. Op 23-09
+**Let op:** Faalt één Mac, dan stopt de hele play: de Macs gaan één voor één. Op 23-09
 faalde de Mac mini op een cask, en daardoor is de MacBook nooit aan de beurt
 geweest. `google-chrome` bleef daar verouderd staan zonder dat het log iets
 over `mbp` zei.
-</Callout>
 
 </Steps>
 

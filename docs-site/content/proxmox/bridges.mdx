@@ -75,8 +75,7 @@ Nu herlaadt de node zijn netwerk. Gaat er iets mis, dan zet de
 [dodemansknop](#de-dodemansknop)
 de oude config na 180 seconden vanzelf terug.
 
-<Callout type="warning">
-Weigert het playbook met `ansible-network-revert.timer is still armed`? Dan
+**Let op:** Weigert het playbook met `ansible-network-revert.timer is still armed`? Dan
 loopt er nog een terugzet-timer van een vorige run. De config die nu draait is
 misschien net de kapotte. Wacht tot de timer afgaat (max. 3 minuten), of, als
 je **zeker** weet dat wat draait goed is:
@@ -84,7 +83,6 @@ je **zeker** weet dat wat draait goed is:
 ```bash
 ssh pve01 sudo systemctl stop ansible-network-revert.timer
 ```
-</Callout>
 
 #### Controleer de bridges
 

@@ -2,7 +2,7 @@
 title: Adressen (Caddy)
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Adressen (Caddy)
 
@@ -31,19 +31,9 @@ Zet onder `caddy_sites:`:
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
 ```
 
-- `name` — wordt het adres: `plex.neodata.be`
-- `host` — de naam van de machine **zoals in de inventory** (niet het IP)
-- `port` — de poort waar de dienst op luistert
-- `desc` — korte uitleg, komt op deze docs-site
-- `stack` — de stack uit `docker_stacks_list` waar de container in zit. Laat
-  weg als het geen beheerde stack is (Plex, een VM). Hiermee linkt de site
-  dienst en stack aan elkaar: een stack als `media` zegt op zichzelf niet
-  wat erin draait.
-
-<Callout type="info">
-Staat de machine **niet** in de inventory (bv. een printer)? Gebruik dan
+Wat elk veld doet: zie [Alle velden van een route](#alle-velden-van-een-route).
+Staat de machine niet in de inventory (bv. een printer)? Gebruik dan
 `upstream: "192.168.0.50:80"` in plaats van `host` en `port`.
-</Callout>
 
 #### Zet hem live en test
 
@@ -69,6 +59,8 @@ git add inventory && git commit -m 'Route voor plex' && git push
 | `name` | wordt `name.neodata.be` |
 | `host` | een **inventory-hostnaam**; zijn adres wordt de bestemming |
 | `port` | de poort waar de dienst luistert |
+| `desc` | korte uitleg, komt op deze docs-site en op home.neodata.be |
+| `stack` | de stack uit `docker_stacks_list` waar hij in zit. Weglaten als het geen beheerde stack is (Plex, een VM) |
 | `upstream` | alternatief voor `host` + `port`, voor iets dat niet in de inventory staat |
 | `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
 | `host_header` | stuur de oorspronkelijke `Host`-header door |
@@ -130,10 +122,8 @@ dan werkt elk `*.neodata.be`-adres nog.
 
 </Steps>
 
-<Callout type="warning">
-Gebruik niet `ansible caddy -a "caddy upgrade"`. Dat vervangt de binary, maar
+**Let op:** Gebruik niet `ansible caddy -a "caddy upgrade"`. Dat vervangt de binary, maar
 herstart Caddy niet en controleert niets.
-</Callout>
 
 ## Caddy-logs doorzoeken
 
@@ -189,11 +179,9 @@ git add inventory && git commit -m 'Alloy: extra logbestand' && git push
 
 </Steps>
 
-<Callout type="warning">
-Zet de Docker-hosts **niet** in `alloy_hosts`. De Alloy ín de monitoring-stack
+**Let op:** Zet de Docker-hosts **niet** in `alloy_hosts`. De Alloy ín de monitoring-stack
 haalt hun containerlogs al via de Docker-socket; een tweede agent stuurt alles
 dubbel.
-</Callout>
 
 Waarom `caddy_log_mode` op `0640` staat en een `reload` niet volstaat:
 [Goed om te weten](#goed-om-te-weten).

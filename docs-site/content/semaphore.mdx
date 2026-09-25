@@ -2,7 +2,7 @@
 title: Semaphore
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Semaphore
 
@@ -42,22 +42,14 @@ weer een deellijst en geloof je hem ten onrechte. Hoe:
 
 ### Op pve01, niet in Semaphore
 
-De back-ups draaien op de cron van Proxmox. Ze staan in `pve_backup_jobs` in
-`inventory/group_vars/proxmox/backup.yml`.
+De back-ups draaien op de cron van Proxmox, niet in Semaphore: dagelijks om
+02:30 naar PBS, en zondag om 01:00 een tweede kopie naar de Mac mini. Wat, waar
+en waarom: [Back-ups](/proxmox/backups/).
 
-| Job | Wanneer | Waarheen | Waarom |
-| --- | --- | --- | --- |
-| dagelijks | 02:30 | PBS, op pve01 | de primaire: incrementeel, 7 snapshots, versleuteld |
-| wekelijks | zondag 01:00 | de Mac mini, over NFS | tweede kopie, voor als pve01 zelf weg is |
-
-Terugzetten: [Herstellen](/proxmox/herstellen/#terugzetten-uit-de-back-up), of vanaf de tweede kopie: [Herstellen → Tweede kopie](/proxmox/tweede-kopie/#terugvallen-op-de-tweede-kopie).
-
-<Callout type="warning">
-**Niets hiervan meldt zichzelf als het faalt**, niet in Semaphore en niet op
-Proxmox. De wekelijkse back-up schrijft naar een Mac die kan slapen. Tot er
-meldingen zijn, is elk schema een aanname: kijk af en toe zelf in de
-taaklijst. Staat bovenaan `TODO.md`.
-</Callout>
+**Wat meldt zich als het faalt?** Proxmox en PBS wel: een mislukte back-up
+komt op je telefoon, zie [Meldingen op je iPhone](#meldingen-op-je-iphone).
+Een job in Semaphore níét: kijk af en toe zelf in de taaklijst. Staat op
+`TODO.md`.
 
 Waarom de tijden en limits zijn wat ze zijn:
 [Goed om te weten → Semaphore](#goed-om-te-weten).
@@ -74,12 +66,10 @@ zet ze via de API in Semaphore.
 
 Open Semaphore en noteer de **exacte** naam van de template, met hoofdletters.
 
-<Callout type="error">
-`name` is de sleutel waarop gezocht wordt. `Cleanup (apply)` is niet
+**Let op:** `name` is de sleutel waarop gezocht wordt. `Cleanup (apply)` is niet
 `Cleanup (Apply)`: een andere schrijfwijze maakt een **tweede** template in
 plaats van de bestaande te wijzigen. Zo stonden er op 23-09 drie dubbele jobs,
 waaronder een site-converge zonder zijn limit.
-</Callout>
 
 #### Pas de lijst aan
 
@@ -126,12 +116,10 @@ aan: die is met de hand geschreven.
 
 </Steps>
 
-<Callout type="info">
 Eerste keer op een nieuwe controller? De API-login staat in
 `inventory/host_vars/semaphore/vault.yml` (`vault_semaphore_api_user`,
 `vault_semaphore_api_password`). Ontbreekt dat bestand, dan faalt de rol met
 een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
-</Callout>
 
 ### Wat de rol wel en niet doet
 

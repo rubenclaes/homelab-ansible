@@ -33,17 +33,13 @@ Doe hetzelfde met de sleutel van `docker` (app-data en foto's, sinds 25-09):
 ssh docker 'sudo proxmox-backup-client key paperkey /root/.config/proxmox-backup/docker-data.key --output-format text'
 ```
 
-<Callout type="warning">
-Vaultwarden draait zelf in de homelab. Brandt het huis af, dan is Vaultwarden
+**Let op:** Vaultwarden draait zelf in de homelab. Brandt het huis af, dan is Vaultwarden
 ook weg, en zit hij in R2 achter precies deze sleutels. **Papier** is dus het
 echte vangnet: sleutels en vault-wachtwoorden samen, liefst ook een kopie
 buiten het huis.
-</Callout>
 
-<Callout type="warning">
-`proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,
+**Let op:** `proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,
 niet de sleutel zelf. Daar kan je niets mee terugzetten.
-</Callout>
 
 #### Bewaar de twee vault-wachtwoorden op dezelfde plek
 
@@ -79,10 +75,8 @@ de back-upjobs.
 
 Hij zet de back-up terug op vmid 199 en sloopt die op het eind.
 
-<Callout type="warning">
 **Faalt de drill, dan blijft 199 staan**, zodat je kan kijken wat er misging.
 Opruimen: `ssh pve01 'sudo pct destroy 199'`.
-</Callout>
 
 `restore-drill.yml --check` zegt alleen welke back-up hij zou pakken, zonder
 iets te doen.
@@ -125,26 +119,15 @@ past het in de gratis 10 GB: op 25-09 was het 3,1 GB.
 | 02:30 | de gewone back-up van alle machines naar PBS |
 | 04:00 | `r2-guard` telt wat er in R2 staat. Onder de drempel start hij zelf de kopie van de gekozen groepen naar R2 (de laatste 3 versies), en meet daarna opnieuw |
 
-**Waarom r2-guard.** Cloudflare kent voor R2 geen harde uitgavengrens. Alleen
-onze PBS schrijft in de bucket. De sync job heeft daarom in PBS **geen
-schema**: alleen r2-guard start hem, na een check. Crasht r2-guard, of kan
-hij het niet nagaan, dan gaat er die nacht niets naar R2. Twijfel is stop.
-Hij stopt boven 8 GB, boven 800.000 Class A- of 8.000.000 Class B-operaties
-deze maand. Vanaf 6,5 GB krijg je een waarschuwing.
+| Keuze | Waarom |
+| --- | --- |
+| alleen r2-guard start de sync, de job heeft geen schema | Cloudflare kent geen harde uitgavengrens voor R2. r2-guard checkt eerst; bij twijfel of een crash gaat er die nacht niets heen |
+| stop boven 8 GB, 800.000 Class A- of 8.000.000 Class B-operaties per maand; waarschuwing vanaf 6,5 GB | wat één nacht uploadt, weet hij pas achteraf. De 2 GB onder de gratis 10 GB vangt een drukke nacht op |
+| r2-guard telt de bucket zelf | de cijfers van Cloudflare lopen tot een dag achter (op 25-09: 0 GB bij 3 GB) |
+| nooit wissen in R2 (`remove-vanished` uit) | anders wist een lege `store1` (na een herbouw of ransomware) alles in R2, net als je het nodig hebt. Oude versies ruimt de prune job op |
 
-**Waarom 8 GB en niet 10.** Wat één nacht uploadt, weet r2-guard pas achteraf.
-Die 2 GB ruimte vangt een drukke nacht op; na de sync meet hij opnieuw en
-stopt dan de volgende nacht.
-
-**Waarom opslag zelf tellen.** De cijfers van Cloudflare lopen tot een dag
-achter (op 25-09 toonden ze 0 GB bij 3 GB). r2-guard telt daarom de bucket
-zelf, een paar Class A-operaties per nacht.
-
-**Waarom nooit wissen in R2.** De sync heeft `remove-vanished` uit. Anders
-zou een lege `store1` (na een herbouw, of na ransomware) alles in R2
-wissen, precies wanneer je het nodig hebt. Oude versies ruimt de prune job
-op. Ansible dwingt beide af: komt er een schema of `remove-vanished` bij,
-dan haalt de volgende run het weg.
+Ansible dwingt dit af: komt er een schema of `remove-vanished` bij, dan haalt
+de volgende run het weg.
 
 De dumps op de Mini zijn niet versleuteld: iedereen die die NFS-share kan
 mounten, kan ze lezen. Die in R2 wel: Cloudflare ziet alleen versleutelde

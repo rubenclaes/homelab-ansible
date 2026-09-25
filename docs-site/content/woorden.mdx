@@ -4,6 +4,8 @@ title: Woorden
 
 # Woorden
 
+**AdGuard**: de DNS-server van het huis, in container 107 (`192.168.0.29`). Zoekt adressen op en filtert reclame en malware.
+
 **Ad-hoc-commando**: één commando op een host via `ansible`, zonder playbook.
 
 **API-token**: de login waarmee Ansible aan Proxmox vraagt welke machines er zijn.
@@ -15,6 +17,8 @@ basispakketten, automatische beveiligingsupdates, inloggen met wachtwoord uit.
 
 **Bridge**: de virtuele netwerkkaart van pve01 (`vmbr0`, `vmbr1`) waar de
 guests en de node zelf aan hangen.
+
+**Caddy**: de voordeur voor alle diensten, in container 106. Stuurt `naam.neodata.be` door naar de juiste machine en regelt het https-certificaat.
 
 **Cask**: een Homebrew-*app* op een Mac, iets met een venster zoals Spotify of VLC.
 
@@ -46,8 +50,14 @@ Proxmox erop. Gaat die uit, dan gaat alles uit.
 
 **Inventory**: de lijst van alle machines en hun instellingen, in `inventory/`.
 
+**LXC** of **container**: een lichte machine op pve01 die de kernel van pve01 deelt. Start in een seconde, kost weinig geheugen. Commando's: `pct`.
+
+**MagicDNS**: de DNS van Tailscale zelf (`100.100.100.100`). Geeft toestellen op de tailnet een naam.
+
 **NeoGate**: je eigen app op [neogate.neodata.be](https://neogate.neodata.be).
 Maakt accounts aan in Plex, Immich en de andere diensten, en haalt ze weer weg.
+
+**OCI-container**: een container op pve01 gemaakt uit een Docker-image, zonder Docker erin. Hier alleen `ntfy`.
 
 **OpenTofu**: maakt en beschrijft de machines op pve01 (`tofu/proxmox/`) en
 de Tailscale-regels (`tofu/tailscale/`). Je draait het via `bin/tofu`. Eerst
@@ -56,6 +66,10 @@ staan in `containers.tf`, de VM's in `vms.tf`.
 
 **PBS**: Proxmox Backup Server, VM 100. Bewaart de dagelijkse back-ups,
 versleuteld, op de schijf `vm-hdd` van pve01.
+
+**Prune**: opruimen van wat niet meer gebruikt wordt, zoals oude Docker-images.
+
+**R2**: opslag van Cloudflare, buiten het huis. Daar staat een kopie van de back-ups en de state van OpenTofu.
 
 **Resolver**: de DNS-server die een toestel vraagt "welk adres hoort bij deze
 naam?". Hier is dat AdGuard in ct 107 (`192.168.0.29`).
@@ -69,6 +83,10 @@ naar deze machine op deze poort".
 **Stack**: één Docker-app: een map in de `containers`-repo met een
 `docker-compose.yml` en een `.env`.
 
+**State**: wat OpenTofu onthoudt over wat hij beheert. Staat versleuteld in R2, zodat hij er na een ramp nog is.
+
+**Subnet route**: Tailscale-toestel (hier ct 108) dat zegt: via mij kom je bij `192.168.0.x`. Zo bereik je het thuisnetwerk via Tailscale.
+
 **Tailnet**: alle toestellen die via Tailscale met elkaar verbonden zijn. Wie
 erop zit, komt aan je diensten.
 
@@ -80,6 +98,8 @@ Niet versleuteld.
 
 **Vault-wachtwoord**: ontgrendelt de versleutelde bestanden in de repo. Er zijn
 er twee: `infra` en `stacks`.
+
+**VM** of **virtuele machine**: een volledige machine op pve01, met een eigen kernel en besturingssysteem. Zwaarder dan een container. Commando's: `qm`.
 
 **vmid**: het unieke nummer van een guest in Proxmox (bv. `107` is `adguard`).
 

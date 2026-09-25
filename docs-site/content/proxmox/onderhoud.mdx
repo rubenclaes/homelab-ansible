@@ -37,10 +37,8 @@ ansible-playbook playbooks/update.yml --limit semaphore
 
 Altijd vanaf je laptop, nooit vanuit Semaphore zelf.
 
-<Callout type="warning">
-Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
+**Let op:** Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
 run, dan is de job dood en weet je niet of de upgrade af is.
-</Callout>
 
 #### Kijk of er een herstart nodig is
 
@@ -54,9 +52,7 @@ ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true
 
 Hij patcht eerst, en herstart alleen als het nodig is.
 
-<Callout type="warning">
-Herstart je `docker`, dan liggen alle stacks erop even plat.
-</Callout>
+**Let op:** Herstart je `docker`, dan liggen alle stacks erop even plat.
 
 #### Of: alle guests die het nodig hebben
 
@@ -66,12 +62,10 @@ ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true
 
 </Steps>
 
-<Callout type="info">
 Alleen de **VM's** (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
 reboot. Een **LXC** heeft geen eigen kernel: hij gebruikt die van `pve01`. Een
 nieuwe kernel voor de LXC's betekent dus:
 [`pve01` herstarten](#de-hypervisor).
-</Callout>
 
 ## De hypervisor
 
@@ -108,10 +102,8 @@ ansible-playbook playbooks/smoketest.yml   # werkt elk adres nog, antwoordt AdGu
 
 </Steps>
 
-<Callout type="info">
 Zonder de vlaggen patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
 krijgt dan een melding dat hij een reboot nodig heeft.
-</Callout>
 
 ## Schijfruimte vrijmaken
 
@@ -141,11 +133,9 @@ lijstje zien vóór je opruimt, is het hele punt van deze stap.
 ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true
 ```
 
-<Callout type="warning">
-Zet `cleanup_apply` **nooit** in de inventory. Het is de schakelaar die een
+**Let op:** Zet `cleanup_apply` **nooit** in de inventory. Het is de schakelaar die een
 rapport in een verwijdering verandert; een default in `group_vars` maakt elke
 run destructief.
-</Callout>
 
 </Steps>
 
@@ -168,11 +158,9 @@ In `inventory/group_vars/all/cleanup.yml`:
 | `cleanup_docker_until` | `720h` | ongebruikte images jonger dan dit blijven staan |
 | `cleanup_brew_prune` | `30` | brew-downloads ouder dan zoveel dagen gaan weg |
 
-<Callout type="info">
 Pakketten weghalen die je niet meer wil, doe je **niet** hier: dat gaat via de
 `*_absent`-lijsten in de host_vars en `site.yml`. Zie
-[Updates](/proxmox/onderhoud/) voor het verschil.
-</Callout>
+[Welke van de drie playbooks?](#welke-van-de-drie-playbooks) voor het verschil.
 
 Waarom `brew cleanup` hier zit en niet in `update.yml`, en waarom build cache
 geen leeftijdsgrens heeft: [Goed om te weten](#goed-om-te-weten).

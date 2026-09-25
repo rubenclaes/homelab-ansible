@@ -2,7 +2,7 @@
 title: Deze docs
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, FileTree } from 'nextra/components'
 
 # Deze docs
 
@@ -21,10 +21,8 @@ de pagina's onder Homelab opnieuw, bouwt de site en zet hem op `caddy`.
 git add inventory docs-site && git commit -m '...' && git push
 ```
 
-<Callout type="warning">
-Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
+**Let op:** Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
 lokaal hebt, staat de volgende ochtend weer niet online.
-</Callout>
 
 #### Bouw en publiceer
 
@@ -56,16 +54,32 @@ overschrijft ze. Pas de bron aan.
 | [Toestellen](/homelab/toestellen/) | UniFi (Client Devices). Is UniFi onbereikbaar, dan blijft de vorige versie staan |
 | Alle andere pagina's | met de hand geschreven, in `docs-site/content/` |
 
+Waar je een pagina met de hand aanpast, in `docs-site/content/`:
+
+<FileTree>
+  <FileTree.Folder name="content" defaultOpen>
+    <FileTree.File name="index.mdx" />
+    <FileTree.Folder name="homelab (gemaakt door docs.yml, niet bewerken)" />
+    <FileTree.Folder name="proxmox" />
+    <FileTree.Folder name="docker" />
+    <FileTree.Folder name="netwerk" />
+    <FileTree.Folder name="ansible" />
+    <FileTree.File name="mac-mini.mdx" />
+    <FileTree.File name="mensen.mdx" />
+    <FileTree.File name="opentofu.mdx" />
+    <FileTree.File name="semaphore.mdx" />
+    <FileTree.File name="woorden.mdx" />
+  </FileTree.Folder>
+</FileTree>
+
+Elke map heeft een `_meta.js` met de volgorde en de namen in de zijbalk.
+
 Een geschrapte route laat geen pagina achter: die wordt vanzelf opgeruimd,
 pas nadat de rest opnieuw gemaakt is.
 
-<Callout type="info">
 Draai dit na **elke** wijziging in de inventory. Een site die iets beweert wat
 niet meer waar is, is erger dan geen documentatie: je gelooft hem.
-</Callout>
 
-<Callout type="warning">
-Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
+**Let op:** Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
 niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
 er is dan niets geschreven. Zie [Guests en API-token](/proxmox/beheren/#guests-en-api-token-checken).
-</Callout>

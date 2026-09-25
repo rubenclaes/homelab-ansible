@@ -2,7 +2,6 @@
 title: Hoe het in elkaar zit
 ---
 
-import { Callout } from 'nextra/components'
 
 # Hoe het netwerk in elkaar zit
 
@@ -23,13 +22,11 @@ Elk toestel in huis vraagt het aan AdGuard. Zo werkt het:
 | `google.com`, `nos.nl` | het echte adres | vraagt het door aan Quad9, op het internet |
 | een reclame- of malwaresite | niets | de blocklists |
 
-<Callout type="warning">
 **AdGuard is de enige DNS-server.** Ligt hij plat, dan werkt het internet
 nergens in huis, want geen enkel toestel vindt nog een adres.
 
 Snel redden: zet op één toestel met de hand `9.9.9.9` als DNS. Daarmee
 kan je terug op internet om AdGuard te herstellen. Haal het daarna weer weg.
-</Callout>
 
 ### Waarom geen tweede DNS-server?
 
@@ -72,13 +69,11 @@ Welke naam je dan te zien krijgt:
 | geen record | de naam die het toestel zelf kiest | `iPhone`, `Mac` |
 | geen record, en het toestel kiest geen naam | alleen het IP | `192.168.0.23` |
 
-<Callout type="info">
 De **alias** in UniFi (bv. "iPhone Karen") telt hier **niet**. Alleen het
 Local DNS Record. Hoe je dat zet: zie
 [Een toestel een naam geven](/netwerk/dns/#een-toestel-een-naam-geven).
 Welke toestellen er al een hebben: zie de kolom **DNS-naam** op
 [Toestellen](/homelab/toestellen/).
-</Callout>
 
 ### De drie soorten namen
 
@@ -162,7 +157,8 @@ WireGuard, zoals het staat:
 
 ## Hoe de Tailscale-weg op het LAN komt
 
-ct 108 is een subnet router: hij biedt `192.168.0.0/24` aan, en die route is
+ct 108 is een *subnet router*: een Tailscale-toestel dat de weg naar het
+thuisnetwerk aanbiedt. Hij biedt `192.168.0.0/24` aan, en die route is
 goedgekeurd in de Tailscale-console. Wie de route aanneemt, komt onderweg via
 Tailscale bij elk `192.168.0.x`-adres, en dus bij alle diensten. Getest op
 23-09: de iPhone, over 4G, opende `ntfy.neodata.be` met alleen Tailscale aan.
@@ -175,9 +171,8 @@ subnets", op de Mac `RouteAll` (`--accept-routes` op de commandline).
 | iPhone, MacBook | ja | ze reizen mee |
 | Mac mini, ct 107, ct 108 | nee, met opzet | ze zitten zelf al op `192.168.0.0/24`. Een route naar je eigen LAN via Tailscale laat het verkeer een omweg maken en breekt verbindingen die rechtstreeks moeten |
 
-<Callout type="warning">
-Een verloren of gestolen toestel met Tailscale komt daardoor ook op het LAN.
-Trek het in via de Tailscale-console, net als een WireGuard-profiel.
+Let op: een verloren of gestolen toestel met Tailscale komt daardoor ook op
+het LAN. Trek het in via de Tailscale-console, net als een WireGuard-profiel.
 
 ### Wie mag wat via Tailscale
 
@@ -201,4 +196,3 @@ aanpassen](/opentofu/#tailscale-regels-aanpassen).
 Gevolg voor Plex: de Plex-app van een ander probeert soms eerst de Mac mini
 rechtstreeks (`192.168.0.26:32400`). Dat is dicht, dus hij valt terug op de
 eigen verbinding van Plex van buitenaf, of op `plex.neodata.be`.
-</Callout>

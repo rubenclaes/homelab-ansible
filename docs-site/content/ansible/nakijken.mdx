@@ -2,7 +2,7 @@
 title: Nakijken
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Nakijken
 
@@ -40,11 +40,9 @@ Security-updates staan bovenaan bij hun host. Daar staat ook welke hosts een
 **herstart nodig** hebben. Bijwerken zelf: zie
 [Updates](/proxmox/onderhoud/).
 
-<Callout type="warning">
-Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
+**Let op:** Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
 Die doet `update.yml` níét: het playbook werkt alleen Homebrew bij. macOS zelf
 update je met de hand op de Mac.
-</Callout>
 
 #### Lees de vergelijkingen
 
@@ -57,7 +55,7 @@ update je met de hand op de Mac.
 | back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat; kost ruimte |
 
 Een poort zonder route is meestal een dienst die je vergeten bent af te maken:
-volg dan [Dienst toevoegen](/proxmox/container/).
+volg dan [Dienst toevoegen](/docker/toevoegen/).
 
 #### Demp wat bewust zo is
 
@@ -77,10 +75,8 @@ docker_routes_without_container:
 | `docker_ports_without_route` | een gepubliceerde poort die bewust geen route heeft |
 | `docker_routes_without_container` | een route waarvan de backend géén containerpoort is (qbittorrent met `network_mode: host`, Plex als macOS-app) |
 
-<Callout type="warning">
-Zet er **altijd** een `why:` bij. Een gedempte melding zonder reden is over
+**Let op:** Zet er **altijd** een `why:` bij. Een gedempte melding zonder reden is over
 een half jaar niet te onderscheiden van een vergissing.
-</Callout>
 
 #### Commit en push de demper
 
@@ -115,10 +111,8 @@ de taken die iets zouden wijzigen. Verandert zelf niets.
 Staat er `NIET BEREIKT` in plaats van `gelijk aan de repo`? Dan is er op die
 host **niets gecontroleerd**.
 
-<Callout type="error">
-Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
+**Let op:** Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
 er in het totaal uit als een host zonder drift. Lees dus de regel per host.
-</Callout>
 
 #### Lees de echte diffs
 

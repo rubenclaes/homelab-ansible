@@ -2,7 +2,7 @@
 title: Een guest terugzetten
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps, Tabs } from 'nextra/components'
 
 # Een guest terugzetten
 
@@ -43,10 +43,8 @@ sudo pct stop 199; sudo pct destroy 199
 Dit raakt het origineel niet aan. Of laat een playbook het doen:
 `ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=adguard`.
 
-<Callout type="warning">
-Vergeet `--delete net0` niet. De back-up draagt het IP en MAC-adres van het
+**Let op:** Vergeet `--delete net0` niet. De back-up draagt het IP en MAC-adres van het
 origineel: start je hem zo, dan heb je twee machines op hetzelfde adres.
-</Callout>
 
 #### Zet het origineel stil
 
@@ -56,29 +54,32 @@ sudo pct stop 107     # een VM: sudo qm stop 103
 
 #### Zet de back-up terug
 
-**Een container:**
+<Tabs items={['Container', 'VM']}>
+<Tabs.Tab>
 
 ```bash
 sudo pct restore 107 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd --force
 ```
 
-**Een VM:**
+</Tabs.Tab>
+<Tabs.Tab>
 
 ```bash
 sudo qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd --force
 ```
 
+</Tabs.Tab>
+</Tabs>
+
 `--force` overschrijft wat er op dat nummer staat. Kijk dus twee keer naar
 het nummer. Bestaat de guest niet meer, dan mag `--force` weg.
 
-<Callout type="warning">
-De volgorde verschilt: bij `pct restore` komt **het nummer eerst**, bij
-`qmrestore` **de back-up eerst**. Dat is geen typefout.
+De volgorde verschilt met opzet: bij `pct restore` komt **het nummer eerst**,
+bij `qmrestore` **de back-up eerst**.
 
 `--storage`: neem dezelfde als het origineel (zie
 [Welke guest is wat](#welke-guest-is-wat)).
 `semaphore` staat op `local-lvm`, de rest op `vm-hdd`.
-</Callout>
 
 #### Start hem
 
@@ -104,11 +105,8 @@ bin/tofu proxmox plan   # moet "No changes" zeggen
 Zo weet je dat cores, geheugen en MAC van de back-up kloppen met
 `tofu/proxmox/`. Wil het plan iets veranderen, kijk dan eerst wat.
 
-<Callout type="info">
-Terugzetten van `semaphore`? Gebruik dan `ansible-playbook playbooks/semaphore.yml`
-in plaats van `site.yml --limit semaphore`. Die laatste faalt: Semaphore moet
-eerst de hostkeys van alle machines ophalen.
-</Callout>
+Terugzetten van `semaphore`? Gebruik `ansible-playbook playbooks/semaphore.yml`,
+niet `site.yml --limit semaphore` ([waarom](#waarom-semaphoreyml-en-niet-siteyml---limit-semaphore)).
 
 #### Krijg je "REMOTE HOST IDENTIFICATION HAS CHANGED"?
 
@@ -124,12 +122,10 @@ Voor een container uit `tofu/proxmox/containers.tf` die stuk of weg is, en
 waar niets unieks op staat: `caddy` en `tailscale`. Nieuw bouwen gaat sneller dan een
 back-up terugzetten, en is schoner.
 
-<Callout type="warning">
-Dit geeft je een **lege** container met de juiste instellingen. Heb je de data
+**Let op:** Dit geeft je een **lege** container met de juiste instellingen. Heb je de data
 nodig (instellingen, databases), volg dan
 [Terugzetten uit back-up](#terugzetten-uit-de-back-up).
 Voor `adguard`, `semaphore` e.a. is dat bijna altijd wat je wil.
-</Callout>
 
 Voorbeeld: `caddy` (ct 106).
 
@@ -179,10 +175,9 @@ Eén per keer, in deze volgorde: `adguard` (DNS), `caddy` (de voordeur),
 ansible-playbook playbooks/proxmox-datacenter.yml
 ```
 
-Die twee hebben `/dev/net/tun` nodig. De rol `proxmox_tun` zet de twee
-`lxc.`-regels als root in hun config op pve01, en herstart de container alleen
-als hij ze net kreeg. `site.yml` doet het ook. Zonder start `tailscaled` niet:
-hij faalt stil in een herstartlus.
+Zonder `/dev/net/tun` start `tailscaled` niet, en dat zie je nergens: hij
+faalt stil in een herstartlus. `site.yml` doet het ook. Hoe het werkt:
+[Goed om te weten](#devnettun-doet-ansible-als-root).
 
 #### Zet de dienst terug
 
@@ -190,8 +185,7 @@ hij faalt stil in een herstartlus.
 ansible-playbook playbooks/site.yml --limit caddy
 ```
 
-Voor `semaphore`: `ansible-playbook playbooks/semaphore.yml`, niet
-`site.yml --limit semaphore` (die faalt).
+Voor `semaphore`: `ansible-playbook playbooks/semaphore.yml` ([waarom](#waarom-semaphoreyml-en-niet-siteyml---limit-semaphore)).
 
 #### Alleen bij `tailscale`: keur de route goed
 
@@ -216,20 +210,18 @@ ansible-playbook playbooks/semaphore.yml
 ```
 
 De nieuwe container heeft een nieuwe SSH-hostkey. Semaphore weigert hem tot
-deze run. Niet met `--limit semaphore`: dan faalt hij.
+deze run.
 
 </Steps>
 
-<Callout type="info">
 `adguard` herbouwen heeft nog extra handwerk (setup-wizard, upstreams, de
 wildcard-rewrite). Volg daarvoor [Geen DNS](/netwerk/dns/#geen-dns).
-</Callout>
 
 ## Welke guest is wat
 
 | Guest | vmid | Soort | Opslag | Bij verlies |
 | --- | --- | --- | --- | --- |
-| `pbs` | 100 | VM | `local-lvm` + `vm-hdd` | met de hand, zie [pve01 is weg](/proxmox/pve01/#pve01-is-weg) |
+| `pbs` | 100 | VM | `local-lvm` + `vm-hdd` | met de hand, zie [pve01 is weg](/proxmox/pve01/) |
 | `haos` (Home Assistant) | 101 | VM | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) |
 | `docker-grafana-stack` | 102 | VM | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) |
 | `docker` | 103 | VM | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) |
@@ -267,6 +259,12 @@ Proxmox alleen root, niet een API-token, dus OpenTofu kan het niet. `pct set`
 weigert de regels op deze Proxmox-versie. Daarom schrijft `roles/proxmox_tun`
 ze via SSH als root in `/etc/pve/lxc/<vmid>.conf`. Welke containers:
 `proxmox_tun_guests` in `inventory/group_vars/proxmox/lxcs.yml`.
+
+### Waarom `semaphore.yml` en niet `site.yml --limit semaphore`
+
+Semaphore moet de SSH-hostkeys van álle machines kennen. `semaphore.yml` haalt
+ze eerst op; `site.yml --limit semaphore` kijkt alleen naar Semaphore zelf, en
+faalt dan.
 
 ### Niet alles komt uit een playbook terug
 

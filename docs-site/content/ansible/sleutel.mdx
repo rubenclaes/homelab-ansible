@@ -2,7 +2,7 @@
 title: Ansible-sleutel kwijt
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Ansible-sleutel kwijt
 
@@ -15,11 +15,9 @@ Alleen als er echt nergens nog een kopie is: niet op een andere Mac, niet in
 de wachtwoordkluis. Heb je wel een kopie, zet die dan gewoon terug op
 `~/.ssh/ansible_ed25519` (zie [Werkplek → Laptop](/ansible/laptop/)).
 
-<Callout type="error">
-`-u root -k` (inloggen met wachtwoord) helpt je hier **niet**. De baseline zet
+**Let op:** `-u root -k` (inloggen met wachtwoord) helpt je hier **niet**. De baseline zet
 `PasswordAuthentication no`, dus elke host weigert wachtwoorden. Je komt er
 alleen nog in via de hypervisor of de console.
-</Callout>
 
 <Steps>
 
