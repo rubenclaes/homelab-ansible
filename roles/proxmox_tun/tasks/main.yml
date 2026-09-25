@@ -10,6 +10,19 @@
 # Met grep en een append in plaats van lineinfile: /etc/pve is pmxcfs, en
 # daar faalt het tijdelijke bestand + chmod waarmee lineinfile schrijft.
 
+# Een container die (nog) niet bestaat slaat hij over. Bij een herbouw van
+# pve01 draait dit voor 107 en 108 terug zijn; de volgende run zet het dan.
+- name: Find which of these containers exist
+  ansible.builtin.stat:
+    path: /etc/pve/lxc/{{ item }}.conf
+  register: proxmox_tun_conf
+  loop: "{{ proxmox_tun_guests }}"
+
+- name: Keep the ones that exist
+  ansible.builtin.set_fact:
+    proxmox_tun_existing: >-
+      {{ proxmox_tun_conf.results | selectattr('stat.exists') | map(attribute='item') | list }}
+
 # Een snapshot zet een [sectie] onderaan de config; een append zou de regels
 # dan in die snapshot zetten in plaats van in de container zelf.
 - name: Refuse a config with snapshot sections
@@ -18,7 +31,7 @@
   changed_when: false
   failed_when: proxmox_tun_sections.stdout | int > 0
   check_mode: false
-  loop: "{{ proxmox_tun_guests }}"
+  loop: "{{ proxmox_tun_existing }}"
 
 - name: Count the tun lines that are present
   ansible.builtin.command: >-
@@ -28,7 +41,7 @@
   changed_when: false
   failed_when: proxmox_tun_present.rc > 1
   check_mode: false
-  loop: "{{ proxmox_tun_guests }}"
+  loop: "{{ proxmox_tun_existing }}"
 
 - name: Refuse a half-configured container
   ansible.builtin.assert:
