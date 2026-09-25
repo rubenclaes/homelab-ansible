@@ -38,13 +38,22 @@ fi
 # 3. OpenTofu: opmaak en geldigheid, alleen voor een project waar iets van
 #    gestaged is. Zonder backend (-backend=false), dus zonder R2 of geheimen;
 #    de passphrase is een dummy, want validate leest geen state.
+#
+#    In een eigen, tijdelijke TF_DATA_DIR: de echte .terraform/ kent de
+#    R2-backend al, en dan wil ook `init -backend=false` R2 bereiken. De
+#    plugin-cache zorgt dat de provider niet elke commit opnieuw binnenkomt.
 tofu_dirs="$(git diff --cached --name-only -- 'tofu/*/*' | cut -d/ -f1-2 | sort -u)"
+tofu_data="$(mktemp -d)"
+trap 'rm -f "$out"; rm -rf "$tofu_data"' EXIT
+mkdir -p "$HOME/.terraform.d/plugin-cache"
 for d in $tofu_dirs; do
 	[[ -d "$d" ]] || continue
 	if ! tofu fmt -check "$d" >/dev/null; then
 		echo "pre-commit: $d is niet opgemaakt. Draai: tofu fmt $d" >&2
 		fail=1
 	fi
+	export TF_DATA_DIR="$tofu_data/${d//\//_}"
+	export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
 	if ! TF_VAR_state_passphrase=pre-commit-validate-only \
 		tofu -chdir="$d" init -backend=false -input=false >/dev/null 2>&1 ||
 		! TF_VAR_state_passphrase=pre-commit-validate-only \
