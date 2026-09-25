@@ -493,10 +493,10 @@ ssh pve01 'df -h /mnt/pve/macmini-backup'
 
 ### Waarom maar twee dumps bewaren
 
-`media01` op de Mini is bijna vol en draagt ook Time Machine en Duplicati.
+`media01` op de Mini is bijna vol en draagt ook Time Machine.
 Daarom staat `prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je
-meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken alle
-drie de back-ups tegelijk.
+meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken beide
+back-ups tegelijk.
 
 ### Het API-token staat op twee plekken
 

@@ -1,9 +1,9 @@
 ---
-# De Mac mini. Draait Plex als macOS-app, drie compose-projecten uit
-# github.com/rubenclaes/homelab, en exporteert drie shares over NFS naar de
-# docker-host. Alles hieronder is op 22-09 van de machine zelf gelezen
-# (brew leaves, docker compose ls, een poortscan en /etc/exports), niet uit
-# het geheugen overgetikt.
+# De Mac mini. Draait Plex als macOS-app, een UTM-VM, en exporteert drie
+# shares over NFS naar de docker-host. Containers draaien hier sinds 25-09
+# niet meer (zie "Docker op deze Mac" onderaan). Alles hieronder is op 22-09
+# van de machine zelf gelezen (brew leaves, docker compose ls, een poortscan
+# en /etc/exports), niet uit het geheugen overgetikt.
 
 # `brew leaves`: wat je zelf gevraagd hebt, zonder de afhankelijkheden
 # eronder. Precies de lijst die de macos-rol terugzet.
@@ -30,7 +30,7 @@ macos_brew_packages_extra:
 # bestaat niet meer op deze machine. Wat er echt draait is OrbStack -
 # /usr/local/bin/docker is een symlink naar
 # /Applications/OrbStack.app/Contents/MacOS/xbin/docker en de actieve
-# docker-context heet `orbstack`. Alle containers hierboven draaien daarop.
+# docker-context heet `orbstack`. Sinds 25-09 staat hij stil; zie onderaan.
 #
 # Daarom staat hier `orbstack` en geen van beide docker-casks: die zouden bij
 # een herbouw Docker Desktop installeren, en dat is niet wat deze machine
@@ -112,54 +112,26 @@ macos_casks_absent:
   - docker-desktop
 
 # --- Docker op deze Mac ---------------------------------------------------
-# De stacks staan in github.com/rubenclaes/homelab. Die repo heeft GEEN
-# stacks/-map: één map per dienst in de wortel. Checkout en root zijn dus
-# hetzelfde pad.
+# Hier draait sinds 25-09 geen enkele container meer, en daarom staat hier
+# geen docker_stacks_list: zonder lijst slaat stacks.yml deze host over.
 #
-# Het pad stond hier eerder als vermoeden; het is nu nagekeken. De clone op
-# /Users/rubenclaes/Container heeft origin
-# https://github.com/rubenclaes/homelab.git, staat op main, en is schoon:
-# geen gewijzigde getrackte bestanden en geen untracked bestanden. De harde
-# checkout van de git-module kan hier dus niets ongepusht weggooien - de zorg
-# die hier eerder stond, is nagekeken en bestaat niet.
-docker_stacks_repo: git@github.com:rubenclaes/homelab.git
-docker_stacks_repo_version: main
-docker_stacks_repo_dir: /Users/rubenclaes/Container
-docker_stacks_root: /Users/rubenclaes/Container
-docker_stacks_become: false      # Ansible verbindt hier al als de eigenaar
-docker_stacks_owner: rubenclaes
-docker_stacks_group: staff       # macOS, niet een groep per gebruiker
-docker_stacks_home: /Users/rubenclaes
-
-# Ansible krijgt hier PATH=/usr/bin:/bin:/usr/sbin:/sbin en vindt de docker
-# CLI dus niet zelf. Zonder deze regel faalt elke stack op "Cannot find
-# docker CLI in path".
+# De laatste drie gingen op 25-09 weg, zonder opvolger:
+#   duplicati  maakte sinds 18-02 geen back-up meer, en wat hij bewaakte
+#              (~/Container) waren mappen van diensten die al verhuisd waren
+#   alloy      stuurde alleen de logs van de containers hier naar Loki
+#   portainer  de agent, voor de portainer op docker; niets meer te beheren
+# Hun compose-files staan in github.com/rubenclaes/homelab onder Archive/,
+# hun data in ~/Container/_archief/*-2026-09-25.tar.gz. De oude
+# Duplicati-back-ups staan nog op /Volumes/media01/backups/duplicati-*.
 #
-# Het pad wijst naar het OrbStack-bundel en niet naar /usr/local/bin/docker,
-# want die symlink is er niet altijd: op 22-09 stond hij er 's middags nog
-# en 's avonds niet meer, terwijl `docker-compose` ernaast wel bleef staan.
-# OrbStack beheert die links zelf. Het bundel-pad gaat alleen weg als je
-# OrbStack weggooit, en dan heb je een groter probleem.
+# OrbStack staat nog geinstalleerd maar draait niet en start niet mee bij
+# het inloggen. Dat scheelt zo'n 1,4 GB RAM op een machine met 8 GB.
 #
-# De socket klopt wel vanzelf: /var/run/docker.sock is een symlink naar
-# ~/.orbstack/run/docker.sock, dus de module hoeft geen DOCKER_HOST.
-docker_stacks_docker_cli: /Applications/OrbStack.app/Contents/MacOS/xbin/docker
-
-# De projecten die hier draaien én in de repo staan. `name` is ook de naam
-# van het .env-bestand onder files/env/, `path` is de map in de repo.
+# Daarom ook geen docker_stacks_docker_cli meer. report.yml roept dan een
+# kale `docker` aan, die Ansible hier niet in zijn PATH vindt: dat faalt
+# stil en de Mini blijft leeg in het rapport. Met het pad naar de CLI in het
+# OrbStack-bundel erbij kan een wekelijks rapport OrbStack weer wakker maken.
 #
-# env: false betekent "deze stack heeft geen .env", niet "de secrets doen er
-# niet toe". Duplicati staat gevault onder files/env/.
-docker_stacks_list:
-  - { name: alloy, path: Alloy, env: false, desc: "Alloy — stuurt logs en metrics van de Mac mini naar docker-grafana-stack" }
-  - { name: duplicati, path: Duplicati }   # .env gevault onder `stacks`
-  - { name: portainer, path: Portainer, env: false, desc: "Portainer-agent — laat de portainer op docker deze host beheren" }
-  # De oude Pocket ID (pocketid, poort 1411, route `auth`) is op 23-09
-  # uitgefaseerd; `id` op de docker-host is de enige. Niets hing er nog aan:
-  # zijn twee OIDC-clients waren tinyauth (weg sinds 22-09) en een Arcane met
-  # een voorbeelddomein. Map, .env en sleutels staan gearchiveerd in
-  # ~/Container/_archief/pocketid-2026-09-23.tar.gz.
-
 # Grimmory, Shelfmark en Recyclarr draaiden hier tot 25-09; ze zitten nu in
 # de media-stack op docker. Expenseowl stond al stil; zijn data en die van de
 # drie staan in ~/Container/_archief/*-2026-09-25.tar.gz.
@@ -169,10 +141,6 @@ docker_stacks_list:
 # `docker ps`. Zonder deze regel meldt report.yml hem elke run als dode route.
 docker_routes_without_container:
   - { port: 32400, why: "Plex is een macOS-app, geen container" }
-
-# Poorten die hier luisteren en bewust geen route hebben.
-docker_ports_without_route:
-  - { port: 9001, why: "portainer agent - gesproken door de portainer op docker, geen UI" }
 
 # --- NFS ------------------------------------------------------------------
 # De drie shares die de docker-host mount. Op 22-09 uit /etc/exports en
@@ -193,8 +161,3 @@ nfs_exports_shares:
   - path: /Volumes/media01
   - path: /Volumes/FastStore
   - path: "/Volumes/SSD Nas"
-
-# --- Wat hier buiten valt -------------------------------------------------
-# Het netwerk `External` dat die compose-files delen wordt met de hand
-# aangemaakt (`docker network create External`, staat in de README van die
-# repo). De rol maakt geen netwerken.

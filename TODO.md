@@ -138,20 +138,14 @@ Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **Plex en OrbStack op de Mac mini staan buiten Homebrew.** Die moet je
-      eerst met de hand overzetten voor je ze beschrijft. Het waarom staat in
-      `host_vars/macmini.yml`. (De stacks zelf zijn sinds 23-09 beheerd: `Stacks`
-      draait dagelijks ook op de Mini, en een droogloop geeft `changed=0`.)
+- [ ] **Plex op de Mac mini staat buiten Homebrew.** Die moet je eerst met de
+      hand overzetten voor je hem beschrijft. Het waarom staat in
+      `host_vars/macmini.yml`. (OrbStack hoeft niet meer: sinds 25-09 draait er
+      geen container meer op de Mini en staat OrbStack stil.)
 
 ---
 
 ## Grotere projecten
-
-- [ ] **De Duplicati-secrets roteren.** Ze staan sinds 22-09 in een gevaulte
-      `.env`, maar ook nog in de historie van `rubenclaes/homelab`. Het
-      webservice-wachtwoord is zo gewisseld; `SETTINGS_ENCRYPTION_KEY`
-      ontsleutelt Duplicati's eigen instellingen-database en moet via Duplicati
-      zelf, anders mag je al je back-upjobs opnieuw aanmaken.
 
 - [ ] **Off-site back-up. De 1 van 3-2-1 ontbreekt nog.** Sinds 23-09 zijn er
       twee kopieen op twee machines - PBS op pve01, en wekelijks volledige

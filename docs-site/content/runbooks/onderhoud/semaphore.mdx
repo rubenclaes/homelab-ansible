@@ -198,10 +198,10 @@ geschiedenis achter.
 
 ### Waarom `Stacks` dagelijks draait
 
-Na een herstart van OrbStack komt `duplicati` op de Mac mini niet terug: hij
-koppelt een schijf onder `/Volumes` aan die OrbStack pas later
-doorgeeft, en `restart: unless-stopped` helpt niet tegen een start die mislukt.
-Een dagelijkse run herstelt dat binnen een dag. De eerste beheerde run is op
+Het begon met de Mac mini: na een herstart van OrbStack kwamen stacks met een
+schijf onder `/Volumes` niet terug, en `restart: unless-stopped` helpt niet
+tegen een start die mislukt. Sinds 25-09 draait daar geen container meer, maar
+dagelijks bleef: een stack die ergens stilvalt, trekt binnen een dag bij. De eerste beheerde run is op
 23-09 met de hand gedaan en was schoon (`changed=0`): een schema dat zijn
 eerste run onbewaakt doet, is een gok.
 

@@ -129,7 +129,6 @@ homepage_tiles:
   unifi: { title: UniFi, group: Beheer, icon: unifi.png }
   portainer: { title: Portainer, group: Beheer, icon: portainer.png }
   semaphore: { title: Semaphore, group: Beheer, icon: semaphore.png }
-  duplicati: { title: Duplicati, group: Beheer, icon: duplicati.png }
 
   monitoring: { title: Grafana, group: Monitoring, icon: grafana.png }
   prometheus: { title: Prometheus, group: Monitoring, icon: prometheus.png }

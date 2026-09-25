@@ -20,7 +20,7 @@ diensten erin.
 | Machine | Soort | Adres | Diensten |
 | --- | --- | --- | --- |
 | [pve01](#pve01) | Proxmox-host | `192.168.0.10` | 1 |
-| [docker](#docker) | VM | `192.168.0.15` | 23 |
+| [docker](#docker) | VM | `192.168.0.15` | 24 |
 | [docker-grafana-stack](#docker-grafana-stack) | VM | `192.168.0.17` | 2 |
 | [haos](#haos) | VM | `192.168.0.31` | 1 |
 | [pbs](#pbs) | VM | `192.168.0.181` | 1 |
@@ -29,7 +29,7 @@ diensten erin.
 | [ntfy](#ntfy) | LXC-container | `192.168.0.32` | 1 |
 | [semaphore](#semaphore) | LXC-container | `192.168.0.30` | 1 |
 | [tailscale](#tailscale) | LXC-container | `192.168.0.50` | — |
-| [macmini](#macmini) | Mac | `192.168.0.26` | 2 |
+| [macmini](#macmini) | Mac | `192.168.0.26` | 1 |
 | [mbp](#mbp) | Mac | lokaal | — |
 
 Adressen komen live uit Proxmox: het runtime-adres van de guest, niet wat er
@@ -58,7 +58,7 @@ Volwaardige virtuele machines op Proxmox. Een VM met Docker draait stacks.
 | **homebox** | [spullen](/homelab/diensten/spullen/) | `/opt/containers/stacks/homebox` | `.env` in vault |
 | **homepage** | [home](/homelab/diensten/home/) | `/opt/containers/stacks/homepage` | `.env` in vault |
 | **infra** | [id](/homelab/diensten/id/) | `/opt/containers/stacks/infra` | `.env` in vault |
-| **media** | [audiobooks](/homelab/diensten/audiobooks/), [books](/homelab/diensten/books/), [openbooks](/homelab/diensten/openbooks/), [overseerr](/homelab/diensten/overseerr/), [photos](/homelab/diensten/photos/), [prowlarr](/homelab/diensten/prowlarr/), [radarr](/homelab/diensten/radarr/), [shelfmark](/homelab/diensten/shelfmark/), [sonarr](/homelab/diensten/sonarr/), [torrent](/homelab/diensten/torrent/) | `/opt/containers/stacks/media` (project `media-stack`) | `.env` in vault |
+| **media** | [audiobooks](/homelab/diensten/audiobooks/), [bazarr](/homelab/diensten/bazarr/), [books](/homelab/diensten/books/), [openbooks](/homelab/diensten/openbooks/), [overseerr](/homelab/diensten/overseerr/), [photos](/homelab/diensten/photos/), [prowlarr](/homelab/diensten/prowlarr/), [radarr](/homelab/diensten/radarr/), [shelfmark](/homelab/diensten/shelfmark/), [sonarr](/homelab/diensten/sonarr/), [torrent](/homelab/diensten/torrent/) | `/opt/containers/stacks/media` (project `media-stack`) | `.env` in vault |
 | **memos** | [memos](/homelab/diensten/memos/) | `/opt/containers/stacks/memos` | `.env` in vault |
 | **metrics** | _Alloy — stuurt logs en metrics van deze host naar docker-grafana-stack_ | `/opt/containers/stacks/metrics` | `.env` in vault |
 | **neogate** | [neogate](/homelab/diensten/neogate/) | `/opt/containers/stacks/neogate` | `.env` in vault |
@@ -133,15 +133,7 @@ Fysieke machines buiten Proxmox.
 
 `192.168.0.26` · macOS 14.6.1
 
-| Stack | Wat erin draait | Pad op de host | Secrets |
-| --- | --- | --- | --- |
-| **alloy** | _Alloy — stuurt logs en metrics van de Mac mini naar docker-grafana-stack_ | `/Users/rubenclaes/Container/Alloy` | geen |
-| **duplicati** | [duplicati](/homelab/diensten/duplicati/) | `/Users/rubenclaes/Container/Duplicati` | `.env` in vault |
-| **portainer** | _Portainer-agent — laat de portainer op docker deze host beheren_ | `/Users/rubenclaes/Container/Portainer` | geen |
-
-Buiten een stack: [plex](/homelab/diensten/plex/).
-
-Compose-bestanden uit [rubenclaes/homelab](https://github.com/rubenclaes/homelab).
+Diensten: [plex](/homelab/diensten/plex/)
 
 ### mbp
 

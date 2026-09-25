@@ -177,12 +177,11 @@ semaphore_templates_list:
     description: "Leest de hele vloot en publiceert naar report.neodata.be. Traag, vandaar wekelijks."
     schedule: "0 8 * * 0"
 
-  # Dagelijks, en dat schema is de reparatie voor een concreet probleem: na een
-  # herstart van OrbStack komt `duplicati` op de Mini niet terug. Hij koppelt
-  # een schijf onder /Volumes aan (tot 25-09 deed `shelfmark` dat ook);
-  # OrbStack deelt die schijf pas later de VM in en `restart: unless-stopped`
-  # helpt niet tegen een start die niet lukt. Met een dagelijkse run herstelt
-  # dat zich binnen een dag in plaats van pas als je het merkt.
+  # Dagelijks, en dat schema was de reparatie voor een probleem op de Mini: na
+  # een herstart van OrbStack kwamen daar stacks met een schijf onder /Volumes
+  # niet terug. Sinds 25-09 draait daar geen container meer, maar dagelijks
+  # blijft: zo trekt een stack die ergens stilviel binnen een dag bij in
+  # plaats van pas als je het merkt.
   #
   # 05:30 en niet vroeger: op zondag draait Site converge om 05:00 en die roept
   # stacks.yml zelf al aan. Die run is in anderhalve minuut klaar, dus om 05:30

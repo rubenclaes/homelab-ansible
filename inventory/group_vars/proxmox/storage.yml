@@ -62,8 +62,8 @@ pve_storages:
   # Linux uses those by default, so it needs no option here.
   #
   # `prune-backups keep-last=2`, and that number is load-bearing. media01 sits
-  # at 95% with ~293 GiB free and already carries Time Machine and Duplicati,
-  # so this job filling it would break all three at once. Two full dumps of
+  # at 95% with ~293 GiB free and already carries Time Machine (and the old,
+  # frozen Duplicati backups), so this job filling it would break both at once. Two full dumps of
   # the declared guests is roughly 50 GB - the guests hold ~45 GB of real data
   # and zstd roughly halves it. Raising this number spends someone else's
   # headroom; check `df` on the Mini first.
