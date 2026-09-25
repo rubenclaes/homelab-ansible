@@ -59,12 +59,12 @@ caddy_sites:
   - { name: audiobooks, host: docker, port: 13378, stack: media, desc: "Audiobookshelf — luisterboeken en podcasts" }
   - { name: sonarr, host: docker, port: 8989, stack: media, desc: "Beheer van series" }
   - { name: radarr, host: docker, port: 7878, stack: media, desc: "Beheer van films" }
+  - { name: books, host: docker, port: 6061, stack: media, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
+  - { name: shelfmark, host: docker, port: 8087, stack: media, desc: "Shelfmark — zoekt boeken en legt ze in de bookdrop van Grimmory" }
 
   # --- Mac mini ---
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
   - { name: duplicati, host: macmini, port: 8200, stack: duplicati, desc: "Back-ups vanaf de Mac mini" }
-  - { name: books, host: macmini, port: 6061, stack: grimmory, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
-  - { name: shelfmark, host: macmini, port: 8084, stack: shelfmark, desc: "Shelfmark — leest de bookdrop van Grimmory uit en zet metadata recht" }
 
 # In Grafana: {job="caddy"} | json | status >= 500
 alloy_log_targets:
