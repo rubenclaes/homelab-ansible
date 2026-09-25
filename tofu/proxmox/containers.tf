@@ -102,7 +102,9 @@ resource "proxmox_virtual_environment_container" "this" {
 
   # nesting voor systemd; keyctl voor Docker-achtige dingen in caddy/adguard.
   # Een vlag behalve nesting veranderen mag alleen root@pam: dat moet dus met
-  # de hand, ook al staat het hier.
+  # de hand, ook al staat het hier. Voor een NIEUWE container met keyctl is
+  # dat niet getest (caddy en adguard kregen het van een script als root);
+  # weigert apply, zie docs "Een nieuwe container".
   features {
     nesting = true
     keyctl  = each.value.keyctl

@@ -3,7 +3,8 @@
 # regels kregen; voor adguard is dat even geen DNS.
 - name: Reboot tun containers
   ansible.builtin.command: pct reboot {{ item.item }}
-  loop: "{{ proxmox_tun_present.results | selectattr('stdout', 'eq', '0') | list }}"
+  when: item.stdout | int == 0
+  loop: "{{ proxmox_tun_present.results }}"
   loop_control:
     label: "{{ item.item }}"
   changed_when: true

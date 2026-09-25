@@ -39,7 +39,7 @@ resource "proxmox_virtual_environment_role" "ansible" {
   ]
 }
 
-resource "proxmox_virtual_environment_acl" "ansible" {
+resource "proxmox_acl" "ansible" {
   path      = "/"
   user_id   = proxmox_virtual_environment_user.ansible.user_id
   role_id   = proxmox_virtual_environment_role.ansible.role_id

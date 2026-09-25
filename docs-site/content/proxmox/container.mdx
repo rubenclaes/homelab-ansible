@@ -76,9 +76,16 @@ Voeg in `local.containers` een blok toe, naast de andere:
 | `ip` | het vrije adres, met `/24` erachter |
 | `mac` | `null`: dan kiest Proxmox er een. Zet hem na het bouwen vast (zie hieronder) |
 | `dns_servers` / `searchdomain` | zoals hierboven: AdGuard als DNS, `home.arpa` als zoekdomein |
+| `keyctl` | `false`. Alleen `true` voor Docker in de container |
 
 Gateway, template en de Ansible-sleutel staan één keer onderaan hetzelfde
 bestand. Die hoef je niet in te vullen.
+
+**Let op:** `keyctl = true` is niet getest voor een nieuwe container. Proxmox
+laat die vlag misschien alleen `root@pam` zetten, en OpenTofu is dat niet.
+Weigert `apply` erop: maak hem met `keyctl = false`, zet de vlag als root op
+pve01 (`pct set <id> --features nesting=1,keyctl=1`), en zet daarna `true` in
+`containers.tf` tot het plan leeg is.
 
 #### Kijk wat OpenTofu gaat doen
 
