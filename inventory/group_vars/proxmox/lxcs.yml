@@ -12,6 +12,12 @@
 # een image, en alles wat het nodig heeft staat in env. De rol zet er tag `oci`
 # op, en daardoor houdt de inventory ze buiten `linux`.
 #
+# Bewust niet in OpenTofu (25-09): de ntfy-tokens hieronder gebruiken ook
+# Proxmox, PBS, pbs_client, r2-guard en unifi-watch, en die lezen de vault.
+# In OpenTofu stond elk token dan twee keer, en het ophalen van een image
+# vraagt Sys.AccessNetwork (de rol doet het als root). Opnieuw bekijken bij
+# een tweede OCI-container.
+#
 # `version` is de enige manier om te updaten. Een andere waarde dan wat draait
 # geeft een waarschuwing; pas met -e proxmox_oci_recreate=true wordt de
 # container opnieuw gebouwd. Dat gooit ook de volumes weg, dus alles wat moet
@@ -28,7 +34,7 @@ pve_oci_lxcs:
     memory: 256
     disk: { storage: vm-hdd, size: 2 }
     ip: 192.168.0.32/24
-    # Vast, net als de MAC's in vms.yml. Een herbouw zonder vaste MAC geeft een
+    # Vast, net als de MAC's in tofu/proxmox/. Een herbouw zonder vaste MAC geeft een
     # nieuwe, en wie het oude adres nog in zijn ARP-cache heeft - Caddy, je
     # laptop - bereikt ntfy dan een tijd niet. Gezien op 23-09: de eerste
     # herbouw was een minuut onbereikbaar via ntfy.neodata.be.

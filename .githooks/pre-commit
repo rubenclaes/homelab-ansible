@@ -39,30 +39,42 @@ fi
 #    gestaged is. Zonder backend (-backend=false), dus zonder R2 of geheimen;
 #    de passphrase is een dummy, want validate leest geen state.
 #
-#    In een eigen, tijdelijke TF_DATA_DIR: de echte .terraform/ kent de
-#    R2-backend al, en dan wil ook `init -backend=false` R2 bereiken. De
-#    plugin-cache zorgt dat de provider niet elke commit opnieuw binnenkomt.
+#    Op een kopie van wat gestaged is, niet op de werkmap: die twee kunnen
+#    verschillen. De hele index, want tofu/proxmox leest ook
+#    inventory/group_vars/proxmox/guest_network.yml. -lockfile=readonly: een
+#    lock die niet bij de providers past faalt hier, in plaats van dat init
+#    hem stil herschrijft.
+#
+#    Een eigen TF_DATA_DIR: de echte .terraform/ kent de R2-backend al, en
+#    dan wil ook `init -backend=false` R2 bereiken. De plugin-cache zorgt dat
+#    de provider niet elke commit opnieuw binnenkomt.
 tofu_dirs="$(git diff --cached --name-only -- 'tofu/*/*' | cut -d/ -f1-2 | sort -u)"
 if [[ -n "$tofu_dirs" ]] && ! command -v tofu >/dev/null; then
 	echo "pre-commit: tofu is niet geïnstalleerd. Installeer: brew install opentofu" >&2
 	echo "  (of: ansible-playbook playbooks/site.yml --limit mbp --tags macos)" >&2
 	exit 1
 fi
-tofu_data="$(mktemp -d)"
-trap 'rm -f "$out"; rm -rf "$tofu_data"' EXIT
+tofu_tmp="$(mktemp -d)"
+trap 'rm -f "$out"; rm -rf "$tofu_tmp"' EXIT
+if [[ -n "$tofu_dirs" ]]; then
+	git checkout-index -a --prefix="$tofu_tmp/staged/"
+fi
 mkdir -p "$HOME/.terraform.d/plugin-cache"
 for d in $tofu_dirs; do
-	[[ -d "$d" ]] || continue
-	if ! tofu fmt -check "$d" >/dev/null; then
-		echo "pre-commit: $d is niet opgemaakt. Draai: tofu fmt $d" >&2
+	staged="$tofu_tmp/staged/$d"
+	[[ -d "$staged" ]] || continue
+	if ! tofu fmt -check "$staged" >/dev/null; then
+		echo "pre-commit: $d is niet opgemaakt. Draai: tofu fmt $d && git add $d" >&2
 		fail=1
 	fi
-	export TF_DATA_DIR="$tofu_data/${d//\//_}"
+	export TF_DATA_DIR="$tofu_tmp/data/${d//\//_}"
 	export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
 	if ! TF_VAR_state_passphrase=pre-commit-validate-only \
-		tofu -chdir="$d" init -backend=false -input=false >/dev/null 2>&1 ||
-		! TF_VAR_state_passphrase=pre-commit-validate-only \
-		tofu -chdir="$d" validate -no-color >/dev/null; then
+		tofu -chdir="$staged" init -backend=false -input=false -lockfile=readonly >/dev/null 2>&1; then
+		echo "pre-commit: $d: init faalt; past .terraform.lock.hcl bij de providers? Draai: bin/tofu ${d#tofu/} init -upgrade" >&2
+		fail=1
+	elif ! TF_VAR_state_passphrase=pre-commit-validate-only \
+		tofu -chdir="$staged" validate -no-color >/dev/null; then
 		echo "pre-commit: $d is niet geldig. Draai: tofu -chdir=$d validate" >&2
 		fail=1
 	fi

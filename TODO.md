@@ -70,8 +70,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
       plaats van alleen toevoegen.
 - [ ] **AdGuard-versie**: nu update je in de web-UI en kopieer je de versie
       naar git. Omdraaien: versie in git, rol installeert.
-- [ ] **ntfy (ct 109) naar OpenTofu.** Nu nog `roles/proxmox_oci`, omdat zijn
-      geheimen in de Ansible-vault staan.
 - [ ] **Tag op ct 108 (tailscale)?** Staat als mijn toestel op de tailnet,
       zonder tag. Een tag zetten maakt de tag eigenaar: beslissen, dan in
       `tofu/tailscale/devices.tf`.
@@ -108,8 +106,3 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 - [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1. Zolang dat zo is
       bouwt Homebrew daar alles vanaf broncode (Tier 3), en daarom staat
       `macos_brew_upgrade` op de Mini uit.
-- [ ] **ansible-lint**: de regel `NTFY_AUTH_TOKENS` in `lxcs.yml` is te lang,
-      en `roles/pbs_client` heeft een taak die een handler hoort te zijn.
-- [ ] **Pre-commit voor OpenTofu** kijkt naar de bestanden op schijf, niet naar
-      wat gestaged is; en `init` in de hook kan `.terraform.lock.hcl` herschrijven
-      na het stagen bij een provider-update.

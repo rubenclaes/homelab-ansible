@@ -67,3 +67,29 @@ jobs:
             echo "::endgroup::"
           done
           exit $status
+
+  tofu:
+    name: tofu fmt + validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v7
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+
+      # Zelfde controle als .githooks/pre-commit: zonder backend en zonder
+      # geheimen, dus ook op een fork. Vangt een commit met --no-verify.
+      - name: Check formatting and validity
+        env:
+          TF_VAR_state_passphrase: ci-validate-only
+        run: |
+          status=0
+          for d in tofu/*/; do
+            echo "::group::${d}"
+            tofu fmt -check -diff "$d" || status=1
+            tofu -chdir="$d" init -backend=false -input=false -lockfile=readonly || status=1
+            tofu -chdir="$d" validate || status=1
+            echo "::endgroup::"
+          done
+          exit $status
