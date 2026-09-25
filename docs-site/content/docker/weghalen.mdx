@@ -61,8 +61,19 @@ In de `containers`-repo: verwijder zijn blok onder `services:` in
 `stacks/<stack>/docker-compose.yml`. Commit en **push**: de docker-host haalt de
 compose van GitHub, niet van je laptop.
 
-Is het de laatste dienst van de stack, haal dan de hele stack weg uit
-`docker_stacks_list` in `inventory/host_vars/docker.yml`.
+Is het de laatste dienst van de stack, dan gaat de hele stack weg. Doe dan
+**eerst** een `down` op de host, en haal daarna de map uit de repo, de stack
+uit `docker_stacks_list` in `inventory/host_vars/docker.yml` en
+`files/env/<stack>.env` weg:
+
+```bash
+ssh docker 'cd /opt/containers/stacks/<stack> && sudo docker compose down'
+```
+
+`remove_orphans` helpt hier niet: een stack die niet meer in
+`docker_stacks_list` staat, bekijkt de rol niet meer, dus zijn containers
+blijven gewoon draaien. De lege map `/opt/containers/stacks/<stack>` blijft
+ook staan; die gaat mee weg in de datastap.
 
 #### Laat stacks.yml de container opruimen
 

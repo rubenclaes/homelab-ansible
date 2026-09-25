@@ -1,7 +1,6 @@
 ---
 docker_stacks_list:
   - { name: vaultwarden, path: vaultwarden }
-  - { name: memos, path: memos }
   - { name: utils, path: utils }
   - { name: homepage, path: homepage }
   - { name: metrics, path: metrics, desc: "Alloy — stuurt logs en metrics van deze host naar docker-grafana-stack" }
@@ -9,7 +8,6 @@ docker_stacks_list:
   - { name: portainer, path: portainer, env: false }
   - { name: neogate, path: neogate }
   - { name: infra, path: infra }
-  - { name: homebox, path: homebox }
   - { name: media, path: media, project: media-stack }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
@@ -113,8 +111,6 @@ homepage_tiles:
   metube: { title: MeTube, group: Downloads, icon: metube.png }
 
   vault: { title: Vaultwarden, group: Handig, icon: vaultwarden.png }
-  memos: { title: Memos, group: Handig, icon: memos.png }
-  spullen: { title: Homebox, group: Handig, icon: homebox.png }
   pairdrop: { title: PairDrop, group: Handig, icon: pairdrop.png }
   pdf: { title: BentoPDF, group: Handig, icon: bentopdf.png }
   tools: { title: IT-Tools, group: Handig, icon: it-tools.png }
