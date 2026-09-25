@@ -27,6 +27,7 @@ unifi_known_macs:
   # Macs en telefoons
   - "80:69:1a:dc:cc:ac"  # Mac mini, .26
   - "62:9e:a1:2a:9d:21"  # MacBook Pro M4 Pro, .86
+  - "16:7b:78:81:6c:e8"  # Laptop Karen, .108
   - "8a:48:d6:12:ae:29"  # iPhone Ruben, .212
   - "46:bf:32:25:e6:9c"  # iPhone Karen, .23
   - "6e:b4:59:24:1c:9c"  # iPhone Laura, .110
@@ -99,6 +100,18 @@ unifi_dns_names:
   "b0:8c:b3:d8:ad:88": bambu-x1c
   "0c:29:8f:6d:f3:72": mikrotik
   "94:34:69:d6:67:d8": nuki
+  "62:9e:a1:2a:9d:21": laptop-ruben
+  "16:7b:78:81:6c:e8": laptop-karen
+  "70:c9:32:5b:62:3a": dreame
+  "0e:00:cf:35:fb:c9": home-assistant
+  "00:40:ad:b2:08:d0": sma-omvormer
+  "f8:0d:ac:3c:1c:07": printer
+  # Tv en media
+  "2c:2b:f9:7b:08:68": lg-tv
+  "48:e1:5c:6d:4a:16": apple-tv
+  "90:56:82:82:ac:b0": powernode
+  "90:56:82:65:85:a7": pulse-l
+  "90:56:82:65:84:c7": pulse-r
   # Aan de Stal AP
   "60:32:b1:5d:4e:36": switch-stal
   "b4:4c:3b:09:fc:05": stal-cam-a46l
@@ -114,4 +127,5 @@ unifi_dns_names:
   "bc:24:11:b4:e6:74": caddy
   "bc:24:11:7b:fa:28": tailscale
   "bc:24:11:2a:34:48": ntfy
+  "bc:24:11:46:1e:bc": adguard
   "80:69:1a:dc:cc:ac": mac-mini
