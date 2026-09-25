@@ -12,7 +12,6 @@
   {'title': 'Macs', 'one': 'Mac', 'what': 'Fysieke machines buiten Proxmox.',
    'hosts': all_hosts | select('in', groups['macs'] | default([])) | list},
 ] -%}
-{% set lxc_names = pve_lxcs | map(attribute='hostname') | list -%}
 ---
 title: Machines
 ---
@@ -52,7 +51,7 @@ in zijn config staat.
 {%- set svcs = docs_all_services | selectattr('host', 'equalto', h) | sort(attribute='name') | list %}
 ### {{ h }}
 
-{{ '`' ~ hv.ansible_host ~ '`' if hv.ansible_host is defined else 'lokaal' }}{{ ' · ' ~ os if os }}{% if h in lxc_names %}{% set l = pve_lxcs | selectattr('hostname', 'equalto', h) | first %} · VMID {{ l.vmid }} · {{ l.cores }} core{{ 's' if l.cores != 1 }} · {{ (l.memory / 1024) | round(1) ~ ' GB' if l.memory >= 1024 else l.memory ~ ' MB' }} · {{ l.disk.size }} GB{% endif +%}
+{{ '`' ~ hv.ansible_host ~ '`' if hv.ansible_host is defined else 'lokaal' }}{{ ' · ' ~ os if os }}{% if h in (groups['proxmox_all_lxc'] | default([])) and hv.proxmox_cores is defined %} · VMID {{ hv.proxmox_vmid }} · {{ hv.proxmox_cores }} core{{ 's' if hv.proxmox_cores | int != 1 }} · {{ (hv.proxmox_memory | int / 1024) | round(1) ~ ' GB' if hv.proxmox_memory | int >= 1024 else hv.proxmox_memory ~ ' MB' }} · {{ hv.proxmox_rootfs.size | regex_replace('G$', ' GB') }}{% endif +%}
 
 {% if hv.docker_stacks_list | default([]) | length > 0 %}
 {%- set repo = hv.docker_stacks_repo | default('git@github.com:rubenclaes/containers.git') %}
@@ -84,13 +83,9 @@ Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
 {% endif %}
 {% endfor %}
 {% endfor %}
-{% if pve_lxc_defaults is defined %}
 ---
 
-Een verdwenen LXC-container wordt opnieuw gemaakt uit `pve_lxcs` in
-`inventory/group_vars/proxmox/lxcs.yml`, met template
-`{{ pve_lxc_defaults.template }}` op bridge `{{ pve_lxc_defaults.bridge }}`. Een
-bestaande container wordt nooit aangeraakt.
-{% endif %}
+De machines op pve01 maakt en beschrijft OpenTofu, in `tofu/proxmox/`. Hoe:
+[Guests](/proxmox/guests/).
 
 <small>Deze pagina wordt automatisch gemaakt uit de inventory. Iets fout? Pas de inventory aan, niet deze pagina. Zie [Deze docs](/ansible/docs/#wat-waar-vandaan-komt).</small>

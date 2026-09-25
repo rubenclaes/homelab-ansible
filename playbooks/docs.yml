@@ -39,8 +39,6 @@
     # that is what broke docs.yml and report.yml before.
     caddy_domain: "{{ hostvars['caddy'].caddy_domain }}"
     caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
-    pve_lxcs: "{{ hostvars['pve01'].pve_lxcs }}"
-    pve_lxc_defaults: "{{ hostvars['pve01'].pve_lxc_defaults }}"
     # Elke host die stacks.yml beheert, niet alleen `docker`. Die regel is
     # daar `hosts: docker_hosts:macs` met een guard op een niet-lege
     # docker_stacks_list, en hier staat dezelfde: één hostvars-lookup liet
