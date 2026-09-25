@@ -20,7 +20,7 @@ ervan uit dat de machine al bestaat.
 | Jouw situatie | Voorbeeld | Ga naar |
 | --- | --- | --- |
 | Je wil een **nieuwe app** draaien en die bestaat als Docker-image | Memos, Vaultwarden, Jellyfin | [Nieuwe Docker-app](#een-nieuwe-docker-app) |
-| Het ding **draait al** ergens, je wil er alleen een mooi adres voor | Shelfmark op de Mac mini, Home Assistant, de webpagina van je printer | [Alleen een adres](#alleen-een-adres) |
+| Het ding **draait al** ergens, je wil er alleen een mooi adres voor | Duplicati op de Mac mini, Home Assistant, de webpagina van je printer | [Alleen een adres](#alleen-een-adres) |
 | Je wil software **rechtstreeks op een machine** installeren, zonder Docker | AdGuard, Caddy, PBS | [Eigen rol](#een-eigen-rol-zonder-docker) |
 
 Twijfel je: het is bijna altijd een **Docker-app**. Een eigen rol heb je zelden nodig.
@@ -177,10 +177,10 @@ onder Diensten.
 ## Alleen een adres
 
 De dienst **draait al**, je wil hem alleen bereiken op `naam.neodata.be` in
-plaats van op `192.168.0.26:8084`. Je hoeft niets te installeren. Je voegt
+plaats van op `192.168.0.26:8200`. Je hoeft niets te installeren. Je voegt
 alleen een route toe.
 
-Voorbeeld: Shelfmark draait op de Mac mini op poort 8084.
+Voorbeeld: Duplicati draait op de Mac mini op poort 8200.
 
 <Steps>
 
@@ -193,10 +193,10 @@ $EDITOR inventory/host_vars/caddy/main.yml
 Zet onder `caddy_sites:`:
 
 ```yaml
-  - { name: shelfmark, host: macmini, port: 8084, stack: shelfmark, desc: "Shelfmark — metadata voor boeken" }
+  - { name: duplicati, host: macmini, port: 8200, stack: duplicati, desc: "Back-ups vanaf de Mac mini" }
 ```
 
-- `name` — wordt het adres: `shelfmark.neodata.be`
+- `name` — wordt het adres: `duplicati.neodata.be`
 - `host` — de naam van de machine **zoals in de inventory** (niet het IP)
 - `port` — de poort waar de dienst op luistert
 - `desc` — korte uitleg, komt op deze docs-site
@@ -222,7 +222,7 @@ ansible-playbook playbooks/docs.yml
 #### Commit en push
 
 ```bash
-git add inventory && git commit -m 'Route voor shelfmark' && git push
+git add inventory && git commit -m 'Route voor duplicati' && git push
 ```
 
 </Steps>
