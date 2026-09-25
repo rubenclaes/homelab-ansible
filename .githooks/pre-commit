@@ -35,4 +35,23 @@ if git diff --cached --name-only | grep -q '^\.ansible/'; then
 	fail=1
 fi
 
+# 3. OpenTofu: opmaak en geldigheid, alleen voor een project waar iets van
+#    gestaged is. Zonder backend (-backend=false), dus zonder R2 of geheimen;
+#    de passphrase is een dummy, want validate leest geen state.
+tofu_dirs="$(git diff --cached --name-only -- 'tofu/*/*' | cut -d/ -f1-2 | sort -u)"
+for d in $tofu_dirs; do
+	[[ -d "$d" ]] || continue
+	if ! tofu fmt -check "$d" >/dev/null; then
+		echo "pre-commit: $d is niet opgemaakt. Draai: tofu fmt $d" >&2
+		fail=1
+	fi
+	if ! TF_VAR_state_passphrase=pre-commit-validate-only \
+		tofu -chdir="$d" init -backend=false -input=false >/dev/null 2>&1 ||
+		! TF_VAR_state_passphrase=pre-commit-validate-only \
+		tofu -chdir="$d" validate -no-color >/dev/null; then
+		echo "pre-commit: $d is niet geldig. Draai: tofu -chdir=$d validate" >&2
+		fail=1
+	fi
+done
+
 exit $fail
