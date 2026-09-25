@@ -12,4 +12,5 @@
   gather_facts: false
   roles:
     - proxmox_datacenter
+    - proxmox_tun
   tags: [proxmox, datacenter]

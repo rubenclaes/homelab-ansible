@@ -1,0 +1,53 @@
+---
+# /dev/net/tun in een container, voor Tailscale. Zonder start tailscaled niet
+# en faalt hij stil in een herstartlus.
+#
+# Waarom hier en niet in OpenTofu: een apparaat doorgeven mag van Proxmox
+# alleen root@pam, en een API-token telt niet als root. Ansible is hier root
+# via SSH. En niet met `pct set`: die weigert rauwe lxc-sleutels op deze
+# versie ("400 unable to parse option").
+#
+# Met grep en een append in plaats van lineinfile: /etc/pve is pmxcfs, en
+# daar faalt het tijdelijke bestand + chmod waarmee lineinfile schrijft.
+
+# Een snapshot zet een [sectie] onderaan de config; een append zou de regels
+# dan in die snapshot zetten in plaats van in de container zelf.
+- name: Refuse a config with snapshot sections
+  ansible.builtin.command: grep -c '^\[' /etc/pve/lxc/{{ item }}.conf
+  register: proxmox_tun_sections
+  changed_when: false
+  failed_when: proxmox_tun_sections.stdout | int > 0
+  check_mode: false
+  loop: "{{ proxmox_tun_guests }}"
+
+- name: Count the tun lines that are present
+  ansible.builtin.command: >-
+    grep -cxF -e '{{ proxmox_tun_lines[0] }}' -e '{{ proxmox_tun_lines[1] }}'
+    /etc/pve/lxc/{{ item }}.conf
+  register: proxmox_tun_present
+  changed_when: false
+  failed_when: proxmox_tun_present.rc > 1
+  check_mode: false
+  loop: "{{ proxmox_tun_guests }}"
+
+- name: Refuse a half-configured container
+  ansible.builtin.assert:
+    that: item.stdout | int in [0, 2]
+    fail_msg: >-
+      ct {{ item.item }} heeft maar één van de twee tun-regels. Kijk in
+      /etc/pve/lxc/{{ item.item }}.conf en zet ze met de hand gelijk.
+    quiet: true
+  loop: "{{ proxmox_tun_present.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Add the tun lines
+  ansible.builtin.shell: >-
+    printf '%s\n' '{{ proxmox_tun_lines[0] }}' '{{ proxmox_tun_lines[1] }}'
+    >> /etc/pve/lxc/{{ item.item }}.conf
+  when: item.stdout | int == 0
+  loop: "{{ proxmox_tun_present.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  changed_when: true
+  notify: Reboot tun containers

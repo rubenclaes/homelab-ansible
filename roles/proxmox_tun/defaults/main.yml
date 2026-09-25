@@ -1,0 +1,9 @@
+---
+# Containers die /dev/net/tun krijgen. De lijst staat in
+# inventory/group_vars/proxmox/lxcs.yml.
+proxmox_tun_guests: []
+
+# De twee regels onderaan /etc/pve/lxc/<id>.conf.
+proxmox_tun_lines:
+  - "lxc.cgroup2.devices.allow: c 10:200 rwm"
+  - "lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file"
