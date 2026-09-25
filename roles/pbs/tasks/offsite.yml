@@ -103,3 +103,79 @@
       - "{{ pbs_offsite.keep_last }}"
   when: (pbs_offsite.datastore ~ '-prune') not in (pbs_offsite_prune_current.stdout | from_json | map(attribute='id') | list)
   changed_when: true
+
+- name: Read the current sync jobs
+  ansible.builtin.command: proxmox-backup-manager sync-job list --output-format json
+  register: pbs_offsite_sync_current
+  changed_when: false
+  check_mode: false
+
+# Lokaal (geen --remote): van store1 naar de R2-datastore, alleen de
+# gekozen groepen, alleen versleutelde snapshots, laatste N.
+#
+# Alleen aanmaken, nooit bijwerken: r2-guard haalt het schema weg om de
+# sync te stoppen, en een Ansible-run mag dat niet stil terugdraaien.
+# Weer aanzetten doe je met de hand, zie de runbook.
+- name: Create the sync job to the off-site store
+  ansible.builtin.command:
+    argv: >-
+      {{ ['proxmox-backup-manager', 'sync-job', 'create', pbs_offsite.sync_job,
+          '--store', pbs_offsite.datastore,
+          '--remote-store', pbs_datastores[0].name,
+          '--schedule', pbs_offsite.sync_schedule,
+          '--transfer-last', pbs_offsite.keep_last | string,
+          '--remove-vanished', 'true',
+          '--encrypted-only', 'true',
+          '--comment', 'Naar Cloudflare R2; r2-guard stopt hem bij te veel gebruik']
+         + (pbs_offsite.groups | map('regex_replace', '^', 'group:') | map('regex_replace', '^', '--group-filter=') | list) }}
+  when: pbs_offsite.sync_job not in (pbs_offsite_sync_current.stdout | from_json | map(attribute='id') | list)
+  changed_when: true
+
+# r2-guard: zie het script. Draait vlak voor de sync, en stopt hem als R2
+# de gratis laag nadert of als hij het gebruik niet kan opvragen.
+- name: Create the r2-guard directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop: [/etc/r2-guard, /var/lib/r2-guard]
+
+- name: Write the r2-guard credentials
+  ansible.builtin.copy:
+    content: |
+      CF_ACCOUNT={{ vault_r2_account_id }}
+      CF_TOKEN={{ vault_cf_analytics_token }}
+      NTFY_URL={{ pbs_notification_webhooks | selectattr('name', 'eq', 'ntfy') | map(attribute='url') | first }}
+      NTFY_TOKEN={{ hostvars['pve01'].vault_ntfy_pbs_token }}
+    dest: /etc/r2-guard/env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install r2-guard
+  ansible.builtin.template:
+    src: r2-guard.py.j2
+    dest: /usr/local/sbin/r2-guard
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the r2-guard service and timer
+  ansible.builtin.template:
+    src: "r2-guard.{{ item }}.j2"
+    dest: "/etc/systemd/system/r2-guard.{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [service, timer]
+  register: pbs_r2_guard_units
+
+- name: Enable the r2-guard timer
+  ansible.builtin.systemd_service:
+    name: r2-guard.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ pbs_r2_guard_units.changed }}"

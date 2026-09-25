@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=r2-guard, vlak voor de sync naar R2
+
+[Timer]
+OnCalendar=*-*-* {{ pbs_offsite.guard_schedule }}:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
