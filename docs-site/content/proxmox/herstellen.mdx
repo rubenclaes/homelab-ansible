@@ -23,7 +23,7 @@ op pve01 (`ssh pve01`).
 
 #### Zoek de back-up die je wil
 
-```bash
+```bash filename="pve01"
 sudo pvesm list pbs | grep '/107/'
 ```
 
@@ -32,7 +32,7 @@ Kopieer de **nieuwste van vóór de storing**, in zijn geheel.
 
 #### Twijfel je? Test hem eerst ernaast
 
-```bash
+```bash filename="pve01" {2}
 sudo pct restore 199 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd
 sudo pct set 199 --delete net0     # netwerkkaart eraf: anders botst hij met het origineel
 sudo pct start 199
@@ -43,12 +43,12 @@ sudo pct stop 199; sudo pct destroy 199
 Dit raakt het origineel niet aan. Of laat een playbook het doen:
 `ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true -e guest=adguard`.
 
-**Let op:** Vergeet `--delete net0` niet. De back-up draagt het IP en MAC-adres van het
-origineel: start je hem zo, dan heb je twee machines op hetzelfde adres.
+Sla de gemarkeerde regel niet over. De back-up draagt het IP en MAC-adres van
+het origineel: zonder die regel heb je twee machines op hetzelfde adres.
 
 #### Zet het origineel stil
 
-```bash
+```bash filename="pve01"
 sudo pct stop 107     # een VM: sudo qm stop 103
 ```
 
@@ -57,14 +57,14 @@ sudo pct stop 107     # een VM: sudo qm stop 103
 <Tabs items={['Container', 'VM']}>
 <Tabs.Tab>
 
-```bash
+```bash filename="pve01"
 sudo pct restore 107 pbs:backup/ct/107/2026-09-20T02:30:00Z --storage vm-hdd --force
 ```
 
 </Tabs.Tab>
 <Tabs.Tab>
 
-```bash
+```bash filename="pve01"
 sudo qmrestore pbs:backup/vm/103/2026-09-20T02:30:00Z 103 --storage vm-hdd --force
 ```
 
@@ -83,7 +83,7 @@ bij `qmrestore` **de back-up eerst**.
 
 #### Start hem
 
-```bash
+```bash filename="pve01"
 sudo pct start 107    # een VM: sudo qm start 103
 ```
 
@@ -91,14 +91,14 @@ sudo pct start 107    # een VM: sudo qm start 103
 
 Terug op je werkstation:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --limit adguard
 ```
 
 De back-up draait de configuratie van toen. Deze run brengt hem naar wat de
 repo nu zegt.
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan   # moet "No changes" zeggen
 ```
 
@@ -110,7 +110,7 @@ niet `site.yml --limit semaphore` ([waarom](#waarom-semaphoreyml-en-niet-siteyml
 
 #### Krijg je "REMOTE HOST IDENTIFICATION HAS CHANGED"?
 
-```bash
+```bash filename="laptop"
 ssh-keygen -R 192.168.0.29    # het adres van de teruggezette guest
 ```
 
@@ -133,7 +133,7 @@ Voorbeeld: `caddy` (ct 106).
 
 #### Gooi de oude weg (als hij nog half bestaat)
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pct stop 106; sudo pct destroy 106'
 ```
 
@@ -142,7 +142,7 @@ gewoon staan.
 
 #### Kijk wat OpenTofu gaat doen
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan
 ```
 
@@ -152,7 +152,7 @@ andere guest maken die uit PBS terug moet, stop dan: zet die eerst terug, zie
 
 #### Maak hem opnieuw
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox apply   # typ yes
 ```
 
@@ -161,7 +161,7 @@ Hij komt terug met hetzelfde nummer, adres en MAC-adres, uit
 
 #### Zet hem klaar met Ansible
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ```
 
@@ -171,7 +171,7 @@ Eén per keer, in deze volgorde: `adguard` (DNS), `caddy` (de voordeur),
 
 #### Alleen bij `tailscale` en `adguard`: zet `/dev/net/tun` terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-datacenter.yml
 ```
 
@@ -181,7 +181,7 @@ faalt stil in een herstartlus. `site.yml` doet het ook. Hoe het werkt:
 
 #### Zet de dienst terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --limit caddy
 ```
 
@@ -194,7 +194,7 @@ route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet
 
 #### Alleen bij `caddy`: zet de docs en het rapport terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ansible-playbook playbooks/docs.yml       # docs.neodata.be staat op caddy
 ansible-playbook playbooks/report.yml     # report.neodata.be ook
@@ -205,7 +205,7 @@ staan er pas weer na deze twee.
 
 #### Laat Semaphore de nieuwe machine vertrouwen
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/semaphore.yml
 ```
 

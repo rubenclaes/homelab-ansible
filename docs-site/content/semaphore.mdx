@@ -73,11 +73,11 @@ waaronder een site-converge zonder zijn limit.
 
 #### Pas de lijst aan
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/host_vars/semaphore/main.yml
 ```
 
-```yaml
+```yaml filename="inventory/host_vars/semaphore/main.yml"
 - name: "Drift check"
   playbook: playbooks/drift.yml
   description: "Wat zou site.yml veranderen? Faalt als het antwoord niet 'niets' is."
@@ -90,7 +90,7 @@ Laat de limits staan. Waarom: zie
 
 #### Probeer droog
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/semaphore-templates.yml --check
 ```
 
@@ -99,13 +99,13 @@ Lees de rapportageregel. Staat een template die je wilde **wijzigen** onder
 
 #### Zet het echt
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/semaphore-templates.yml
 ```
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory && git commit -m 'Semaphore: schema Drift check' && git push
 ```
 
@@ -139,7 +139,7 @@ over; zie
 Installeer de app **ntfy**. Onder Instellingen → Standaardserver:
 `https://ntfy.neodata.be`, gebruiker `ruben`. Het wachtwoord staat in de vault:
 
-```bash
+```bash filename="laptop"
 ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_password
 ```
 

@@ -57,7 +57,7 @@ Je komt van buitenaf niet meer binnen. WireGuard "Neodata VPN" staat in de
 
 #### Controleer of het adres nog klopt
 
-```bash
+```bash filename="laptop"
 dig +short vpn.neodata.be
 ```
 
@@ -97,7 +97,7 @@ hebben geen plek om een sleutel te plakken.
 
 #### Maak de sleutel, vanaf je werkstation
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 ```
 
@@ -110,7 +110,7 @@ Semaphore-tasklog bewaart hem.
 
 #### Gebruik hem binnen 10 minuten op het apparaat
 
-```bash
+```bash filename="apparaat"
 tailscale up --auth-key=<sleutel>
 ```
 

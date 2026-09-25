@@ -17,8 +17,11 @@ Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
 
 #### Maak een papieren kopie van de PBS-sleutel
 
-```bash
+```bash filename="laptop"
 ssh pve01
+```
+
+```bash filename="pve01"
 sudo ls /etc/pve/priv/storage/                                         # hier hoort pbs.enc te staan
 sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text
 ```
@@ -29,7 +32,7 @@ zetten.
 
 Doe hetzelfde met de sleutel van `docker` (app-data en foto's, sinds 25-09):
 
-```bash
+```bash filename="laptop"
 ssh docker 'sudo proxmox-backup-client key paperkey /root/.config/proxmox-backup/docker-data.key --output-format text'
 ```
 
@@ -43,7 +46,7 @@ niet de sleutel zelf. Daar kan je niets mee terugzetten.
 
 #### Bewaar de twee vault-wachtwoorden op dezelfde plek
 
-```bash
+```bash filename="laptop"
 cat ~/.ansible/vault_pass_infra
 cat ~/.ansible/vault_pass_stacks
 ```
@@ -65,7 +68,7 @@ vault-bestand opnieuw maken en elk secret opnieuw zetten.
 
 Een herstelpad dat nooit gedraaid heeft, is een aanname.
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
 ```
 
@@ -138,7 +141,7 @@ blokken.
 Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job stil. Kijk
 af en toe zelf:
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pvesm list macmini-backup'
 ssh pve01 'df -h /mnt/pve/macmini-backup'
 ```

@@ -127,6 +127,12 @@ docs.{{ caddy_domain }} {
 		file_server
 	}
 	respond "Forbidden" 403
+	# file_server geeft zelf een lege 404. Toon die van de site (app/not-found.jsx).
+	handle_errors 404 {
+		root * /var/www/homelab-docs
+		rewrite * /404.html
+		file_server
+	}
 }
 
 # -----------------------

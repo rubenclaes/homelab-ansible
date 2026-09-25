@@ -42,7 +42,7 @@ Zet alles wat moet blijven bestaan in `env`, niet op de schijf. Zie
 
 #### Bouw de OCI-container
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-oci.yml
 ```
 
@@ -96,7 +96,7 @@ image nemen = de container opnieuw bouwen.
 
 #### Hoog de versie op
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/group_vars/proxmox/lxcs.yml
 ```
 
@@ -105,7 +105,7 @@ weet je wat er draait, en een herbouw geeft je hetzelfde terug.
 
 #### Kijk eerst wat er zou gebeuren
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-oci.yml
 ```
 
@@ -114,7 +114,7 @@ draait en welke je vraagt, en alles blijft staan.
 
 #### Bouw hem opnieuw
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-oci.yml -e proxmox_oci_recreate=true
 ```
 
@@ -126,7 +126,7 @@ er na de start meteen weer. Alleen de berichtcache van de laatste uren is weg.
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/group_vars/proxmox/lxcs.yml
 git commit -m 'ntfy: nieuwe versie'
 git push
@@ -147,7 +147,7 @@ de rest. Nu zijn dat er vijf: proxmox, pbs, unifi, vaultwarden en neogate.
 
 #### Maak het token en versleutel het
 
-```bash
+```bash filename="laptop"
 TOKEN=tk_$(LC_ALL=C tr -dc a-z0-9 </dev/urandom | head -c 29)
 printf %s "$TOKEN" | ansible-vault encrypt_string --encrypt-vault-id infra \
   --stdin-name vault_ntfy_<app>_token
@@ -162,14 +162,14 @@ Zet de uitvoer in `inventory/group_vars/all/vault.yml`
 Voeg `'proxmox:' ~ vault_ntfy_<app>_token ~ ':<app>'` toe aan
 `NTFY_AUTH_TOKENS` in `inventory/group_vars/proxmox/lxcs.yml`, dan:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-oci.yml --check   # "env would be set"
 ansible-playbook playbooks/proxmox-oci.yml           # ntfy herstart even
 ```
 
 #### Test
 
-```bash
+```bash filename="laptop"
 curl -H "Authorization: Bearer $TOKEN" -d test https://ntfy.neodata.be/homelab
 ```
 

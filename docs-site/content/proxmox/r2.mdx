@@ -40,7 +40,7 @@ begint leeg.
 De bucket staat al vol. Zeg dat tegen PBS, anders begint hij er een nieuwe,
 lege datastore in:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/pbs.yml -e pbs_offsite_reuse=true
 ```
 
@@ -49,7 +49,7 @@ hem, om 04:00. Die kopieert van `store1` naar R2 en wist nooit iets in R2
 (ook niet als `store1` leeg is). Wil je toch zeker zijn tot alles terug is,
 leg hem stil:
 
-```bash
+```bash filename="laptop"
 ssh pbs 'echo "$(date -Is) stilgelegd tijdens herstel" | sudo tee /var/lib/r2-guard/stopped'
 ```
 
@@ -58,7 +58,7 @@ hij de check van `r2-guard` over.
 
 #### Kijk wat er in R2 staat
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo proxmox-backup-manager s3 check cloudflare-r2 neodata-pbs'
 ```
 
@@ -71,7 +71,7 @@ versie die in R2 staat.
 De kopieën in R2 zijn van de sync job, niet van pve01. Zonder dit ziet pve01
 ze niet:
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id pve@pbs'
 ```
 
@@ -96,8 +96,11 @@ kies de nieuwste → **Restore**, met hun eigen nummer (101, 107, 108, 109).
 
 Die gebruiker en zijn token stonden alleen op de oude PBS:
 
-```bash
+```bash filename="laptop"
 ssh pbs
+```
+
+```bash filename="pbs"
 sudo proxmox-backup-manager user create docker-data@pbs
 sudo proxmox-backup-manager user generate-token docker-data@pbs backup   # toont het secret één keer
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id docker-data@pbs
@@ -115,20 +118,23 @@ Zet het secret in `inventory/group_vars/all/vault.yml`
 Zie [pve01 opnieuw opbouwen](/proxmox/pve01/), deel 3. Start de stacks nog
 **niet**. Zet dan token en sleutel klaar:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/offsite.yml --limit docker
 ```
 
 #### Geef `docker` leesrecht op `offsite`
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup"'
 ```
 
 #### Zet de app-data en foto's terug
 
-```bash
+```bash filename="laptop"
 ssh docker
+```
+
+```bash filename="docker"
 sudo -i
 export PBS_REPOSITORY='docker-data@pbs!backup@192.168.0.181:offsite'
 export PBS_PASSWORD_FILE=/root/.config/proxmox-backup/token
@@ -145,7 +151,7 @@ proxmox-backup-client restore host/docker-data/<tijd> photos.pxar /mnt/media01/P
 De databases van Immich en Grimmory staan als dump in
 `/opt/containers/data/_dumps/`. Start hun database-container leeg, en dan:
 
-```bash
+```bash filename="docker"
 zcat immich.sql.gz | docker exec -i immich-postgres psql -U immich
 zcat grimmory.sql.gz | docker exec -i grimmory-db sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'
 ```
@@ -154,7 +160,7 @@ Start daarna de stacks.
 
 #### Haal het leesrecht weer weg
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id pve@pbs --delete'
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup" --delete'
 ```
@@ -174,7 +180,7 @@ kost. Er gaat niets naar R2 tot jij hem weer aanzet.
 
 #### Lees waarom
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo cat /var/lib/r2-guard/stopped'
 ```
 
@@ -189,7 +195,7 @@ ssh pbs 'sudo cat /var/lib/r2-guard/stopped'
 De jobs staan al in PBS; `keep_last` in de inventory aanpassen verandert ze
 niet. Doe het met de hand, en pas daarna de inventory aan:
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo proxmox-backup-manager prune-job update offsite-prune --keep-last 2'
 ssh pbs 'sudo proxmox-backup-manager sync-job update offsite-r2 --transfer-last 2'
 ```
@@ -200,7 +206,7 @@ de drempel meet.
 
 #### Meet, dan pas weer aan
 
-```bash
+```bash filename="laptop"
 ssh pbs 'sudo rm /var/lib/r2-guard/stopped && sudo /usr/local/sbin/r2-guard --dry-run'
 ```
 

@@ -23,14 +23,14 @@ playbook. Alleen `~/.zshrc` of `~/.ssh/config` kwijt? Begin bij stap 6.
 
 #### 1. Haal de repo binnen
 
-```bash
+```bash filename="laptop"
 git clone https://github.com/rubenclaes/homelab-ansible.git ~/Development/homelab-ansible
 cd ~/Development/homelab-ansible
 ```
 
 #### 2. Installeer Ansible
 
-```bash
+```bash filename="laptop"
 brew install ansible ansible-lint
 ansible-galaxy collection install -r collections/requirements.yml
 ```
@@ -40,7 +40,7 @@ Macs, zonder foutmelding. Met pipx: `pipx inject ansible-core proxmoxer requests
 
 #### 3. Zet de ansible-sleutel neer
 
-```bash
+```bash filename="laptop"
 scp <oude-mac>:'~/.ssh/ansible_ed25519*' ~/.ssh/
 chmod 600 ~/.ssh/ansible_ed25519
 ```
@@ -52,7 +52,7 @@ kwijt? Zie [De ansible-sleutel is kwijt](/ansible/sleutel/#de-ansible-sleutel-is
 
 #### 4. Zet de vault-wachtwoorden neer
 
-```bash
+```bash filename="laptop"
 mkdir -p ~/.ansible
 install -m 600 /dev/null ~/.ansible/vault_pass_infra
 install -m 600 /dev/null ~/.ansible/vault_pass_stacks
@@ -64,14 +64,14 @@ Geen spatie of lege regel erachter, anders klopt het wachtwoord niet.
 
 #### 5. Zet de pre-commit hook aan en test
 
-```bash
+```bash filename="laptop"
 git config core.hooksPath .githooks   # blokkeert een commit met een geheim erin
 bin/check-vaulted && ansible-lint && ansible all -m ping
 ```
 
 #### 6. Schrijf je ssh-config en shell
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/dotfiles.yml
 exec zsh
 ssh caddy     # moet binnenkomen zonder wachtwoord
@@ -91,7 +91,7 @@ de `containers`-repo in `~/Development/containers` om diensten toe te voegen.
 
 Nieuwe machine gemaakt en `ssh <naam>` werkt nog niet? Draai opnieuw:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/dotfiles.yml
 ```
 

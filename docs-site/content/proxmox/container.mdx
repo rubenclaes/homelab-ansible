@@ -23,7 +23,7 @@ het Proxmox-scherm heb je niet nodig. **OpenTofu** maakt de container (zie
 
 #### Zoek een vrij nummer
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, naam, status
 ```
 
@@ -38,19 +38,19 @@ gereserveerd voor de restore-drill.
 Kijk in `tofu/proxmox/containers.tf` welke adressen al gebruikt worden, en
 test of het adres echt vrij is:
 
-```bash
+```bash filename="laptop"
 ping -c 2 192.168.0.31   # geen antwoord = waarschijnlijk vrij
 ```
 
 #### Zet de container in `containers.tf`
 
-```bash
+```bash filename="laptop"
 $EDITOR tofu/proxmox/containers.tf
 ```
 
 Voeg in `local.containers` een blok toe, naast de andere:
 
-```hcl
+```hcl filename="tofu/proxmox/containers.tf"
     vaultwarden = {
       vm_id        = 111
       cores        = 1
@@ -89,7 +89,7 @@ en zet daarna `true` in `containers.tf` tot het plan leeg is.
 
 #### Kijk wat OpenTofu gaat doen
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan
 ```
 
@@ -98,7 +98,7 @@ anders, stop en kijk eerst wat er nog verandert.
 
 #### Maak de container
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox apply
 ```
 
@@ -107,7 +107,7 @@ Ansible-sleutel in root.
 
 #### Zet hem klaar met Ansible
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/new-guest.yml -e guest=vaultwarden
 ```
 
@@ -120,13 +120,13 @@ Proxmox koos een MAC. Kijk welk, zet het in plaats van `null` bij `mac`, en
 draai `bin/tofu proxmox plan`: dat moet nu `No changes` zeggen. Zo krijgt
 een herbouw hetzelfde MAC, en dus hetzelfde adres in UniFi.
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pct config 111 | grep net0'   # hwaddr=BC:24:11:...
 ```
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add tofu/proxmox/containers.tf
 git commit -m "feat: vaultwarden container"
 git push

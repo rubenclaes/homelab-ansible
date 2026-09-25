@@ -20,7 +20,7 @@ wijziging daar weer terugdraaien.
 
 #### Pas het getal aan
 
-```bash
+```bash filename="laptop"
 $EDITOR tofu/proxmox/vms.tf          # een VM: zijn eigen blok
 $EDITOR tofu/proxmox/containers.tf   # een container: zijn regel in local.containers
 ```
@@ -29,7 +29,7 @@ Bij `docker`: `dedicated = 16384` wordt `dedicated = 20480` (in MB).
 
 #### Kijk wat OpenTofu gaat doen
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan
 ```
 
@@ -39,7 +39,7 @@ nooit `apply`. Dat betekent een lege schijf.
 
 #### Voer het uit
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox apply   # typ yes
 ```
 
@@ -49,7 +49,7 @@ plat).
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add tofu/proxmox/
 git commit -m "chore: docker 20 GB geheugen"
 git push
@@ -57,7 +57,7 @@ git push
 
 #### Werk de docs bij
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/docs.yml
 ```
 
@@ -91,7 +91,7 @@ nog terugzetten als je je vergist.
 Met de hand: Proxmox → de guest → **More** → **Remove**, met **Purge** aan. Of
 als root op pve01:
 
-```bash
+```bash filename="pve01"
 pct destroy <vmid> --purge   # container
 qm destroy <vmid> --purge    # VM
 ```
@@ -103,7 +103,7 @@ Geen playbook en geen `bin/tofu` doet dit, met opzet: elke guest heeft
 
 Sla dit over voor een OCI-container (ntfy): die staat niet in OpenTofu.
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox state list                                           # zoek zijn adres
 bin/tofu proxmox state rm 'proxmox_virtual_environment_container.this["vaultwarden"]'
 ```
@@ -112,7 +112,7 @@ Een VM heet bv. `proxmox_virtual_environment_vm.docker`. Haal daarna zijn
 regel uit `local.containers` in `tofu/proxmox/containers.tf`, of zijn blok uit
 `tofu/proxmox/vms.tf`.
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan   # moet "No changes" zeggen
 ```
 
@@ -133,7 +133,7 @@ bin/tofu proxmox plan   # moet "No changes" zeggen
 
 #### Laat de rest zich aanpassen
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/adguard.yml   # haalt <naam>.home.arpa weg
 ansible-playbook playbooks/docs.yml      # haalt hem van de pagina Machines
 git add -A && git commit -m "chore: remove <naam>" && git push
@@ -158,7 +158,7 @@ een guest die je bewust uit liet.
 
 #### Draai het playbook
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-autostart.yml
 ```
 
@@ -166,7 +166,7 @@ De uitvoer toont per aangepaste guest `<vmid> <naam>`.
 
 #### Zet de uitzonderingen terug uit
 
-```bash
+```bash filename="laptop"
 ssh pve01 sudo pct set <vmid> --onboot 0    # voor een LXC
 ssh pve01 sudo qm set <vmid> --onboot 0     # voor een VM
 ```
@@ -190,7 +190,7 @@ API-token nog werkt.
 
 #### Vraag de inventory op
 
-```bash
+```bash filename="laptop"
 ansible-inventory --graph
 ```
 
@@ -201,7 +201,7 @@ die je zocht.
 
 #### Vraag Proxmox zelf
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pvesh get /cluster/resources --type vm'
 ```
 

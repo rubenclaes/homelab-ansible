@@ -56,7 +56,7 @@ Kies een vrij nummer en een naam zoals bij
 `tofu/proxmox/vms.tf`. Kopieer het hele blok; meestal pas je alleen de naam,
 `vm_id`, `cores`, `memory` en `size` aan:
 
-```hcl
+```hcl filename="tofu/proxmox/vms.tf"
 resource "proxmox_virtual_environment_vm" "nieuwehost" {
   node_name     = local.node
   vm_id         = 112
@@ -123,7 +123,7 @@ resource "proxmox_virtual_environment_vm" "nieuwehost" {
 | `cdrom.file_id` | het ISO uit de vorige stap, precies zoals Proxmox het noemt |
 | `prevent_destroy` | OpenTofu mag hem nooit weggooien |
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan    # moet eindigen op "1 to add"
 bin/tofu proxmox apply   # typ yes
 ```
@@ -152,7 +152,7 @@ Na de herstart log je in de console in met je gebruiker.
 
 In de VM:
 
-```bash
+```bash filename="nieuwehost"
 sudo apt install -y qemu-guest-agent
 sudo systemctl enable --now qemu-guest-agent
 ip -4 addr show   # onthoud het adres, bv. 192.168.0.99
@@ -171,7 +171,7 @@ en blijven routes in Caddy kloppen.
 
 Terug op je werkstation:
 
-```bash
+```bash filename="laptop"
 ansible-inventory --host nieuwehost | grep ansible_host
 ```
 
@@ -182,7 +182,7 @@ vraagt een volledige stop en start van de VM, geen reboot van binnenuit).
 
 #### Zet de Ansible-sleutel op je gebruiker
 
-```bash
+```bash filename="laptop"
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub ruben@192.168.0.99
 ```
 
@@ -191,7 +191,7 @@ Hij vraagt eerst of je de hostkey vertrouwt (`yes`), dan het wachtwoord van
 
 #### Zet het ansible-account erop en pas de baseline toe
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/bootstrap.yml --limit nieuwehost -u ruben -K
 ansible-playbook playbooks/baseline.yml --limit nieuwehost
 ```
@@ -205,7 +205,7 @@ gebruikt alles dat account.
 Proxmox koos een MAC. Kijk welk, en zet het als `mac_address` in het
 `network_device`-blok:
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo qm config 112 | grep net0'   # virtio=BC:24:11:...
 bin/tofu proxmox plan                         # moet "No changes" zeggen
 git add tofu/proxmox/vms.tf
@@ -238,7 +238,7 @@ Nu heeft hij 16 GB, genoeg voor de pieken van Immich.
 
 Wat een VM echt gebruikt, zie je **binnen** de VM, niet in Proxmox:
 
-```bash
+```bash filename="docker"
 free -m                   # kijk naar "used", niet naar "buff/cache"
 docker stats --no-stream  # per container
 ```
@@ -246,7 +246,7 @@ docker stats --no-stream  # per container
 Aanpassen doe je in `tofu/proxmox/vms.tf`, zie
 [Machine aanpassen](/proxmox/beheren/#een-machine-aanpassen). Het gaat pas in na een herstart:
 
-```bash
+```bash filename="laptop"
 ssh pve01 sudo qm pending <vmid>   # toont wat er nog wacht
 ssh pve01 sudo qm reboot <vmid>    # herstart hem netjes, alle diensten erop gaan even plat
 ```

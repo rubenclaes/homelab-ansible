@@ -41,7 +41,7 @@ in `inventory/00-static.yml` en in `pve_api_host`. Een ander adres breekt alles.
 
 Op pve01, als root:
 
-```bash
+```bash filename="pve01"
 zpool import vm-hdd      # "in use by another system"? dan: zpool import -f vm-hdd
 ```
 
@@ -55,7 +55,7 @@ zpool import vm-hdd      # "in use by another system"? dan: zpool import -f vm-h
 OpenTofu praat met Proxmox als zijn eigen gebruiker `tofu@pve`. Die maak je
 met de hand, want OpenTofu kan zichzelf niet aanmaken. Op pve01, als root:
 
-```bash
+```bash filename="pve01"
 pveum user add tofu@pve --comment "OpenTofu (homelab-ansible, tofu/proxmox)"
 pveum role add OpenTofu -privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,Pool.Audit,SDN.Audit,SDN.Use,Sys.Audit,Sys.Modify,User.Modify,Permissions.Modify,Realm.AllocateUser,VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.GuestAgent.Audit,VM.PowerMgmt"
 pveum aclmod / -user tofu@pve -role OpenTofu
@@ -68,7 +68,7 @@ Kopieer het secret meteen.
 
 Op je laptop:
 
-```bash
+```bash filename="laptop"
 ansible-vault edit tofu/secrets.env
 ```
 
@@ -77,7 +77,7 @@ Vervang de regel `PROXMOX_VE_API_TOKEN=` door
 
 #### Laat OpenTofu de gebruiker van Ansible maken
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox init   # alleen op een nieuwe laptop
 bin/tofu proxmox apply \
   -target=proxmox_virtual_environment_user.ansible \
@@ -98,7 +98,7 @@ Alleen met die drie `-target`s. Een gewone `bin/tofu proxmox apply` zou nu
 
 Op pve01, als root:
 
-```bash
+```bash filename="pve01"
 pveum user token add ansible@pve automation --privsep 0   # toont het secret, maar één keer
 ```
 
@@ -112,7 +112,7 @@ programma kan niet het token maken dat het zelf nodig heeft om te draaien.
 
 Op je laptop:
 
-```bash
+```bash filename="laptop"
 ansible-vault edit inventory/group_vars/proxmox/vault.yml   # vault_pve_api_token_secret
 ansible-vault edit inventory/homelab.proxmox.yml            # token_secret
 ```
@@ -125,7 +125,7 @@ ziet Ansible geen enkele guest.
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/group_vars/proxmox/vault.yml inventory/homelab.proxmox.yml tofu/secrets.env
 git commit -m 'Nieuwe Proxmox API-tokens na herinstallatie pve01'
 git push
@@ -136,7 +136,7 @@ Semaphore draait vanuit git. Zonder push werkt hij straks met het oude token.
 
 #### Vertrouw de nieuwe hostkey van pve01
 
-```bash
+```bash filename="laptop"
 ssh-keygen -R 192.168.0.10      # vergeet de oude
 ssh root@192.168.0.10 exit      # accepteer de nieuwe, typ 'yes'
 ```
@@ -146,7 +146,7 @@ SSH, en met een wachtwoord (`-k`) kan Ansible geen onbekende key accepteren.
 
 #### Geef Ansible toegang tot pve01
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k   # vraagt het root-wachtwoord
 ```
 
@@ -158,7 +158,7 @@ stopt Ansible met een melding daarover.
 
 #### Controleer het token
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-access.yml
 ```
 
@@ -198,7 +198,7 @@ als nieuwe, lege schijf maken.
 - Systeemschijf `scsi0`: nieuw, 32G op `local-lvm`.
 - Datastore `scsi1`: **niet nieuw maken**. Koppel de bestaande schijf terug:
 
-```bash
+```bash filename="pve01"
 qm rescan --vmid 100     # vindt de oude schijf op vm-hdd als 'unused'
 ```
 
@@ -224,7 +224,7 @@ een nieuwe, lege aan.
 
 #### Breng PBS onder Ansible
 
-```bash
+```bash filename="laptop"
 ssh-keygen -R <pbs-adres>
 ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
 ansible-playbook playbooks/pbs.yml
@@ -249,7 +249,7 @@ back-ups onleesbaar.
 
 Op de **Mac mini**:
 
-```bash
+```bash filename="laptop"
 ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
 ```
 
@@ -258,7 +258,7 @@ map komt `macmini-backup` er wel, maar blijft hij inactief.
 
 #### Zet de overige opslag en de back-upjobs terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=true
 ```
 
@@ -269,7 +269,7 @@ Maakt `macmini-backup` en de twee back-upjobs uit
 
 #### Trek pve01 gelijk
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --limit pve01
 ```
 
@@ -310,7 +310,7 @@ back-up. Je hoeft 101 tot 103 niet eerst te maken.
 
 Op pve01, als root:
 
-```bash
+```bash filename="pve01"
 pveam update
 pveam download local debian-13-standard_13.1-2_amd64.tar.zst
 ```
@@ -320,7 +320,7 @@ staat als `lxc_template` in `tofu/proxmox/containers.tf`.
 
 #### Kijk wat OpenTofu wil maken
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan
 ```
 
@@ -330,7 +330,7 @@ zet die guest eerst terug uit PBS.
 
 #### Maak `caddy` en `tailscale`
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox apply   # typ yes
 ansible-playbook playbooks/new-guest.yml -e guest=caddy
 ansible-playbook playbooks/new-guest.yml -e guest=tailscale
@@ -341,7 +341,7 @@ zet ze daarna klaar, één per keer.
 
 #### Geef `adguard` en `tailscale` hun `/dev/net/tun`
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-datacenter.yml
 ```
 
@@ -351,7 +351,7 @@ herstart een container alleen als hij ze net kreeg. Zonder start
 
 #### Bouw `ntfy`
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-oci.yml
 ```
 
@@ -363,7 +363,7 @@ al internet hebben. Tot hij draait, komen de meldingen van Proxmox alleen in
 
 #### Zet de diensten op de nieuwe containers
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/tailscale.yml
 ansible-playbook playbooks/semaphore.yml   # niet site.yml --limit semaphore: die faalt
@@ -374,7 +374,7 @@ route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet
 
 #### Trek alles gelijk
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --check --diff    # lees dit echt: back-up vs repo
 ansible-playbook playbooks/site.yml
 ansible-playbook playbooks/docs.yml

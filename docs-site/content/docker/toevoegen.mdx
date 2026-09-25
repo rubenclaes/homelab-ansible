@@ -41,7 +41,7 @@ weigert trouwens als je een bezette kiest.
 
 Vanuit de root van deze repo:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/new-service.yml \
   -e svc_name=memos \
   -e svc_port=5230 \
@@ -93,7 +93,7 @@ Extra opties, als je ze nodig hebt:
 
 #### Kijk de compose-file na
 
-```bash
+```bash filename="laptop"
 $EDITOR ~/Development/containers/stacks/memos/docker-compose.yml
 ```
 
@@ -107,7 +107,7 @@ documentatie van de app en vul aan wat ontbreekt, bijvoorbeeld:
 Heeft de app een **wachtwoord of sleutel** nodig? Zet dat niet in de
 compose-file, maar in de versleutelde `.env`:
 
-```bash
+```bash filename="laptop"
 ansible-vault edit files/env/memos.env
 ```
 
@@ -115,7 +115,7 @@ en verwijs ernaar in de compose-file met `${NAAM_VAN_DE_VARIABELE}`.
 
 #### Push de containers-repo
 
-```bash
+```bash filename="laptop"
 cd ~/Development/containers
 git add stacks/memos
 git commit -m 'Add memos stack'
@@ -127,7 +127,7 @@ niet van je laptop. Wat niet gepusht is, bestaat voor de server niet.
 
 #### Commit en push ook deze repo
 
-```bash
+```bash filename="laptop"
 cd ~/Development/homelab-ansible
 git add inventory files/env/memos.env
 git commit -m 'Memos toegevoegd'
@@ -139,7 +139,7 @@ je nieuwe dienst niet.
 
 #### Zet hem live
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/stacks.yml     # start de container op docker
 ansible-playbook playbooks/caddy.yml      # maakt memos.neodata.be aan
 ```
@@ -150,7 +150,7 @@ onder **Overig**. Wil je hem in een andere groep of met een icoon, zie
 
 #### Test
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ```
 
@@ -158,7 +158,7 @@ en open [memos.neodata.be](https://memos.neodata.be) in je browser.
 
 #### Werk de docs bij
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/docs.yml
 ```
 
@@ -191,7 +191,7 @@ Elke regel in `caddy_sites` wordt vanzelf een tegel op
 [home.neodata.be](https://home.neodata.be). Hoe hij eruitziet, staat in
 `homepage_tiles` in `inventory/host_vars/docker.yml`:
 
-```yaml
+```yaml filename="inventory/host_vars/docker.yml"
   memos: { title: Memos, group: Handig, icon: memos.png }
 ```
 
@@ -220,7 +220,7 @@ foutmelding.
 
 ### De smoketest
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ```
 

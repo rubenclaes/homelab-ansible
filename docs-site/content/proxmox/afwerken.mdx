@@ -28,11 +28,11 @@ Voor software zonder Docker schrijf je een rol. Dat staat in
 Wil je hem op `https://vaultwarden.neodata.be`, zet dan een route in
 `inventory/host_vars/caddy/main.yml` onder `caddy_sites`:
 
-```yaml
+```yaml filename="inventory/host_vars/caddy/main.yml"
   - { name: vaultwarden, host: vaultwarden, port: 8080, desc: "Wachtwoordkluis" }
 ```
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ```
@@ -44,14 +44,14 @@ Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/netwerk/
 De dagelijkse back-up naar PBS neemt elke guest vanzelf mee. De wekelijkse
 kopie naar de Mac mini **niet**: die heeft een vaste lijst.
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/group_vars/proxmox/backup.yml   # vmid toevoegen aan "101,102,…,108"
 ansible-playbook playbooks/proxmox-datacenter.yml
 ```
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/ roles/ playbooks/
 git commit -m "vaultwarden erbij"
 git push
@@ -63,7 +63,7 @@ en kan bij de volgende run weer verdwijnen.
 
 #### Controleer
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --check --diff --limit vaultwarden
 ```
 
@@ -72,7 +72,7 @@ dan klopt alles.
 
 #### Werk de docs bij
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/docs.yml
 ```
 

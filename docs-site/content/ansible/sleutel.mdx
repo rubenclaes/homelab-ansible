@@ -23,7 +23,7 @@ alleen nog in via de hypervisor of de console.
 
 #### Maak een nieuwe sleutel
 
-```bash
+```bash filename="laptop"
 ssh-keygen -t ed25519 -f ~/.ssh/ansible_ed25519 -C "ansible@homelab"
 ```
 
@@ -31,7 +31,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/ansible_ed25519 -C "ansible@homelab"
 
 Als root op `pve01` (via het Proxmox-scherm → Shell), per container:
 
-```bash
+```bash filename="pve01"
 pct exec <vmid> -- tee -a /home/ansible/.ssh/authorized_keys <<< "<inhoud van ansible_ed25519.pub>"
 ```
 
@@ -48,7 +48,7 @@ De vmids staan in `tofu/proxmox/containers.tf` (104 semaphore, 106 caddy,
 
 #### Zet de nieuwe publieke sleutel in de inventory
 
-```bash
+```bash filename="laptop"
 $EDITOR tofu/proxmox/containers.tf   # ansible_pubkey, onderaan local
 ```
 
@@ -57,7 +57,7 @@ toont hier niets: de sleutel telt alleen bij het maken van een container.
 
 #### Commit en push de nieuwe sleutel
 
-```bash
+```bash filename="laptop"
 git add tofu/proxmox/containers.tf
 git commit -m 'Nieuwe ansible-sleutel'
 git push
@@ -65,7 +65,7 @@ git push
 
 #### Test
 
-```bash
+```bash filename="laptop"
 ansible all -m ping
 ```
 

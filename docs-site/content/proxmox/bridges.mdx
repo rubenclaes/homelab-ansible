@@ -24,7 +24,7 @@ onbereikbare hypervisor. **Weet waar de machine fysiek staat** voor je begint.
 
 #### Kijk wat er nu echt staat
 
-```bash
+```bash filename="laptop"
 ssh pve01 cat /etc/network/interfaces
 ```
 
@@ -34,7 +34,7 @@ jouw wijziging? Zet eerst de inventory recht.
 
 #### Pas de inventory aan
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/group_vars/proxmox/network.yml
 ```
 
@@ -49,7 +49,7 @@ De bridges staan onder `pve_node_interfaces`:
 
 #### Kijk droog wat er zou veranderen
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-network.yml --check --diff
 ```
 
@@ -57,7 +57,7 @@ ansible-playbook playbooks/proxmox-network.yml --check --diff
 
 #### Zet de wijziging klaar (nog niet actief)
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-network.yml                        # schrijft alleen interfaces.new
 ssh pve01 diff /etc/network/interfaces /etc/network/interfaces.new    # dit gaat er veranderen
 ```
@@ -67,7 +67,7 @@ draait blijft ongemoeid.
 
 #### Pas toe
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
 ```
 
@@ -80,26 +80,26 @@ loopt er nog een terugzet-timer van een vorige run. De config die nu draait is
 misschien net de kapotte. Wacht tot de timer afgaat (max. 3 minuten), of, als
 je **zeker** weet dat wat draait goed is:
 
-```bash
+```bash filename="laptop"
 ssh pve01 sudo systemctl stop ansible-network-revert.timer
 ```
 
 #### Controleer de bridges
 
-```bash
+```bash filename="laptop"
 ssh pve01 systemctl is-active ansible-network-revert.timer   # moet 'inactive' zijn
 ssh pve01 cat /etc/network/interfaces                          # jouw nieuwe waarden?
 ```
 
 Is de timer afgegaan en staat de oude config terug? Kijk waarom:
 
-```bash
+```bash filename="laptop"
 ssh pve01 journalctl -u ansible-network-revert.service
 ```
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/group_vars/proxmox/network.yml
 git commit -m 'pve01: bridges aangepast'
 git push

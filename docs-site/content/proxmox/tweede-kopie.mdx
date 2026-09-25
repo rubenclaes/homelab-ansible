@@ -19,7 +19,7 @@ hoogstens een week oud en heeft **geen sleutel nodig**.
 
 #### Zorg dat pve01 de opslag ziet
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pvesm status | grep macmini-backup'
 ```
 
@@ -29,7 +29,7 @@ kopie* en *Zet de overige opslag en de back-upjobs terug* uit
 
 #### Zoek de dump
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pvesm list macmini-backup'
 ```
 
@@ -41,7 +41,7 @@ Namen zoals `macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst`
 Precies zoals in [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up),
 alleen met deze naam:
 
-```bash
+```bash filename="pve01"
 sudo pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst --storage vm-hdd
 ```
 
@@ -50,13 +50,13 @@ sudo pct restore 107 macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.ta
 PBS (VM 100) zit niet in de tweede kopie, met opzet. Hier mag OpenTofu hem
 wel maken, want beide schijven moeten toch leeg beginnen:
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox apply -target=proxmox_virtual_environment_vm.pbs
 ```
 
 Hang de PBS-ISO eraan (Hardware → Add → CD/DVD), installeer PBS, en dan:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
 ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
 ```

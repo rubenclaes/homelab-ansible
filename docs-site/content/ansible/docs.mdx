@@ -17,7 +17,7 @@ de pagina's onder Homelab opnieuw, bouwt de site en zet hem op `caddy`.
 
 #### Commit en push je wijziging eerst
 
-```bash
+```bash filename="laptop"
 git add inventory docs-site && git commit -m '...' && git push
 ```
 
@@ -26,7 +26,7 @@ lokaal hebt, staat de volgende ochtend weer niet online.
 
 #### Bouw en publiceer
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/docs.yml
 ```
 
@@ -73,6 +73,10 @@ Waar je een pagina met de hand aanpast, in `docs-site/content/`:
 </FileTree>
 
 Elke map heeft een `_meta.js` met de volgorde en de namen in de zijbalk.
+
+Elk codeblok krijgt `filename="<host>"`: waar je het draait (`laptop`, `pve01`,
+…). Een regel die je niet mag overslaan, markeer je met `{N}` na de filename, in
+plaats van een Let op-alinea eronder.
 
 Een geschrapte route laat geen pagina achter: die wordt vanzelf opgeruimd,
 pas nadat de rest opnieuw gemaakt is.

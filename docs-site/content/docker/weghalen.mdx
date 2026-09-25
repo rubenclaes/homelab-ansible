@@ -22,7 +22,7 @@ Voorbeeld: `termix` uit de stack `utils`.
 
 In beide repo's, en op de docker-host:
 
-```bash
+```bash filename="laptop"
 grep -rniI termix --exclude-dir=node_modules --exclude-dir=.git . ~/Development/containers
 ssh docker 'sudo docker ps -a --filter name=termix'
 ssh docker "sudo docker inspect -f '{{range .Mounts}}{{.Source}} {{end}}' utils-termix"
@@ -47,7 +47,7 @@ Kijk ook buiten git, want dit vind je niet met grep:
 
 Verwijder zijn regel uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`, dan:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/caddy.yml --check --diff   # alleen zijn blok verdwijnt
 ansible-playbook playbooks/caddy.yml
 ```
@@ -66,7 +66,7 @@ Is het de laatste dienst van de stack, dan gaat de hele stack weg. Doe dan
 uit `docker_stacks_list` in `inventory/host_vars/docker.yml` en
 `files/env/<stack>.env` weg:
 
-```bash
+```bash filename="laptop"
 ssh docker 'cd /opt/containers/stacks/<stack> && sudo docker compose down'
 ```
 
@@ -77,7 +77,7 @@ ook staan; die gaat mee weg in de datastap.
 
 #### Laat stacks.yml de container opruimen
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/stacks.yml --limit docker
 ```
 
@@ -90,7 +90,7 @@ je weggooien (de grep in de eerste stap vond hem).
 
 De map(pen) die je in de eerste stap opschreef:
 
-```bash
+```bash filename="laptop"
 ssh docker 'sudo rm -rf /opt/containers/data/utils/termix /opt/containers/data/termix'
 ```
 
@@ -105,7 +105,7 @@ stond, is daarmee niet ongeldig: verander hem daar waar hij ook gebruikt werd.
 
 #### Docs, commit en push
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/docs.yml
 git add -A && git commit -m "chore: remove <app>" && git push
 ```
@@ -115,7 +115,7 @@ git add -A && git commit -m "chore: remove <app>" && git push
 
 #### Test
 
-```bash
+```bash filename="laptop"
 curl -sI https://<app>.neodata.be          # geen antwoord meer
 ansible-playbook playbooks/smoketest.yml   # de rest werkt nog
 ```

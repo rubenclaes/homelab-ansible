@@ -25,7 +25,7 @@ stilstaat heeft het hele huis geen internet.
 
 #### Kijk of hij gewoon uit staat
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pct status 107'
 ssh pve01 'sudo pct start 107'     # als hij "stopped" zegt
 ```
@@ -38,7 +38,7 @@ een nieuwe AdGuard mist je login en de upstream-resolvers.
 
 #### Geen back-up? Dan toch opnieuw bouwen
 
-```bash
+```bash filename="laptop"
 ssh pve01 'sudo pct destroy 107'                    # als hij nog half bestaat
 bin/tofu proxmox plan                               # alleen adguard: "1 to add"
 bin/tofu proxmox apply
@@ -59,13 +59,13 @@ Daarna, met de hand:
 1. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
 2. zet in AdGuard de upstream-DNS; de rewrites, ook `*.neodata.be`, zet `adguard.yml` terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + filterlijsten
 ```
 
 #### Test de DNS
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
@@ -88,7 +88,7 @@ vergelijkt met de inventory.
 
 #### Draai de DNS-test
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
@@ -109,7 +109,7 @@ Een andere publieke naam kies je met `-e dns_smoketest_public_name=...`.
 
 #### Zet de rewrites opnieuw en test
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/adguard.yml
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
@@ -128,7 +128,7 @@ Een host moet een andere resolver gebruiken. Voorbeeld: `caddy` (ct 106) moet
 
 #### Kijk eerst hoe de host zijn DNS regelt
 
-```bash
+```bash filename="laptop"
 ssh caddy 'ls -l /etc/resolv.conf'
 ```
 
@@ -140,7 +140,7 @@ Bewerk het dan niet rechtstreeks; dat is bij de volgende netwerkwijziging weg.
 <Tabs items={['Met pijl (netplan)', 'Zonder pijl (gewoon bestand)']}>
 <Tabs.Tab>
 
-```bash
+```bash filename="laptop"
 ssh -t docker 'sudoedit /etc/netplan/90-default.yaml'   # zet 192.168.0.29 onder nameservers
 ssh docker 'sudo netplan apply'
 ```
@@ -150,7 +150,7 @@ Zo staat het op `docker` en `docker-grafana-stack`.
 </Tabs.Tab>
 <Tabs.Tab>
 
-```bash
+```bash filename="laptop"
 ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
 ```
 
@@ -162,7 +162,7 @@ ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
 In `tofu/proxmox/containers.tf`, bij de regel van de container:
 `dns_servers = ["192.168.0.29"]`. Laat `searchdomain` staan zoals het is.
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan    # alleen zijn dns, "update in-place"
 bin/tofu proxmox apply
 ```
@@ -178,7 +178,7 @@ tailscaled zelf voor MagicDNS.
 
 #### Controleer de resolver
 
-```bash
+```bash filename="laptop"
 ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.10 - vanaf de host zelf
 dig +short pve01.home.arpa                 # 192.168.0.10 - vanaf je werkstation
 dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Caddy
@@ -188,7 +188,7 @@ dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Cad
 
 #### Controleer alle namen in één keer
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
@@ -220,7 +220,7 @@ Kleine letters, cijfers en `-`, geen spaties.
 
 In `inventory/group_vars/all/unifi.yml`, onder `unifi_dns_names`:
 
-```yaml
+```yaml filename="inventory/group_vars/all/unifi.yml"
   "46:bf:32:25:e6:9c": iphone-karen
 ```
 
@@ -230,7 +230,7 @@ toestel, zet de MAC dan ook in `unifi_known_macs`, anders blijft
 
 #### Controleer
 
-```bash
+```bash filename="laptop"
 dig +short -x 192.168.0.23 @192.168.0.29
 ansible-playbook playbooks/unifi-routes.yml
 ```
@@ -241,7 +241,7 @@ anders heet.
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/group_vars/all/unifi.yml
 git commit -m "UniFi: naam iphone-karen"
 git push
@@ -301,7 +301,7 @@ Iets blokkeren gaat net zo: **Block** in de Query Log, of zelf een regel
 
 #### Pas de lijst aan
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/host_vars/adguard/main.yml   # adguard_filters
 ```
 
@@ -311,14 +311,14 @@ in het scherm, en neem de URL over.
 
 #### Kijk droog, dan echt
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/adguard.yml --check --diff
 ansible-playbook playbooks/adguard.yml
 ```
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/host_vars/adguard/main.yml
 git commit -m "AdGuard: blocklist <naam> erbij"
 git push

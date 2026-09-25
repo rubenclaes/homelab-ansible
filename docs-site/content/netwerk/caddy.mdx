@@ -21,13 +21,13 @@ Voorbeeld: Plex draait op de Mac mini op poort 32400.
 
 #### Voeg één regel toe aan `caddy_sites`
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/host_vars/caddy/main.yml
 ```
 
 Zet onder `caddy_sites:`:
 
-```yaml
+```yaml filename="inventory/host_vars/caddy/main.yml"
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }
 ```
 
@@ -37,7 +37,7 @@ Staat de machine niet in de inventory (bv. een printer)? Gebruik dan
 
 #### Zet hem live en test
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ansible-playbook playbooks/stacks.yml --tags homepage   # de tegel op home.neodata.be
@@ -46,7 +46,7 @@ ansible-playbook playbooks/docs.yml
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory && git commit -m 'Route voor plex' && git push
 ```
 
@@ -84,7 +84,7 @@ tegel op home.neodata.be weggaat.
 
 #### Docs, commit en push
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/docs.yml
 git add -A && git commit -m "chore: drop the <naam> route" && git push
 ```
@@ -107,7 +107,7 @@ doe je bewust, met een eigen playbook.
 
 #### Upgrade Caddy
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/caddy-upgrade.yml
 ```
 
@@ -145,7 +145,7 @@ Ga naar [monitoring.neodata.be](https://monitoring.neodata.be) en zoek in Loki.
 
 #### Filter met `| json`
 
-```
+```text filename="Grafana → Explore"
 {job="caddy"} | json | status >= 500
 {job="caddy"} | json | request_host = "plex.neodata.be"
 ```
@@ -158,7 +158,7 @@ Ga naar [monitoring.neodata.be](https://monitoring.neodata.be) en zoek in Loki.
 
 #### Pas de lijst aan
 
-```bash
+```bash filename="laptop"
 $EDITOR inventory/host_vars/caddy/main.yml   # alloy_log_targets
 ```
 
@@ -167,13 +167,13 @@ Welke hosts een agent krijgen, staat in de groep `alloy_hosts` in
 
 #### Zet het live
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/alloy.yml
 ```
 
 #### Commit en push de logbestanden
 
-```bash
+```bash filename="laptop"
 git add inventory && git commit -m 'Alloy: extra logbestand' && git push
 ```
 

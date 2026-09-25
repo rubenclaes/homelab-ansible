@@ -18,7 +18,7 @@ Semaphore draait hem ook elke zondag om 08:00.
 
 #### Draai het rapport
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/report.yml   # leest alleen, verandert niets
 ```
 
@@ -62,7 +62,7 @@ volg dan [Dienst toevoegen](/docker/toevoegen/).
 Is een melding gewild? Zet ze in de host_vars van die host, bijvoorbeeld
 `inventory/host_vars/docker.yml`:
 
-```yaml
+```yaml filename="inventory/host_vars/docker.yml"
 docker_ports_without_route:
   - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
 
@@ -80,7 +80,7 @@ een half jaar niet te onderscheiden van een vergissing.
 
 #### Commit en push de demper
 
-```bash
+```bash filename="laptop"
 git add inventory && git commit -m 'Rapport: poort 21115 gedempt' && git push
 ```
 
@@ -98,7 +98,7 @@ dagelijks om 06:00 na.
 
 #### Draai de driftcheck
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/drift.yml                     # samenvatting
 ansible-playbook playbooks/drift.yml -e drift_fail=true  # rood bij drift
 ```
@@ -116,7 +116,7 @@ er in het totaal uit als een host zonder drift. Lees dus de regel per host.
 
 #### Lees de echte diffs
 
-```bash
+```bash filename="laptop"
 less .drift/site-check.log
 ```
 

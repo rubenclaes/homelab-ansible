@@ -26,7 +26,7 @@ dan mee.
 
 #### Zoek het bestand van de dag die je wil
 
-```bash
+```bash filename="laptop"
 ssh docker 'ls /opt/containers/data/vaultwarden/backups/'
 ```
 
@@ -34,13 +34,13 @@ De naam is `backup.JJJJMMDD.7z`.
 
 #### Zet Vaultwarden stil
 
-```bash
+```bash filename="laptop"
 ssh docker 'docker stop neodata-vaultwarden neodata-vaultwarden-backup'
 ```
 
 #### Zet de back-up terug
 
-```bash
+```bash filename="laptop"
 ssh -t docker 'docker run --rm -it --user 1000:1000 \
   -v /opt/containers/data/vaultwarden/data:/bitwarden/data \
   -v /opt/containers/data/vaultwarden/backups:/bitwarden/restore \
@@ -53,7 +53,7 @@ kluis.
 
 #### Start hem en test
 
-```bash
+```bash filename="laptop"
 ssh docker 'docker start neodata-vaultwarden neodata-vaultwarden-backup'
 ```
 

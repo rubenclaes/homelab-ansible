@@ -131,7 +131,7 @@ Caddy, en zag de dagelijkse test de site als stuk, terwijl hij werkte.
 Een nieuwe container krijgt dit als je het in zijn regel zet. Mist een
 bestaande container het, zet het dan in zijn regel en:
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan    # alleen zijn dns, "update in-place"
 bin/tofu proxmox apply
 ssh pve01 'sudo pct reboot <vmid>'

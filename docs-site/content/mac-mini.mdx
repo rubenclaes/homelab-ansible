@@ -22,7 +22,7 @@ storing in dit huis.
 
 #### Zet de shares terug op de Mac mini
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/nfs.yml -K
 ```
 
@@ -33,7 +33,7 @@ Fout `[Errno 1] Operation not permitted` op `/etc/exports`? Zie
 
 #### Mount ze opnieuw op `docker`
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/stacks.yml --limit docker
 ```
 
@@ -42,7 +42,7 @@ zet de stacks op.
 
 #### Herstart de media-stack
 
-```bash
+```bash filename="laptop"
 ssh docker 'sudo docker restart $(sudo docker ps -q --filter label=com.docker.compose.project=media-stack)'
 ```
 
@@ -88,7 +88,7 @@ Geef de schijven **dezelfde namen**: `media01`, `FastStore`, `SSD Nas`.
 
 Zet op de Mini *Extern inloggen* (SSH) aan. Dan, vanaf je werkstation:
 
-```bash
+```bash filename="laptop"
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub rubenclaes@192.168.0.26
 ```
 
@@ -106,7 +106,7 @@ Zonder dit faalt de volgende stap. Verbind daarna **opnieuw**. Uitleg:
 
 #### Zet de shares terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/nfs.yml -K
 ```
 
@@ -120,13 +120,13 @@ Plex staat buiten Homebrew en geen playbook zet hem terug. Het waarom staat in
 
 #### Zet brew en casks terug
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/site.yml --limit macmini
 ```
 
 #### Maak de back-upmap aan
 
-```bash
+```bash filename="laptop"
 ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
 ssh pve01 'sudo pvesm status | grep macmini-backup'    # moet "active" zeggen
 ```
@@ -147,7 +147,7 @@ Draai dit altijd vanaf je MacBook.
 
 #### Werk de pakketten bij
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/update.yml --limit macs   # beide Macs
 ansible-playbook playbooks/update.yml --limit mbp    # alleen je MacBook
 ```
@@ -156,7 +156,7 @@ Dit doet `brew upgrade --formula`: alleen pakketten, geen apps.
 
 #### Wil je ook de apps: zet de cask-vlag aan
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
 ```
 
@@ -180,7 +180,7 @@ In `inventory/host_vars/macmini.yml` staat `macos_brew_upgrade: false`. De
 playbook slaat zijn pakketten over en zegt dat elke run. Zijn **apps** kun je
 wel bijwerken:
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/update.yml --limit macmini -e allow_cask_upgrade=true
 ```
 
@@ -197,7 +197,7 @@ Error: <naam>: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
 
 Doe die ene cask dan met de hand, mét terminal (`-t`):
 
-```bash
+```bash filename="laptop"
 ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew uninstall --cask <naam>'   # of: upgrade --cask
 ```
 

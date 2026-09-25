@@ -53,7 +53,7 @@ meer aanpassen: git is de enige weg.
 OpenTofu installeren en de vault-wachtwoorden neerzetten zoals in de README,
 dan:
 
-```bash
+```bash filename="laptop"
 brew install opentofu
 bin/tofu tailscale init
 bin/tofu proxmox init
@@ -67,7 +67,7 @@ van hem stil door te laten.
 
 #### Kijk wat er zou veranderen
 
-```bash
+```bash filename="laptop"
 bin/tofu tailscale plan
 ```
 
@@ -76,7 +76,7 @@ zoek eerst uit waarom.
 
 #### Doen
 
-```bash
+```bash filename="laptop"
 bin/tofu tailscale apply
 ```
 
@@ -105,7 +105,7 @@ volgende plan zou je wijziging daar weer terugzetten.
 | `containers.tf` | de Debian-containers 104 `semaphore`, 106 `caddy`, 107 `adguard`, 108 `tailscale`: één regel per container in `local.containers`, plus het template en de Ansible-sleutel voor nieuwe containers |
 | `access.tf` | de gebruiker `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten |
 
-```bash
+```bash filename="laptop"
 bin/tofu proxmox plan    # wat zou er veranderen?
 bin/tofu proxmox apply   # doe het (typ yes)
 ```

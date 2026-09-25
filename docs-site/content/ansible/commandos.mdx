@@ -30,7 +30,7 @@ kiezen, `Esc` om te stoppen.
 
 Zonder in te loggen:
 
-```bash
+```bash filename="laptop"
 ansible caddy -a "caddy version"        # één host
 ansible guests -a "uptime"              # een hele groep
 ansible linux -m ansible.builtin.ping   # leven ze allemaal nog?
@@ -66,19 +66,19 @@ Je afkortingen staan in de inventory, niet in `~/.zshrc`.
 
 In `inventory/host_vars/mbp.yml`, onder `dotfiles_zsh_block: |-`:
 
-```yaml
+```yaml filename="inventory/host_vars/mbp.yml"
   alias gs='git status'
 ```
 
 #### Zet hem op je laptop
 
-```bash
+```bash filename="laptop"
 ansible-playbook playbooks/dotfiles.yml && exec zsh
 ```
 
 #### Commit en push
 
-```bash
+```bash filename="laptop"
 git add inventory/host_vars/mbp.yml && git commit -m 'Alias gs' && git push
 ```
 
