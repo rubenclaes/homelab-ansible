@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Nachtelijke back-up {{ pbs_client_backup_id }}
+
+[Timer]
+OnCalendar={{ pbs_client_schedule }}
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target

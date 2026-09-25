@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Back-up van {{ pbs_client_source }} naar PBS ({{ pbs_client_backup_id }})
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/{{ pbs_client_backup_id }}-backup
+{% if pbs_client_ntfy_url | length > 0 %}
+# Alleen bij falen een melding; een geslaagde nacht is geen nieuws.
+ExecStopPost=/bin/sh -c 'if [ "$$SERVICE_RESULT" != success ]; then curl -fsS -m 10 -H "Authorization: Bearer $$(cat /root/.config/proxmox-backup/ntfy-token)" -H "Title: Back-up {{ pbs_client_backup_id }} mislukt" -H "Priority: high" -H "Tags: warning" -d "{{ pbs_client_backup_id }}-backup op %H: $$SERVICE_RESULT. journalctl -u {{ pbs_client_backup_id }}-backup" {{ pbs_client_ntfy_url }}; fi'
+{% endif %}

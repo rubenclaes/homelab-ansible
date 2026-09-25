@@ -1,0 +1,111 @@
+---
+- name: Require the settings that have no default
+  ansible.builtin.assert:
+    that:
+      - pbs_client_server | length > 0
+      - pbs_client_auth_id | length > 0
+      - pbs_client_token | length > 0
+      - pbs_client_fingerprint | length > 0
+      - pbs_client_key | length > 0
+      - pbs_client_backup_id | length > 0
+      - pbs_client_source | length > 0
+    fail_msg: >-
+      pbs_client mist een instelling: server, auth_id, token, fingerprint,
+      key, backup_id en source moeten gezet zijn.
+    quiet: true
+
+# Dezelfde sleutel als op PBS; hij tekent ook de bookworm-pakketten.
+- name: Install the Proxmox archive keyring
+  ansible.builtin.copy:
+    src: proxmox-archive-keyring.gpg
+    dest: "{{ pbs_client_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Define the Proxmox backup client repository
+  ansible.builtin.deb822_repository:
+    name: proxmox-backup-client
+    types: [deb]
+    uris: "{{ pbs_client_repo_uri }}"
+    suites: ["{{ pbs_client_repo_suite }}"]
+    components: [main]
+    signed_by: "{{ pbs_client_keyring }}"
+    state: present
+    enabled: true
+  register: pbs_client_repo
+
+- name: Refresh the package list when the repository changed
+  ansible.builtin.apt:
+    update_cache: true
+  when: pbs_client_repo.changed
+
+- name: Install proxmox-backup-client
+  ansible.builtin.apt:
+    name: proxmox-backup-client
+    state: present
+
+- name: Create the client configuration directory
+  ansible.builtin.file:
+    path: /root/.config/proxmox-backup
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write the API token
+  ansible.builtin.copy:
+    content: "{{ pbs_client_token }}"
+    dest: /root/.config/proxmox-backup/token
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Write the encryption key
+  ansible.builtin.copy:
+    content: "{{ pbs_client_key }}"
+    dest: "/root/.config/proxmox-backup/{{ pbs_client_backup_id }}.key"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "/usr/local/sbin/{{ pbs_client_backup_id }}-backup"
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install the service and the timer
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ pbs_client_backup_id }}-backup.{{ item.ext }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { src: backup.service.j2, ext: service }
+    - { src: backup.timer.j2, ext: timer }
+  loop_control:
+    label: "{{ item.ext }}"
+  register: pbs_client_units
+
+- name: Write the ntfy token for failure messages
+  ansible.builtin.copy:
+    content: "{{ pbs_client_ntfy_token }}"
+    dest: /root/.config/proxmox-backup/ntfy-token
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: pbs_client_ntfy_url | length > 0
+
+- name: Enable the timer
+  ansible.builtin.systemd_service:
+    name: "{{ pbs_client_backup_id }}-backup.timer"
+    enabled: true
+    state: started
+    daemon_reload: "{{ pbs_client_units.changed }}"

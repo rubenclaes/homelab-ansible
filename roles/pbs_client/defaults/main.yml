@@ -1,0 +1,34 @@
+---
+# Een file-level back-up van één map naar PBS, elke nacht, met eerst een
+# dump van de databases die in die map draaien. Een kopie van de bestanden
+# van een draaiende database kan stuk zijn; een dump niet.
+pbs_client_keyring: /usr/share/keyrings/proxmox-archive-keyring.gpg
+pbs_client_repo_uri: http://download.proxmox.com/debian/pbs-client
+pbs_client_repo_suite: "{{ ansible_facts['distribution_release'] }}"
+
+# Waarheen: PBS, datastore, en de API-token van een gebruiker met alleen
+# DatastoreBackup op die datastore.
+pbs_client_server: ""
+pbs_client_datastore: store1
+pbs_client_auth_id: ""
+pbs_client_token: ""
+pbs_client_fingerprint: ""
+# De versleutelsleutel, als JSON zoals `proxmox-backup-client key create`
+# hem schrijft. Zonder deze sleutel is de back-up onleesbaar: hij staat ook
+# op papier en in Vaultwarden.
+pbs_client_key: ""
+
+pbs_client_backup_id: ""
+pbs_client_source: ""
+pbs_client_excludes: []
+# Extra mappen als eigen archief in dezelfde snapshot: [{name, path, excludes}].
+pbs_client_extra_archives: []
+# Dumps vóór de back-up: [{name, command}]. De uitvoer van command gaat
+# gzipped naar <source>/_dumps/<name>.sql.gz. Faalt er één, of is hij leeg,
+# dan stopt het script en komt er geen snapshot.
+pbs_client_dumps: []
+pbs_client_schedule: "*-*-* 02:00:00"
+
+# Melding bij een mislukte run.
+pbs_client_ntfy_url: ""
+pbs_client_ntfy_token: ""

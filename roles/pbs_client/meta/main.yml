@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: pbs_client
+  author: rubenclaes
+  description: >-
+    Installs proxmox-backup-client and a nightly file-level backup of a
+    directory to PBS, with database dumps first.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+dependencies: []

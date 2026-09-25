@@ -1,0 +1,34 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Back-up van {{ pbs_client_source }} naar PBS, als host/{{ pbs_client_backup_id }}.
+# Eerst de dumps; faalt er één of is hij leeg, dan stopt dit script en komt
+# er geen snapshot, zodat een oude dump nooit stil als nieuw meegaat.
+set -euo pipefail
+
+D={{ pbs_client_source }}/_dumps
+install -d -m 0700 "$D"
+{% for d in pbs_client_dumps %}
+{{ d.command }} | gzip > "$D/{{ d.name }}.sql.gz.new"
+if [ "$(gzip -cd "$D/{{ d.name }}.sql.gz.new" | head -c 100 | wc -c)" -lt 100 ]; then
+  echo "dump {{ d.name }} is leeg of te klein" >&2
+  rm -f "$D/{{ d.name }}.sql.gz.new"
+  exit 1
+fi
+mv "$D/{{ d.name }}.sql.gz.new" "$D/{{ d.name }}.sql.gz"
+{% endfor %}
+
+export PBS_REPOSITORY='{{ pbs_client_auth_id }}@{{ pbs_client_server }}:{{ pbs_client_datastore }}'
+export PBS_PASSWORD_FILE=/root/.config/proxmox-backup/token
+export PBS_FINGERPRINT='{{ pbs_client_fingerprint }}'
+
+proxmox-backup-client backup data.pxar:{{ pbs_client_source }} \
+{% for a in pbs_client_extra_archives %}
+  {{ a.name }}.pxar:{{ a.path }} \
+{% endfor %}
+  --backup-type host \
+  --backup-id {{ pbs_client_backup_id }} \
+  --keyfile /root/.config/proxmox-backup/{{ pbs_client_backup_id }}.key \
+{% for e in pbs_client_excludes + (pbs_client_extra_archives | map(attribute='excludes') | flatten) %}
+  --exclude {{ e }} \
+{% endfor %}
+  --skip-lost-and-found

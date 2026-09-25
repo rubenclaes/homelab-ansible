@@ -142,3 +142,47 @@ homepage_bookmarks:
   - { group: Homelab, name: Rapport, abbr: RA, href: "https://report.neodata.be" }
   - { group: Homelab, name: homelab-ansible, abbr: HA, href: "https://github.com/rubenclaes/homelab-ansible" }
   - { group: Homelab, name: containers, abbr: CO, href: "https://github.com/rubenclaes/containers" }
+
+# --- Off-site back-up (roles/pbs_client) ---
+# Elke nacht /opt/containers/data en de foto's van Immich naar PBS store1,
+# als host/docker-data. Van daar gaat het mee naar Cloudflare R2
+# (pbs_offsite in host_vars/pbs). De VM zelf gaat niet naar R2: images en
+# OS zijn herbouwbaar, deze data niet.
+#
+# De live-mappen van de databases gaan niet mee: een kopie van een draaiende
+# database kan stuk zijn. In de plaats komt een dump in _dumps/.
+#
+# Excludes zijn patronen vanaf de wortel van het archief, niet volledige
+# paden, en gelden voor alle archieven van de snapshot.
+pbs_client_server: 192.168.0.181
+pbs_client_auth_id: "docker-data@pbs!backup"
+pbs_client_token: "{{ vault_pbs_docker_data_token }}"
+pbs_client_fingerprint: "c1:b5:f1:1d:d7:51:22:d4:46:49:f1:a1:b8:40:f1:33:9d:69:cf:fb:c5:29:12:e9:6a:4d:27:43:da:94:36:d2"
+pbs_client_key: "{{ vault_pbs_docker_data_key }}"
+pbs_client_backup_id: docker-data
+pbs_client_source: /opt/containers/data
+pbs_client_excludes:
+  - /immich/postgres
+  - /immich/model-cache
+  - /grimmory/mariadb
+pbs_client_extra_archives:
+  # Alleen de originelen; thumbs en video's maakt Immich opnieuw, en zijn
+  # eigen DB-back-ups vervangt de dump hieronder.
+  - name: photos
+    path: /mnt/media01/Photos
+    excludes:
+      - /thumbs
+      - /encoded-video
+      - /backups
+pbs_client_dumps:
+  - name: immich
+    command: docker exec immich-postgres pg_dumpall -U immich
+  # Met de app-gebruiker, niet root: de database is op de Mac mini
+  # aangemaakt, en MYSQL_ROOT_PASSWORD geldt alleen bij de eerste start.
+  - name: grimmory
+    command: >-
+      docker exec grimmory-db sh -c
+      'mariadb-dump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction "$MYSQL_DATABASE"'
+pbs_client_schedule: "*-*-* 02:00:00"
+pbs_client_ntfy_url: http://192.168.0.32/homelab
+pbs_client_ntfy_token: "{{ hostvars['pve01'].vault_ntfy_pbs_token }}"

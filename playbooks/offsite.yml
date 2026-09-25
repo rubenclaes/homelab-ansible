@@ -1,0 +1,18 @@
+---
+# Off-site back-up naar Cloudflare R2.
+#
+#   ansible-playbook playbooks/offsite.yml
+#
+# docker: elke nacht om 02:00 een file-level back-up van de app-data en de
+# foto's naar PBS (roles/pbs_client). pbs: de R2-datastore, de sync job en
+# r2-guard (roles/pbs, tags offsite). Het waarom staat in
+# docs/superpowers/specs/2026-09-25-offsite-backup-r2-design.md.
+- name: Nightly file-level backup of the docker app data
+  hosts: docker
+  become: true
+  roles:
+    - pbs_client
+  tags: [offsite, backup]
+
+- name: Off-site copy on PBS
+  ansible.builtin.import_playbook: pbs.yml
