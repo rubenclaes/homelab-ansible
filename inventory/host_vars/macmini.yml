@@ -1,5 +1,5 @@
 ---
-# De Mac mini. Draait Plex als macOS-app, acht compose-projecten uit
+# De Mac mini. Draait Plex als macOS-app, drie compose-projecten uit
 # github.com/rubenclaes/homelab, en exporteert drie shares over NFS naar de
 # docker-host. Alles hieronder is op 22-09 van de machine zelf gelezen
 # (brew leaves, docker compose ls, een poortscan en /etc/exports), niet uit
@@ -149,28 +149,20 @@ docker_stacks_docker_cli: /Applications/OrbStack.app/Contents/MacOS/xbin/docker
 # van het .env-bestand onder files/env/, `path` is de map in de repo.
 #
 # env: false betekent "deze stack heeft geen .env", niet "de secrets doen er
-# niet toe". Grimmory en Duplicati staan gevault onder files/env/.
+# niet toe". Duplicati staat gevault onder files/env/.
 docker_stacks_list:
   - { name: alloy, path: Alloy, env: false, desc: "Alloy — stuurt logs en metrics van de Mac mini naar docker-grafana-stack" }
   - { name: duplicati, path: Duplicati }   # .env gevault onder `stacks`
-  - { name: grimmory, path: Grimmory }
   - { name: portainer, path: Portainer, env: false, desc: "Portainer-agent — laat de portainer op docker deze host beheren" }
-  - { name: recyclarr, path: recyclarr, env: false, desc: "Recyclarr — zet de kwaliteitsprofielen van Sonarr en Radarr gelijk" }
-  - { name: shelfmark, path: Shelfmark, env: false }
   # De oude Pocket ID (pocketid, poort 1411, route `auth`) is op 23-09
   # uitgefaseerd; `id` op de docker-host is de enige. Niets hing er nog aan:
   # zijn twee OIDC-clients waren tinyauth (weg sinds 22-09) en een Arcane met
   # een voorbeelddomein. Map, .env en sleutels staan gearchiveerd in
   # ~/Container/_archief/pocketid-2026-09-23.tar.gz.
 
-# LET OP - expenseowl draait hier (poort 8080, intern) maar staat sinds
-# commit 04742c2 niet meer in de repo; die commit gooide zijn compose-file
-# weg samen met die van Prowlarr, Sonarr, Radarr, Seerr, audiobookshelf en
-# Flareresolver. Voor die zes klopt dat, ze draaien op de docker-VM. Voor
-# expenseowl niet: die draait alleen hier. Deze checkout staat één commit
-# achter, dus het bestand staat er lokaal nog. De eerste beheerde run haalt
-# die commit binnen en dan is het weg. Beslis eerst: terugzetten in de repo,
-# of de dienst uitzetten.
+# Grimmory, Shelfmark en Recyclarr draaiden hier tot 25-09; ze zitten nu in
+# de media-stack op docker. Expenseowl stond al stil; zijn data en die van de
+# drie staan in ~/Container/_archief/*-2026-09-25.tar.gz.
 
 # Routes waarvan de backend geen container is. Plex draait hier als
 # macOS-app (/Applications/Plex Media Server.app) en verschijnt dus nooit in

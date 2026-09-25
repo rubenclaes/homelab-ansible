@@ -178,8 +178,8 @@ semaphore_templates_list:
     schedule: "0 8 * * 0"
 
   # Dagelijks, en dat schema is de reparatie voor een concreet probleem: na een
-  # herstart van OrbStack komen `duplicati` en `shelfmark` op de Mini niet
-  # terug. Het zijn precies de twee die een schijf onder /Volumes aankoppelen;
+  # herstart van OrbStack komt `duplicati` op de Mini niet terug. Hij koppelt
+  # een schijf onder /Volumes aan (tot 25-09 deed `shelfmark` dat ook);
   # OrbStack deelt die schijf pas later de VM in en `restart: unless-stopped`
   # helpt niet tegen een start die niet lukt. Met een dagelijkse run herstelt
   # dat zich binnen een dag in plaats van pas als je het merkt.
