@@ -48,7 +48,7 @@ caddy_sites:
   - { name: metube, host: docker, port: 8081, stack: utils, desc: "MeTube — webinterface voor yt-dlp" }
   - { name: pdf, host: docker, port: 8084, stack: utils, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
   - { name: torrent, host: docker, port: 8089, stack: media, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
-  - { name: openbooks, host: docker, port: 8080, stack: media, desc: "OpenBooks — e-books zoeken en downloaden via IRC" }
+  - { name: openbooks, host: docker, port: 8080, stack: media, desc: "OpenBooks — zoekt e-books via IRC en legt ze in de bookdrop van Grimmory" }
   - { name: neogate, host: docker, port: 4000, stack: neogate, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }
   - { name: photos, host: docker, port: 2283, stack: media, desc: "Immich — foto- en videobibliotheek" }
   - { name: id, host: docker, port: 1411, stack: infra, desc: "Pocket ID — OIDC-provider (huidige instantie)" }
