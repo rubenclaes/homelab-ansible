@@ -179,20 +179,21 @@ Trek het in via de Tailscale-console, net als een WireGuard-profiel.
 ### Wie mag wat via Tailscale
 
 De subnet-route geeft niet iedereen het hele netwerk. De toegangsregels van de
-tailnet (Access controls in de console) beperken wie waar mag komen:
+tailnet (`files/tailscale/policy.hujson`) beperken wie waar mag komen:
 
 | Wie | Mag bij | Waarom |
 | --- | --- | --- |
 | jij (`rubes.claes@gmail.com`) | alles | beheer |
 | iedereen anders op de tailnet | Caddy `192.168.0.25`, poort 80 en 443 | alle diensten (`*.neodata.be`) lopen via Caddy |
 | iedereen anders op de tailnet | `adguard` (tag `homelab`), poort 53 | zonder DNS lost `*.neodata.be` niet op |
+| iedereen anders op de tailnet | de Mac mini `100.74.124.12`, poort 32400 | Plex rechtstreeks, voor de Tailscale-boxen bij de tv's |
 
 Tot 23-09 stond daar de standaardregel "alles mag alles". Iedereen die via
 NeoGate Tailscale kreeg, kon toen ook bij pve01, Proxmox, SSH en de Mac mini.
 
-De console is de bron. `files/tailscale/policy.hujson` is het afschrift: geen
-playbook leest het. Pas je de regels aan, plak de nieuwe versie in dat bestand
-en commit, zodat een wijziging een diff heeft.
+Git is de bron. OpenTofu zet `files/tailscale/policy.hujson` in Tailscale, en
+de console is dicht voor wijzigingen. Hoe: [Tailscale-regels
+aanpassen](/runbooks/toegang/toestellen/#tailscale-regels-aanpassen).
 
 Gevolg voor Plex: de Plex-app van een ander probeert soms eerst de Mac mini
 rechtstreeks (`192.168.0.26:32400`). Dat is dicht, dus hij valt terug op de

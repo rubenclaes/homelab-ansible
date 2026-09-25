@@ -13,15 +13,15 @@
 
 - [ ] **A2. Tailscale-regels.** Afgesproken: `tag:work` krijgt geen enkele
       regel als bron. Hij hoeft nergens heen; thuis → work-wsl dekt mijn eigen `*:*`.
-  - [ ] In de console: host `mac-mini` (`100.74.124.12`), regel
-        `autogroup:member` → `mac-mini:32400`, en een test met een echt
-        familie-account (accept Plex + Caddy, deny `:22` en Proxmox).
-  - [ ] `nodeAttrs` → funnel weghalen, of beperken tot mijn eigen account.
+  - [x] Host `mac-mini` (`100.74.124.12`), regel `autogroup:member` →
+        `mac-mini:32400`. Stond al in de console (25-09 nagekeken).
+  - [ ] Test met een echt familie-account: Plex en Caddy werken, `:22` en
+        Proxmox niet.
+  - [x] `nodeAttrs` → funnel weghalen, of beperken tot mijn eigen account.
         Funnel zet een dienst op het publieke internet.
-  - [ ] Eenmalig nakijken dat de console gelijk is aan `policy.hujson`. In de
-        repo staan al de `mac-mini:32400`-regel, de test met
-        `maarten.claes95@gmail.com`, en funnel alleen voor mijn eigen account.
-        Daarna loopt het andersom: git → Tailscale, via OpenTofu (zie B).
+  - [x] Console gelijk aan `policy.hujson` (25-09). Enige verschil: de tests
+        in de console gebruikten nog `192.168.0.14` voor pve01; nu `.10`, via
+        OpenTofu. Het loopt nu andersom: git → Tailscale (zie B).
 
 - [ ] **A3. Plex voor de familie.** Via Tailscale op de boxen (Apple TV /
       Google TV) aan de tv, geen port forward.
@@ -74,25 +74,28 @@ Eerst wat het hele huis plat kan leggen:
 
 Daarna OpenTofu opzetten, in een map `tofu/` in deze repo:
 
-- [ ] State in een bucket buiten het huis: Cloudflare R2 (S3-compatibel,
+- [x] State in een bucket buiten het huis: Cloudflare R2 (S3-compatibel,
       gratis voor dit formaat). Niet in git: git heeft geen slot, en twee runs
       tegelijk (mbp en Semaphore) overschrijven elkaar. Niet op de homelab zelf:
       ligt pve01 plat, dan is ook de kaart van wat er moet staan weg.
-  - [ ] Backend `s3` met `use_lockfile = true` (OpenTofu ≥ 1.10): het slot
+  - [x] Backend `s3` met `use_lockfile = true` (OpenTofu ≥ 1.10): het slot
         staat als bestand naast de state, geen aparte database nodig.
-  - [ ] State-versleuteling van OpenTofu aan (`encryption`-blok, pbkdf2).
+  - [x] State-versleuteling van OpenTofu aan (`encryption`-blok, pbkdf2).
         De state bevat geheimen; zo leest Cloudflare alleen onleesbare bytes.
-        De passphrase in de `infra`-vault.
-  - [ ] De R2-sleutel alleen voor die ene bucket, ook in de `infra`-vault.
-- [ ] Tailscale eerst: klein, en een fout is snel hersteld. Provider
+        De passphrase in de `infra`-vault én in Vaultwarden.
+  - [x] De R2-sleutel alleen voor die ene bucket, ook in de `infra`-vault.
+- [x] Tailscale eerst: klein, en een fout is snel hersteld. Provider
       `tailscale/tailscale`: de policy uit `policy.hujson`, de globale
       nameserver, de goedgekeurde subnet-route van ct 108, de tags. Vervangt
-      A2's "console → git".
-  - [ ] Een nieuwe OAuth-client alleen voor OpenTofu, met de scopes
-        `policy_file`, `dns` en `devices`. De bestaande blijft enkel
+      A2's "console → git". Klaar op 25-09 (deel 1; spec en plan in
+      `docs/superpowers/`), behalve de tag van ct 108: die node staat als
+      mijn toestel op de tailnet, zonder tag. Een tag zetten is een
+      wijziging (eigenaar wordt de tag), geen overname: aparte beslissing.
+  - [x] Een nieuwe OAuth-client alleen voor OpenTofu, met de scopes
+        `policy_file`, `dns`, `devices:core` en `devices:routes`. De bestaande blijft enkel
         sleutels maken: twee clients, elk met zo weinig mogelijk rechten, en
         je kunt de ene intrekken zonder de andere. In de `infra`-vault.
-  - [ ] `tofu import` van de bestaande policy, dan `tofu plan` → verwacht:
+  - [x] `tofu import` van de bestaande policy, dan `tofu plan` → verwacht:
         geen wijziging. Pas daarna iets aanpassen.
   - [ ] Daarna in de console "edits beperken" aanzetten, zodat niemand er nog
         buiten git om iets verandert.
