@@ -13,6 +13,13 @@
 resource "pocketid_group" "admin" {
   name          = "admin"
   friendly_name = "Beheer"
+
+  # Apps die een rol uit een claim lezen, maken een nieuw account van deze
+  # groep meteen admin. Alleen bij het aanmaken: een bestaand account houdt
+  # zijn rol.
+  custom_claims = {
+    immich_role = "admin"
+  }
 }
 
 # Wie hier woont.

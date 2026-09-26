@@ -1,0 +1,45 @@
+---
+title: Immich
+---
+
+# Immich
+
+[photos.neodata.be](https://photos.neodata.be) is de foto- en videobibliotheek.
+Hij draait in de stack `media` op `docker`. Inloggen gaat via
+[Pocket ID](https://id.neodata.be) (knop **Inloggen met Pocket ID**); de
+wachtwoord-login staat nog aan tot iedereen over is.
+
+## Iemand toegang geven
+
+Maak de persoon aan in Pocket ID en zet hem in `gezin` of `familie`. Bij de
+eerste login maakt Immich het account zelf aan. Bestaat er al een account met
+hetzelfde mailadres, dan koppelt Immich dat in plaats van een nieuw te maken:
+zet het mailadres in Pocket ID dus precies gelijk aan dat in Immich.
+
+In de app op de telefoon: uitloggen en opnieuw inloggen met dezelfde knop.
+
+## Een instelling aanpassen
+
+De instellingen staan in git, niet in de web-UI: onder **Administration →
+Settings** kan je ze alleen lezen. Aanpassen doe je in de `containers`-repo,
+`stacks/media/docker-compose.yml`, onderaan bij `configs.immich`. Alleen wat
+afwijkt van de standaard staat erin; de rest is de standaard van Immich.
+
+Daarna pushen en de stack opnieuw uitrollen (`stacks.yml`).
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Instellingen | `containers`-repo, `stacks/media/docker-compose.yml`, `configs.immich` |
+| Client-secret | `IMMICH_OIDC_CLIENT_SECRET` in `files/env/media.env` (vault `stacks`) |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Wie mag erin | `gezin` en `familie` |
+
+## Goed om te weten
+
+### Een nieuwe beheerder
+
+Wie in `admin` zit, krijgt bij de **eerste** login meteen de rol admin (de
+claim `immich_role` van die groep). Een bestaand account houdt zijn rol:
+Immich leest de claim alleen bij het aanmaken.

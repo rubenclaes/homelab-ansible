@@ -30,3 +30,32 @@ output "outline_client_secret" {
   value     = pocketid_client.outline.client_secret
   sensitive = true
 }
+
+# Immich koppelt een bestaand account op mailadres. De config staat in de
+# containers-repo (stacks/media, configs.immich); het secret in media.env
+# als IMMICH_OIDC_CLIENT_SECRET.
+resource "pocketid_client" "immich" {
+  name       = "Immich"
+  client_id  = "immich"
+  launch_url = "https://photos.neodata.be"
+
+  callback_urls = [
+    "https://photos.neodata.be/auth/login",
+    "https://photos.neodata.be/user-settings",
+    # De app op iOS en Android.
+    "app.immich:///oauth-callback",
+  ]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.gezin.id,
+    pocketid_group.familie.id,
+  ]
+}
+
+output "immich_client_secret" {
+  value     = pocketid_client.immich.client_secret
+  sensitive = true
+}
