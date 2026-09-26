@@ -19,6 +19,10 @@ caddy_config_readers:
 # stack:     stack in docker_stacks_list van die host, enkel voor docs.yml
 # https:     upstream doet TLS met een zelfondertekend certificaat
 # host_header, forwarded: Host doorgeven / X-Real-IP en X-Forwarded-* toevoegen
+# auth:      login via Pocket ID ervoor (forward-auth), alleen voor deze groep:
+#            `admin` of `gezin`. Voor apps zonder eigen OIDC.
+# auth_skip: paden zonder die login, bv. ['/api/*'] voor een API met een eigen
+#            sleutel die andere apps gebruiken (NeoGate -> Sonarr en Radarr)
 caddy_sites:
   - { name: vault, host: docker, port: 8086, stack: vaultwarden, desc: "Vaultwarden — wachtwoordkluis voor de familie, met de Bitwarden-apps" }
 
@@ -26,7 +30,7 @@ caddy_sites:
   - { name: portainer, host: docker, port: 9443, stack: portainer, https: true, desc: "Docker-beheer voor de docker-host" }
   - { name: semaphore, host: semaphore, port: 3000, desc: "Ansible control plane — draait de playbooks volgens schema" }
   - { name: monitoring, host: docker-grafana-stack, port: 3001, stack: monitoring, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
-  - { name: prometheus, host: docker-grafana-stack, port: 9090, stack: monitoring, desc: "Metrics-store die Grafana scrapet" }
+  - { name: prometheus, auth: admin, host: docker-grafana-stack, port: 9090, stack: monitoring, desc: "Metrics-store die Grafana scrapet" }
   # upstream vast: een gestopte container heeft geen IP in de inventory, en
   # dan faalt de hele Caddyfile.
   - { name: ntfy, host: ntfy, port: 80, upstream: "192.168.0.32:80", desc: "ntfy — meldingen van de homelab naar je telefoon" }
@@ -42,23 +46,23 @@ caddy_sites:
 
   # --- docker ---
   - { name: home, host: docker, port: 8085, stack: homepage, desc: "Homepage — startpagina met alle diensten" }
-  - { name: pairdrop, host: docker, port: 3000, stack: utils, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }
-  - { name: code, host: docker, port: 8443, stack: utils, desc: "code-server — VS Code in de browser" }
-  - { name: tools, host: docker, port: 8082, stack: utils, desc: "IT-Tools — ontwikkelaarsgereedschap, offline" }
-  - { name: metube, host: docker, port: 8081, stack: utils, desc: "MeTube — webinterface voor yt-dlp" }
-  - { name: pdf, host: docker, port: 8084, stack: utils, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
-  - { name: torrent, host: docker, port: 8089, stack: media, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
-  - { name: openbooks, host: docker, port: 8080, stack: media, desc: "OpenBooks — zoekt e-books via IRC en legt ze in de bookdrop van Grimmory" }
+  - { name: pairdrop, auth: gezin, host: docker, port: 3000, stack: utils, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }
+  - { name: code, auth: admin, host: docker, port: 8443, stack: utils, desc: "code-server — VS Code in de browser" }
+  - { name: tools, auth: gezin, host: docker, port: 8082, stack: utils, desc: "IT-Tools — ontwikkelaarsgereedschap, offline" }
+  - { name: metube, auth: gezin, host: docker, port: 8081, stack: utils, desc: "MeTube — webinterface voor yt-dlp" }
+  - { name: pdf, auth: gezin, host: docker, port: 8084, stack: utils, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
+  - { name: torrent, auth: admin, host: docker, port: 8089, stack: media, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
+  - { name: openbooks, auth: gezin, host: docker, port: 8080, stack: media, desc: "OpenBooks — zoekt e-books via IRC en legt ze in de bookdrop van Grimmory" }
   - { name: neogate, host: docker, port: 4000, stack: neogate, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }
   - { name: photos, host: docker, port: 2283, stack: media, desc: "Immich — foto- en videobibliotheek" }
   - { name: id, host: docker, port: 1411, stack: infra, desc: "Pocket ID — OIDC-provider (huidige instantie)" }
   - { name: wiki, host: docker, port: 3002, stack: outline, desc: "Outline — wiki voor het gezin: hoe werkt wat, garanties, codes" }
-  - { name: prowlarr, host: docker, port: 9696, stack: media, desc: "Indexerbeheer voor Sonarr en Radarr" }
+  - { name: prowlarr, auth: admin, auth_skip: ['/api/*'], host: docker, port: 9696, stack: media, desc: "Indexerbeheer voor Sonarr en Radarr" }
   - { name: overseerr, host: docker, port: 5055, stack: media, desc: "Aanvragen voor films en series" }
   - { name: audiobooks, host: docker, port: 13378, stack: media, desc: "Audiobookshelf — luisterboeken en podcasts" }
-  - { name: sonarr, host: docker, port: 8989, stack: media, desc: "Beheer van series" }
-  - { name: radarr, host: docker, port: 7878, stack: media, desc: "Beheer van films" }
-  - { name: bazarr, host: docker, port: 6767, stack: media, desc: "Bazarr — ondertitels voor series en films, Nederlands en Engels" }
+  - { name: sonarr, auth: admin, auth_skip: ['/api/*'], host: docker, port: 8989, stack: media, desc: "Beheer van series" }
+  - { name: radarr, auth: admin, auth_skip: ['/api/*'], host: docker, port: 7878, stack: media, desc: "Beheer van films" }
+  - { name: bazarr, auth: admin, auth_skip: ['/api/*'], host: docker, port: 6767, stack: media, desc: "Bazarr — ondertitels voor series en films, Nederlands en Engels" }
   - { name: cleanuparr, host: docker, port: 11011, stack: media, desc: "Cleanuparr — ruimt vastgelopen en valse downloads op" }
   - { name: books, host: docker, port: 6061, stack: media, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
   - { name: shelfmark, host: docker, port: 8087, stack: media, desc: "Shelfmark — zoekt boeken en legt ze in de bookdrop van Grimmory" }
@@ -80,3 +84,12 @@ alloy_log_targets:
 # Leesrecht op de logs; werkt enkel met caddy_log_mode 0640.
 alloy_extra_groups:
   - caddy
+
+# --- Forward-auth (roles/oauth2_proxy) ---
+# oauth2-proxy draait op deze container naast Caddy; sites met `auth:` in
+# caddy_sites vragen het per verzoek. Aanmelden gebeurt op auth.neodata.be.
+# Ligt het plat, dan zijn die apps nog rechtstreeks op hun LAN-adres bereikbaar.
+caddy_forward_auth: true
+caddy_forward_auth_upstream: 127.0.0.1:4180
+oauth2_proxy_client_secret: "{{ vault_oauth2_proxy_client_secret }}"
+oauth2_proxy_cookie_secret: "{{ vault_oauth2_proxy_cookie_secret }}"

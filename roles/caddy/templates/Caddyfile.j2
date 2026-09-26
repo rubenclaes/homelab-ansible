@@ -89,6 +89,24 @@
 		tls_insecure_skip_verify
 	}
 }
+{% if caddy_forward_auth | default(false) %}
+
+# Forward-auth: ask oauth2-proxy (roles/oauth2_proxy, on this container)
+# whether the visitor is signed in via Pocket ID and in group {args[0]}.
+# Not signed in: off to auth.{{ caddy_domain }}, and back here afterwards.
+# Signed in but in the wrong group: oauth2-proxy answers 403, and so does this.
+(auth) {
+	forward_auth {{ caddy_forward_auth_upstream }} {
+		uri /oauth2/auth?allowed_groups={args[0]}
+		header_up X-Real-IP {remote_host}
+		copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+		@unauthorized status 401
+		handle_response @unauthorized {
+			redir https://auth.{{ caddy_domain }}/oauth2/start?rd={scheme}://{host}{uri} 302
+		}
+	}
+}
+{% endif %}
 
 # -----------------------
 # Special sites
@@ -135,9 +153,38 @@ docs.{{ caddy_domain }} {
 	}
 }
 
+{% if caddy_forward_auth | default(false) %}
+# Where people sign in for the sites behind forward_auth. oauth2-proxy sets a
+# cookie for .{{ caddy_domain }} here, so one sign-in counts for all of them.
+auth.{{ caddy_domain }} {
+	import proxy_defaults
+	reverse_proxy {{ caddy_forward_auth_upstream }} {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+{% endif %}
 # -----------------------
 # Sites (generated from caddy_sites)
 # -----------------------
+{% macro proxy(site, upstream, depth) -%}
+{% set t = '\t' * depth -%}
+{% if site.https | default(false) or site.host_header | default(false) or site.forwarded | default(false) -%}
+{{ t }}reverse_proxy {{ 'https://' if site.https | default(false) else '' }}{{ upstream }} {
+{% if site.https | default(false) %}
+{{ t }}	import https_upstream_insecure
+{% endif %}
+{{ t }}	header_up Host {host}
+{% if site.forwarded | default(false) %}
+{{ t }}	header_up X-Real-IP {remote_host}
+{{ t }}	header_up X-Forwarded-For {remote_host}
+{{ t }}	header_up X-Forwarded-Proto {scheme}
+{% endif %}
+{{ t }}}
+{%- else -%}
+{{ t }}reverse_proxy {{ upstream }}
+{%- endif %}
+{%- endmacro %}
 {% for site in caddy_sites %}
 {# Upstream is derived from the inventory host's ansible_host, so an IP change
    is made in one place. `upstream:` on the site overrides it for anything that
@@ -151,20 +198,21 @@ docs.{{ caddy_domain }} {
 {% endif %}
 {{ site.name }}.{{ caddy_domain }} {
 	import proxy_defaults
-{% if site.https | default(false) or site.host_header | default(false) or site.forwarded | default(false) %}
-	reverse_proxy {{ 'https://' if site.https | default(false) else '' }}{{ upstream }} {
-{% if site.https | default(false) %}
-		import https_upstream_insecure
+{% if site.auth is defined and caddy_forward_auth | default(false) %}
+{# Paths in auth_skip bypass the login: an app's own API with its own key,
+   used by other apps (NeoGate talks to Sonarr and Radarr this way). #}
+{% if site.auth_skip is defined %}
+	@auth_skip path {{ site.auth_skip | join(' ') }}
+	handle @auth_skip {
+{{ proxy(site, upstream, 2) }}
+	}
 {% endif %}
-		header_up Host {host}
-{% if site.forwarded | default(false) %}
-		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
-{% endif %}
+	handle {
+		import auth {{ site.auth }}
+{{ proxy(site, upstream, 2) }}
 	}
 {% else %}
-	reverse_proxy {{ upstream }}
+{{ proxy(site, upstream, 1) }}
 {% endif %}
 }
 

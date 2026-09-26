@@ -229,3 +229,30 @@ output "portainer_client_secret" {
   value     = pocketid_client.portainer.client_secret
   sensitive = true
 }
+
+# --- Forward-auth ---
+
+# oauth2-proxy op de Caddy-container: de login voor apps zonder eigen OIDC.
+# Welke groep per app mag, zegt Caddy per site (`auth:` in caddy_sites);
+# hier staan dus alle groepen die ooit ergens binnen mogen. Het secret in
+# host_vars/caddy/vault.yml als vault_oauth2_proxy_client_secret.
+resource "pocketid_client" "oauth2_proxy" {
+  name       = "Forward-auth (oauth2-proxy)"
+  client_id  = "oauth2-proxy"
+  launch_url = "https://home.neodata.be"
+
+  callback_urls = ["https://auth.neodata.be/oauth2/callback"]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.admin.id,
+    pocketid_group.gezin.id,
+  ]
+}
+
+output "oauth2_proxy_client_secret" {
+  value     = pocketid_client.oauth2_proxy.client_secret
+  sensitive = true
+}

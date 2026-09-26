@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+http_address = "{{ oauth2_proxy_listen }}"
+reverse_proxy = true
+
+provider = "oidc"
+provider_display_name = "Pocket ID"
+oidc_issuer_url = "{{ oauth2_proxy_issuer }}"
+client_id = "{{ oauth2_proxy_client_id }}"
+client_secret = "{{ oauth2_proxy_client_secret }}"
+code_challenge_method = "S256"
+scope = "openid email profile groups"
+oidc_groups_claim = "groups"
+email_domains = ["*"]
+# Straight to Pocket ID, no "sign in with" page in between.
+skip_provider_button = true
+
+redirect_url = "https://{{ oauth2_proxy_host }}/oauth2/callback"
+whitelist_domains = [".{{ oauth2_proxy_domain }}"]
+cookie_domains = [".{{ oauth2_proxy_domain }}"]
+cookie_secret = "{{ oauth2_proxy_cookie_secret }}"
+cookie_secure = true
+cookie_expire = "{{ oauth2_proxy_cookie_expire }}"
+
+# Only /oauth2/auth is used: Caddy proxies to the app itself.
+upstreams = ["static://202"]
+set_xauthrequest = true

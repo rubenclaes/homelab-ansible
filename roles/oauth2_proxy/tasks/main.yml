@@ -1,0 +1,87 @@
+---
+- name: Refuse to run without the client and cookie secrets
+  ansible.builtin.assert:
+    that:
+      - oauth2_proxy_client_secret | length > 0
+      - oauth2_proxy_cookie_secret | length > 0
+    fail_msg: >-
+      oauth2_proxy_client_secret or oauth2_proxy_cookie_secret is empty. Both
+      come from host_vars/caddy/vault.yml. Nothing was changed.
+    quiet: true
+
+- name: Create the oauth2-proxy system user
+  ansible.builtin.user:
+    name: oauth2-proxy
+    system: true
+    shell: /usr/sbin/nologin
+    home: /nonexistent
+    create_home: false
+
+- name: Read the installed version
+  ansible.builtin.command: /usr/local/bin/oauth2-proxy --version
+  register: oauth2_proxy_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Only when the version differs: a download on every run would be slow and
+# make the Drift check report a change that is not one.
+- name: Install oauth2-proxy {{ oauth2_proxy_version }}
+  when: ('v' ~ oauth2_proxy_version) not in (oauth2_proxy_installed.stdout | default(''))
+  block:
+    - name: Download the release
+      ansible.builtin.get_url:
+        url: "{{ oauth2_proxy_url }}"
+        dest: /tmp/oauth2-proxy.tar.gz
+        checksum: "sha256:{{ oauth2_proxy_sha256 }}"
+        mode: "0644"
+
+    - name: Unpack the release
+      ansible.builtin.unarchive:
+        src: /tmp/oauth2-proxy.tar.gz
+        dest: /tmp
+        remote_src: true
+
+    - name: Put the binary in place
+      ansible.builtin.copy:
+        src: "/tmp/oauth2-proxy-v{{ oauth2_proxy_version }}.linux-amd64/oauth2-proxy"
+        dest: /usr/local/bin/oauth2-proxy
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart oauth2-proxy
+
+- name: Create the config directory
+  ansible.builtin.file:
+    path: /etc/oauth2-proxy
+    state: directory
+    owner: root
+    group: oauth2-proxy
+    mode: "0750"
+
+- name: Write the config
+  ansible.builtin.template:
+    src: oauth2-proxy.cfg.j2
+    dest: /etc/oauth2-proxy/oauth2-proxy.cfg
+    owner: root
+    group: oauth2-proxy
+    mode: "0640"
+  notify: Restart oauth2-proxy
+  no_log: true
+
+- name: Install the systemd unit
+  ansible.builtin.template:
+    src: oauth2-proxy.service.j2
+    dest: /etc/systemd/system/oauth2-proxy.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart oauth2-proxy
+
+- name: Enable and start oauth2-proxy
+  ansible.builtin.systemd_service:
+    name: oauth2-proxy
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,6 +1,11 @@
 ---
+# oauth2-proxy eerst: de Caddyfile verwijst ernaar (forward_auth), dus die
+# moet al luisteren voor Caddy herlaadt, anders geven de beschermde sites 502.
 - name: Caddy reverse proxy
   hosts: caddy
   roles:
+    - role: oauth2_proxy
+      when: caddy_forward_auth | default(false)
+      tags: [oauth2_proxy]
     - caddy
   tags: [caddy, web]

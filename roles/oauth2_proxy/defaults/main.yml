@@ -1,0 +1,28 @@
+---
+# oauth2-proxy: the login in front of apps that have no OIDC of their own.
+# Runs next to Caddy on the same container and listens on localhost only;
+# Caddy asks it per request (forward_auth) whether the visitor is signed in
+# and in the right group. See the (auth) snippet in roles/caddy.
+#
+# A version bump needs the new sha256 from the release's
+# oauth2-proxy-<version>.linux-amd64.tar.gz-sha256sum.txt.
+oauth2_proxy_version: "7.15.4"
+oauth2_proxy_sha256: 4fbe902189aab713d9c0519b90a645032d4636ecb523dc36f5cc312d8ebef1e2
+oauth2_proxy_url: >-
+  https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v{{ oauth2_proxy_version
+  }}/oauth2-proxy-v{{ oauth2_proxy_version }}.linux-amd64.tar.gz
+
+oauth2_proxy_listen: 127.0.0.1:4180
+oauth2_proxy_domain: neodata.be
+# The one place where people sign in; its cookie then counts for every
+# *.neodata.be site behind forward_auth.
+oauth2_proxy_host: "auth.{{ oauth2_proxy_domain }}"
+
+oauth2_proxy_issuer: https://id.neodata.be
+oauth2_proxy_client_id: oauth2-proxy
+oauth2_proxy_client_secret: ""
+# 32 random bytes, base64: `openssl rand -base64 32 | tr -- '+/' '-_'`.
+oauth2_proxy_cookie_secret: ""
+# Short on purpose: disabling someone in Pocket ID stops new logins, not a
+# session that is already open.
+oauth2_proxy_cookie_expire: 24h
