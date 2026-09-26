@@ -91,7 +91,33 @@ Het bouwpad zelf (`bin/tofu proxmox apply`, `new-guest.yml`, `bootstrap.yml`,
 de baseline) bewijs je gewoon door het te gebruiken: elke nieuwe container
 loopt het van begin tot eind.
 
+## Inloggen op PBS
+
+Op [backup.neodata.be](https://backup.neodata.be) kies je bij **Realm**
+"Pocket ID (id.neodata.be)". Pocket ID laat alleen de groep `admin` door en
+vraagt elke keer je passkey. `root@pam` blijft de noodtoegang.
+
+PBS leest geen groepen uit Pocket ID. Wie admin is op PBS, staat daarom bij
+naam in `pbs_oidc.admins` (`inventory/host_vars/pbs/main.yml`); wie er niet
+op staat, krijgt geen account. Iemand toevoegen:
+
+```bash
+$EDITOR inventory/host_vars/pbs/main.yml   # naam onder pbs_oidc.admins
+ansible-playbook playbooks/pbs.yml --tags oidc
+```
+
+Iemand weghalen doet de rol niet vanzelf (hij voegt alleen toe):
+`proxmox-backup-manager user remove <naam>@pocketid` op `pbs`, en dan de naam
+uit de lijst.
+
 ## Goed om te weten
+
+### Een nieuw client-secret voor PBS
+
+PBS geeft het secret van de realm nooit terug, dus de rol stuurt het alleen
+bij het aanmaken. Vervang je de client in Pocket ID, zet het nieuwe secret dan
+in de vault (`vault_pbs_oidc_client_secret`) én met de hand in PBS:
+`proxmox-backup-manager openid update pocketid --client-key <secret>`.
 
 ### De twee back-upjobs
 
