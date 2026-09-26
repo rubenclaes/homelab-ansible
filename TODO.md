@@ -96,22 +96,9 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **Outline op wiki.neodata.be**, inloggen via Pocket ID. De stack, de
-      client in `tofu/pocketid/` en de docs staan klaar, nog niet gepusht:
-      eerst moet Outline draaien, anders faalt de nachtelijke dump en daarmee
-      de hele back-up.
-  - [ ] Eén sleutel (`openssl rand -hex 32`) als `POCKET_ID_STATIC_API_KEY`
-        in `files/env/infra.env` en als `POCKETID_API_TOKEN` in
-        `tofu/secrets.env`.
-  - [ ] `files/env/outline.env` maken (vault `stacks`): `TZ`,
-        `RESTART_POLICY`, `VM_IP` zoals in `vaultwarden.env`,
-        `DATA_PATH=/opt/containers/data/outline`, `OUTLINE_SECRET_KEY`,
-        `OUTLINE_UTILS_SECRET`, `OUTLINE_DB_PASSWORD`, en
-        `OUTLINE_OIDC_CLIENT_SECRET` (komt uit `bin/tofu pocketid output`).
-  - [ ] `containers` pushen, infra-stack opnieuw uitrollen,
-        `bin/tofu pocketid init` en `apply`, het client-secret in
-        `outline.env`, dan pushen, `stacks.yml`, `caddy.yml`, de smoketest en
-        `docs.yml`.
+- [ ] **Outline: eerste login.** Draait sinds 26-09 op wiki.neodata.be. Log
+      in via Pocket ID; de eerste die inlogt wordt beheerder van de wiki. Werkt
+      het niet, kijk dan in `docker logs outline` op `docker`.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in
