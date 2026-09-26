@@ -52,6 +52,7 @@ caddy_sites:
   - { name: neogate, host: docker, port: 4000, stack: neogate, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }
   - { name: photos, host: docker, port: 2283, stack: media, desc: "Immich — foto- en videobibliotheek" }
   - { name: id, host: docker, port: 1411, stack: infra, desc: "Pocket ID — OIDC-provider (huidige instantie)" }
+  - { name: wiki, host: docker, port: 3002, stack: outline, desc: "Outline — wiki voor het gezin: hoe werkt wat, garanties, codes" }
   - { name: prowlarr, host: docker, port: 9696, stack: media, desc: "Indexerbeheer voor Sonarr en Radarr" }
   - { name: overseerr, host: docker, port: 5055, stack: media, desc: "Aanvragen voor films en series" }
   - { name: audiobooks, host: docker, port: 13378, stack: media, desc: "Audiobookshelf — luisterboeken en podcasts" }

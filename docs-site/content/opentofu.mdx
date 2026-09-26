@@ -7,8 +7,8 @@ import { Steps, Callout, FileTree } from 'nextra/components'
 # OpenTofu
 
 OpenTofu beheert de dingen die geen Ansible zijn: de **machines op pve01**
-(welke er zijn en hoe groot) en de **Tailscale-regels** (wie mag waar, de DNS
-en de tags van de tailnet). De bestanden staan in `tofu/`, één map per
+(welke er zijn en hoe groot), de **Tailscale-regels** (wie mag waar, de DNS
+en de tags van de tailnet) en de **apps die via Pocket ID inloggen**. De bestanden staan in `tofu/`, één map per
 systeem, en je draait alles via `bin/tofu`.
 
 Elke keer dezelfde twee stappen: `plan` toont wat er zou veranderen, `apply`
@@ -20,6 +20,12 @@ doet het, pas na `yes`.
       <FileTree.File name="vms.tf" />
       <FileTree.File name="containers.tf" />
       <FileTree.File name="access.tf" />
+      <FileTree.File name="backend.tf" />
+      <FileTree.File name="providers.tf" />
+      <FileTree.File name="versions.tf" />
+    </FileTree.Folder>
+    <FileTree.Folder name="pocketid" defaultOpen>
+      <FileTree.File name="clients.tf" />
       <FileTree.File name="backend.tf" />
       <FileTree.File name="providers.tf" />
       <FileTree.File name="versions.tf" />
@@ -92,6 +98,51 @@ niet.
 
 Ook de DNS van de tailnet (adguard als nameserver), de goedgekeurde route van
 ct 108 en de tag van adguard staan zo in `tofu/tailscale/`. Zelfde stappen.
+
+## Een app via Pocket ID laten inloggen
+
+Welke apps via [id.neodata.be](https://id.neodata.be) mogen inloggen, staat in
+`tofu/pocketid/clients.tf`: één `pocketid_client` per app. In de UI van Pocket
+ID maak je geen clients meer aan. Gebruikers, groepen en passkeys doe je daar
+wel.
+
+<Steps>
+
+#### Zet de client erbij
+
+Kopieer het blok van `outline` in `clients.tf`. Pas `name`, `client_id`,
+`launch_url` en de callback-URL aan (die staat in de docs van de app), en
+voeg een `output` voor het secret toe.
+
+#### Plan en apply
+
+```bash filename="laptop"
+bin/tofu pocketid plan
+bin/tofu pocketid apply
+```
+
+#### Zet het secret in de .env van de app
+
+```bash filename="laptop"
+bin/tofu pocketid output -raw <app>_client_secret
+ansible-vault edit files/env/<app>.env
+```
+
+Pocket ID geeft het secret alleen bij het aanmaken. Het staat daarna enkel in
+de versleutelde state, en `output` haalt het daar op.
+
+</Steps>
+
+OpenTofu praat rechtstreeks met `192.168.0.15:1411`, niet via Caddy, met de
+`STATIC_API_KEY` van Pocket ID (`POCKET_ID_STATIC_API_KEY` in
+`files/env/infra.env`, en als `POCKETID_API_TOKEN` in `tofu/secrets.env`).
+Daardoor bestaat er geen sleutel die eerst iemand in de UI moet aanmaken.
+
+<Callout type="error">
+Zegt een plan dat een client **`must be replaced`**, dan krijgt die app een
+nieuw secret. Na de apply moet dat meteen in zijn `.env`, anders kan niemand
+meer inloggen.
+</Callout>
 
 ## De machines op pve01
 

@@ -1,0 +1,70 @@
+---
+title: Outline
+---
+
+import { Steps } from 'nextra/components'
+
+# Outline
+
+[wiki.neodata.be](https://wiki.neodata.be) is de wiki van het gezin: hoe werkt
+wat in huis, garanties, codes, contacten. De stack `outline` draait op
+`docker`. Inloggen gaat via [Pocket ID](https://id.neodata.be), met een passkey.
+
+## Iemand toegang geven
+
+<Steps>
+
+#### Maak een gebruiker in Pocket ID
+
+In [id.neodata.be](https://id.neodata.be) → **Users** → **Add user**, en stuur
+de login-link. Die persoon zet zelf een passkey.
+
+#### Laat hem één keer inloggen op de wiki
+
+Op [wiki.neodata.be](https://wiki.neodata.be) → **Pocket ID**. Outline maakt
+het account bij de eerste login aan. Rechten (lezer, bewerker, beheerder) zet
+je daarna in Outline onder **Instellingen → Leden**.
+
+</Steps>
+
+## Een pagina of de hele wiki terugzetten
+
+Een verwijderde pagina staat 30 dagen in de **Prullenbak** van Outline. Pas
+als het daar niet meer staat, heb je de back-up nodig.
+
+De database gaat elke nacht als dump mee naar PBS
+(`/opt/containers/data/_dumps/outline.sql.gz`), de bijlagen als bestanden
+(`/opt/containers/data/outline/data`). Terughalen uit PBS: zie
+[Terugzetten uit R2](/proxmox/r2/). Daarna, op `docker`:
+
+```bash filename="docker"
+docker stop outline
+docker exec outline-postgres dropdb -U outline outline
+docker exec outline-postgres createdb -U outline outline
+zcat outline.sql.gz | docker exec -i outline-postgres psql -U outline outline
+docker start outline
+```
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Compose-file | `containers`-repo, `stacks/outline/docker-compose.yml` |
+| Geheimen | `files/env/outline.env` (vault `stacks`) |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Data | `/opt/containers/data/outline/` op `docker` |
+| Poort | `3002` |
+
+## Goed om te weten
+
+### Waarom `OIDC_ISSUER_URL` en geen losse URL's
+
+De handleiding van Pocket ID noemt vier losse URL's. Maar Outline zet PKCE
+alleen aan als het de instellingen zelf ophaalt via de issuer. De client in
+Pocket ID eist PKCE, dus met losse URL's faalt het inloggen.
+
+### Waarom de container `outline-init`
+
+Docker maakt een ontbrekende datamap aan als root, en Outline draait als uid
+1001. `outline-init` zet de eigenaar bij elke start goed en stopt dan. Anders
+faalt de eerste upload met "permission denied".

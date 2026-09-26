@@ -75,10 +75,43 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
       `tofu/tailscale/devices.tf`.
 - [ ] **Een geplande `tofu plan` in Semaphore**, die rood wordt bij drift, zoals
       de Drift check voor Ansible. Nu draait OpenTofu alleen op de mbp.
+- [ ] **Cloudflare in OpenTofu** (`tofu/cloudflare/`, officiële provider
+      `cloudflare/cloudflare`). Nu staat alles met de hand in de console,
+      ook de mail (MX, SPF) van `neodata.be`: één klik legt die stil, en
+      niemand weet dan wat er stond.
+  - [ ] Erin: de DNS-records van `neodata.be` en de R2-bucket van PBS, met
+        zijn opruimregels. Bestaande dingen importeren, niet opnieuw maken.
+  - [ ] Bewust niet: de state-bucket `homelab-tofu-state` (OpenTofu kan zijn
+        eigen fundament niet beheren) en de API-tokens (dan moet OpenTofu
+        een sleutel hebben die alles in het account mag).
+  - [ ] Een token voor OpenTofu met alleen DNS-bewerken op `neodata.be` en
+        R2-bewerken, in `tofu/secrets.env`.
+  - Bekeken en afgewezen op 25-09: UniFi (alleen community-providers 0.x,
+    UniFi werkt zichzelf bij, een fout legt het hele huis plat), de opslag en
+    back-upjobs van Proxmox (de Ansible-rol stuurt al bij; meldingen kent de
+    provider niet), GitHub (vraagt een token met beheerrechten voor weinig
+    winst).
 
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
+
+- [ ] **Outline op wiki.neodata.be**, inloggen via Pocket ID. De stack, de
+      client in `tofu/pocketid/` en de docs staan klaar, nog niet gepusht:
+      eerst moet Outline draaien, anders faalt de nachtelijke dump en daarmee
+      de hele back-up.
+  - [ ] Eén sleutel (`openssl rand -hex 32`) als `POCKET_ID_STATIC_API_KEY`
+        in `files/env/infra.env` en als `POCKETID_API_TOKEN` in
+        `tofu/secrets.env`.
+  - [ ] `files/env/outline.env` maken (vault `stacks`): `TZ`,
+        `RESTART_POLICY`, `VM_IP` zoals in `vaultwarden.env`,
+        `DATA_PATH=/opt/containers/data/outline`, `OUTLINE_SECRET_KEY`,
+        `OUTLINE_UTILS_SECRET`, `OUTLINE_DB_PASSWORD`, en
+        `OUTLINE_OIDC_CLIENT_SECRET` (komt uit `bin/tofu pocketid output`).
+  - [ ] `containers` pushen, infra-stack opnieuw uitrollen,
+        `bin/tofu pocketid init` en `apply`, het client-secret in
+        `outline.env`, dan pushen, `stacks.yml`, `caddy.yml`, de smoketest en
+        `docs.yml`.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in
@@ -88,6 +121,54 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Grotere projecten
 
+- [ ] **Alles achter Pocket ID.** Eén passkey voor het hele homelab. Na
+      Outline, want die zet `tofu/pocketid` neer. Elke app maakt bij de eerste
+      login zelf het account aan (auto-provisioning) en koppelt op mailadres.
+  - Wie beslist, één plek per ding, anders overschrijven ze elkaar:
+    - **OpenTofu** (git): groepen, OIDC-clients, welke groep waar mag. De
+      regels: zelden anders, verdienen een review.
+    - **NeoGate**: de mensen (aanmaken, groep kiezen, weghalen), plus Plex
+      delen en Tailscale uitnodigen. Moet zonder terminal kunnen, ook door
+      je partner. OpenTofu raakt geen gebruikers aan.
+  - [ ] Groepen in `tofu/pocketid` (`pocketid_group`), elke client krijgt
+        `allowed_user_groups`. Iemand kan in meer dan één groep:
+        - `admin`: Proxmox, PBS, Portainer, Semaphore, Grafana, Prometheus,
+          code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
+        - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
+          Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools.
+        - `familie`: Immich, Audiobookshelf, Grimmory, Outline.
+        - Geen `gast` tot er echt een is.
+  - [ ] Rollen volgen uit de groep (groups-claim), nooit met de hand per app.
+  - [ ] `requires_reauthentication` op de clients van Proxmox, PBS,
+        Portainer en Semaphore: een gestolen sessie is niet genoeg.
+  - [ ] Eerst de mailadressen per persoon gelijkzetten in de apps, anders
+        komt er een tweede account naast het bestaande.
+  - [ ] Clients voor wat het zelf kan: Immich, Audiobookshelf, Grimmory,
+        Shelfmark, Grafana, Semaphore, Portainer, Proxmox VE en PBS (OpenID
+        realm). Cleanuparr: eerst nakijken, de release notes noemen OIDC, de
+        README niet.
+  - [ ] Vaultwarden (SSO sinds 1.35): het hoofdwachtwoord blijft, alleen de
+        login gaat via Pocket ID.
+  - [ ] Forward-auth in Caddy (oauth2-proxy of TinyAuth) voor wat geen eigen
+        OIDC heeft: eerst code-server, Sonarr, Radarr, Prowlarr, Bazarr en
+        Prometheus (geen of een zwakke login, veel macht); daarna IT-Tools,
+        MeTube, BentoPDF, OpenBooks, qBittorrent.
+  - [ ] Werkt een app via Pocket ID: daar registreren en wachtwoord-login
+        uit. Twee deuren is er één te veel.
+  - [ ] Noodtoegang blijft lokaal: `root@pam`, de admin van PBS en UniFi,
+        wachtwoord in Vaultwarden. Ligt Pocket ID plat, dan kom je nog binnen.
+  - [ ] Sessies in de apps kort (een dag): uitschakelen in Pocket ID stopt
+        nieuwe logins, niet een sessie die al open staat.
+  - [ ] Het weekrapport toont wie in welke groep zit: de toegangscontrole
+        zonder moeite.
+  - [ ] **NeoGate** (eigen backlog): een Pocket ID-plugin en één scherm
+        "iemand toevoegen": groepen kiezen uit wat er is (nooit zelf maken),
+        uitnodiging als link of QR die verloopt, Plex en Tailscale mee volgens
+        de groep. Weghalen is één knop overal: Pocket ID uit, Plex
+        intrekken, Tailscale weg. Alleen voor `admin`, met een logboek.
+  - Blijft zoals het is: Plex en Overseerr (Plex-account), UniFi
+    (Ubiquiti-account), Home Assistant (alleen via een community-add-on),
+    AdGuard, ntfy.
 - [ ] **Foto's in Immich groeien.** Bij de melding "R2 bijna vol" kiezen
       tussen minder versies, foto's apart, of betalen.
 - [ ] **Action1 voor de pc van de ouders**, en voor de Macs.

@@ -9,6 +9,7 @@ docker_stacks_list:
   - { name: neogate, path: neogate }
   - { name: infra, path: infra }
   - { name: media, path: media, project: media-stack }
+  - { name: outline, path: outline, desc: "Outline — wiki voor het gezin, inloggen via Pocket ID" }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
@@ -115,6 +116,7 @@ homepage_tiles:
   pdf: { title: BentoPDF, group: Handig, icon: bentopdf.png }
   tools: { title: IT-Tools, group: Handig, icon: it-tools.png }
   code: { title: code-server, group: Handig, icon: code-server.png }
+  wiki: { title: Outline, group: Handig, icon: outline.png }
 
   haos: { title: Home Assistant, group: Huis, icon: home-assistant.png }
   neogate: { title: NeoGate, group: Huis, icon: mdi-shield-key }
@@ -161,6 +163,7 @@ pbs_client_excludes:
   - /immich/postgres
   - /immich/model-cache
   - /grimmory/mariadb
+  - /outline/postgres
 pbs_client_extra_archives:
   # Alleen de originelen; thumbs en video's maakt Immich opnieuw, en zijn
   # eigen DB-back-ups vervangt de dump hieronder.
@@ -179,6 +182,8 @@ pbs_client_dumps:
     command: >-
       docker exec grimmory-db sh -c
       'mariadb-dump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction "$MYSQL_DATABASE"'
+  - name: outline
+    command: docker exec outline-postgres pg_dump -U outline outline
 pbs_client_schedule: "*-*-* 02:00:00"
 pbs_client_ntfy_url: http://192.168.0.32/homelab
 pbs_client_ntfy_token: "{{ hostvars['pve01'].vault_ntfy_pbs_token }}"

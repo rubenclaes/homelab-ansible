@@ -148,12 +148,13 @@ proxmox-backup-client restore host/docker-data/<tijd> photos.pxar /mnt/media01/P
 
 #### Lees de databases in
 
-De databases van Immich en Grimmory staan als dump in
+De databases van Immich, Grimmory en Outline staan als dump in
 `/opt/containers/data/_dumps/`. Start hun database-container leeg, en dan:
 
 ```bash filename="docker"
 zcat immich.sql.gz | docker exec -i immich-postgres psql -U immich
 zcat grimmory.sql.gz | docker exec -i grimmory-db sh -c 'mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'
+zcat outline.sql.gz | docker exec -i outline-postgres psql -U outline outline
 ```
 
 Start daarna de stacks.
