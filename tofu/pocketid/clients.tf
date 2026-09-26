@@ -206,3 +206,26 @@ output "pbs_client_secret" {
   value     = pocketid_client.pbs.client_secret
   sensitive = true
 }
+
+# Portainer (Business Edition): de instellingen staan alleen in Portainer
+# zelf, zie docs-site/content/docker/portainer.mdx. Het secret plak je daar
+# uit `bin/tofu pocketid output -raw portainer_client_secret`. Geen PKCE:
+# Portainer stuurt het niet mee.
+resource "pocketid_client" "portainer" {
+  name       = "Portainer"
+  client_id  = "portainer"
+  launch_url = "https://portainer.neodata.be"
+
+  callback_urls = ["https://portainer.neodata.be"]
+
+  is_public                 = false
+  pkce_enabled              = false
+  requires_reauthentication = true
+
+  allowed_user_groups = [pocketid_group.admin.id]
+}
+
+output "portainer_client_secret" {
+  value     = pocketid_client.portainer.client_secret
+  sensitive = true
+}

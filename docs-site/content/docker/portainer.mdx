@@ -1,0 +1,111 @@
+---
+title: Portainer
+---
+
+import { Steps } from 'nextra/components'
+
+# Portainer
+
+[portainer.neodata.be](https://portainer.neodata.be) is het Docker-beheer voor
+de docker-hosts (Business Edition). Inloggen gaat via
+[Pocket ID](https://id.neodata.be), alleen voor de groep `admin`, met elke
+keer je passkey.
+
+## De login via Pocket ID instellen
+
+Portainer bewaart deze instellingen alleen in zijn eigen database. Dit zet je
+dus met de hand, één keer, of opnieuw na een verloren database. De client in
+Pocket ID staat wél in git (`tofu/pocketid/clients.tf`).
+
+<Steps>
+
+#### Haal het client-secret
+
+```bash
+bin/tofu pocketid output -raw portainer_client_secret
+```
+
+#### Open de instellingen
+
+**Settings → Authentication → OAuth → Custom**.
+
+#### Vul de provider in
+
+| Veld | Waarde |
+| --- | --- |
+| Client ID | `portainer` |
+| Client secret | het secret uit de eerste stap |
+| Authorization URL | `https://id.neodata.be/authorize` |
+| Access token URL | `https://id.neodata.be/api/oidc/token` |
+| Resource URL | `https://id.neodata.be/api/oidc/userinfo` |
+| Redirect URL | `https://portainer.neodata.be` |
+| Logout URL | `https://id.neodata.be/api/oidc/end-session` |
+| User identifier | `preferred_username` |
+| Scopes | `openid email profile groups` |
+| Auth Style | Auto detect |
+
+#### Accounts en rechten
+
+| Veld | Waarde |
+| --- | --- |
+| Automatic user provisioning | aan |
+| Automatic team membership | aan, claim name `groups` |
+| Assign admin rights to group members | aan, groep `admin` |
+| Hide internal authentication prompt | uit (de noodtoegang) |
+
+**Save settings**.
+
+</Steps>
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Wie mag erin | `admin` |
+| Noodtoegang | de lokale admin `rubenclaes`, via **Use internal authentication** op de loginpagina (wachtwoord in Vaultwarden) |
+
+## Goed om te weten
+
+### Waarom met de hand
+
+De open-source-code van Portainer toont alleen de basisvelden van OAuth. De
+extra's van de Business Edition (teams en admin-rechten uit de groups-claim)
+staan daar niet in, dus een rol die ze via de API zet, zou steunen op iets dat
+je niet kan nalezen en dat bij een update kan veranderen.
+
+### Een nieuw client-secret
+
+Vervang je de client in Pocket ID, haal het nieuwe secret dan opnieuw met
+`bin/tofu pocketid output` en plak het in Portainer.
+
+### "The requested OAuth 2.0 Client does not exist"
+
+Het veld **Client ID** is leeg opgeslagen (een browser die het invult of
+wist). Controleer: in `/api/settings/public` hoort `client_id=portainer` in
+`OAuthLoginURI` te staan.
+
+### "Unable to login via OAuth"
+
+Kijk in de logs: `docker logs portainer`. Staat er `cannot fetch token: 404`,
+dan klopt de **Access token URL** niet: het moet exact
+`https://id.neodata.be/api/oidc/token` zijn, zonder `/` erachter. De andere
+adressen onder `/api/` geven dan "API endpoint not found".
+
+### Het lokale wachtwoord kwijt
+
+Portainer heeft een hulp-container die het wachtwoord van de eerste admin
+opnieuw zet. Op `docker`:
+
+```bash
+sudo docker stop portainer
+sudo docker run --rm -v /opt/containers/data/portainer:/data portainer/helper-reset-password
+sudo docker start portainer
+```
+
+Hij toont de gebruikersnaam en een nieuw wachtwoord. Log in, verander het
+meteen via **My account**, en zet het in Vaultwarden.
+
+De eerste admin heet `rubenclaes`. Via Pocket ID kom je in datzelfde account
+(Portainer koppelt op gebruikersnaam); het lokale wachtwoord is de
+noodtoegang.
