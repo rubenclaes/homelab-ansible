@@ -12,7 +12,7 @@ diensten erin.
 | Machine | Soort | Adres | Diensten |
 | --- | --- | --- | --- |
 | [pve01](#pve01) | Proxmox-host | `192.168.0.10` | 1 |
-| [docker](#docker) | VM | `192.168.0.15` | 23 |
+| [docker](#docker) | VM | `192.168.0.15` | 24 |
 | [docker-grafana-stack](#docker-grafana-stack) | VM | `192.168.0.17` | 2 |
 | [haos](#haos) | VM | `192.168.0.31` | 1 |
 | [pbs](#pbs) | VM | `192.168.0.181` | 1 |
@@ -52,6 +52,7 @@ Volwaardige virtuele machines op Proxmox. Een VM met Docker draait stacks.
 | **media** | [audiobooks](/homelab/diensten/audiobooks/), [bazarr](/homelab/diensten/bazarr/), [books](/homelab/diensten/books/), [cleanuparr](/homelab/diensten/cleanuparr/), [openbooks](/homelab/diensten/openbooks/), [overseerr](/homelab/diensten/overseerr/), [photos](/homelab/diensten/photos/), [prowlarr](/homelab/diensten/prowlarr/), [radarr](/homelab/diensten/radarr/), [shelfmark](/homelab/diensten/shelfmark/), [sonarr](/homelab/diensten/sonarr/), [torrent](/homelab/diensten/torrent/) | `/opt/containers/stacks/media` (project `media-stack`) | `.env` in vault |
 | **metrics** | _Alloy — stuurt logs en metrics van deze host naar docker-grafana-stack_ | `/opt/containers/stacks/metrics` | `.env` in vault |
 | **neogate** | [neogate](/homelab/diensten/neogate/) | `/opt/containers/stacks/neogate` | `.env` in vault |
+| **outline** | [wiki](/homelab/diensten/wiki/) | `/opt/containers/stacks/outline` | `.env` in vault |
 | **portainer** | [portainer](/homelab/diensten/portainer/) | `/opt/containers/stacks/portainer` | geen |
 | **rustdesk** | [rustdesk](/homelab/diensten/rustdesk/) | `/opt/containers/stacks/apps/rustdesk` | `.env` in vault |
 | **utils** | [code](/homelab/diensten/code/), [metube](/homelab/diensten/metube/), [pairdrop](/homelab/diensten/pairdrop/), [pdf](/homelab/diensten/pdf/), [tools](/homelab/diensten/tools/) | `/opt/containers/stacks/utils` | `.env` in vault |
