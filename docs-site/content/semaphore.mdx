@@ -118,7 +118,8 @@ aan: die is met de hand geschreven.
 
 Eerste keer op een nieuwe controller? De API-login staat in
 `inventory/host_vars/semaphore/vault.yml` (`vault_semaphore_api_user`,
-`vault_semaphore_api_password`). Ontbreekt dat bestand, dan faalt de rol met
+`vault_semaphore_api_password`): de lokale `admin`, niet je account via
+Pocket ID, want dat heeft geen wachtwoord. Ontbreekt dat bestand, dan faalt de rol met
 een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
 
 ### Wat de rol wel en niet doet
@@ -158,7 +159,38 @@ en krijg je niets.
 Buitenshuis zonder VPN krijg je wel het seintje, maar kan de app de inhoud
 niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.
 
+## Inloggen
+
+Via [Pocket ID](https://id.neodata.be): knop **Pocket ID** op de loginpagina,
+alleen voor de groep `admin`. Pocket ID vraagt elke keer opnieuw je passkey,
+ook als je er al ingelogd bent: Semaphore kan alles op elke machine.
+
+| Account | Wat |
+| --- | --- |
+| `rubenclaes` | via Pocket ID, admin. Zo log je gewoon in. |
+| `admin` | lokaal, met wachtwoord (Vaultwarden). De noodtoegang, en de gebruiker waarmee `semaphore-templates.yml` de API gebruikt. |
+
+Een nieuwe beheerder logt eerst in via Pocket ID; daarna maak je hem admin:
+
+```bash
+ssh semaphore
+sudo -u semaphore semaphore user change-by-login \
+  --config /etc/semaphore/config.json --login <naam> --admin
+```
+
+Het OIDC-deel staat in `roles/semaphore/files/config.json` (versleuteld,
+onder `oidc_providers.pocketid`), de client in `tofu/pocketid/clients.tf`.
+
 ## Goed om te weten
+
+### Semaphore en Pocket ID: geen PKCE, geen gedeeld mailadres
+
+Semaphore stuurt geen PKCE mee, dus die staat voor zijn client in Pocket ID
+uit. En het koppelt op mailadres, maar weigert een login als er een
+**lokaal** account met hetzelfde adres bestaat ("conflicts with local user").
+Daarom heeft de lokale `admin` het adres `admin@semaphore.local`, en niet dat
+van een persoon. Rollen leest Semaphore niet uit de groepen: admin maken gaat
+met de hand, zoals hierboven.
 
 ### De limits in de templates
 

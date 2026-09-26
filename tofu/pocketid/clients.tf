@@ -131,3 +131,27 @@ output "grafana_client_secret" {
   value     = pocketid_client.grafana.client_secret
   sensitive = true
 }
+
+# Semaphore: de instellingen staan in roles/semaphore/files/config.json
+# (versleuteld), onder oidc_providers.pocketid, samen met het secret.
+# Semaphore stuurt geen PKCE mee, dus die staat hier uit; anders weigert
+# Pocket ID de login. Het koppelt op mailadres en weigert een lokaal account
+# met hetzelfde adres: de lokale `admin` heeft daarom een eigen adres.
+resource "pocketid_client" "semaphore" {
+  name       = "Semaphore"
+  client_id  = "semaphore"
+  launch_url = "https://semaphore.neodata.be"
+
+  callback_urls = ["https://semaphore.neodata.be/api/auth/oidc/pocketid/redirect"]
+
+  is_public                 = false
+  pkce_enabled              = false
+  requires_reauthentication = true
+
+  allowed_user_groups = [pocketid_group.admin.id]
+}
+
+output "semaphore_client_secret" {
+  value     = pocketid_client.semaphore.client_secret
+  sensitive = true
+}
