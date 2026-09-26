@@ -76,5 +76,10 @@
 - name: Notification targets and matchers
   ansible.builtin.import_tasks: notifications.yml
 
+- name: Login via Pocket ID
+  ansible.builtin.import_tasks: oidc.yml
+  when: pbs_oidc | default({}) | length > 0
+  tags: [oidc]
+
 - name: Report and verify
   ansible.builtin.import_tasks: verify.yml

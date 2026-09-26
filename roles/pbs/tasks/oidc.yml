@@ -1,0 +1,124 @@
+---
+# Login via Pocket ID: an OpenID realm next to PAM, plus the people allowed
+# in and their rights. Same pattern as config.yml: read, compare, act only on
+# a difference, and record what is missing for verify.yml.
+#
+# PBS reads no groups from the token, so the group `admin` cannot become a
+# role here. Instead pbs_oidc.admins lists who is an admin, and autocreate
+# stays off: whoever is not on that list gets no account, not an account
+# without rights. The Pocket ID client already only lets `admin` through.
+#
+# The client key cannot be read back from PBS, so it is only sent when the
+# realm is created. A new secret: `openid update <realm> --client-key` by hand.
+
+- name: Read the current OpenID realms
+  ansible.builtin.command: proxmox-backup-manager openid list --output-format json
+  register: pbs_openid_current
+  changed_when: false
+  check_mode: false
+
+- name: Work out the realm state
+  ansible.builtin.set_fact:
+    pbs_openid_realm: >-
+      {{ pbs_openid_current.stdout | from_json
+         | selectattr('realm', 'eq', pbs_oidc.realm) | first | default({}) }}
+
+- name: Record the realm if it would be created
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing | default([]) + ['openid realm ' ~ pbs_oidc.realm] }}"
+  when: pbs_openid_realm | length == 0
+
+- name: Create the OpenID realm
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - openid
+      - create
+      - "{{ pbs_oidc.realm }}"
+      - --issuer-url
+      - "{{ pbs_oidc.issuer }}"
+      - --client-id
+      - "{{ pbs_oidc.client_id }}"
+      - --client-key
+      - "{{ pbs_oidc.client_key }}"
+      - --username-claim
+      - "{{ pbs_oidc.username_claim }}"
+      - --comment
+      - "{{ pbs_oidc.comment }}"
+  when: pbs_openid_realm | length == 0
+  changed_when: true
+  no_log: true
+
+- name: Correct the realm where it differs
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - openid
+      - update
+      - "{{ pbs_oidc.realm }}"
+      - --issuer-url
+      - "{{ pbs_oidc.issuer }}"
+      - --client-id
+      - "{{ pbs_oidc.client_id }}"
+      - --comment
+      - "{{ pbs_oidc.comment }}"
+      - --autocreate
+      - "false"
+  when:
+    - pbs_openid_realm | length > 0
+    - >-
+      pbs_openid_realm['issuer-url'] != pbs_oidc.issuer
+      or pbs_openid_realm['client-id'] != pbs_oidc.client_id
+      or pbs_openid_realm.comment | default('') != pbs_oidc.comment
+      or pbs_openid_realm.autocreate | default(false) | bool
+  changed_when: true
+
+- name: Read the current users
+  ansible.builtin.command: proxmox-backup-manager user list --output-format json
+  register: pbs_users_current
+  changed_when: false
+  check_mode: false
+
+- name: Record the admins that would be created
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing | default([]) + ['user ' ~ item ~ '@' ~ pbs_oidc.realm] }}"
+  loop: "{{ pbs_oidc.admins }}"
+  when: (item ~ '@' ~ pbs_oidc.realm) not in (pbs_users_current.stdout | from_json | map(attribute='userid') | list)
+
+- name: Create the admins
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - user
+      - create
+      - "{{ item }}@{{ pbs_oidc.realm }}"
+      - --comment
+      - "via Pocket ID (pbs_oidc.admins)"
+  loop: "{{ pbs_oidc.admins }}"
+  when: (item ~ '@' ~ pbs_oidc.realm) not in (pbs_users_current.stdout | from_json | map(attribute='userid') | list)
+  changed_when: true
+
+- name: Read the current ACL
+  ansible.builtin.command: proxmox-backup-manager acl list --output-format json
+  register: pbs_acl_current
+  changed_when: false
+  check_mode: false
+
+- name: Give the admins Admin on /
+  ansible.builtin.command:
+    argv:
+      - proxmox-backup-manager
+      - acl
+      - update
+      - /
+      - Admin
+      - --auth-id
+      - "{{ item }}@{{ pbs_oidc.realm }}"
+  loop: "{{ pbs_oidc.admins }}"
+  when: >-
+    pbs_acl_current.stdout | from_json
+    | selectattr('path', 'eq', '/')
+    | selectattr('roleid', 'eq', 'Admin')
+    | selectattr('ugid', 'eq', item ~ '@' ~ pbs_oidc.realm)
+    | list | length == 0
+  changed_when: true

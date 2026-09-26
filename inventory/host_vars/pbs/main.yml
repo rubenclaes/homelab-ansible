@@ -91,3 +91,18 @@ pbs_offsite:
   stop_gb: 8
   stop_class_a: 800000
   stop_class_b: 8000000
+
+# --- Login via Pocket ID (roles/pbs/tasks/oidc.yml) ---
+# De client staat in tofu/pocketid/clients.tf en laat alleen de groep `admin`
+# door. PBS leest geen groepen, dus wie hier admin is, staat hier bij naam:
+# de gebruikersnaam uit Pocket ID. Niet op de lijst = geen account.
+# root@pam blijft de noodtoegang.
+pbs_oidc:
+  realm: pocketid
+  issuer: https://id.neodata.be
+  client_id: pbs
+  client_key: "{{ vault_pbs_oidc_client_secret }}"
+  username_claim: username
+  comment: Pocket ID (id.neodata.be)
+  admins:
+    - rubenclaes

@@ -181,3 +181,28 @@ output "proxmox_client_secret" {
   value     = pocketid_client.proxmox.client_secret
   sensitive = true
 }
+
+# Proxmox Backup Server: realm `pocketid` via roles/pbs (tasks/oidc.yml); het
+# secret in host_vars/pbs/vault.yml als vault_pbs_oidc_client_secret. PBS
+# leest geen groepen: wie admin is, staat bij naam in pbs_oidc.admins.
+resource "pocketid_client" "pbs" {
+  name       = "Proxmox Backup Server"
+  client_id  = "pbs"
+  launch_url = "https://backup.neodata.be"
+
+  callback_urls = [
+    "https://backup.neodata.be",
+    "https://192.168.0.181:8007",
+  ]
+
+  is_public                 = false
+  pkce_enabled              = false
+  requires_reauthentication = true
+
+  allowed_user_groups = [pocketid_group.admin.id]
+}
+
+output "pbs_client_secret" {
+  value     = pocketid_client.pbs.client_secret
+  sensitive = true
+}
