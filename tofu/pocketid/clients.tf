@@ -87,3 +87,23 @@ output "audiobookshelf_client_secret" {
   value     = pocketid_client.audiobookshelf.client_secret
   sensitive = true
 }
+
+# Grimmory: een public client met PKCE, dus geen secret. Zijn instellingen
+# staan alleen in zijn eigen database; je zet ze met de hand, zie
+# docs-site/content/docker/grimmory.mdx. Bestaande accounts koppelt hij op
+# gebruikersnaam, hoofdlettergevoelig.
+resource "pocketid_client" "grimmory" {
+  name       = "Grimmory"
+  client_id  = "grimmory"
+  launch_url = "https://books.neodata.be"
+
+  callback_urls = ["https://books.neodata.be/oauth2-callback"]
+
+  is_public    = true
+  pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.gezin.id,
+    pocketid_group.familie.id,
+  ]
+}

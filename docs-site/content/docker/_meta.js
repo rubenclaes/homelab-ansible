@@ -4,5 +4,6 @@ export default {
   vaultwarden: 'Vaultwarden terugzetten',
   outline: 'Outline',
   immich: 'Immich',
-  audiobookshelf: 'Audiobookshelf'
+  audiobookshelf: 'Audiobookshelf',
+  grimmory: 'Grimmory'
 }

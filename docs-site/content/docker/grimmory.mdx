@@ -1,0 +1,115 @@
+---
+title: Grimmory
+---
+
+import { Steps } from 'nextra/components'
+
+# Grimmory
+
+[books.neodata.be](https://books.neodata.be) is de bibliotheek voor e-books,
+strips en luisterboeken. Hij draait in de stack `media` op `docker`. Inloggen
+gaat via [Pocket ID](https://id.neodata.be); de gewone login staat nog aan tot
+iedereen over is.
+
+## De login via Pocket ID instellen
+
+Grimmory heeft geen configbestand en geen API voor zijn instellingen: ze staan
+alleen in zijn database. Dit zet je dus met de hand, één keer, of opnieuw na
+een verloren database. De client in Pocket ID staat wél in git
+(`tofu/pocketid/clients.tf`).
+
+<Steps>
+
+#### Open de instellingen
+
+[books.neodata.be](https://books.neodata.be) → **Settings → OIDC**, als admin.
+
+#### Vul de provider in
+
+Blok **OIDC Provider Configuration**:
+
+| Veld | Waarde |
+| --- | --- |
+| Provider Name | `Pocket ID` |
+| Client ID | `grimmory` |
+| Client Secret | leeg (public client, PKCE) |
+| Issuer URI | `https://id.neodata.be` |
+| Scopes | leeg: de standaard bevat `groups` al |
+| Username Claim | `preferred_username` |
+| Email Claim | `email` |
+| Display Name Claim | `name` (de standaard `given_name` toont alleen de voornaam) |
+| Groups Claim | `groups` (leeg = de admin-mapping werkt niet) |
+| Allowed Mobile Redirect URIs | `grimmory://oauth2-callback` laten staan |
+
+**Opslaan**, dan **Test Connection**.
+
+#### Accounts
+
+| Veld | Waarde |
+| --- | --- |
+| Automatic User Provisioning | aan |
+| Link Existing Local Accounts | aan |
+| Default Permissions | Read, Download, KOReader, Kobo |
+| Default Libraries | alle bibliotheken |
+
+#### Groepen
+
+| Veld | Waarde |
+| --- | --- |
+| Group Sync Mode | On Login (Additive) |
+| Mapping | groep `admin` → Admin aan |
+
+#### Login-methodes
+
+**Local Login** en **OIDC Login** allebei aan. Bewaren, en test met
+**Test connection**.
+
+</Steps>
+
+## Iemand toegang geven
+
+Maak de persoon aan in Pocket ID en zet hem in `gezin` of `familie`. Bij de
+eerste login maakt Grimmory het account zelf aan, met de standaardrechten
+hierboven.
+
+Heeft iemand al een account in Grimmory, dan koppelt die op
+**gebruikersnaam**, en hoofdlettergevoelig: `KarenOris` en `karenoris` zijn
+voor Grimmory twee mensen. Zet de gebruikersnaam in Pocket ID precies gelijk.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Callback-URL | `https://books.neodata.be/oauth2-callback` |
+| Wie mag erin | `gezin` en `familie` |
+| Noodtoegang | `https://books.neodata.be/login?local=true` |
+
+## Goed om te weten
+
+### Waarom met de hand
+
+Grimmory bewaart zijn OIDC-instellingen alleen in zijn eigen database. Er is
+geen configbestand, en de interne API is niet gedocumenteerd, dus die kan bij
+elke update veranderen. Met de hand plus deze pagina is hier betrouwbaarder
+dan een rol die op een verborgen API steunt.
+
+### Pocket ID ligt plat
+
+Zet `FORCE_DISABLE_OIDC=true` in de omgeving van de container, of log in via
+`/login?local=true`. Dat werkt zolang de gewone login aan staat.
+
+### Additive, niet Replace
+
+**On Login (Replace)** vervangt bij elke login alle rechten door wat de
+groepen zeggen. Omdat alleen `admin` een mapping heeft, zou iedereen anders
+zijn rechten verliezen. **Additive** voegt de admin-vlag toe en laat de rest
+staan.
+
+### "Filtered host 'id.neodata.be'"
+
+Binnen het huis wijst `id.neodata.be` naar het LAN-adres van Caddy, en
+Grimmory weigert standaard verbindingen naar privé-adressen (bescherming tegen
+SSRF). Daarom staat `OIDC_ALLOW_UNSAFE_HOSTS: "true"` in de compose-file. Dat
+geldt alleen voor de OIDC-verbindingen van Grimmory, niet voor zijn andere
+verkeer naar buiten.
