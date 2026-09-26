@@ -1,6 +1,8 @@
 # {{ ansible_managed }}
 http_address = "{{ oauth2_proxy_listen }}"
 reverse_proxy = true
+# Only Caddy, on this same container, may set X-Forwarded-* headers.
+trusted_proxy_ips = ["127.0.0.1/32"]
 
 provider = "oidc"
 provider_display_name = "Pocket ID"
@@ -11,6 +13,12 @@ code_challenge_method = "S256"
 scope = "openid email profile groups"
 oidc_groups_claim = "groups"
 email_domains = ["*"]
+# Pocket ID has no mail server, so no address is ever "verified", and
+# oauth2-proxy refuses an unverified one by default. Safe here: the address
+# decides nothing. Access is decided by the group (allowed_groups per site in
+# Caddy), only an admin sets someone's address, and the client in Pocket ID
+# only lets `admin` and `gezin` through.
+insecure_oidc_allow_unverified_email = true
 # Straight to Pocket ID, no "sign in with" page in between.
 skip_provider_button = true
 
