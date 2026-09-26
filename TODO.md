@@ -96,9 +96,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **Outline: eerste login.** Draait sinds 26-09 op wiki.neodata.be. Log
-      in via Pocket ID; de eerste die inlogt wordt beheerder van de wiki. Werkt
-      het niet, kijk dan in `docker logs outline` op `docker`.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in
@@ -117,14 +114,15 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
     - **NeoGate**: de mensen (aanmaken, groep kiezen, weghalen), plus Plex
       delen en Tailscale uitnodigen. Moet zonder terminal kunnen, ook door
       je partner. OpenTofu raakt geen gebruikers aan.
-  - [ ] Groepen in `tofu/pocketid` (`pocketid_group`), elke client krijgt
-        `allowed_user_groups`. Iemand kan in meer dan één groep:
-        - `admin`: Proxmox, PBS, Portainer, Semaphore, Grafana, Prometheus,
-          code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
-        - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
-          Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools.
-        - `familie`: Immich, Audiobookshelf, Grimmory, Outline.
-        - Geen `gast` tot er echt een is.
+  - Groepen staan sinds 26-09 in `tofu/pocketid/groups.tf`; Outline laat
+    alleen `gezin` en `familie` toe. Elke nieuwe client krijgt
+    `allowed_user_groups` volgens deze lijst:
+    - `admin`: Proxmox, PBS, Portainer, Semaphore, Grafana, Prometheus,
+      code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
+    - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
+      Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools.
+    - `familie`: Immich, Audiobookshelf, Grimmory, Outline.
+    - Geen `gast` tot er echt een is.
   - [ ] Rollen volgen uit de groep (groups-claim), nooit met de hand per app.
   - [ ] `requires_reauthentication` op de clients van Proxmox, PBS,
         Portainer en Semaphore: een gestolen sessie is niet genoeg.

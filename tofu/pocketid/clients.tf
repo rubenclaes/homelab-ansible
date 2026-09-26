@@ -19,6 +19,11 @@ resource "pocketid_client" "outline" {
 
   is_public    = false
   pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.gezin.id,
+    pocketid_group.familie.id,
+  ]
 }
 
 output "outline_client_secret" {

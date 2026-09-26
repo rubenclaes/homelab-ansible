@@ -26,6 +26,7 @@ doet het, pas na `yes`.
     </FileTree.Folder>
     <FileTree.Folder name="pocketid" defaultOpen>
       <FileTree.File name="clients.tf" />
+      <FileTree.File name="groups.tf" />
       <FileTree.File name="backend.tf" />
       <FileTree.File name="providers.tf" />
       <FileTree.File name="versions.tf" />
@@ -102,17 +103,27 @@ ct 108 en de tag van adguard staan zo in `tofu/tailscale/`. Zelfde stappen.
 ## Een app via Pocket ID laten inloggen
 
 Welke apps via [id.neodata.be](https://id.neodata.be) mogen inloggen, staat in
-`tofu/pocketid/clients.tf`: één `pocketid_client` per app. In de UI van Pocket
-ID maak je geen clients meer aan. Gebruikers, groepen en passkeys doe je daar
-wel.
+`tofu/pocketid/clients.tf`: één `pocketid_client` per app. De groepen staan in
+`groups.tf`:
+
+| Groep | Wie |
+| --- | --- |
+| `admin` | wie het homelab beheert |
+| `gezin` | wie hier woont |
+| `familie` | ouders, broers en zussen |
+
+Elke client zegt met `allowed_user_groups` welke groepen erin mogen. Clients
+en groepen maak je dus niet in de UI. Gebruikers, wie in welke groep zit, en
+passkeys wel: die beheert OpenTofu bewust niet, zodat een apply nooit iemand
+weghaalt die daar net is toegevoegd.
 
 <Steps>
 
 #### Zet de client erbij
 
 Kopieer het blok van `outline` in `clients.tf`. Pas `name`, `client_id`,
-`launch_url` en de callback-URL aan (die staat in de docs van de app), en
-voeg een `output` voor het secret toe.
+`launch_url`, de callback-URL (die staat in de docs van de app) en
+`allowed_user_groups` aan, en voeg een `output` voor het secret toe.
 
 #### Plan en apply
 
