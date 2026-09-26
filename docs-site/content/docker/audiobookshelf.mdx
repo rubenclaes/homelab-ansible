@@ -1,0 +1,66 @@
+---
+title: Audiobookshelf
+---
+
+# Audiobookshelf
+
+[audiobooks.neodata.be](https://audiobooks.neodata.be) is de bibliotheek voor
+luisterboeken en podcasts. Hij draait in de stack `media` op `docker`.
+Inloggen gaat via [Pocket ID](https://id.neodata.be) (knop **Inloggen met
+Pocket ID**); de gewone login staat nog aan tot iedereen over is.
+
+## Iemand toegang geven
+
+Maak de persoon aan in Pocket ID en zet hem in `gezin` of `familie`. Bij de
+eerste login maakt Audiobookshelf het account zelf aan, als gewone gebruiker.
+
+Heeft iemand al een account in Audiobookshelf, dan koppelt die op
+**gebruikersnaam**, niet op mailadres: de oude accounts hebben er geen. Zet de
+gebruikersnaam in Pocket ID dus gelijk aan die in Audiobookshelf.
+
+## De login-instellingen aanpassen
+
+Audiobookshelf heeft geen configbestand. De login via Pocket ID zet
+`roles/audiobookshelf` over de API; de waarden staan in
+`roles/audiobookshelf/defaults/main.yml`. Pas ze daar aan, en dan:
+
+```bash
+ansible-playbook playbooks/stacks.yml --limit docker --tags audiobookshelf
+```
+
+Pas je ze in de web-UI aan, dan zet de volgende run ze terug, en de Drift check
+wordt rood. De andere instellingen blijven van de web-UI.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Login-instellingen | `roles/audiobookshelf/defaults/main.yml` |
+| API-sleutel en client-secret | `inventory/host_vars/docker/vault.yml` (vault `infra`) |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Wie mag erin | `gezin` en `familie` |
+
+## Goed om te weten
+
+### De API-sleutel
+
+De rol praat met Audiobookshelf via een API-sleutel van `rubenclaes`
+(**Settings → API Keys**, naam `ansible`). Verwijder je die, dan faalt de rol.
+Een nieuwe maken en in de vault zetten:
+
+```bash
+ansible-vault edit inventory/host_vars/docker/vault.yml
+```
+
+### Waarom de groepen niet mee naar Audiobookshelf gaan
+
+Audiobookshelf kan een rol uit de groups-claim lezen, maar verwacht dan
+groepen die `admin`, `user` of `guest` heten, en weigert iedereen zonder. Onze
+groepen heten anders, dus die claim staat uit: nieuwe accounts zijn gewone
+gebruikers, en een admin maak je in Audiobookshelf zelf.
+
+### "undefined" in de redirect-URL
+
+Staat `authOpenIDSubfolderForRedirectURLs` niet op een lege tekst, dan zet
+Audiobookshelf letterlijk `undefined` in de callback-URL, en Pocket ID
+weigert. De rol zet hem daarom altijd op `""`.

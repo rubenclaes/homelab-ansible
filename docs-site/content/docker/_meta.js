@@ -3,5 +3,6 @@ export default {
   weghalen: 'Dienst weghalen',
   vaultwarden: 'Vaultwarden terugzetten',
   outline: 'Outline',
-  immich: 'Immich'
+  immich: 'Immich',
+  audiobookshelf: 'Audiobookshelf'
 }
