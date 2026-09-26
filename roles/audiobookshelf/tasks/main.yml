@@ -1,0 +1,96 @@
+---
+# Read, compare, and send only what differs. In --check nothing is sent, but
+# a difference still shows as `changed`, so the Drift check catches a setting
+# someone changed in the web UI.
+
+- name: Refuse to run without the API key and the client secret
+  ansible.builtin.assert:
+    that:
+      - audiobookshelf_api_key | length > 0
+      - audiobookshelf_oidc_client_secret | length > 0
+    fail_msg: >-
+      audiobookshelf_api_key or audiobookshelf_oidc_client_secret is empty.
+      Both come from host_vars/docker/vault.yml. Nothing was changed.
+    quiet: true
+
+# The endpoints come from the issuer itself, so they follow Pocket ID instead
+# of being copied into git.
+- name: Read the OIDC discovery document
+  ansible.builtin.uri:
+    url: "{{ audiobookshelf_oidc_issuer }}/.well-known/openid-configuration"
+    return_content: true
+  register: audiobookshelf_discovery
+  check_mode: false
+
+- name: Read the current auth settings
+  ansible.builtin.uri:
+    url: "{{ audiobookshelf_api_url }}/api/auth-settings"
+    headers:
+      Authorization: "Bearer {{ audiobookshelf_api_key }}"
+    return_content: true
+  register: audiobookshelf_current
+  check_mode: false
+  no_log: true
+
+# Audiobookshelf stores '' as null and keeps the auth methods sorted, so both
+# sides are normalised the same way before comparing. Except the subfolder:
+# there '' and null differ. Null (the default) ends up in the redirect URL
+# as the literal text "undefined"; '' means "no subfolder".
+- name: Work out what differs
+  ansible.builtin.set_fact:
+    audiobookshelf_diff: >-
+      {%- set diff = {} -%}
+      {%- for key, want in audiobookshelf_wanted.items() -%}
+      {%-   set have = audiobookshelf_current.json.get(key) -%}
+      {%-   if have is iterable and have is not string and have is not mapping -%}
+      {%-     set have = have | sort -%}
+      {%-   endif -%}
+      {%-   if key == 'authOpenIDSubfolderForRedirectURLs' -%}
+      {%-     set differs = have != want -%}
+      {%-   else -%}
+      {%-     set differs = (have if have != '' else None) != (want if want != '' else None) -%}
+      {%-   endif -%}
+      {%-   if differs -%}
+      {%-     set _ = diff.update({key: want}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ diff }}
+  vars:
+    audiobookshelf_wanted:
+      authActiveAuthMethods: "{{ audiobookshelf_auth_methods | sort }}"
+      authOpenIDIssuerURL: "{{ audiobookshelf_discovery.json.issuer }}"
+      authOpenIDAuthorizationURL: "{{ audiobookshelf_discovery.json.authorization_endpoint }}"
+      authOpenIDTokenURL: "{{ audiobookshelf_discovery.json.token_endpoint }}"
+      authOpenIDUserInfoURL: "{{ audiobookshelf_discovery.json.userinfo_endpoint }}"
+      authOpenIDJwksURL: "{{ audiobookshelf_discovery.json.jwks_uri }}"
+      authOpenIDLogoutURL: "{{ audiobookshelf_discovery.json.end_session_endpoint }}"
+      authOpenIDClientID: "{{ audiobookshelf_oidc_client_id }}"
+      authOpenIDClientSecret: "{{ audiobookshelf_oidc_client_secret }}"
+      authOpenIDTokenSigningAlgorithm: RS256
+      authOpenIDButtonText: "{{ audiobookshelf_oidc_button_text }}"
+      authOpenIDAutoLaunch: false
+      authOpenIDAutoRegister: true
+      authOpenIDMatchExistingBy: "{{ audiobookshelf_oidc_match_existing_by }}"
+      authOpenIDSubfolderForRedirectURLs: ""
+  no_log: true
+
+# Only the key names: the values include the client secret. `changed` also
+# under --check, where the PATCH below is skipped: that is what makes the
+# Drift check turn red.
+- name: Show which settings differ
+  ansible.builtin.debug:
+    msg: "{{ audiobookshelf_diff.keys() | list }}"
+  when: audiobookshelf_diff | length > 0
+  changed_when: true
+
+- name: Send the settings that differ
+  ansible.builtin.uri:
+    url: "{{ audiobookshelf_api_url }}/api/auth-settings"
+    method: PATCH
+    headers:
+      Authorization: "Bearer {{ audiobookshelf_api_key }}"
+    body_format: json
+    body: "{{ audiobookshelf_diff }}"
+  when: audiobookshelf_diff | length > 0
+  changed_when: true
+  no_log: true

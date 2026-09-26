@@ -7,7 +7,7 @@
 # Leest alleen. Per host: openstaande upgrades, of hij een herstart nodig
 # heeft, schijfgebruik. Daarnaast de PBS-back-upgroepen, de vervaldatum van
 # het wildcard-certificaat, en welke gepubliceerde Docker-poorten geen route
-# hebben (`docker_ports_without_route` in host_vars/docker.yml dempt wat
+# hebben (`docker_ports_without_route` in host_vars/docker/main.yml dempt wat
 # bewust geen route heeft).
 #
 # Niet in site.yml: traag, en hij hoort op een schema te staan in plaats van

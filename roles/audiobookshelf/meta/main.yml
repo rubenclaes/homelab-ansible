@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: audiobookshelf
+  author: rubenclaes
+  description: >-
+    Sets Audiobookshelf's login via Pocket ID (OIDC) over the REST API. Every
+    other setting stays owned by the web UI.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - oidc
+
+dependencies: []

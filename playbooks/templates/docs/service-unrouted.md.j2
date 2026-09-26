@@ -22,4 +22,4 @@ title: {{ s.name }}
 {{ s.how }}
 
 {% endif %}
-<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas `docker_services_without_route` aan in `inventory/host_vars/{{ s.host }}.yml`.</small>
+<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas `docker_services_without_route` aan in de host_vars van `{{ s.host }}` (`inventory/host_vars/{{ s.host }}/main.yml` of `{{ s.host }}.yml`).</small>

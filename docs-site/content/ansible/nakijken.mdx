@@ -60,9 +60,9 @@ volg dan [Dienst toevoegen](/docker/toevoegen/).
 #### Demp wat bewust zo is
 
 Is een melding gewild? Zet ze in de host_vars van die host, bijvoorbeeld
-`inventory/host_vars/docker.yml`:
+`inventory/host_vars/docker/main.yml`:
 
-```yaml filename="inventory/host_vars/docker.yml"
+```yaml filename="inventory/host_vars/docker/main.yml"
 docker_ports_without_route:
   - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
 

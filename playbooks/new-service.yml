@@ -32,7 +32,12 @@
 
     stack_dir: "{{ containers_repo }}/stacks/{{ svc_name | default('') }}"
     env_file: "{{ playbook_dir }}/../files/env/{{ svc_name | default('') }}.env"
-    docker_vars: "{{ playbook_dir }}/../inventory/host_vars/{{ svc_host }}.yml"
+    # Een host met een map (host_vars/<host>/main.yml, naast zijn vault.yml)
+    # of met één bestand (host_vars/<host>.yml).
+    docker_vars: >-
+      {{ lookup('ansible.builtin.first_found', [
+           playbook_dir ~ '/../inventory/host_vars/' ~ svc_host ~ '/main.yml',
+           playbook_dir ~ '/../inventory/host_vars/' ~ svc_host ~ '.yml']) }}
     caddy_vars: "{{ playbook_dir }}/../inventory/host_vars/caddy/main.yml"
 
   tasks:

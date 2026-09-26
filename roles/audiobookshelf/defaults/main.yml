@@ -1,0 +1,21 @@
+---
+# Audiobookshelf has no config file: its settings live in its own database.
+# This role sets the login via Pocket ID over the REST API, so it comes back
+# after a rebuild and the Drift check sees a change made in the web UI.
+#
+# Only the keys below are managed; every other setting stays the web UI's.
+
+# Straight to the container, not through Caddy.
+audiobookshelf_api_url: "http://{{ ansible_host }}:13378"
+# An API key of an admin user (Audiobookshelf -> Settings -> API Keys).
+audiobookshelf_api_key: ""
+
+audiobookshelf_oidc_issuer: https://id.neodata.be
+audiobookshelf_oidc_client_id: audiobookshelf
+audiobookshelf_oidc_client_secret: ""
+audiobookshelf_oidc_button_text: Inloggen met Pocket ID
+# Link an existing account on its username: the accounts made before Pocket
+# ID have no email address. The username in Pocket ID must match.
+audiobookshelf_oidc_match_existing_by: username
+# Keep the password login until everyone has moved over.
+audiobookshelf_auth_methods: [local, openid]

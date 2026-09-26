@@ -187,3 +187,9 @@ pbs_client_dumps:
 pbs_client_schedule: "*-*-* 02:00:00"
 pbs_client_ntfy_url: http://192.168.0.32/homelab
 pbs_client_ntfy_token: "{{ hostvars['pve01'].vault_ntfy_pbs_token }}"
+
+# --- Audiobookshelf: login via Pocket ID (roles/audiobookshelf) ---
+# De client staat in tofu/pocketid/clients.tf. De API-sleutel is die van een
+# admin in Audiobookshelf (Settings -> API Keys).
+audiobookshelf_api_key: "{{ vault_audiobookshelf_api_key }}"
+audiobookshelf_oidc_client_secret: "{{ vault_audiobookshelf_oidc_client_secret }}"

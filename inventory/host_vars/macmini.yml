@@ -146,7 +146,7 @@ docker_routes_without_container:
 # De drie shares die de docker-host mount. Op 22-09 uit /etc/exports en
 # `showmount -e localhost` gelezen; sindsdien beheert roles/nfs_exports ze,
 # dus dit is nu de bron en niet meer de beschrijving. De docker-kant staat in
-# docker_stacks_nfs_mounts in host_vars/docker.yml en mount alle drie.
+# docker_stacks_nfs_mounts in host_vars/docker/main.yml en mount alle drie.
 #
 # -alldirs, -mapall=1000:1000 en het netwerk zijn voor alle drie hetzelfde en
 # staan als default in roles/nfs_exports/defaults/main.yml.

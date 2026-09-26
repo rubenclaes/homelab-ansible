@@ -59,3 +59,31 @@ output "immich_client_secret" {
   value     = pocketid_client.immich.client_secret
   sensitive = true
 }
+
+# Audiobookshelf heeft geen configbestand: roles/audiobookshelf zet zijn
+# OIDC-instellingen via de API. Het secret staat in host_vars/docker/vault.yml
+# als vault_audiobookshelf_oidc_client_secret.
+resource "pocketid_client" "audiobookshelf" {
+  name       = "Audiobookshelf"
+  client_id  = "audiobookshelf"
+  launch_url = "https://audiobooks.neodata.be"
+
+  callback_urls = [
+    "https://audiobooks.neodata.be/auth/openid/callback",
+    # De app op iOS en Android gaat via deze omweg terug naar de app.
+    "https://audiobooks.neodata.be/auth/openid/mobile-redirect",
+  ]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.gezin.id,
+    pocketid_group.familie.id,
+  ]
+}
+
+output "audiobookshelf_client_secret" {
+  value     = pocketid_client.audiobookshelf.client_secret
+  sensitive = true
+}

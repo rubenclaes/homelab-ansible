@@ -34,3 +34,12 @@
     - role: homepage
       when: "'homepage' in docker_stacks_list | default([]) | map(attribute='name')"
   tags: [docker, homepage]
+
+# Na de stacks, want de container moet draaien. Audiobookshelf heeft geen
+# configbestand: de login via Pocket ID gaat over zijn API.
+- name: Audiobookshelf login via Pocket ID
+  hosts: docker_hosts
+  roles:
+    - role: audiobookshelf
+      when: "'media' in docker_stacks_list | default([]) | map(attribute='name')"
+  tags: [docker, audiobookshelf]

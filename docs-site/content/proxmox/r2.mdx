@@ -110,7 +110,7 @@ sudo proxmox-backup-manager cert info | grep -i fingerprint              # de ni
 
 Zet het secret in `inventory/group_vars/all/vault.yml`
 (`vault_pbs_docker_data_token`) en de vingerafdruk in
-`inventory/host_vars/docker.yml` (`pbs_client_fingerprint`). De sleutel
+`inventory/host_vars/docker/main.yml` (`pbs_client_fingerprint`). De sleutel
 (`vault_pbs_docker_data_key`) blijft dezelfde: die staat ook op papier.
 
 #### Bouw `docker` opnieuw, zonder de stacks te starten
