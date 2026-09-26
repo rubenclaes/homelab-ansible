@@ -155,3 +155,29 @@ output "semaphore_client_secret" {
   value     = pocketid_client.semaphore.client_secret
   sensitive = true
 }
+
+# Proxmox VE: de realm `pocketid` staat in tofu/proxmox/oidc.tf. Het secret
+# gaat daarheen via TF_VAR_pocketid_proxmox_client_secret in
+# tofu/secrets.env. Proxmox stuurt je terug naar het adres waarop je hem
+# opende, dus beide staan hier: via Caddy en rechtstreeks.
+resource "pocketid_client" "proxmox" {
+  name       = "Proxmox VE"
+  client_id  = "proxmox"
+  launch_url = "https://proxmox.neodata.be"
+
+  callback_urls = [
+    "https://proxmox.neodata.be",
+    "https://192.168.0.10:8006",
+  ]
+
+  is_public                 = false
+  pkce_enabled              = false
+  requires_reauthentication = true
+
+  allowed_user_groups = [pocketid_group.admin.id]
+}
+
+output "proxmox_client_secret" {
+  value     = pocketid_client.proxmox.client_secret
+  sensitive = true
+}

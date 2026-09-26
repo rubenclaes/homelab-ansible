@@ -20,6 +20,7 @@ doet het, pas na `yes`.
       <FileTree.File name="vms.tf" />
       <FileTree.File name="containers.tf" />
       <FileTree.File name="access.tf" />
+      <FileTree.File name="oidc.tf" />
       <FileTree.File name="backend.tf" />
       <FileTree.File name="providers.tf" />
       <FileTree.File name="versions.tf" />
@@ -166,6 +167,7 @@ volgende plan zou je wijziging daar weer terugzetten.
 | `vms.tf` | de VM's 100 `pbs`, 101 `haos`, 102 `docker-grafana-stack`, 103 `docker`: één blok per VM |
 | `containers.tf` | de Debian-containers 104 `semaphore`, 106 `caddy`, 107 `adguard`, 108 `tailscale`: één regel per container in `local.containers`, plus het template en de Ansible-sleutel voor nieuwe containers |
 | `access.tf` | de gebruiker `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten |
+| `oidc.tf` | inloggen via Pocket ID: de realm `pocketid`, de groep `admin-pocketid` en zijn rechten (Administrator) |
 
 ```bash filename="laptop"
 bin/tofu proxmox plan    # wat zou er veranderen?
@@ -186,7 +188,8 @@ betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
 | Wat | Waar dan |
 | --- | --- |
 | `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
-| `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen |
+| `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen. `root@pam` is ook de noodtoegang als Pocket ID plat ligt |
+| wie er via Pocket ID binnenkomt (`rubenclaes@pocketid`) | Proxmox maakt die bij de eerste login; de groep komt uit Pocket ID |
 | `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/#een-oci-container) |
 | opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
 | `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |

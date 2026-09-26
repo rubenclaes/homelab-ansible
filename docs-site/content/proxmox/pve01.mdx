@@ -57,7 +57,7 @@ met de hand, want OpenTofu kan zichzelf niet aanmaken. Op pve01, als root:
 
 ```bash filename="pve01"
 pveum user add tofu@pve --comment "OpenTofu (homelab-ansible, tofu/proxmox)"
-pveum role add OpenTofu -privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,Pool.Audit,SDN.Audit,SDN.Use,Sys.Audit,Sys.Modify,User.Modify,Permissions.Modify,Realm.AllocateUser,VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.GuestAgent.Audit,VM.PowerMgmt"
+pveum role add OpenTofu -privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,Pool.Audit,SDN.Audit,SDN.Use,Sys.Audit,Sys.Modify,User.Modify,Permissions.Modify,Group.Allocate,Realm.Allocate,Realm.AllocateUser,VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.GuestAgent.Audit,VM.PowerMgmt"
 pveum aclmod / -user tofu@pve -role OpenTofu
 pveum user token add tofu@pve opentofu --privsep=0   # toont het secret, maar één keer
 ```
