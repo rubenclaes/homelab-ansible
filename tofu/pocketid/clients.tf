@@ -107,3 +107,27 @@ resource "pocketid_client" "grimmory" {
     pocketid_group.familie.id,
   ]
 }
+
+# --- Beheer: alleen `admin` ---
+
+# Grafana: de instellingen staan als GF_*-variabelen in de compose van de
+# monitoring-stack-repo; het secret in monitoring.env als
+# GRAFANA_OIDC_CLIENT_SECRET. De rol volgt uit de groep: `admin` wordt
+# GrafanaAdmin. De lokale `admin` blijft de noodtoegang.
+resource "pocketid_client" "grafana" {
+  name       = "Grafana"
+  client_id  = "grafana"
+  launch_url = "https://monitoring.neodata.be"
+
+  callback_urls = ["https://monitoring.neodata.be/login/generic_oauth"]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [pocketid_group.admin.id]
+}
+
+output "grafana_client_secret" {
+  value     = pocketid_client.grafana.client_secret
+  sensitive = true
+}

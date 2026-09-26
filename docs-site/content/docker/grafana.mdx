@@ -1,0 +1,41 @@
+---
+title: Grafana
+---
+
+# Grafana
+
+[monitoring.neodata.be](https://monitoring.neodata.be) zijn de dashboards op
+Prometheus en Loki. Grafana draait in de stack `monitoring` op
+`docker-grafana-stack`; die stack staat in de repo
+[monitoring-stack](https://github.com/rubenclaes/monitoring-stack), niet in
+`containers`.
+
+Inloggen gaat via [Pocket ID](https://id.neodata.be) (**Sign in with Pocket
+ID**), en alleen voor de groep `admin`.
+
+## Wie welke rol krijgt
+
+De rol volgt bij elke login uit de groepen in Pocket ID:
+
+| Groep | Rol in Grafana |
+| --- | --- |
+| `admin` | Grafana Admin |
+| iets anders | Viewer, maar de client laat alleen `admin` binnen |
+
+Pas een rol dus niet in Grafana aan: de volgende login zet hem terug.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Instellingen | `monitoring-stack`, `stacks/monitoring/docker-compose.yml`, de `GF_AUTH_GENERIC_OAUTH_*`-regels |
+| Client-secret | `GRAFANA_OIDC_CLIENT_SECRET` in `files/env/monitoring.env` (vault `stacks`) |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Noodtoegang | de lokale `admin`, wachtwoord `GRAFANA_PASSWORD` in `monitoring.env` |
+
+## Goed om te weten
+
+### `GF_SERVER_ROOT_URL`
+
+Zonder die regel bouwt Grafana zijn redirect op `localhost:3000`, en Pocket ID
+weigert die. Hij moet het adres zijn waarop je Grafana opent.

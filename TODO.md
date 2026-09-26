@@ -116,8 +116,8 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
       je partner. OpenTofu raakt geen gebruikers aan.
   - Groepen staan sinds 26-09 in `tofu/pocketid/groups.tf`; Outline laat
     alleen `gezin` en `familie` toe, Immich, Audiobookshelf en Grimmory ook
-    (sinds 26-09; Karen logt nog in, dan pas de wachtwoord-login uit). Elke
-    nieuwe client krijgt
+    (sinds 26-09; Karen logt nog in, dan pas de wachtwoord-login uit).
+    Grafana alleen `admin`. Elke nieuwe client krijgt
     `allowed_user_groups` volgens deze lijst:
     - `admin`: Proxmox, PBS, Portainer, Semaphore, Grafana, Prometheus,
       code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
@@ -130,7 +130,7 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
         Portainer en Semaphore: een gestolen sessie is niet genoeg.
   - [ ] Eerst de mailadressen per persoon gelijkzetten in de apps, anders
         komt er een tweede account naast het bestaande.
-  - [ ] Clients voor wat het zelf kan: Shelfmark, Grafana, Semaphore,
+  - [ ] Clients voor wat het zelf kan: Shelfmark, Semaphore,
         Portainer, Proxmox VE en PBS (OpenID realm). Cleanuparr: eerst
         nakijken, de release notes noemen OIDC, de README niet.
   - [ ] Vaultwarden (SSO sinds 1.35): het hoofdwachtwoord blijft, alleen de

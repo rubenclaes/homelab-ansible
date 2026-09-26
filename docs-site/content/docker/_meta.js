@@ -5,5 +5,6 @@ export default {
   outline: 'Outline',
   immich: 'Immich',
   audiobookshelf: 'Audiobookshelf',
-  grimmory: 'Grimmory'
+  grimmory: 'Grimmory',
+  grafana: 'Grafana'
 }
