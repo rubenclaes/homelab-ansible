@@ -256,3 +256,25 @@ output "oauth2_proxy_client_secret" {
   value     = pocketid_client.oauth2_proxy.client_secret
   sensitive = true
 }
+
+# Shelfmark: de instellingen staan alleen in Shelfmark zelf, zie
+# docs-site/content/docker/shelfmark.mdx; het secret plak je daar uit
+# `bin/tofu pocketid output -raw shelfmark_client_secret`. PKCE doet hij
+# zelf. Admin wordt wie in de groep `admin` zit.
+resource "pocketid_client" "shelfmark" {
+  name       = "Shelfmark"
+  client_id  = "shelfmark"
+  launch_url = "https://shelfmark.neodata.be"
+
+  callback_urls = ["https://shelfmark.neodata.be/api/auth/oidc/callback"]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [pocketid_group.gezin.id]
+}
+
+output "shelfmark_client_secret" {
+  value     = pocketid_client.shelfmark.client_secret
+  sensitive = true
+}

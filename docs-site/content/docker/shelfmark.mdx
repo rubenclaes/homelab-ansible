@@ -1,0 +1,78 @@
+---
+title: Shelfmark
+---
+
+import { Steps } from 'nextra/components'
+
+# Shelfmark
+
+[shelfmark.neodata.be](https://shelfmark.neodata.be) zoekt boeken en legt ze in
+de bookdrop van Grimmory. Hij draait in de stack `media` op `docker`.
+Inloggen gaat via [Pocket ID](https://id.neodata.be), voor de groep `gezin`.
+
+## De login via Pocket ID instellen
+
+Shelfmark bewaart deze instellingen alleen in zijn eigen bestanden. Dit zet je
+dus met de hand, één keer. De client in Pocket ID staat wél in git
+(`tofu/pocketid/clients.tf`).
+
+<Steps>
+
+#### Hernoem het lokale account
+
+Het lokale account `rubenclaes` wordt `admin`, met hetzelfde wachtwoord. Dat
+is de noodtoegang. Shelfmark kan geen naam wijzigen in de UI, dus op `docker`,
+met Shelfmark gestopt: `update users set username='admin' where
+username='rubenclaes'` in `/opt/containers/data/shelfmark/config/users.db`
+(op 27-09 zo gedaan). Anders maakt de eerste login via
+Pocket ID een tweede account aan met een achtervoegsel achter `rubenclaes`, omdat de naam al bestaat.
+
+#### Haal het client-secret
+
+```bash
+bin/tofu pocketid output -raw shelfmark_client_secret
+```
+
+#### Vul de instellingen in
+
+**Settings → Security → Authentication Method → OIDC**:
+
+| Veld | Waarde |
+| --- | --- |
+| Discovery URL | `https://id.neodata.be/.well-known/openid-configuration` |
+| Client ID | `shelfmark` |
+| Client Secret | het secret uit de vorige stap |
+| Scopes | `openid email profile` |
+| Group Claim Name | `groups` |
+| Admin Group Name | `admin` |
+| Use Admin Group for Authorization | aan |
+| Auto-Provision Users | aan |
+| Login Button Label | `Inloggen met Pocket ID` |
+
+**Test Connection**, dan bewaren.
+
+</Steps>
+
+## Iemand toegang geven
+
+Maak de persoon aan in Pocket ID en zet hem in `gezin`. Bij de eerste login
+maakt Shelfmark het account zelf aan; wie ook in `admin` zit, wordt admin.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| Callback-URL | `https://shelfmark.neodata.be/api/auth/oidc/callback` |
+| Wie mag erin | `gezin`; admin wordt wie in `admin` zit |
+| Noodtoegang | het lokale account `admin`, met wachtwoord |
+
+## Goed om te weten
+
+### Waarom een nieuw account en geen koppeling
+
+Shelfmark koppelt een bestaand account op het OIDC-subject of op een
+**geverifieerd** mailadres. Pocket ID heeft geen mailserver, dus geen adres
+is geverifieerd, en koppelen op het subject zet het account om naar
+"alleen OIDC": dan is het wachtwoord, en daarmee de noodtoegang, weg. Een
+nieuw account naast een lokale `admin` houdt beide.
