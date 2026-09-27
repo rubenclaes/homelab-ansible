@@ -118,7 +118,7 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
     alleen `gezin` en `familie` toe, Immich, Audiobookshelf en Grimmory ook
     (sinds 26-09; Karen logt nog in, dan pas de wachtwoord-login uit).
     Grafana, Semaphore, Proxmox VE, PBS en Portainer alleen `admin`,
-    Shelfmark `gezin`. Elke nieuwe client krijgt
+    Shelfmark en Vaultwarden `gezin`. Elke nieuwe client krijgt
     `allowed_user_groups` volgens deze lijst:
     - `admin`: Proxmox, PBS, Portainer, Semaphore, Grafana, Prometheus,
       code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
@@ -133,8 +133,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
         komt er een tweede account naast het bestaande.
   - [ ] Cleanuparr: nakijken of het OIDC kan (de release notes noemen het,
         de README niet). Zo niet: forward-auth, zoals de *arr-apps.
-  - [ ] Vaultwarden (SSO sinds 1.35): het hoofdwachtwoord blijft, alleen de
-        login gaat via Pocket ID.
   - Forward-auth (oauth2-proxy naast Caddy) staat sinds 27-09 voor
     code-server, de *arr-apps, Prometheus en qBittorrent (`admin`) en voor
     IT-Tools, MeTube, BentoPDF, PairDrop en OpenBooks (`gezin`).

@@ -62,6 +62,19 @@ die dag er staan.
 
 </Steps>
 
+## Inloggen via Pocket ID
+
+Op [vault.neodata.be](https://vault.neodata.be) en in de Bitwarden-apps:
+**Use single sign-on** (vraagt hij een SSO-identificatie, vul dan eender wat
+in, bv. `neodata`). Na Pocket ID vraagt de kluis nog je **hoofdwachtwoord**:
+alleen dat ontsleutelt hem, SSO vervangt enkel het inloggen.
+
+Mailadres plus hoofdwachtwoord blijft ook werken: de noodtoegang als Pocket ID
+plat ligt. Een bestaand account koppelt op mailadres. De instellingen staan
+als `SSO_*` in `stacks/vaultwarden/docker-compose.yml` (containers-repo), het
+secret als `VW_SSO_CLIENT_SECRET` in `files/env/vaultwarden.env`, de client in
+`tofu/pocketid/clients.tf` (groep `gezin`).
+
 ## Goed om te weten
 
 ### Waarom Vaultwarden een eigen back-up heeft

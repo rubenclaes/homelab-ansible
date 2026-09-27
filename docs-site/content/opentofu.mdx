@@ -28,6 +28,7 @@ doet het, pas na `yes`.
     <FileTree.Folder name="pocketid" defaultOpen>
       <FileTree.File name="clients.tf" />
       <FileTree.File name="groups.tf" />
+      <FileTree.File name="settings.tf" />
       <FileTree.File name="backend.tf" />
       <FileTree.File name="providers.tf" />
       <FileTree.File name="versions.tf" />
@@ -117,6 +118,19 @@ Elke client zegt met `allowed_user_groups` welke groepen erin mogen. Clients
 en groepen maak je dus niet in de UI. Gebruikers, wie in welke groep zit, en
 passkeys wel: die beheert OpenTofu bewust niet, zodat een apply nooit iemand
 weghaalt die daar net is toegevoegd.
+
+`settings.tf` zet drie instellingen van Pocket ID zelf; de rest blijft van de
+UI:
+
+| Instelling | Waarde | Waarom |
+| --- | --- | --- |
+| `allow_user_signups` | `disabled` | niemand maakt zelf een account |
+| `emails_verified` | `true` | geen mailserver, dus anders is geen adres ooit geverifieerd: Vaultwarden weigert dan elke login, en Immich en Shelfmark koppelen niets |
+| `allow_own_account_edit` | `false` | hoort bij de vorige: wie zijn eigen adres kan wijzigen, vult dat van een ander in en neemt diens account over |
+
+`emails_verified` geldt alleen voor nieuwe gebruikers en een gewijzigd adres.
+Wie al bestond, zet je in de UI op **Email verified** (voor Ruben en Karen op
+27-09 via de API gedaan).
 
 <Steps>
 
