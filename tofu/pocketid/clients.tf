@@ -278,3 +278,24 @@ output "shelfmark_client_secret" {
   value     = pocketid_client.shelfmark.client_secret
   sensitive = true
 }
+
+# Vaultwarden: SSO_* in de compose van de containers-repo (stacks/vaultwarden),
+# het secret in vaultwarden.env als VW_SSO_CLIENT_SECRET. Pocket ID vervangt
+# alleen het inloggen: de kluis opent nog altijd met het hoofdwachtwoord.
+resource "pocketid_client" "vaultwarden" {
+  name       = "Vaultwarden"
+  client_id  = "vaultwarden"
+  launch_url = "https://vault.neodata.be"
+
+  callback_urls = ["https://vault.neodata.be/identity/connect/oidc-signin"]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [pocketid_group.gezin.id]
+}
+
+output "vaultwarden_client_secret" {
+  value     = pocketid_client.vaultwarden.client_secret
+  sensitive = true
+}
