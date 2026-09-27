@@ -140,12 +140,8 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
     IT-Tools, MeTube, BentoPDF, PairDrop en OpenBooks (`gezin`).
   - Sinds 27-09 laat de docker-host de poorten van Sonarr, Radarr, Prowlarr,
     Bazarr en code-server alleen nog van Caddy toe (DOCKER-USER). code-server
-    heeft geen eigen wachtwoord meer.
-  - [ ] qBittorrent: Caddy (`192.168.0.25/32`) op de whitelist, zodat je maar
-        één keer inlogt (Options → WebUI → Bypass authentication for clients in
-        whitelisted IP subnets).
-  - [ ] Bazarr: nieuwe API-sleutel (Settings → General → Security → Reset). De
-        oude stond op 27-09 leesbaar in een sessielog.
+    heeft geen eigen wachtwoord meer; qBittorrent laat Caddy door zonder
+    tweede login.
   - [ ] Werkt een app via Pocket ID: daar registreren en wachtwoord-login
         uit. Twee deuren is er één te veel.
   - [ ] Noodtoegang blijft lokaal: `root@pam`, de admin van PBS en UniFi,
