@@ -27,7 +27,6 @@ caddy_sites:
   - { name: vault, host: docker, port: 8086, stack: vaultwarden, desc: "Vaultwarden — wachtwoordkluis voor de familie, met de Bitwarden-apps" }
 
   # --- Infra ---
-  - { name: portainer, host: docker, port: 9443, stack: portainer, https: true, desc: "Docker-beheer voor de docker-host" }
   - { name: semaphore, host: semaphore, port: 3000, desc: "Ansible control plane — draait de playbooks volgens schema" }
   - { name: monitoring, host: docker-grafana-stack, port: 3001, stack: monitoring, host_header: true, desc: "Grafana — dashboards op Prometheus en Loki" }
   - { name: prometheus, auth: admin, host: docker-grafana-stack, port: 9090, stack: monitoring, desc: "Metrics-store die Grafana scrapet" }

@@ -5,7 +5,6 @@ docker_stacks_list:
   - { name: homepage, path: homepage }
   - { name: metrics, path: metrics, desc: "Alloy — stuurt logs en metrics van deze host naar docker-grafana-stack" }
   - { name: rustdesk, path: apps/rustdesk }
-  - { name: portainer, path: portainer, env: false }
   - { name: neogate, path: neogate }
   - { name: infra, path: infra }
   - { name: media, path: media, project: media-stack }
@@ -93,7 +92,6 @@ docker_ports_without_route:
   - { port: 21115, why: "rustdesk hbbs - raw TCP, not HTTP" }
   - { port: 21116, why: "rustdesk hbbs - raw TCP, not HTTP" }
   - { port: 21117, why: "rustdesk hbbr - raw TCP, not HTTP" }
-  - { port: 8000, why: "portainer edge agent tunnel, not the UI" }
 
 # Diensten die je wél gebruikt maar die geen webroute hebben, en dus niet in
 # caddy_sites staan. docs.yml maakt er toch een pagina voor onder Services,
@@ -149,7 +147,6 @@ homepage_tiles:
   backup: { title: Proxmox Backup, group: Beheer, icon: proxmox-backup-server.png }
   dns: { title: AdGuard Home, group: Beheer, icon: adguard-home.png }
   unifi: { title: UniFi, group: Beheer, icon: unifi.png }
-  portainer: { title: Portainer, group: Beheer, icon: portainer.png }
   semaphore: { title: Semaphore, group: Beheer, icon: semaphore.png }
 
   monitoring: { title: Grafana, group: Monitoring, icon: grafana.png }

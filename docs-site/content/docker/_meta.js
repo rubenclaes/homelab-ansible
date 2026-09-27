@@ -7,6 +7,5 @@ export default {
   audiobookshelf: 'Audiobookshelf',
   grimmory: 'Grimmory',
   grafana: 'Grafana',
-  portainer: 'Portainer',
   shelfmark: 'Shelfmark'
 }

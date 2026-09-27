@@ -117,18 +117,16 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
   - Groepen staan sinds 26-09 in `tofu/pocketid/groups.tf`; Outline laat
     alleen `gezin` en `familie` toe, Immich, Audiobookshelf en Grimmory ook
     (sinds 26-09; Karen logt nog in, dan pas de wachtwoord-login uit).
-    Grafana, Semaphore, Proxmox VE, PBS en Portainer alleen `admin`,
+    Grafana, Semaphore, Proxmox VE en PBS alleen `admin`,
     Shelfmark en Vaultwarden `gezin`. Elke nieuwe client krijgt
     `allowed_user_groups` volgens deze lijst:
-    - `admin`: Proxmox, PBS, Portainer, Semaphore, Grafana, Prometheus,
+    - `admin`: Proxmox, PBS, Semaphore, Grafana, Prometheus,
       code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
     - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
       Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools.
     - `familie`: Immich, Audiobookshelf, Grimmory, Outline.
     - Geen `gast` tot er echt een is.
   - [ ] Rollen volgen uit de groep (groups-claim), nooit met de hand per app.
-  - [ ] `requires_reauthentication` op de clients van Proxmox, PBS,
-        Portainer en Semaphore: een gestolen sessie is niet genoeg.
   - [ ] Eerst de mailadressen per persoon gelijkzetten in de apps, anders
         komt er een tweede account naast het bestaande.
   - [ ] Cleanuparr: nakijken of het OIDC kan (de release notes noemen het,
