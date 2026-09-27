@@ -65,10 +65,40 @@ git add inventory && git commit -m 'Route voor plex' && git push
 | `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
 | `host_header` | stuur de oorspronkelijke `Host`-header door |
 | `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij (Home Assistant wil dit) |
-| `auth` | zet een login (tinyauth) voor de dienst |
+| `auth` | login via Pocket ID ervoor, alleen voor die groep: `admin` of `gezin`. Zie [Een login ervoor](#een-login-ervoor) |
+| `auth_skip` | paden zonder die login, bv. `['/api/*']` voor een API met een eigen sleutel |
 
 Waarom `host` en niet gewoon een IP? Verhuist een machine naar een ander adres,
 dan pas je dat op één plek aan en volgen alle routes vanzelf.
+
+## Een login ervoor
+
+Voor apps zonder eigen login via Pocket ID (code-server, de *arr-apps,
+Prometheus, qBittorrent, de tools). Caddy vraagt bij elk verzoek aan
+oauth2-proxy, dat naast Caddy draait, of je aangemeld bent en in de juiste
+groep zit. Zo niet, dan stuurt hij je naar `auth.neodata.be` en daarna terug.
+Eén keer aanmelden geldt voor alle zulke apps.
+
+Zet het veld erbij in `caddy_sites`:
+
+```yaml
+  - { name: code, auth: admin, host: docker, port: 8443, ... }
+  - { name: sonarr, auth: admin, auth_skip: ['/api/*'], host: docker, port: 8989, ... }
+```
+
+en dan `ansible-playbook playbooks/caddy.yml`.
+
+| Groep | Wie |
+| --- | --- |
+| `admin` | alleen beheer: code-server, Sonarr, Radarr, Prowlarr, Bazarr, Prometheus, qBittorrent |
+| `gezin` | wie hier woont: IT-Tools, MeTube, BentoPDF, PairDrop, OpenBooks |
+
+Gebruikt een andere app de API via het publieke adres, zet die paden dan in
+`auth_skip`. NeoGate praat zo met Sonarr en Radarr; hun API blijft beschermd
+met de eigen API-sleutel.
+
+Ligt oauth2-proxy of Pocket ID plat, dan zijn deze apps nog rechtstreeks
+bereikbaar op hun LAN-adres en poort.
 
 ## Alleen het adres weghalen
 
@@ -187,6 +217,14 @@ Waarom `caddy_log_mode` op `0640` staat en een `reload` niet volstaat:
 [Goed om te weten](#goed-om-te-weten).
 
 ## Goed om te weten
+
+### oauth2-proxy en "email isn't verified"
+
+Pocket ID heeft geen mailserver, dus geen enkel adres is "geverifieerd", en
+oauth2-proxy weigert dat standaard (een 500 na het aanmelden). Daarom staat
+`insecure_oidc_allow_unverified_email` aan: het adres beslist hier niets, de
+groep wel. De rol staat in `roles/oauth2_proxy`, de client in
+`tofu/pocketid/clients.tf`, de geheimen in `host_vars/caddy/vault.yml`.
 
 ### Waarom Caddy vaststaat
 

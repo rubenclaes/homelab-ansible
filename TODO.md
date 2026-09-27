@@ -135,10 +135,12 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
         nakijken, de release notes noemen OIDC, de README niet.
   - [ ] Vaultwarden (SSO sinds 1.35): het hoofdwachtwoord blijft, alleen de
         login gaat via Pocket ID.
-  - [ ] Forward-auth in Caddy (oauth2-proxy of TinyAuth) voor wat geen eigen
-        OIDC heeft: eerst code-server, Sonarr, Radarr, Prowlarr, Bazarr en
-        Prometheus (geen of een zwakke login, veel macht); daarna IT-Tools,
-        MeTube, BentoPDF, OpenBooks, qBittorrent.
+  - Forward-auth (oauth2-proxy naast Caddy) staat sinds 27-09 voor
+    code-server, de *arr-apps, Prometheus en qBittorrent (`admin`) en voor
+    IT-Tools, MeTube, BentoPDF, PairDrop en OpenBooks (`gezin`).
+  - [ ] De eigen logins van die apps op "extern" of uit (Sonarr, Radarr,
+        Prowlarr, Bazarr, qBittorrent, code-server), anders log je twee keer
+        in. Alleen voor verkeer via Caddy; de LAN-poort blijft de noodtoegang.
   - [ ] Werkt een app via Pocket ID: daar registreren en wachtwoord-login
         uit. Twee deuren is er één te veel.
   - [ ] Noodtoegang blijft lokaal: `root@pam`, de admin van PBS en UniFi,
