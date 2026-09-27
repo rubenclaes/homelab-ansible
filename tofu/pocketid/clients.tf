@@ -234,10 +234,9 @@ output "oauth2_proxy_client_secret" {
   sensitive = true
 }
 
-# Shelfmark: de instellingen staan alleen in Shelfmark zelf, zie
-# docs-site/content/docker/shelfmark.mdx; het secret plak je daar uit
-# `bin/tofu pocketid output -raw shelfmark_client_secret`. PKCE doet hij
-# zelf. Admin wordt wie in de groep `admin` zit.
+# Shelfmark: AUTH_METHOD en OIDC_* in de compose van de containers-repo
+# (stacks/media), het secret in media.env als SHELFMARK_OIDC_CLIENT_SECRET.
+# PKCE doet hij zelf. Admin wordt wie in de groep `admin` zit.
 resource "pocketid_client" "shelfmark" {
   name       = "Shelfmark"
   client_id  = "shelfmark"

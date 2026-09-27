@@ -2,7 +2,6 @@
 title: Shelfmark
 ---
 
-import { Steps } from 'nextra/components'
 
 # Shelfmark
 
@@ -10,48 +9,17 @@ import { Steps } from 'nextra/components'
 de bookdrop van Grimmory. Hij draait in de stack `media` op `docker`.
 Inloggen gaat via [Pocket ID](https://id.neodata.be), voor de groep `gezin`.
 
-## De login via Pocket ID instellen
+## De login via Pocket ID
 
-Shelfmark bewaart deze instellingen alleen in zijn eigen bestanden. Dit zet je
-dus met de hand, één keer. De client in Pocket ID staat wél in git
-(`tofu/pocketid/clients.tf`).
+De instellingen staan als omgevingsvariabelen in de compose van de
+`containers`-repo (`stacks/media/docker-compose.yml`, bij `shelfmark`):
+`AUTH_METHOD=oidc` en de `OIDC_*`-regels. Het secret staat als
+`SHELFMARK_OIDC_CLIENT_SECRET` in `files/env/media.env`, de client in
+`tofu/pocketid/clients.tf`.
 
-<Steps>
-
-#### Hernoem het lokale account
-
-Het lokale account `rubenclaes` wordt `admin`, met hetzelfde wachtwoord. Dat
-is de noodtoegang. Shelfmark kan geen naam wijzigen in de UI, dus op `docker`,
-met Shelfmark gestopt: `update users set username='admin' where
-username='rubenclaes'` in `/opt/containers/data/shelfmark/config/users.db`
-(op 27-09 zo gedaan). Anders maakt de eerste login via
-Pocket ID een tweede account aan met een achtervoegsel achter `rubenclaes`, omdat de naam al bestaat.
-
-#### Haal het client-secret
-
-```bash
-bin/tofu pocketid output -raw shelfmark_client_secret
-```
-
-#### Vul de instellingen in
-
-**Settings → Security → Authentication Method → OIDC**:
-
-| Veld | Waarde |
-| --- | --- |
-| Discovery URL | `https://id.neodata.be/.well-known/openid-configuration` |
-| Client ID | `shelfmark` |
-| Client Secret | het secret uit de vorige stap |
-| Scopes | `openid email profile` |
-| Group Claim Name | `groups` |
-| Admin Group Name | `admin` |
-| Use Admin Group for Authorization | aan |
-| Auto-Provision Users | aan |
-| Login Button Label | `Inloggen met Pocket ID` |
-
-**Test Connection**, dan bewaren.
-
-</Steps>
+Een omgevingsvariabele wint altijd van wat in Shelfmark zelf staat, en de UI
+kan dat veld dan niet meer wijzigen. Iets aanpassen doe je dus in de compose,
+dan pushen en `stacks.yml`.
 
 ## Iemand toegang geven
 
@@ -68,6 +36,12 @@ maakt Shelfmark het account zelf aan; wie ook in `admin` zit, wordt admin.
 | Noodtoegang | het lokale account `admin`, met wachtwoord |
 
 ## Goed om te weten
+
+### Het lokale account heet `admin`
+
+Shelfmark kan geen naam wijzigen in de UI. Op 27-09 is `rubenclaes` op `docker`
+hernoemd, met Shelfmark gestopt: `update users set username='admin' where
+username='rubenclaes'` in `/opt/containers/data/shelfmark/config/users.db`.
 
 ### Waarom een nieuw account en geen koppeling
 

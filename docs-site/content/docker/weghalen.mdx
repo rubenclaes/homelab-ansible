@@ -99,8 +99,16 @@ in zijn back-ups van `docker`, tot die door de prune verdwijnen.
 
 #### Ruim op buiten git
 
-Wat je in de eerste stap vond: de OIDC-client in Pocket ID, de toegang in
-NeoGate, variabelen in de `.env`. Een wachtwoord of sleutel die in de app zelf
+Wat je in de eerste stap vond: de OIDC-client (haal hem uit
+`tofu/pocketid/clients.tf`, dan `bin/tofu pocketid apply`), de toegang in
+NeoGate, variabelen in de `.env`.
+
+Wis `/opt/containers/stacks/<stack>` **niet** met de hand: dat is de
+git-checkout van de `containers`-repo. Een gewiste map is voor git een lokale
+wijziging, en dan weigert de volgende `stacks.yml` te pullen ("Local
+modifications exist"). De map verdwijnt vanzelf bij de pull nadat je de stack
+uit de repo hebt gehaald. Al gewist? `ssh docker`, dan als `ruben`:
+`cd /opt/containers && git checkout -- stacks/<stack>`. Een wachtwoord of sleutel die in de app zelf
 stond, is daarmee niet ongeldig: verander hem daar waar hij ook gebruikt werd.
 
 #### Docs, commit en push
