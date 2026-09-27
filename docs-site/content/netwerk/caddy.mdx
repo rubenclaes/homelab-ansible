@@ -97,8 +97,28 @@ Gebruikt een andere app de API via het publieke adres, zet die paden dan in
 `auth_skip`. NeoGate praat zo met Sonarr en Radarr; hun API blijft beschermd
 met de eigen API-sleutel.
 
-Ligt oauth2-proxy of Pocket ID plat, dan zijn deze apps nog rechtstreeks
-bereikbaar op hun LAN-adres en poort.
+### Niet om de login heen
+
+Sonarr, Radarr, Prowlarr, Bazarr en code-server vragen zelf geen login meer
+(of nooit gedaan) van een LAN-adres. Daarom laat de docker-host hun poorten
+alleen nog van Caddy toe: een firewall in de Docker-keten `DOCKER-USER`, uit
+`docker_stacks_proxy_only_ports` in `inventory/host_vars/docker/main.yml`.
+Zonder die regel kon iedereen op de wifi via `192.168.0.15:8989` rechtstreeks
+binnen. De apps onderling praten via het Docker-netwerk en merken er niets van.
+
+qBittorrent draait met host-netwerk, en die regel raakt hem niet. Hij houdt zijn
+eigen login; Caddy staat op zijn whitelist, zodat je via
+`torrent.neodata.be` maar één keer inlogt.
+
+Een app beschermen die ook zelf geen login vraagt: `auth:` in `caddy_sites`
+**en** de poort in `docker_stacks_proxy_only_ports`.
+
+### Ligt Pocket ID of oauth2-proxy plat?
+
+| App | Noodtoegang |
+| --- | --- |
+| Sonarr, Radarr, Prowlarr, Bazarr, code-server | `ssh -L 8989:localhost:8989 docker` en dan `http://localhost:8989` (andere poort, zelfde manier) |
+| qBittorrent, de tools | rechtstreeks op `192.168.0.15:<poort>` |
 
 ## Alleen het adres weghalen
 

@@ -1,0 +1,18 @@
+#!/bin/sh
+# {{ ansible_managed }}
+#
+# Published ports that only the reverse proxy may reach. Their login is
+# forward-auth in Caddy, so a visitor must not get round it by going straight
+# to this host's port. Traffic between containers comes in over a Docker
+# bridge, not over {{ docker_stacks_lan_interface }}, and is not touched.
+#
+# This script owns the DOCKER-USER chain: it empties it and fills it again.
+set -eu
+
+iptables -N DOCKER-USER 2>/dev/null || true
+iptables -F DOCKER-USER
+{% for port in docker_stacks_proxy_only_ports %}
+iptables -A DOCKER-USER -i {{ docker_stacks_lan_interface }} -p tcp -m conntrack --ctorigdst {{ ansible_host }} --ctorigdstport {{ port }} -s {{ docker_stacks_proxy_source }} -j RETURN
+iptables -A DOCKER-USER -i {{ docker_stacks_lan_interface }} -p tcp -m conntrack --ctorigdst {{ ansible_host }} --ctorigdstport {{ port }} -j DROP
+{% endfor %}
+iptables -A DOCKER-USER -j RETURN

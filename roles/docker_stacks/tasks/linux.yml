@@ -54,3 +54,46 @@
     mode: "0644"
   when: docker_stacks_wait_for_mounts | length > 0
   notify: Reload systemd
+
+# Ports that only the reverse proxy may reach (docker_stacks_proxy_only_ports).
+# A systemd unit tied to docker.service, so the rules come back after a
+# reboot or a Docker restart; Docker itself leaves DOCKER-USER empty.
+- name: Proxy-only ports in the DOCKER-USER chain
+  when: docker_stacks_proxy_only_ports | length > 0
+  block:
+    - name: Install the DOCKER-USER firewall script
+      ansible.builtin.template:
+        src: docker-user-firewall.sh.j2
+        dest: /usr/local/sbin/docker-user-firewall
+        owner: root
+        group: root
+        mode: "0755"
+      register: docker_stacks_fw_script
+
+    - name: Install the DOCKER-USER firewall unit
+      ansible.builtin.template:
+        src: docker-user-firewall.service.j2
+        dest: /etc/systemd/system/docker-user-firewall.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: docker_stacks_fw_unit
+
+    - name: Enable the DOCKER-USER firewall
+      ansible.builtin.systemd_service:
+        name: docker-user-firewall
+        enabled: true
+        state: started
+        daemon_reload: "{{ docker_stacks_fw_unit is changed }}"
+      # Under --check a new unit was not written, so there is nothing to enable.
+      when: not (ansible_check_mode and docker_stacks_fw_unit is changed)
+
+    # A oneshot that already ran does not run again on `started`, so a new
+    # port list needs an explicit restart to take effect.
+    - name: Apply a changed port list now
+      ansible.builtin.systemd_service:
+        name: docker-user-firewall
+        state: restarted
+      when:
+        - docker_stacks_fw_script is changed or docker_stacks_fw_unit is changed
+        - not ansible_check_mode

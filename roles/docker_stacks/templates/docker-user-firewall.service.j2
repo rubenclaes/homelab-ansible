@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Proxy-only ports in DOCKER-USER (forward-auth cannot be bypassed)
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/local/sbin/docker-user-firewall
+
+[Install]
+WantedBy=docker.service

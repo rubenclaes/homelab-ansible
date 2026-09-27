@@ -138,9 +138,14 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
   - Forward-auth (oauth2-proxy naast Caddy) staat sinds 27-09 voor
     code-server, de *arr-apps, Prometheus en qBittorrent (`admin`) en voor
     IT-Tools, MeTube, BentoPDF, PairDrop en OpenBooks (`gezin`).
-  - [ ] De eigen logins van die apps op "extern" of uit (Sonarr, Radarr,
-        Prowlarr, Bazarr, qBittorrent, code-server), anders log je twee keer
-        in. Alleen voor verkeer via Caddy; de LAN-poort blijft de noodtoegang.
+  - Sinds 27-09 laat de docker-host de poorten van Sonarr, Radarr, Prowlarr,
+    Bazarr en code-server alleen nog van Caddy toe (DOCKER-USER). code-server
+    heeft geen eigen wachtwoord meer.
+  - [ ] qBittorrent: Caddy (`192.168.0.25/32`) op de whitelist, zodat je maar
+        één keer inlogt (Options → WebUI → Bypass authentication for clients in
+        whitelisted IP subnets).
+  - [ ] Bazarr: nieuwe API-sleutel (Settings → General → Security → Reset). De
+        oude stond op 27-09 leesbaar in een sessielog.
   - [ ] Werkt een app via Pocket ID: daar registreren en wachtwoord-login
         uit. Twee deuren is er één te veel.
   - [ ] Noodtoegang blijft lokaal: `root@pam`, de admin van PBS en UniFi,

@@ -31,3 +31,9 @@ docker_stacks_docker_cli: ~
 
 docker_stacks_wait_for_mounts: []
 docker_stacks_nfs_mounts: []
+
+# Published ports that only the reverse proxy may reach, because their login is
+# forward-auth in Caddy. Empty = no firewall rules at all.
+docker_stacks_proxy_only_ports: []
+docker_stacks_proxy_source: ""
+docker_stacks_lan_interface: "{{ ansible_facts['default_ipv4']['interface'] | default('eth0') }}"
