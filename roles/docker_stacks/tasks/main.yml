@@ -58,6 +58,22 @@
   when: item.env | default(true)
   diff: false
 
+# Bind-mapjes die van een container-uid moeten zijn. Docker maakt een
+# ontbrekende bind-map als root aan, en een app die als 1001 draait kan er dan
+# niet in schrijven. Dit hier en niet als init-container in de compose: een
+# gestopte init-container wordt bij elke `up` opnieuw gestart, en dan meldt
+# deze rol elke keer "changed" - de nachtelijke drift-check gaat er rood van.
+- name: Data folders owned by the container user
+  ansible.builtin.file:
+    path: "{{ item.1.path }}"
+    state: directory
+    owner: "{{ item.1.owner }}"
+    group: "{{ item.1.group | default(item.1.owner) }}"
+    mode: "0755"
+  loop: "{{ docker_stacks_list | subelements('dirs', skip_missing=true) }}"
+  loop_control:
+    label: "{{ item.1.path }}"
+
 - name: Bring stacks up
   community.docker.docker_compose_v2:
     project_src: "{{ docker_stacks_root }}/{{ item.path }}"

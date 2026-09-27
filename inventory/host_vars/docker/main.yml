@@ -9,7 +9,12 @@ docker_stacks_list:
   - { name: neogate, path: neogate }
   - { name: infra, path: infra }
   - { name: media, path: media, project: media-stack }
-  - { name: outline, path: outline, desc: "Outline — wiki voor het gezin, inloggen via Pocket ID" }
+  # Outline draait als uid 1001 en schrijft uploads in data/.
+  - name: outline
+    path: outline
+    desc: "Outline — wiki voor het gezin, inloggen via Pocket ID"
+    dirs:
+      - { path: /opt/containers/data/outline/data, owner: 1001 }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus

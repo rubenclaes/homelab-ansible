@@ -68,8 +68,13 @@ De handleiding van Pocket ID noemt vier losse URL's. Maar Outline zet PKCE
 alleen aan als het de instellingen zelf ophaalt via de issuer. De client in
 Pocket ID eist PKCE, dus met losse URL's faalt het inloggen.
 
-### Waarom de container `outline-init`
+### Waarom de datamap van Ansible komt
 
 Docker maakt een ontbrekende datamap aan als root, en Outline draait als uid
-1001. `outline-init` zet de eigenaar bij elke start goed en stopt dan. Anders
-faalt de eerste upload met "permission denied".
+1001. Dan faalt de eerste upload met "permission denied". Daarom maakt de rol
+`docker_stacks` de map `/opt/containers/data/outline/data` vooraf aan met
+eigenaar 1001 (`dirs` bij de stack in `docker_stacks_list`).
+
+Eerst deed een init-container (`outline-init`) dat. Maar een gestopte container
+start bij elke `docker compose up` opnieuw, dus de rol meldde elke keer
+"changed" en de nachtelijke drift-check werd rood zonder echte drift.
