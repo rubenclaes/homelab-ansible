@@ -246,6 +246,17 @@ oauth2-proxy weigert dat standaard (een 500 na het aanmelden). Daarom staat
 groep wel. De rol staat in `roles/oauth2_proxy`, de client in
 `tofu/pocketid/clients.tf`, de geheimen in `host_vars/caddy/vault.yml`.
 
+### De login-cookie gaat naar élke app
+
+oauth2-proxy zet zijn cookie op `.neodata.be`, zodat één login voor alle
+apps geldt. Je browser stuurt hem daardoor ook mee naar apps zónder login,
+en hij is een paar KB groot (de tokens van Pocket ID zitten erin). Een app
+die maar 4 KB aan headers aanvaardt, antwoordt dan `431 Request Header
+Fields Too Large`. Zo gaf NeoGate op 27 september 2026 "geen verbinding" in
+elke tegel, tot het 16 KB aanvaardde. Zie je ergens een 431 in de
+Caddy-logs, dan is dit de eerste verdachte. Snel verhelpen: de
+`_oauth2_proxy`-cookies van `neodata.be` wissen in je browser.
+
 ### Waarom Caddy vaststaat
 
 Caddy is hier een eigen build met de plugin `caddy-dns/cloudflare`. Een gewone
