@@ -23,7 +23,6 @@ title: {{ s.name }}
 | --- | --- |
 | URL | [{{ s.name }}.{{ caddy_domain }}](https://{{ s.name }}.{{ caddy_domain }}) |
 | Upstream | `{{ up }}` |
-{#- Een host buiten de inventory (de UniFi-gateway) heeft geen blok op Machines. #}
 | Host | {{ ('[' ~ s.host ~ '](/homelab/machines/#' ~ s.host ~ ')') if s.host is defined and s.host in hostvars else ('`' ~ s.host ~ '` (buiten de inventory)' if s.host is defined else '— (vaste upstream)') }} |
 | Poort | {{ ('`' ~ s.port ~ '`') if s.port is defined else '—' }} |
 | Stack | {{ ('[' ~ s.stack ~ '](/homelab/machines/#' ~ s.host ~ ')') if s.stack is defined else '— (geen beheerde stack)' }} |
