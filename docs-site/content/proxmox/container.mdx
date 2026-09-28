@@ -13,8 +13,6 @@ die start in een seconde, kost bijna geen geheugen, en alles gaat automatisch.
 Wil je gewoon een **Docker-app** draaien? Dan heb je geen nieuwe machine nodig,
 zie [Dienst toevoegen](/docker/toevoegen/).
 
-## Een nieuwe container
-
 Voorbeeld: Vaultwarden op een eigen LXC. Alles gebeurt vanaf je werkstation,
 het Proxmox-scherm heb je niet nodig. **OpenTofu** maakt de container (zie
 [OpenTofu](/opentofu/)), daarna zet Ansible hem klaar.
@@ -29,7 +27,7 @@ ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, na
 
 Kies een nummer dat daar niet in staat.
 
-**Let op:** Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
+Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
 nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
 gereserveerd voor de restore-drill.
 
@@ -81,7 +79,7 @@ Voeg in `local.containers` een blok toe, naast de andere:
 Gateway, template en de Ansible-sleutel staan één keer onderaan hetzelfde
 bestand. Die hoef je niet in te vullen.
 
-**Let op:** een nieuwe container met `keyctl = true` lukt niet via OpenTofu.
+Een nieuwe container met `keyctl = true` lukt niet via OpenTofu.
 Proxmox laat elke vlag behalve `nesting` alleen `root@pam` zetten, ook bij het
 aanmaken, en OpenTofu werkt met een token. Maak hem dus met `keyctl = false`,
 zet de vlag als root op pve01 (`pct set <id> --features nesting=1,keyctl=1`),
@@ -135,7 +133,7 @@ git push
 #### Werk de container af
 
 De machine staat er, maar is nog leeg. Ga verder met
-[Afwerken](/proxmox/afwerken/#een-guest-afwerken).
+[Afwerken](/proxmox/afwerken/).
 
 </Steps>
 

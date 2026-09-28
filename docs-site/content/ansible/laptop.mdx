@@ -35,7 +35,7 @@ brew install ansible ansible-lint
 ansible-galaxy collection install -r collections/requirements.yml
 ```
 
-**Let op:** Zonder `proxmoxer` (zit in de brew-versie) ziet Ansible alleen `pve01` en de
+Zonder `proxmoxer` (zit in de brew-versie) ziet Ansible alleen `pve01` en de
 Macs, zonder foutmelding. Met pipx: `pipx inject ansible-core proxmoxer requests`.
 
 #### 3. Zet de ansible-sleutel neer
@@ -47,7 +47,7 @@ chmod 600 ~/.ssh/ansible_ed25519
 
 <Callout type="error">
 Maak deze sleutel **nooit** opnieuw aan: elke host kent de bestaande. Echt
-kwijt? Zie [De ansible-sleutel is kwijt](/ansible/sleutel/#de-ansible-sleutel-is-kwijt).
+kwijt? Zie [De ansible-sleutel is kwijt](/ansible/sleutel/).
 </Callout>
 
 #### 4. Zet de vault-wachtwoorden neer

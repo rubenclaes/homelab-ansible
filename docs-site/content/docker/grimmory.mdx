@@ -9,7 +9,7 @@ import { Steps } from 'nextra/components'
 [books.neodata.be](https://books.neodata.be) is de bibliotheek voor e-books,
 strips en luisterboeken. Hij draait in de stack `media` op `docker`. Inloggen
 gaat via [Pocket ID](https://id.neodata.be); de gewone login staat nog aan tot
-iedereen over is.
+iedereen over is. Wie erin mag: [Pocket ID → Per app](/mensen/pocket-id/#per-app).
 
 ## De login via Pocket ID instellen
 
@@ -66,24 +66,12 @@ Blok **OIDC Provider Configuration**:
 
 </Steps>
 
-## Iemand toegang geven
-
-Maak de persoon aan in Pocket ID en zet hem in `gezin` of `familie`. Bij de
-eerste login maakt Grimmory het account zelf aan, met de standaardrechten
-hierboven.
-
-Heeft iemand al een account in Grimmory, dan koppelt die op
-**gebruikersnaam**, en hoofdlettergevoelig: `KarenOris` en `karenoris` zijn
-voor Grimmory twee mensen. Zet de gebruikersnaam in Pocket ID precies gelijk.
-
 ## Naslag
 
 | Wat | Waar |
 | --- | --- |
-| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
 | Callback-URL | `https://books.neodata.be/oauth2-callback` |
-| Wie mag erin | `gezin` en `familie` |
-| Noodtoegang | `https://books.neodata.be/login?local=true` |
 
 ## Goed om te weten
 
@@ -96,8 +84,13 @@ dan een rol die op een verborgen API steunt.
 
 ### Pocket ID ligt plat
 
-Zet `FORCE_DISABLE_OIDC=true` in de omgeving van de container, of log in via
-`/login?local=true`. Dat werkt zolang de gewone login aan staat.
+Log in via `/login?local=true`, of zet `FORCE_DISABLE_OIDC=true` in de
+omgeving van de container. Dat werkt zolang de gewone login aan staat.
+
+### Een bestaand account koppelt hoofdlettergevoelig
+
+Grimmory koppelt op gebruikersnaam: `KarenOris` en `karenoris` zijn voor hem
+twee mensen. Zet de gebruikersnaam in Pocket ID precies gelijk.
 
 ### Additive, niet Replace
 

@@ -1,4 +1,7 @@
 ---
+# Wat deze machine doet, voor de pagina Machines op de docs-site.
+docs_machine_role: Je MacBook, de werkplek waarvan je Ansible en OpenTofu draait.
+
 # Mijn eigen laptop. De Mac mini is de dev-machine; wat hier staat is bewust
 # iets anders. Gelezen van de machine zelf op 22-09.
 

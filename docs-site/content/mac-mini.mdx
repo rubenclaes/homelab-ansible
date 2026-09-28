@@ -72,8 +72,8 @@ Wat je kwijt bent:
 
 pve01, PBS en de guests zijn ongemoeid.
 
-**Let op:** Dit pad is **nooit volledig gelopen**. `nfs.yml` heeft één keer echt gedraaid.
-Reken op verrassingen, vooral rond Homebrew: de Mini draait macOS 14, waar alles vanaf broncode bouwt.
+Dit pad is nooit volledig gelopen; `nfs.yml` heeft één keer echt gedraaid.
+Reken op verrassingen, vooral rond [Homebrew](#de-mac-mini-en-homebrew).
 
 <Steps>
 
@@ -165,12 +165,9 @@ zichzelf updaten (Spotify, Chromium) laat hij met rust.
 
 #### Kijk of elke Mac aan de beurt kwam
 
-Faalde er een Mac? Kijk dan in de output of de volgende nog gedraaid heeft.
-
-**Let op:** Faalt één Mac, dan stopt de hele play: de Macs gaan één voor één. Op 23-09
-faalde de Mac mini op een cask, en daardoor is de MacBook nooit aan de beurt
-geweest. `google-chrome` bleef daar verouderd staan zonder dat het log iets
-over `mbp` zei.
+De Macs gaan één voor één, en faalt er een, dan stopt de play: de volgende
+komt niet meer aan de beurt, en het log zegt daar niets over. Kijk dus per Mac
+in de output.
 
 </Steps>
 

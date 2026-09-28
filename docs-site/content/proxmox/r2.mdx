@@ -7,13 +7,8 @@ import { Steps } from 'nextra/components'
 # Terughalen uit R2
 
 Alles in huis is weg: pve01, PBS én de Mac mini. Dan komt alles terug uit
-Cloudflare R2, de kopie buiten het huis.
-
-## Terughalen uit R2
-
-Alles in huis is weg. Elke nacht gaat een kopie naar **Cloudflare R2** (een
-opslag op het internet), bucket `neodata-pbs`. Daar staat alleen wat git niet
-kan herbouwen:
+Cloudflare R2 (bucket `neodata-pbs`), de kopie buiten het huis. Daar staat
+alleen wat git niet kan herbouwen:
 
 | In R2 | Wat |
 | --- | --- |
@@ -22,10 +17,11 @@ kan herbouwen:
 | `ct/107`, `ct/108`, `ct/109` | adguard, tailscale, ntfy |
 
 De rest (de VM's `docker` en `docker-grafana-stack`, caddy, semaphore) bouw
-je opnieuw met OpenTofu en Ansible uit git. Ook hier: eerst terugzetten wat
-uit R2 komt, pas dan `bin/tofu proxmox plan`.
+je opnieuw met OpenTofu en Ansible uit git.
 
-**Je hebt nodig:** het papier met de sleutels (twee PBS-sleutels en de twee
+## Alles terughalen
+
+Je hebt nodig: het papier met de sleutels (twee PBS-sleutels en de twee
 vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
 
 <Steps>
@@ -53,8 +49,8 @@ leg hem stil:
 ssh pbs 'echo "$(date -Is) stilgelegd tijdens herstel" | sudo tee /var/lib/r2-guard/stopped'
 ```
 
-**Let op:** Start de sync **nooit** met "Run now" in de webinterface van PBS. Dan slaat
-hij de check van `r2-guard` over.
+Start de sync nooit met "Run now" in de webinterface van PBS: dan slaat hij
+de check van `r2-guard` over.
 
 #### Kijk wat er in R2 staat
 
@@ -91,6 +87,8 @@ Proxmox → Datacenter → Storage → Add → **Proxmox Backup Server**:
 
 Home Assistant, adguard, tailscale en ntfy: Proxmox → `offsite` → Backups →
 kies de nieuwste → **Restore**, met hun eigen nummer (101, 107, 108, 109).
+Eerst deze, pas dan `bin/tofu proxmox plan`
+([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
 
 #### Maak de back-upgebruiker van `docker` opnieuw
 
@@ -168,9 +166,6 @@ ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreRead
 
 </Steps>
 
-Getest op 25-09-2026: ntfy (ct 109) volledig teruggezet uit R2, en
-`grimmory/books` en de foto's uit `docker-data` waren identiek aan het origineel.
-
 ## De R2-sync weer aanzetten
 
 Je kreeg de melding **"R2-sync gestopt"** (of elke nacht "R2-sync staat nog
@@ -216,3 +211,11 @@ vannacht om 04:00 weer. Staat er toch STOP, dan is hij al opnieuw gestopt:
 terug naar de eerste stap.
 
 </Steps>
+
+## Goed om te weten
+
+### Getest
+
+Op 25-09-2026: ntfy (ct 109) volledig teruggezet uit R2, en `grimmory/books`
+en de foto's uit `docker-data` waren identiek aan het origineel. Meer is niet
+getest.

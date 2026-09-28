@@ -26,6 +26,8 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Docs | dagelijks 07:00 | de site volgt de repo |
 | Homelab Report | zondag 08:00 | traag, dus wekelijks |
 | Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
+| UniFi routes | dagelijks 06:15 | wijst elke route naar een toestel met een Fixed IP, en deelt UniFi de juiste DNS uit? |
+| UniFi watch | elk kwartier | meldt een toestel dat niet in `unifi_known_macs` staat |
 
 ### In Semaphore, zonder schema (klik ze zelf)
 
@@ -35,7 +37,7 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Caddy | `caddy.yml` |
 | Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
 
-Daarmee staan alle twaalf templates van het project in git. Maak je er een in
+Daarmee staan alle veertien templates van het project in git. Maak je er een in
 de UI, zet hem dan ook in `semaphore_templates_list`, anders is dat bestand
 weer een deellijst en geloof je hem ten onrechte. Hoe:
 [Schema in Semaphore](#een-schema-in-semaphore-aanpassen).
@@ -46,13 +48,10 @@ De back-ups draaien op de cron van Proxmox, niet in Semaphore: dagelijks om
 02:30 naar PBS, en zondag om 01:00 een tweede kopie naar de Mac mini. Wat, waar
 en waarom: [Back-ups](/proxmox/backups/).
 
-**Wat meldt zich als het faalt?** Proxmox en PBS wel: een mislukte back-up
+Wat meldt zich als het faalt? Proxmox en PBS wel: een mislukte back-up
 komt op je telefoon, zie [Meldingen op je iPhone](#meldingen-op-je-iphone).
 Een job in Semaphore níét: kijk af en toe zelf in de taaklijst. Staat op
 `TODO.md`.
-
-Waarom de tijden en limits zijn wat ze zijn:
-[Goed om te weten → Semaphore](#goed-om-te-weten).
 
 ## Een schema in Semaphore aanpassen
 
@@ -66,10 +65,9 @@ zet ze via de API in Semaphore.
 
 Open Semaphore en noteer de **exacte** naam van de template, met hoofdletters.
 
-**Let op:** `name` is de sleutel waarop gezocht wordt. `Cleanup (apply)` is niet
-`Cleanup (Apply)`: een andere schrijfwijze maakt een **tweede** template in
-plaats van de bestaande te wijzigen. Zo stonden er op 23-09 drie dubbele jobs,
-waaronder een site-converge zonder zijn limit.
+`name` is de sleutel waarop de rol zoekt: `Cleanup (apply)` in plaats van
+`Cleanup (Apply)` maakt een **tweede** template in plaats van de bestaande te
+wijzigen ([meer](#een-template-hernoemen)).
 
 #### Pas de lijst aan
 

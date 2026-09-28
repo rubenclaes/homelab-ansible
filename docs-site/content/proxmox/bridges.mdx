@@ -6,13 +6,8 @@ import { Steps, Callout } from 'nextra/components'
 
 # Bridges van pve01
 
-Een IP-adres of bridge van pve01 zelf aanpassen. Dit is het gevaarlijkste
-playbook in de repo: een fout maakt pve01 onbereikbaar.
-
-## Bridges van pve01 wijzigen
-
-Een IP-adres of bridge van de hypervisor aanpassen, bijvoorbeeld `vmbr1`
-krijgt een ander adres.
+Een IP-adres of bridge van pve01 zelf aanpassen, bijvoorbeeld `vmbr1` krijgt
+een ander adres.
 
 <Callout type="error">
 Dit is het gevaarlijkste playbook in de repo. Ansible bereikt `pve01` op
@@ -75,7 +70,7 @@ Nu herlaadt de node zijn netwerk. Gaat er iets mis, dan zet de
 [dodemansknop](#de-dodemansknop)
 de oude config na 180 seconden vanzelf terug.
 
-**Let op:** Weigert het playbook met `ansible-network-revert.timer is still armed`? Dan
+Weigert het playbook met `ansible-network-revert.timer is still armed`? Dan
 loopt er nog een terugzet-timer van een vorige run. De config die nu draait is
 misschien net de kapotte. Wacht tot de timer afgaat (max. 3 minuten), of, als
 je **zeker** weet dat wat draait goed is:

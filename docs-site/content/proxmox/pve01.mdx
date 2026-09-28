@@ -6,16 +6,15 @@ import { Steps, Callout } from 'nextra/components'
 
 # pve01 opnieuw opbouwen
 
-Het grote geval: pve01 zelf is weg, bijvoorbeeld een dode bootschijf. Je
-bouwt hem opnieuw op in drie delen: pve01 zelf, dan de back-ups, dan de
-machines. Deze site draait óp pve01; dezelfde tekst staat in elke clone van de
-repo, in `docs-site/content/proxmox/pve01.mdx`.
+pve01 zelf is weg, bijvoorbeeld een dode bootschijf. Je bouwt hem opnieuw op
+in drie delen: pve01 zelf, dan de back-ups, dan de machines. Deze site draait
+óp pve01; dezelfde tekst staat in elke clone van de repo, in
+`docs-site/content/proxmox/pve01.mdx`.
 
 ## Voor je begint
 
-**De volgorde telt.** Elke stap heeft iets nodig dat de vorige achterlaat. Sla
-er een over en je loopt vast op iets dat er niet uitziet als het echte
-probleem.
+De volgorde telt: elke stap heeft iets nodig dat de vorige achterlaat. Sla er
+een over en je loopt vast op iets dat er niet uitziet als het echte probleem.
 
 Zorg eerst dat je laptop klaarstaat (repo, Ansible, `ansible`-sleutel,
 vault-wachtwoorden), zie [Laptop klaarzetten](/ansible/laptop/). Zonder
@@ -48,7 +47,7 @@ zpool import vm-hdd      # "in use by another system"? dan: zpool import -f vm-h
 - **Lukt het**: de VM-schijven en de PBS-datastore zijn er nog. Ga door.
 - **Lukt het niet**: de PBS-back-ups zijn weg. Doe deel 1, sla in deel 2 alles
   over tot *Maak de map voor de tweede kopie*, doe deel 2 verder af, en ga dan
-  naar [Tweede kopie](/proxmox/tweede-kopie/#terugvallen-op-de-tweede-kopie).
+  naar [Tweede kopie](/proxmox/tweede-kopie/).
 
 #### Maak de gebruiker van OpenTofu
 
@@ -89,9 +88,8 @@ Dit maakt `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten, uit
 `tofu/proxmox/access.tf`. Typ `yes`.
 
 <Callout type="error">
-Alleen met die drie `-target`s. Een gewone `bin/tofu proxmox apply` zou nu
-élke guest leeg opnieuw maken, en dan kan je back-up er niet meer op. Zie
-[Deel 3](#deel-3--de-machines-en-diensten).
+Alleen met die drie `-target`s. Een gewone `apply` zou nu élke guest leeg
+opnieuw maken, en dan kan je back-up er niet meer op.
 </Callout>
 
 #### Maak het token van Ansible
@@ -104,10 +102,6 @@ pveum user token add ansible@pve automation --privsep 0   # toont het secret, ma
 
 Kopieer het secret meteen.
 
-Waarom de tokens met de hand? De inventory vindt de guests via het token van
-Ansible, en OpenTofu heeft zijn eigen token nodig om te mogen praten. Een
-programma kan niet het token maken dat het zelf nodig heeft om te draaien.
-
 #### Zet het secret in de twee vault-bestanden
 
 Op je laptop:
@@ -117,11 +111,8 @@ ansible-vault edit inventory/group_vars/proxmox/vault.yml   # vault_pve_api_toke
 ansible-vault edit inventory/homelab.proxmox.yml            # token_secret
 ```
 
-**Allebei.** `vault.yml` gebruiken de playbooks, `homelab.proxmox.yml` gebruikt
-de dynamische inventory. Die wordt gelezen vóór `group_vars`, en kan dus niet
-naar `vault_pve_api_token_secret` verwijzen: daarom is het hele bestand
-versleuteld en staat het secret er letterlijk in. Vergeet je de tweede, dan
-ziet Ansible geen enkele guest.
+Allebei. Vergeet je de tweede, dan ziet Ansible geen enkele guest
+([waarom twee](#het-api-token-staat-op-twee-plekken)).
 
 #### Commit en push
 
@@ -132,7 +123,6 @@ git push
 ```
 
 Semaphore draait vanuit git. Zonder push werkt hij straks met het oude token.
-`tofu/secrets.env` is versleuteld, net als de vault.
 
 #### Vertrouw de nieuwe hostkey van pve01
 
@@ -151,10 +141,8 @@ ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k   # vraagt het
 ```
 
 Een verse Proxmox laat root nog met een wachtwoord binnen. Na de baseline niet
-meer: dit is het enige moment waarop `-u root -k` werkt.
-
-**Let op:** `-k` heeft het programma `sshpass` nodig op je laptop. Ontbreekt het, dan
-stopt Ansible met een melding daarover.
+meer: dit is het enige moment waarop `-u root -k` werkt. `-k` heeft het programma
+`sshpass` nodig op je laptop.
 
 #### Controleer het token
 
@@ -217,10 +205,9 @@ Van de PBS-ISO: haal de nieuwste van
 ISO Images → Download from URL**, en hang hem aan als CD/DVD. De oude
 systeemschijf stond op `local-lvm` en is met de herinstallatie verdwenen.
 
-Zorg daarna dat de datastore van `scsi1` weer op `/mnt/datastore/store1` hangt.
-
-**Let op:** Doe dat vóór `pbs.yml` draait. Vindt de rol geen `store1`, dan maakt hij er
-een nieuwe, lege aan.
+Zorg daarna dat de datastore van `scsi1` weer op `/mnt/datastore/store1`
+hangt, vóór `pbs.yml` draait: vindt de rol geen `store1`, dan maakt hij er een
+nieuwe, lege aan.
 
 #### Breng PBS onder Ansible
 
@@ -241,9 +228,8 @@ Met de hand: Datacenter → Storage → Add → Proxmox Backup Server.
 - datastore `store1`, gebruiker `pve@pbs` met zijn wachtwoord (niet in de repo; kwijt? zet een nieuw in het PBS-scherm)
 - de **encryptiesleutel** (je papieren kopie)
 
-**Let op:** Dit staat met opzet in geen playbook: de definitie draagt de
-encryptiesleutel, en die hoort niet in git. Zonder die sleutel zijn je
-back-ups onleesbaar.
+Dit staat met opzet in geen playbook: de definitie draagt de
+encryptiesleutel, en die hoort niet in git.
 
 #### Maak de map voor de tweede kopie
 
@@ -283,15 +269,9 @@ node" zolang die er niet is.
 Guests met data komen uit PBS, `caddy`, `tailscale` en `ntfy` bouw je nieuw.
 
 <Callout type="error">
-**Eerst alles uit PBS terugzetten, pas dan `bin/tofu proxmox plan`.**
-
-OpenTofu weet nog welke guests er horen te staan (zijn state staat in R2, niet
-op pve01). Een `apply` nu zou elke ontbrekende guest maken, als **lege**
-machine op zijn eigen nummer. Daarna kan de back-up daar niet meer op.
-
-Wil het plan een guest *maken* die uit PBS moet komen: stop. Zet die eerst
-terug. Na de restores mag het plan alleen nog `caddy` en `tailscale` willen
-maken.
+Eerst alles uit PBS terugzetten, pas dan `bin/tofu proxmox plan`. Een `apply`
+daarvoor maakt elke ontbrekende guest leeg op zijn nummer, en dan kan de
+back-up er niet meer op ([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
 </Callout>
 
 <Steps>
@@ -401,7 +381,8 @@ de host uit PBS, dan staat de oude sleutel er nog.
 playbooks, en `inventory/homelab.proxmox.yml` (`token_secret`) voor de
 dynamische inventory. Een inventory-bron wordt gelezen vóór `group_vars`, dus
 kan hij niet naar een vault-variabele verwijzen. Daarom is dat hele bestand
-versleuteld onder `infra`. Nieuw token = beide aanpassen.
+versleuteld onder `infra` en staat het secret er letterlijk in. Nieuw token =
+beide aanpassen.
 
 ### `bootstrap.yml` doet één host tegelijk
 
@@ -435,5 +416,10 @@ herkent zichzelf eraan.
 
 `tofu@pve` mag gebruikers en rechten zetten, `ansible@pve` alleen wat Ansible
 nodig heeft. Zo heeft elk programma zijn eigen token, trek je het ene in
-zonder het andere, en hoeft geen van beide root te zijn. `tofu@pve` zelf
-staat niet in OpenTofu: je kan niet de sleutel beheren waarmee je binnenkomt.
+zonder het andere, en hoeft geen van beide root te zijn.
+
+### Waarom de tokens met de hand
+
+`tofu@pve` zelf staat niet in OpenTofu: je kan niet de sleutel beheren
+waarmee je binnenkomt. En een programma kan niet het token maken dat het zelf
+nodig heeft om te draaien. Daarom maak je beide tokens met `pveum`.

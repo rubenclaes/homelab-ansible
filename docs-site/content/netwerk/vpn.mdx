@@ -16,11 +16,11 @@ Tailscale.
 
 | Je wil… | Neem | Waarom |
 | --- | --- | --- |
-| `*.neodata.be`, `*.home.arpa` of een `192.168.0.x`-adres | **Tailscale** of **WireGuard** | allebei komen op het LAN. Getest op 23-09: Tailscale op de iPhone, over 4G |
+| `*.neodata.be`, `*.home.arpa` of een `192.168.0.x`-adres | **Tailscale** of **WireGuard** | allebei komen op het LAN |
 | een machine op de tailnet, via zijn `100.x`-adres | **Tailscale** | |
-| erbij terwijl de ene niet werkt | **de andere** | ze hangen aan verschillende dingen, zie hieronder |
+| erbij terwijl de ene niet werkt | **de andere** | ze hangen aan verschillende dingen, zie [Twee wegen naar binnen](/netwerk/overzicht/#twee-wegen-naar-binnen) |
 
-Zet er altijd maar **één** aan. iOS houdt trouwens maar één VPN tegelijk actief.
+Zet er maar één aan; iOS houdt ook maar één VPN tegelijk actief.
 
 <Steps>
 
@@ -45,8 +45,6 @@ dan [Netwerk → De VPN nakijken](#de-vpn-nakijken).
 Geeft je provider je een ander WAN-adres, dan werkt UniFi `vpn.neodata.be`
 zelf bij (Dynamic DNS). Werkt WireGuard onderweg toch ineens niet, neem dan
 Tailscale en kijk thuis het adres na.
-
-Waarom het zo zit: [Goed om te weten](#goed-om-te-weten).
 
 ## De VPN nakijken
 
@@ -73,9 +71,8 @@ forceren. Zie
 | --- | --- | --- | --- |
 | UniFi → de VPN-server "Neodata VPN" | DNS-server | `192.168.0.29` | de AdGuard in ct 107; alleen die kent de `*.home.arpa`-namen |
 
-**Let op:** Heb je de DNS-server gewijzigd? **Importeer het profiel opnieuw op de
-telefoon.** De waarde zit ingebakken in de clientconfig; alleen de server
-aanpassen is niet genoeg.
+Gewijzigd? Importeer het profiel dan opnieuw op de telefoon: de waarde zit in
+het profiel, alleen de server aanpassen is niet genoeg.
 
 #### Test via mobiele data
 
@@ -105,8 +102,8 @@ ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 Tailscale-console wordt het `device-pc-ouders`: het enige spoor dat de
 sleutel achterlaat. Kies dus iets wat je over een half jaar nog herkent.
 
-**Let op:** Draai dit **niet** vanuit Semaphore. De sleutel wordt afgedrukt en een
-Semaphore-tasklog bewaart hem.
+Niet vanuit Semaphore: de sleutel wordt afgedrukt, en een Semaphore-log
+bewaart hem.
 
 #### Gebruik hem binnen 10 minuten op het apparaat
 
@@ -126,20 +123,6 @@ tweede keer tonen, en een ongebruikte verloopt vanzelf.
 </Steps>
 
 ## Goed om te weten
-
-### Waarom twee wegen
-
-WireGuard draait op de UniFi-gateway, Tailscale op pve01. Ligt pve01 eruit,
-precies wanneer je erbij wil, dan werkt WireGuard nog. Breekt WireGuard (meestal
-het WAN-adres), dan werkt Tailscale nog. Meer in
-[Netwerk → Twee wegen naar binnen](/netwerk/overzicht/#twee-wegen-naar-binnen).
-
-### Hoe Tailscale op het LAN komt
-
-ct 108 biedt `192.168.0.0/24` aan de tailnet aan, en die route is goedgekeurd.
-Een toestel dat meereist neemt ze aan: op iOS is dat "Use Tailscale subnets"
-(staat standaard aan), op de MacBook staat het ook aan. De servers thuis nemen
-ze met opzet niet aan. Zie [Netwerk](/netwerk/overzicht/#hoe-de-tailscale-weg-op-het-lan-komt).
 
 ### Waarom de tailnet een 100.x-adres als DNS heeft
 
@@ -162,6 +145,5 @@ gebruikt de naam `vpn.neodata.be`, niet het adres, dus na een wissel volgt het
 vanzelf. UniFi kan bij de VPN-server nog waarschuwen dat hij op "Existing IP
 Address" staat; met Dynamic DNS actief mag die waarschuwing blijven staan.
 
-Sinds 4 september is het adres niet gewisseld, dus de update is nooit echt
-nodig geweest. Werkt WireGuard na een wissel niet, kijk dan of de record
-gevolgd is: zie [De VPN nakijken](#de-vpn-nakijken).
+Het adres is sinds september niet gewisseld, dus de update is nog nooit echt
+nodig geweest.

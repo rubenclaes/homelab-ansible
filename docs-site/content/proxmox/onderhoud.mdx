@@ -12,8 +12,8 @@ wat er openstaat? Kijk in het
 
 ## Guests patchen en herstarten
 
-Patchen gebeurt **vanzelf**: Semaphore draait de template "Update guests" elke
-zondag om 04:00, behalve op `semaphore` zelf. Herstarten gebeurt **nooit**
+Patchen gebeurt vanzelf: Semaphore draait "Update guests" elke zondagnacht
+([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)), behalve op `semaphore` zelf. Herstarten gebeurt **nooit**
 vanzelf, ook niet in die zondagse run: jij kiest het moment.
 
 Met de hand doe je dit als je niet op zondag wil wachten, om Semaphore te
@@ -37,7 +37,7 @@ ansible-playbook playbooks/update.yml --limit semaphore
 
 Altijd vanaf je laptop, nooit vanuit Semaphore zelf.
 
-**Let op:** Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
+Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
 run, dan is de job dood en weet je niet of de upgrade af is.
 
 #### Kijk of er een herstart nodig is
@@ -52,7 +52,7 @@ ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true
 
 Hij patcht eerst, en herstart alleen als het nodig is.
 
-**Let op:** Herstart je `docker`, dan liggen alle stacks erop even plat.
+Herstart je `docker`, dan liggen alle stacks erop even plat.
 
 #### Of: alle guests die het nodig hebben
 
@@ -108,7 +108,7 @@ krijgt dan een melding dat hij een reboot nodig heeft.
 ## Schijfruimte vrijmaken
 
 Een schijf loopt vol. `cleanup.yml` rapporteert eerst en verwijdert pas met een
-vlag. Semaphore ruimt elke zaterdag om 03:00 echt op.
+vlag. Semaphore ruimt elke zaterdagnacht echt op ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
 
 <Steps>
 
@@ -133,7 +133,7 @@ lijstje zien vóór je opruimt, is het hele punt van deze stap.
 ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true
 ```
 
-**Let op:** Zet `cleanup_apply` **nooit** in de inventory. Het is de schakelaar die een
+Zet `cleanup_apply` nooit in de inventory: het is de schakelaar die een
 rapport in een verwijdering verandert; een default in `group_vars` maakt elke
 run destructief.
 

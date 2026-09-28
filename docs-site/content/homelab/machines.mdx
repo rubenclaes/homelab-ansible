@@ -95,7 +95,7 @@ Diensten: [dns](/homelab/diensten/dns/)
 
 `192.168.0.25` · Debian 12.15 · VMID 106 · 1 core · 512 MB · 6 GB
 
-Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+De voordeur: stuurt elk `*.neodata.be`-adres naar de juiste machine, regelt de certificaten, en draait oauth2-proxy voor de login vóór apps zonder eigen login.
 
 ### ntfy
 
@@ -113,7 +113,7 @@ Diensten: [semaphore](/homelab/diensten/semaphore/)
 
 `192.168.0.50` · Debian 12.15 · VMID 108 · 4 cores · 1.0 GB · 8 GB
 
-Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+Subnet router: brengt wie via Tailscale binnenkomt op het thuisnetwerk (`192.168.0.0/24`).
 
 ## Macs
 
@@ -129,7 +129,7 @@ Diensten: [plex](/homelab/diensten/plex/)
 
 lokaal · macOS 27.0
 
-Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+Je MacBook, de werkplek waarvan je Ansible en OpenTofu draait.
 
 ---
 

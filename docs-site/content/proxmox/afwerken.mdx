@@ -6,22 +6,16 @@ import { Steps } from 'nextra/components'
 
 # Afwerken
 
-Je container of VM staat er. Nu komt de rest: de dienst erop, een adres, de
-back-up, commit en de docs.
-
-## Een guest afwerken
-
-Je machine staat er en heeft de baseline, via
-[Nieuwe container](/proxmox/container/#een-nieuwe-container) of
-[Virtuele machine](/proxmox/vm/#een-virtuele-machine). Nu zet je er iets op
-en zorg je dat hij overal meetelt. Voorbeeld: `vaultwarden`.
+Je [container](/proxmox/container/) of [VM](/proxmox/vm/) staat er en heeft
+de baseline. Nu komt de rest: de dienst erop, een adres, de back-up, commit en
+de docs. Voorbeeld: `vaultwarden`.
 
 <Steps>
 
 #### Installeer de dienst
 
 Voor software zonder Docker schrijf je een rol. Dat staat in
-[Dienst toevoegen → Eigen rol](/ansible/rol/#een-eigen-rol-zonder-docker).
+[Eigen rol](/ansible/rol/).
 
 #### Geef hem een adres (optioneel)
 
@@ -57,7 +51,7 @@ git commit -m "vaultwarden erbij"
 git push
 ```
 
-**Let op:** Sla dit niet over. Semaphore draait zijn geplande runs vanuit git, niet vanaf
+Sla dit niet over: Semaphore draait zijn geplande runs vanuit git, niet vanaf
 je laptop. Een route of rol die niet gepusht is, bestaat voor Semaphore niet
 en kan bij de volgende run weer verdwijnen.
 

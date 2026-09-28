@@ -122,10 +122,8 @@ Voor een container uit `tofu/proxmox/containers.tf` die stuk of weg is, en
 waar niets unieks op staat: `caddy` en `tailscale`. Nieuw bouwen gaat sneller dan een
 back-up terugzetten, en is schoner.
 
-**Let op:** Dit geeft je een **lege** container met de juiste instellingen. Heb je de data
-nodig (instellingen, databases), volg dan
-[Terugzetten uit back-up](#terugzetten-uit-de-back-up).
-Voor `adguard`, `semaphore` e.a. is dat bijna altijd wat je wil.
+Je krijgt een **lege** container met de juiste instellingen. Voor een guest
+met data (`adguard`, `semaphore`) wil je [terugzetten](#terugzetten-uit-de-back-up).
 
 Voorbeeld: `caddy` (ct 106).
 
@@ -147,8 +145,8 @@ bin/tofu proxmox plan
 ```
 
 Er mag maar één ding bij komen: jouw container (`1 to add`). Wil hij nog een
-andere guest maken die uit PBS terug moet, stop dan: zet die eerst terug, zie
-[OpenTofu maakt de container](#opentofu-maakt-de-container-new-guestyml-zet-hem-klaar).
+andere guest maken die uit PBS terug moet, stop dan en zet die eerst terug
+([waarom](#eerst-terugzetten-dan-pas-plan)).
 
 #### Maak hem opnieuw
 
@@ -229,25 +227,28 @@ wildcard-rewrite). Volg daarvoor [Geen DNS](/netwerk/dns/#geen-dns).
 | `caddy` | 106 | LXC | `vm-hdd` | [herbouwen](#een-container-opnieuw-bouwen) |
 | `adguard` | 107 | LXC | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) of [geen DNS](/netwerk/dns/#geen-dns) |
 | `tailscale` | 108 | LXC | `vm-hdd` | [herbouwen](#een-container-opnieuw-bouwen) |
-| `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/proxmox/oci/#een-oci-container) |
+| `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/proxmox/oci/) |
 
 Bron: `tofu/proxmox/vms.tf` en `containers.tf`; `ntfy` uit
 `pve_oci_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.
 
 ## Goed om te weten
 
-### OpenTofu maakt de container, `new-guest.yml` zet hem klaar
+### Eerst terugzetten, dan pas `plan`
 
 `bin/tofu proxmox apply` maakt élke container of VM uit `tofu/proxmox/` die
-ontbreekt. Niet alleen de ene die je bedoelt. Mist er ook een guest die uit
+ontbreekt, niet alleen de ene die je bedoelt. Mist er ook een guest die uit
 PBS terug moet, dan maakt OpenTofu die als **lege** machine op zijn nummer, en
-kan je back-up er niet meer op.
+kan je back-up er niet meer op. OpenTofu weet dat die guest er hoort, ook na
+een ramp: zijn state staat in R2, niet op pve01.
 
-De regel: **eerst terugzetten uit PBS, dan pas `plan`**. Wil het plan een
-guest maken die uit PBS moet komen: stop. Na de restores hoort het plan alleen
-nog te maken wat je echt opnieuw wil bouwen.
+Dus: eerst alles terugzetten uit PBS, dan pas `plan`. Wil het plan een guest
+maken die uit PBS moet komen: stop. Na de restores hoort het plan alleen nog
+te maken wat je echt opnieuw wil bouwen.
 
-`new-guest.yml` maakt zelf niets meer. Het neemt een container die Proxmox al
+### OpenTofu maakt de container, `new-guest.yml` zet hem klaar
+
+`new-guest.yml` maakt zelf niets. Het neemt een container die Proxmox al
 kent en zet hem klaar: SSH-sleutel, `ansible`-account, baseline. Een naam die
 Proxmox niet kent, weigert het, met de lijst van wat wel bestaat.
 

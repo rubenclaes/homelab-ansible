@@ -30,7 +30,7 @@ Pas een rol dus niet in Grafana aan: de volgende login zet hem terug.
 | --- | --- |
 | Instellingen | `monitoring-stack`, `stacks/monitoring/docker-compose.yml`, de `GF_AUTH_GENERIC_OAUTH_*`-regels |
 | Client-secret | `GRAFANA_OIDC_CLIENT_SECRET` in `files/env/monitoring.env` (vault `stacks`) |
-| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
 | Noodtoegang | de lokale `admin`, wachtwoord `GRAFANA_PASSWORD` in `monitoring.env` |
 
 ## Goed om te weten

@@ -2,10 +2,10 @@
 title: Hoe het in elkaar zit
 ---
 
-
 # Hoe het netwerk in elkaar zit
 
-Naslag: hoe DNS, Tailscale en de VPN nu in elkaar zitten.
+Naslag: hoe DNS, Tailscale en de VPN in elkaar zitten. Iets doen staat op de
+andere pagina's van Netwerk.
 
 ## DNS in het kort
 
@@ -23,24 +23,19 @@ Elk toestel in huis vraagt het aan AdGuard. Zo werkt het:
 | een reclame- of malwaresite | niets | de blocklists |
 
 **AdGuard is de enige DNS-server.** Ligt hij plat, dan werkt het internet
-nergens in huis, want geen enkel toestel vindt nog een adres.
-
-Snel redden: zet op één toestel met de hand `9.9.9.9` als DNS. Daarmee
-kan je terug op internet om AdGuard te herstellen. Haal het daarna weer weg.
+nergens in huis. Wat dan: [Geen DNS](/netwerk/dns/#geen-dns).
 
 ### Waarom geen tweede DNS-server?
 
-Tot 25-09 deelde UniFi ook `1.1.1.1` uit, als reserve. Maar een toestel vraagt
+UniFi deelde vroeger ook `1.1.1.1` uit, als reserve. Maar een toestel vraagt
 **ze allebei**, en `1.1.1.1` kent onze namen niet. Kreeg je toevallig dat
 antwoord, dan opende `dns.neodata.be` niet ("This site can't be reached"), en
-kwam er reclame door.
-
-Nu deelt UniFi dus alleen AdGuard uit. De echte oplossing is een **tweede
+kwam er reclame door. Nu deelt UniFi alleen AdGuard uit. De echte oplossing is een **tweede
 AdGuard** als reserve (staat in `TODO.md`, A5).
 
 Wat UniFi hoort uit te delen staat in `unifi_expected_dns`
-(`inventory/group_vars/all/unifi.yml`). Elke ochtend om 06:15 controleert
-Semaphore dat met `playbooks/unifi-routes.yml`. Wijkt UniFi af, dan wordt hij
+(`inventory/group_vars/all/unifi.yml`). Elke ochtend controleert Semaphore
+dat met `playbooks/unifi-routes.yml` ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)). Wijkt UniFi af, dan wordt hij
 rood.
 
 ### Wie gebruikt welke DNS
@@ -71,7 +66,7 @@ Welke naam je dan te zien krijgt:
 
 De **alias** in UniFi (bv. "iPhone Karen") telt hier **niet**. Alleen het
 Local DNS Record. Hoe je dat zet: zie
-[Een toestel een naam geven](/netwerk/dns/#een-toestel-een-naam-geven).
+[Een toestel een naam geven](/netwerk/toestellen/#een-toestel-een-naam-geven).
 Welke toestellen er al een hebben: zie de kolom **DNS-naam** op
 [Toestellen](/homelab/toestellen/).
 
@@ -108,7 +103,7 @@ Hoe snel: een nieuwe naam duurt zo'n 20 ms, een naam die AdGuard al kent 3 ms.
 ## Vaste adressen van caddy en adguard
 
 Caddy (`192.168.0.25`) en AdGuard (`192.168.0.29`) vragen hun adres niet aan
-UniFi. Ze hebben het vast in hun eigen instellingen in Proxmox, sinds 24-09.
+UniFi. Ze hebben het vast in hun eigen instellingen in Proxmox.
 
 Waarom: anders hing het hele huis af van één instelling in UniFi. Ging daar
 iets mis, dan werkten DNS én alle diensten niet meer.
@@ -122,7 +117,6 @@ Elke container zoekt korte namen op onder `home.arpa`. De waarde staat één
 keer, in `inventory/group_vars/proxmox/guest_network.yml`: Ansible (`ntfy`)
 en OpenTofu (`tofu/proxmox/containers.tf`) lezen allebei dat bestand. Per
 container kies je in `containers.tf` of hij hem krijgt.
-Sinds 24-09.
 
 Waarom: zonder die instelling nam een container `neodata.be` over van pve01.
 Dan kwam `semaphore.neodata.be` bij de container zelf uit in plaats van bij
@@ -151,7 +145,7 @@ WireGuard, zoals het staat:
 
 | | |
 | --- | --- |
-| Endpoint | `vpn.neodata.be:51820` (WAN `94.111.99.122` op 22-09) |
+| Endpoint | `vpn.neodata.be:51820` (het WAN-adres volgt via Dynamic DNS, zie [VPN](/netwerk/vpn/#het-wan-adres-is-dynamisch)) |
 | VPN-subnet | `10.10.30.0/24`, gateway `10.10.30.1` |
 | Biedt aan | `192.168.0.0/24` (`Allowed IPs` op de client) |
 | Profielen | één: de iPhone, `10.10.30.2/32` |
@@ -161,8 +155,7 @@ WireGuard, zoals het staat:
 ct 108 is een *subnet router*: een Tailscale-toestel dat de weg naar het
 thuisnetwerk aanbiedt. Hij biedt `192.168.0.0/24` aan, en die route is
 goedgekeurd in de Tailscale-console. Wie de route aanneemt, komt onderweg via
-Tailscale bij elk `192.168.0.x`-adres, en dus bij alle diensten. Getest op
-23-09: de iPhone, over 4G, opende `ntfy.neodata.be` met alleen Tailscale aan.
+Tailscale bij elk `192.168.0.x`-adres, en dus bij alle diensten.
 
 Aannemen gebeurt per toestel. Op iOS en Android heet het "Use Tailscale
 subnets", op de Mac `RouteAll` (`--accept-routes` op de commandline).
@@ -172,8 +165,8 @@ subnets", op de Mac `RouteAll` (`--accept-routes` op de commandline).
 | iPhone, MacBook | ja | ze reizen mee |
 | Mac mini, ct 107, ct 108 | nee, met opzet | ze zitten zelf al op `192.168.0.0/24`. Een route naar je eigen LAN via Tailscale laat het verkeer een omweg maken en breekt verbindingen die rechtstreeks moeten |
 
-Let op: een verloren of gestolen toestel met Tailscale komt daardoor ook op
-het LAN. Trek het in via de Tailscale-console, net als een WireGuard-profiel.
+Een verloren of gestolen toestel met Tailscale komt daardoor ook op het LAN:
+trek het in, zie [Toestel kwijt](/netwerk/toestellen/#een-toestel-is-kwijt-of-weg).
 
 ### Wie mag wat via Tailscale
 
@@ -187,8 +180,8 @@ tailnet (`files/tailscale/policy.hujson`) beperken wie waar mag komen:
 | iedereen anders op de tailnet | `adguard` (tag `homelab`), poort 53 | zonder DNS lost `*.neodata.be` niet op |
 | iedereen anders op de tailnet | de Mac mini `100.74.124.12`, poort 32400 | Plex rechtstreeks, voor de Tailscale-boxen bij de tv's |
 
-Tot 23-09 stond daar de standaardregel "alles mag alles". Iedereen die via
-NeoGate Tailscale kreeg, kon toen ook bij pve01, Proxmox, SSH en de Mac mini.
+Zonder deze regels geldt de standaard "alles mag alles": dan kon iedereen die
+via NeoGate Tailscale kreeg ook bij pve01, Proxmox, SSH en de Mac mini.
 
 Git is de bron. OpenTofu zet `files/tailscale/policy.hujson` in Tailscale, en
 de console is dicht voor wijzigingen. Hoe: [Tailscale-regels

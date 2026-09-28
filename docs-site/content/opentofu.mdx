@@ -104,33 +104,11 @@ ct 108 en de tag van adguard staan zo in `tofu/tailscale/`. Zelfde stappen.
 
 ## Een app via Pocket ID laten inloggen
 
-Welke apps via [id.neodata.be](https://id.neodata.be) mogen inloggen, staat in
-`tofu/pocketid/clients.tf`: één `pocketid_client` per app. De groepen staan in
-`groups.tf`:
-
-| Groep | Wie |
-| --- | --- |
-| `admin` | wie het homelab beheert |
-| `gezin` | wie hier woont |
-| `familie` | ouders, broers en zussen |
-
-Elke client zegt met `allowed_user_groups` welke groepen erin mogen. Clients
-en groepen maak je dus niet in de UI. Gebruikers, wie in welke groep zit, en
-passkeys wel: die beheert OpenTofu bewust niet, zodat een apply nooit iemand
-weghaalt die daar net is toegevoegd.
-
-`settings.tf` zet drie instellingen van Pocket ID zelf; de rest blijft van de
-UI:
-
-| Instelling | Waarde | Waarom |
-| --- | --- | --- |
-| `allow_user_signups` | `disabled` | niemand maakt zelf een account |
-| `emails_verified` | `true` | geen mailserver, dus anders is geen adres ooit geverifieerd: Vaultwarden weigert dan elke login, en Immich en Shelfmark koppelen niets |
-| `allow_own_account_edit` | `false` | hoort bij de vorige: wie zijn eigen adres kan wijzigen, vult dat van een ander in en neemt diens account over |
-
-`emails_verified` geldt alleen voor nieuwe gebruikers en een gewijzigd adres.
-Wie al bestond, zet je in de UI op **Email verified** (voor Ruben en Karen op
-27-09 via de API gedaan).
+Welke apps via [Pocket ID](/mensen/pocket-id/) mogen inloggen, staat in
+`tofu/pocketid/clients.tf`: één `pocketid_client` per app, met in
+`allowed_user_groups` de groepen die erin mogen (uit `groups.tf`). De mensen
+zelf staan niet in OpenTofu, zie
+[Wat in git staat](/mensen/pocket-id/#wat-in-git-staat-en-wat-niet).
 
 <Steps>
 
@@ -155,7 +133,8 @@ ansible-vault edit files/env/<app>.env
 ```
 
 Pocket ID geeft het secret alleen bij het aanmaken. Het staat daarna enkel in
-de versleutelde state, en `output` haalt het daar op.
+de versleutelde state, en `output` haalt het daar op. Zet de app daarna in de
+tabel op [Pocket ID](/mensen/pocket-id/#per-app).
 
 </Steps>
 
@@ -164,11 +143,9 @@ OpenTofu praat rechtstreeks met `192.168.0.15:1411`, niet via Caddy, met de
 `files/env/infra.env`, en als `POCKETID_API_TOKEN` in `tofu/secrets.env`).
 Daardoor bestaat er geen sleutel die eerst iemand in de UI moet aanmaken.
 
-<Callout type="error">
-Zegt een plan dat een client **`must be replaced`**, dan krijgt die app een
-nieuw secret. Na de apply moet dat meteen in zijn `.env`, anders kan niemand
-meer inloggen.
-</Callout>
+Zegt een plan dat een client `must be replaced`, dan krijgt die app een nieuw
+secret. Zet dat na de apply meteen in zijn `.env`, anders kan niemand meer
+inloggen.
 
 ## De machines op pve01
 
@@ -204,15 +181,12 @@ betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
 | `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
 | `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen. `root@pam` is ook de noodtoegang als Pocket ID plat ligt |
 | wie er via Pocket ID binnenkomt (`rubenclaes@pocketid`) | Proxmox maakt die bij de eerste login; de groep komt uit Pocket ID |
-| `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/#een-oci-container) |
+| `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/) |
 | opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
 | `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |
 
-### Na een ramp: eerst PBS, dan OpenTofu
-
-**Zet eerst alles terug uit PBS, dan pas `bin/tofu proxmox plan`.** OpenTofu
-weet na een ramp nog welke guests er horen, en een `apply` zou ze leeg opnieuw
-maken. Waarom en hoe: [pve01 opnieuw opbouwen](/proxmox/pve01/#deel-3--de-machines-en-diensten).
+Na een ramp: eerst alles terugzetten uit PBS, pas dan `plan`
+([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
 
 ## Goed om te weten
 

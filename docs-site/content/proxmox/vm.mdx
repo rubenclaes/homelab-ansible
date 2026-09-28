@@ -10,16 +10,12 @@ Een virtuele machine: alleen als het echt niet anders kan, bijvoorbeeld een
 eigen besturingssysteem zoals Home Assistant OS. Anders: een
 [container](/proxmox/container/).
 
-## Een virtuele machine
-
 OpenTofu maakt de lege VM, uit een blok in `tofu/proxmox/vms.tf`. Debian
 installeren doe je **met de hand** in de console
 ([waarom](#waarom-vms-niet-automatisch)). Daarna neemt Ansible het over, net
 als bij een container.
 
 Voorbeeld: een VM `nieuwehost` met Debian.
-
-### Het grote plaatje
 
 | Stap | Waar | Wat |
 | --- | --- | --- |
@@ -218,7 +214,7 @@ herbouw hetzelfde adres.
 
 #### Werk de VM af
 
-Ga verder met [Afwerken](/proxmox/afwerken/#een-guest-afwerken).
+Ga verder met [Afwerken](/proxmox/afwerken/).
 
 </Steps>
 

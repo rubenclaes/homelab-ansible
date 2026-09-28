@@ -2,12 +2,12 @@
 title: Shelfmark
 ---
 
-
 # Shelfmark
 
 [shelfmark.neodata.be](https://shelfmark.neodata.be) zoekt boeken en legt ze in
 de bookdrop van Grimmory. Hij draait in de stack `media` op `docker`.
 Inloggen gaat via [Pocket ID](https://id.neodata.be), voor de groep `gezin`.
+Noodtoegang is het lokale account `admin`, met wachtwoord.
 
 ## De login via Pocket ID
 
@@ -21,19 +21,15 @@ Een omgevingsvariabele wint altijd van wat in Shelfmark zelf staat, en de UI
 kan dat veld dan niet meer wijzigen. Iets aanpassen doe je dus in de compose,
 dan pushen en `stacks.yml`.
 
-## Iemand toegang geven
-
-Maak de persoon aan in Pocket ID en zet hem in `gezin`. Bij de eerste login
-maakt Shelfmark het account zelf aan; wie ook in `admin` zit, wordt admin.
+Bij de eerste login maakt Shelfmark het account zelf aan; wie ook in `admin`
+zit, wordt admin.
 
 ## Naslag
 
 | Wat | Waar |
 | --- | --- |
-| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
 | Callback-URL | `https://shelfmark.neodata.be/api/auth/oidc/callback` |
-| Wie mag erin | `gezin`; admin wordt wie in `admin` zit |
-| Noodtoegang | het lokale account `admin`, met wachtwoord |
 
 ## Goed om te weten
 

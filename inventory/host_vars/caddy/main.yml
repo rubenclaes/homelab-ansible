@@ -1,4 +1,10 @@
 ---
+# Wat deze machine doet, voor de pagina Machines op de docs-site.
+docs_machine_role: >-
+  De voordeur: stuurt elk `*.neodata.be`-adres naar de juiste machine, regelt
+  de certificaten, en draait oauth2-proxy voor de login vóór apps zonder eigen
+  login.
+
 baseline_held_packages:
   - caddy
 

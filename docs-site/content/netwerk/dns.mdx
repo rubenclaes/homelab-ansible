@@ -2,24 +2,24 @@
 title: DNS en AdGuard
 ---
 
-import { Steps, Callout, Tabs } from 'nextra/components'
+import { Steps, Tabs } from 'nextra/components'
 
 # DNS en AdGuard
 
-Namen opzoeken in het netwerk: AdGuard (ct 107, `192.168.0.29`). Hier haal je
-DNS terug, kijk je hem na, geef je toestellen een naam en blokkeer je sites.
-Hoe het in elkaar zit: [Overzicht](/netwerk/overzicht/).
+Alle DNS van het huis loopt via één container: AdGuard (`adguard`, ct 107,
+`192.168.0.29`). Hier haal je DNS terug, kijk je hem na en zet je de resolver
+van een host om. Hoe het in elkaar zit: [Overzicht](/netwerk/overzicht/).
+Reclame blokkeren: [Reclame blokkeren](/netwerk/blokkeren/).
 
 ## Geen DNS
 
-Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Alle DNS van het
-huis loopt via één container: `adguard`, ct 107, `192.168.0.29`.
+Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Zolang ct 107
+stilstaat, heeft het hele huis geen internet: UniFi deelt geen tweede
+DNS-server uit ([waarom](/netwerk/overzicht/#waarom-geen-tweede-dns-server)).
 
-**Ansible werkt nog.** De inventory gebruikt IP-adressen, geen namen. Op het
-toestel waarmee je herstelt: zet met de hand `9.9.9.9` als DNS, en haal het weg
-als ct 107 terug is. UniFi deelt geen tweede DNS-server uit
-([waarom](/netwerk/overzicht/#waarom-geen-tweede-dns-server)), dus zolang ct 107
-stilstaat heeft het hele huis geen internet.
+Ansible werkt nog: de inventory gebruikt IP-adressen, geen namen. Zet op het
+toestel waarmee je herstelt met de hand `9.9.9.9` als DNS, en haal het weg als
+ct 107 terug is.
 
 <Steps>
 
@@ -46,9 +46,6 @@ ansible-playbook playbooks/new-guest.yml -e guest=adguard
 ansible-playbook playbooks/proxmox-datacenter.yml   # zet /dev/net/tun terug
 ```
 
-`bin/tofu` heeft internet nodig: de state staat in Cloudflare R2. Vraagt je
-laptop zijn DNS ook aan AdGuard, zet daar dan even `1.1.1.1` als DNS.
-
 OpenTofu maakt hem opnieuw met nummer 107, adres `192.168.0.29` en zijn oude
 MAC. Hij vraagt zijn eigen DNS aan `1.1.1.1` (staat zo in
 `tofu/proxmox/containers.tf`), dus de installatie loopt ook zonder werkende
@@ -69,8 +66,7 @@ ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + f
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
-Vraagt elke naam uit de inventory op bij AdGuard, plus één publieke naam
-(`google.com`) om te zien of doorvragen werkt.
+Rood? Zie [DNS controleren](#dns-controleren).
 
 #### Kwam hij terug op een ander adres?
 
@@ -116,8 +112,7 @@ ansible-playbook playbooks/smoketest.yml --tags dns
 
 </Steps>
 
-De test draait ook vanzelf, elke dag om 06:30. Waarom hij apart bestaat en
-zijn eigen namenlijst berekent: [Goed om te weten](#goed-om-te-weten).
+Semaphore draait de test ook elke ochtend ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
 
 ## DNS-server van een host omzetten
 
@@ -171,10 +166,8 @@ Anders draait een herstart van de container je wijziging terug. Niet met
 `pct set --nameserver`: het volgende plan zet het dan weer terug. Commit en
 push daarna.
 
-<Callout type="error">
-Nooit op `tailscale` (ct 108): daar staat `100.100.100.100` en dat beheert
+Niet op `tailscale` (ct 108): daar staat `100.100.100.100`, en dat beheert
 tailscaled zelf voor MagicDNS.
-</Callout>
 
 #### Controleer de resolver
 
@@ -199,135 +192,6 @@ Zie [DNS controleren](#dns-controleren) voor wat hij wel en niet dekt.
 Welke host welke resolver hoort te hebben: zie
 [Hoe het netwerk nu staat](/netwerk/overzicht/#wie-gebruikt-welke-dns).
 
-## Een toestel een naam geven
-
-De Query Log van AdGuard toont `192.168.0.23` of `iPhone`, en je wil
-`iphone-karen`. De naam komt uit UniFi, niet uit AdGuard: AdGuard vraagt bij
-elk IP aan de UCG wie dat is.
-
-<Steps>
-
-#### Geef het toestel een vast adres en een DNS-record in UniFi
-
-| Waar | Veld | Waarde | Waarom |
-| --- | --- | --- | --- |
-| UniFi → Client Devices → het toestel → Settings | Fixed IP Address | aan, het huidige adres | zonder vast adres maakt UniFi geen record |
-| idem, net eronder | Local DNS Record | aan, `<naam>.home.arpa` | alleen `<naam>` weigert UniFi met "must be a valid hostname" |
-
-Kleine letters, cijfers en `-`, geen spaties.
-
-#### Zet het in git
-
-In `inventory/group_vars/all/unifi.yml`, onder `unifi_dns_names`:
-
-```yaml filename="inventory/group_vars/all/unifi.yml"
-  "46:bf:32:25:e6:9c": iphone-karen
-```
-
-Zonder `.home.arpa`. De MAC staat in UniFi bij het toestel. Is het een nieuw
-toestel, zet de MAC dan ook in `unifi_known_macs`, anders blijft
-`unifi-watch.yml` erover melden.
-
-#### Controleer
-
-```bash filename="laptop"
-dig +short -x 192.168.0.23 @192.168.0.29
-ansible-playbook playbooks/unifi-routes.yml
-```
-
-De eerste geeft `iphone-karen.home.arpa.`. De tweede is groen; hij draait ook
-elke ochtend in Semaphore en wordt rood als het record in UniFi verdwijnt of
-anders heet.
-
-#### Commit en push
-
-```bash filename="laptop"
-git add inventory/group_vars/all/unifi.yml
-git commit -m "UniFi: naam iphone-karen"
-git push
-```
-
-</Steps>
-
-Op een iPhone zet je ook **Settings → Wi-Fi → (i) bij je netwerk → Private
-Wi-Fi Address → Fixed**. Op **Rotating** krijgt de telefoon af en toe een
-nieuwe MAC, en dan horen het vaste adres en de naam bij een "oud" toestel.
-
-## Een site blokkeren of deblokkeren
-
-Alle toestellen thuis vragen hun DNS aan AdGuard. Daar wordt reclame en
-malware weggefilterd, en daar zet je iets aan of uit.
-
-| Je wil… | Waar | Blijft het staan? |
-| --- | --- | --- |
-| één site deblokkeren of blokkeren | AdGuard-scherm | ja |
-| weten waarom iets niet laadt | AdGuard-scherm → **Query Log** | |
-| een hele blocklist erbij of eraf | de inventory | ja, alleen zo |
-
-Een blocklist in het scherm aanpassen houdt geen stand: de volgende
-Ansible-run zet het terug. Losse regels (deblokkeren, blokkeren) mag je wél in
-het scherm zetten.
-
-### Eén site deblokkeren
-
-Voorbeeld: een link in een mail doet niets, of een app zegt "geen verbinding".
-
-<Steps>
-
-#### Zoek het in de Query Log
-
-[dns.neodata.be](https://dns.neodata.be) → **Query Log** → zoek op het domein,
-of filter op **Blocked**. Je ziet welk toestel het vroeg en welke lijst het
-tegenhield.
-
-#### Deblokkeer
-
-Klik bij die regel **Unblock**. AdGuard zet dan een uitzonderingsregel
-(`@@||domein…`) onder **Filters** → **Custom filtering rules**.
-
-#### Test op het toestel
-
-Probeer opnieuw op het toestel. Laadt het nog niet: wacht een minuut (de DNS
-van het toestel onthoudt het antwoord even), of zet wifi uit en weer aan.
-
-</Steps>
-
-Iets blokkeren gaat net zo: **Block** in de Query Log, of zelf een regel
-`||domein^` onder **Custom filtering rules**.
-
-### Een blocklist erbij of eraf
-
-<Steps>
-
-#### Pas de lijst aan
-
-```bash filename="laptop"
-$EDITOR inventory/host_vars/adguard/main.yml   # adguard_filters
-```
-
-Elke lijst is een `name` en een `url`. Kies er een uit
-**Filters** → **DNS blocklists** → **Add blocklist** → **Choose from the list**
-in het scherm, en neem de URL over.
-
-#### Kijk droog, dan echt
-
-```bash filename="laptop"
-ansible-playbook playbooks/adguard.yml --check --diff
-ansible-playbook playbooks/adguard.yml
-```
-
-#### Commit en push
-
-```bash filename="laptop"
-git add inventory/host_vars/adguard/main.yml
-git commit -m "AdGuard: blocklist <naam> erbij"
-git push
-```
-
-</Steps>
-
-Waarom het zo zit: [Goed om te weten](#goed-om-te-weten).
-
 ## Goed om te weten
 
 ### De DNS-test rekent zelf
@@ -336,31 +200,9 @@ Waarom het zo zit: [Goed om te weten](#goed-om-te-weten).
 `adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de lijst
 van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
 
-### Waarom de naam in UniFi staat en niet in AdGuard
-
-AdGuard kan zelf ook namen geven (Settings → Client settings). Dan zou elk
-toestel op twee plaatsen staan, en krijgt een toestel een ander IP, dan klopt
-AdGuard niet meer. Nu is UniFi de enige bron: hij deelt het adres uit en kent
-dus altijd de juiste naam. AdGuard vraagt het hem via `local_ptr_upstreams`.
-
-De **alias** in UniFi telt daarvoor niet. De UCG geeft AdGuard alleen het
-Local DNS Record, of anders de naam die het toestel zelf opgeeft (`iPhone`,
-`Mac`, `LGwebOSTV`).
-
-Ansible schrijft niet naar UniFi, net als bij de DNS die de netwerken
-uitdelen: `unifi-routes.yml` vergelijkt alleen. De eerste lading records is op
-25-09 wel via de API gezet, eenmalig.
-
 ### Waarom DNS naar ct 107 moest
 
 De DNS van het huis hing eerst aan de AdGuard op de Mac mini, die in geen enkel
 playbook stond. Dat is dezelfde machine die de NFS-shares exporteert: viel hij
 om, dan verloor je naamresolutie én media-opslag tegelijk. ct 107 beschrijft
 Ansible en neemt PBS mee in de back-up.
-
-### Waarom blocklists in de inventory en losse regels niet
-
-Een blocklist die alleen in de container staat, ben je bij een herbouw stil
-kwijt: de `home.arpa`-namen (rewrites) komen terug, de filtering niet. Losse regels zijn klein en
-worden per geval gezet; die bijhouden in de repo zou elk "Unblock" een commit
-maken.

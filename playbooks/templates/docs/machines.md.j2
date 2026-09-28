@@ -78,7 +78,7 @@ Compose-bestanden uit [{{ slug }}](https://github.com/{{ slug }}).{% if mounts |
 Diensten: {% for s in svcs %}[{{ s.name }}](/homelab/diensten/{{ s.name }}/){{ ', ' if not loop.last }}{% endfor +%}
 
 {% else %}
-Geen eigen diensten; dit is een werkplek of doet zijn werk op de achtergrond.
+{{ hv.docs_machine_role | default('Geen diensten met een eigen adres.') }}
 
 {% endif %}
 {% endfor %}

@@ -1,0 +1,109 @@
+---
+title: Pocket ID
+---
+
+# Pocket ID
+
+[id.neodata.be](https://id.neodata.be) is de login van het homelab: één
+passkey voor bijna alle apps. Wie in welke app mag, hangt af van zijn groep.
+Iemand toevoegen: [Toegang geven](/mensen/toegang/#iemand-een-login-geven).
+
+## Per app
+
+| App | Groep | Een bestaand account koppelt op | Noodtoegang als Pocket ID plat ligt | Meer |
+| --- | --- | --- | --- | --- |
+| Immich | `gezin`, `familie` | mailadres | de wachtwoord-login | [Immich](/docker/immich/) |
+| Audiobookshelf | `gezin`, `familie` | gebruikersnaam | de gewone login | [Audiobookshelf](/docker/audiobookshelf/) |
+| Grimmory | `gezin`, `familie` | gebruikersnaam, hoofdlettergevoelig | `books.neodata.be/login?local=true` | [Grimmory](/docker/grimmory/) |
+| Outline | `gezin`, `familie` | — (alleen Pocket ID) | geen | [Outline](/docker/outline/) |
+| Shelfmark | `gezin` | koppelt niet: altijd een nieuw account | de lokale `admin` | [Shelfmark](/docker/shelfmark/) |
+| Vaultwarden | `gezin` | mailadres | mailadres + hoofdwachtwoord | [Vaultwarden](/docker/vaultwarden/) |
+| Grafana | `admin` | — | de lokale `admin` | [Grafana](/docker/grafana/) |
+| Semaphore | `admin` | mailadres | de lokale `admin` | [Semaphore](/semaphore/#inloggen) |
+| Proxmox VE | `admin` | — | `root@pam` | [OpenTofu](/opentofu/#de-machines-op-pve01) |
+| PBS | `admin`, en bij naam in `pbs_oidc.admins` | — | `root@pam` | [Back-ups](/proxmox/backups/#inloggen-op-pbs) |
+| apps zonder eigen login | per app `admin` of `gezin` | — | zie [hieronder](#ligt-pocket-id-of-oauth2-proxy-plat) | [hieronder](#een-login-voor-apps-zonder-eigen-login) |
+
+Iemand kan in meer dan één groep; jij zit in `admin` én `gezin`. Welke groep
+waar mag, staat per app in `tofu/pocketid/clients.tf`. Een nieuwe app erbij:
+[OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen).
+
+## Een login voor apps zonder eigen login
+
+Voor code-server, de *arr-apps, Prometheus, qBittorrent en de tools. Caddy
+vraagt bij elk verzoek aan oauth2-proxy (naast Caddy) of je aangemeld bent en
+in de juiste groep zit. Zo niet, dan stuurt hij je naar `auth.neodata.be` en
+daarna terug. Eén keer aanmelden geldt voor al die apps.
+
+| Groep | Apps |
+| --- | --- |
+| `admin` | code-server, Sonarr, Radarr, Prowlarr, Bazarr, Prometheus, qBittorrent |
+| `gezin` | IT-Tools, MeTube, BentoPDF, PairDrop, OpenBooks |
+
+Een app zo beschermen: zet `auth:` bij zijn route in `caddy_sites`, en draai
+`ansible-playbook playbooks/caddy.yml`.
+
+```yaml filename="inventory/host_vars/caddy/main.yml"
+  - { name: code, auth: admin, host: docker, port: 8443, ... }
+  - { name: sonarr, auth: admin, auth_skip: ['/api/*'], host: docker, port: 8989, ... }
+```
+
+Praat een andere app met de API via het publieke adres, zet die paden dan in
+`auth_skip`. NeoGate praat zo met Sonarr en Radarr; hun API blijft beschermd
+met de eigen API-sleutel.
+
+Vraagt de app zelf geen login van een LAN-adres, zet zijn poort dan ook in
+`docker_stacks_proxy_only_ports` (`inventory/host_vars/docker/main.yml`). Dat
+is een firewallregel in de Docker-keten `DOCKER-USER`: alleen Caddy mag nog
+op die poort. Zonder kon iedereen op de wifi via `192.168.0.15:8989`
+rechtstreeks binnen. Zo staan Sonarr, Radarr, Prowlarr, Bazarr en
+code-server. De apps onderling praten via het Docker-netwerk en merken er
+niets van.
+
+qBittorrent draait met host-netwerk, en die regel raakt hem niet. Hij houdt
+zijn eigen login; Caddy staat op zijn whitelist, zodat je via
+`torrent.neodata.be` maar één keer inlogt.
+
+### Ligt Pocket ID of oauth2-proxy plat?
+
+| App | Noodtoegang |
+| --- | --- |
+| Sonarr, Radarr, Prowlarr, Bazarr, code-server | `ssh -L 8989:localhost:8989 docker` en dan `http://localhost:8989` (andere poort, zelfde manier) |
+| qBittorrent, de tools | rechtstreeks op `192.168.0.15:<poort>` |
+
+## Goed om te weten
+
+### Wat in git staat en wat niet
+
+De groepen, de clients en welke groep waar mag, staan in `tofu/pocketid/`.
+De mensen, wie in welke groep zit en de passkeys niet: die zet je in het
+scherm. Zo haalt een `apply` nooit iemand weg die daar net is toegevoegd.
+
+`tofu/pocketid/settings.tf` zet drie instellingen van Pocket ID zelf; de rest
+blijft van het scherm:
+
+| Instelling | Waarde | Waarom |
+| --- | --- | --- |
+| `allow_user_signups` | `disabled` | niemand maakt zelf een account |
+| `emails_verified` | `true` | geen mailserver, dus anders is geen adres ooit geverifieerd: Vaultwarden weigert dan elke login, en Immich en Shelfmark koppelen niets |
+| `allow_own_account_edit` | `false` | wie zijn eigen adres kan wijzigen, vult dat van een ander in en neemt diens account over |
+
+`emails_verified` geldt alleen voor nieuwe gebruikers en een gewijzigd adres.
+Wie al bestond, zet je in het scherm op **Email verified**.
+
+### De login-cookie gaat naar élke app
+
+oauth2-proxy zet zijn cookie op `.neodata.be`, zodat één login voor alle apps
+geldt. Je browser stuurt hem daardoor ook mee naar apps zónder login, en hij
+is een paar KB groot. Een app die maar 4 KB aan headers aanvaardt, antwoordt
+dan `431 Request Header Fields Too Large`. Zo gaf NeoGate "geen verbinding" in
+elke tegel, tot het 16 KB aanvaardde. Zie je ergens een 431 in de
+Caddy-logs, dan is dit de eerste verdachte. Snel verhelpen: de
+`_oauth2_proxy`-cookies van `neodata.be` wissen in je browser.
+
+### oauth2-proxy en "email isn't verified"
+
+oauth2-proxy weigert standaard een adres dat niet geverifieerd is (een 500 na
+het aanmelden). Daarom staat `insecure_oidc_allow_unverified_email` aan: het
+adres beslist hier niets, de groep wel. De rol staat in `roles/oauth2_proxy`,
+de geheimen in `inventory/host_vars/caddy/vault.yml`.

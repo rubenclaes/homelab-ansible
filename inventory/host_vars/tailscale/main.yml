@@ -1,4 +1,9 @@
 ---
+# Wat deze machine doet, voor de pagina Machines op de docs-site.
+docs_machine_role: >-
+  Subnet router: brengt wie via Tailscale binnenkomt op het thuisnetwerk
+  (`192.168.0.0/24`).
+
 # Alleen wat voor DEZE node geldt. De OAuth-client staat in
 # group_vars/tailnet/, want adguard gebruikt hem sinds 23-09 ook.
 

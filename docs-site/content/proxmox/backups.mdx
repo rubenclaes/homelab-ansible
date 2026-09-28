@@ -2,7 +2,7 @@
 title: Back-ups
 ---
 
-import { Steps, Callout } from 'nextra/components'
+import { Steps } from 'nextra/components'
 
 # Back-ups
 
@@ -36,13 +36,12 @@ Doe hetzelfde met de sleutel van `docker` (app-data en foto's, sinds 25-09):
 ssh docker 'sudo proxmox-backup-client key paperkey /root/.config/proxmox-backup/docker-data.key --output-format text'
 ```
 
-**Let op:** Vaultwarden draait zelf in de homelab. Brandt het huis af, dan is Vaultwarden
-ook weg, en zit hij in R2 achter precies deze sleutels. **Papier** is dus het
-echte vangnet: sleutels en vault-wachtwoorden samen, liefst ook een kopie
-buiten het huis.
+Papier is het echte vangnet, niet de wachtwoordkluis: Vaultwarden draait
+zelf in de homelab, en brandt het huis af, dan zit hij in R2 achter precies
+deze sleutels. Bewaar sleutels en vault-wachtwoorden samen.
 
-**Let op:** `proxmox-backup-client key show` toont alleen de vingerafdruk van de sleutel,
-niet de sleutel zelf. Daar kan je niets mee terugzetten.
+`proxmox-backup-client key show` toont alleen de vingerafdruk, niet de
+sleutel zelf: daar kan je niets mee terugzetten.
 
 #### Bewaar de twee vault-wachtwoorden op dezelfde plek
 
@@ -54,11 +53,9 @@ cat ~/.ansible/vault_pass_stacks
 Ze openen alles wat de repo versleuteld bewaart: API-tokens, logins, de
 `.env`-bestanden van de stacks. Ze staan niet in git, met opzet.
 
-<Callout type="error">
-Kwijt = de repo is compleet maar onbruikbaar. Bijna elk playbook leest een
-vault-bestand. Ze zijn nergens uit af te leiden: de enige weg terug is elk
-vault-bestand opnieuw maken en elk secret opnieuw zetten.
-</Callout>
+Kwijt, dan is de repo compleet maar onbruikbaar: bijna elk playbook leest een
+vault-bestand, en de wachtwoorden zijn nergens uit af te leiden. De enige weg
+terug is elk vault-bestand opnieuw maken en elk secret opnieuw zetten.
 
 </Steps>
 

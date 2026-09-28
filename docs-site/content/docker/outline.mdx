@@ -2,45 +2,27 @@
 title: Outline
 ---
 
-import { Steps } from 'nextra/components'
-
 # Outline
 
 [wiki.neodata.be](https://wiki.neodata.be) is de wiki van het gezin: hoe werkt
 wat in huis, garanties, codes, contacten. De stack `outline` draait op
-`docker`. Inloggen gaat via [Pocket ID](https://id.neodata.be), met een passkey.
-
-## Iemand toegang geven
-
-<Steps>
-
-#### Maak een gebruiker in Pocket ID
-
-In [id.neodata.be](https://id.neodata.be) → **Users** → **Add user**, en stuur
-de login-link. Die persoon zet zelf een passkey.
-
-#### Zet hem in Gezin of Familie
-
-Bij die gebruiker → **Groups**. Alleen `gezin` en `familie` mogen in de wiki;
-zonder een van die twee weigert Pocket ID de login.
-
-#### Laat hem één keer inloggen op de wiki
-
-Op [wiki.neodata.be](https://wiki.neodata.be) → **Pocket ID**. Outline maakt
-het account bij de eerste login aan. Rechten (lezer, bewerker, beheerder) zet
-je daarna in Outline onder **Instellingen → Leden**.
-
-</Steps>
+`docker`. Inloggen gaat alleen via [Pocket ID](https://id.neodata.be), voor
+`gezin` en `familie` ([iemand toevoegen](/mensen/toegang/#iemand-een-login-geven)).
+Outline maakt het account bij de eerste login; rechten (lezer, bewerker,
+beheerder) zet je daarna in Outline onder **Instellingen → Leden**.
 
 ## Een pagina of de hele wiki terugzetten
 
 Een verwijderde pagina staat 30 dagen in de **Prullenbak** van Outline. Pas
 als het daar niet meer staat, heb je de back-up nodig.
 
-De database gaat elke nacht als dump mee naar PBS
-(`/opt/containers/data/_dumps/outline.sql.gz`), de bijlagen als bestanden
-(`/opt/containers/data/outline/data`). Terughalen uit PBS: zie
-[Terugzetten uit R2](/proxmox/r2/). Daarna, op `docker`:
+Elke nacht komt er een dump van de database op `docker`, in
+`/opt/containers/data/_dumps/outline.sql.gz`; de bijlagen staan in
+`/opt/containers/data/outline/data`. Beide gaan mee in de back-up
+`host/docker-data` naar PBS. Wil je een oudere dump dan die van vannacht, zet
+`data.pxar` dan terug in een lege map (niet over `/opt/containers/data`) zoals
+in [Zet de app-data terug](/proxmox/r2/#zet-de-app-data-en-fotos-terug), met
+`store1` in plaats van `offsite`, en neem de dump daaruit. Dan, op `docker`:
 
 ```bash filename="docker"
 docker stop outline
@@ -56,7 +38,7 @@ docker start outline
 | --- | --- |
 | Compose-file | `containers`-repo, `stacks/outline/docker-compose.yml` |
 | Geheimen | `files/env/outline.env` (vault `stacks`) |
-| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
 | Data | `/opt/containers/data/outline/` op `docker` |
 | Poort | `3002` |
 

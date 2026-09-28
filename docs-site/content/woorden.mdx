@@ -35,6 +35,10 @@ stilzet, mét reden.
 **Dynamische inventory**: `inventory/homelab.proxmox.yml`. Haalt de lijst
 guests live uit Proxmox, via het API-token.
 
+**Forward-auth** of **oauth2-proxy**: de login die Caddy vóór een app zet
+die zelf geen login heeft. oauth2-proxy draait naast Caddy en vraagt Pocket ID
+wie je bent. Zie [Pocket ID](/mensen/pocket-id/#een-login-voor-apps-zonder-eigen-login).
+
 **Fixed IP**: een vast adres in UniFi, zodat een toestel na een herstart
 hetzelfde adres houdt.
 
@@ -59,13 +63,23 @@ Maakt accounts aan in Plex, Immich en de andere diensten, en haalt ze weer weg.
 
 **OCI-container**: een container op pve01 gemaakt uit een Docker-image, zonder Docker erin. Hier alleen `ntfy`.
 
+**OIDC**: de standaard waarmee een app het inloggen aan Pocket ID overlaat.
+Elke app heeft daarvoor een *client* in `tofu/pocketid/clients.tf`.
+
 **OpenTofu**: maakt en beschrijft de machines op pve01 (`tofu/proxmox/`) en
 de Tailscale-regels (`tofu/tailscale/`). Je draait het via `bin/tofu`. Eerst
 `plan` (tonen wat er zou veranderen), dan `apply` (het doen). De containers
 staan in `containers.tf`, de VM's in `vms.tf`.
 
+**Passkey**: inloggen zonder wachtwoord, met je telefoon of Mac. Zo log je in
+bij Pocket ID.
+
 **PBS**: Proxmox Backup Server, VM 100. Bewaart de dagelijkse back-ups,
 versleuteld, op de schijf `vm-hdd` van pve01.
+
+**Pocket ID**: de login van het homelab, op `id.neodata.be`. Eén passkey voor
+bijna alle apps; de groep (`admin`, `gezin`, `familie`) bepaalt waar je in
+mag. Zie [Pocket ID](/mensen/pocket-id/).
 
 **Prune**: opruimen van wat niet meer gebruikt wordt, zoals oude Docker-images.
 

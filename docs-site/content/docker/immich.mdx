@@ -7,16 +7,11 @@ title: Immich
 [photos.neodata.be](https://photos.neodata.be) is de foto- en videobibliotheek.
 Hij draait in de stack `media` op `docker`. Inloggen gaat via
 [Pocket ID](https://id.neodata.be) (knop **Inloggen met Pocket ID**); de
-wachtwoord-login staat nog aan tot iedereen over is.
+wachtwoord-login staat nog aan tot iedereen over is. Wie erin mag:
+[Pocket ID → Per app](/mensen/pocket-id/#per-app).
 
-## Iemand toegang geven
-
-Maak de persoon aan in Pocket ID en zet hem in `gezin` of `familie`. Bij de
-eerste login maakt Immich het account zelf aan. Bestaat er al een account met
-hetzelfde mailadres, dan koppelt Immich dat in plaats van een nieuw te maken:
-zet het mailadres in Pocket ID dus precies gelijk aan dat in Immich.
-
-In de app op de telefoon: uitloggen en opnieuw inloggen met dezelfde knop.
+Op de telefoon stap je over door uit te loggen en opnieuw in te loggen met
+dezelfde knop.
 
 ## Een instelling aanpassen
 
@@ -33,8 +28,7 @@ Daarna pushen en de stack opnieuw uitrollen (`stacks.yml`).
 | --- | --- |
 | Instellingen | `containers`-repo, `stacks/media/docker-compose.yml`, `configs.immich` |
 | Client-secret | `IMMICH_OIDC_CLIENT_SECRET` in `files/env/media.env` (vault `stacks`) |
-| OIDC-client | `tofu/pocketid/clients.tf`, zie [OpenTofu](/opentofu/#een-app-via-pocket-id-laten-inloggen) |
-| Wie mag erin | `gezin` en `familie` |
+| OIDC-client | `tofu/pocketid/clients.tf` |
 
 ## Goed om te weten
 

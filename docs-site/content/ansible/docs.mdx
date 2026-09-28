@@ -21,8 +21,8 @@ de pagina's onder Homelab opnieuw, bouwt de site en zet hem op `caddy`.
 git add inventory docs-site && git commit -m '...' && git push
 ```
 
-**Let op:** Semaphore bouwt de site elke dag om 07:00 opnieuw, **uit git**. Wat je alleen
-lokaal hebt, staat de volgende ochtend weer niet online.
+Semaphore bouwt de site elke ochtend opnieuw, uit git: wat je alleen lokaal
+hebt, staat de volgende ochtend weer niet online.
 
 #### Bouw en publiceer
 
@@ -41,7 +41,14 @@ de tailnet.
 
 </Steps>
 
-### Wat waar vandaan komt
+Draai dit na elke wijziging in de inventory: een site die iets beweert wat
+niet meer waar is, is erger dan geen documentatie, want je gelooft hem.
+
+Faalt `docs.yml` op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
+niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
+er is dan niets geschreven. Zie [Guests en API-token](/proxmox/beheren/#guests-en-api-token-checken).
+
+## Wat waar vandaan komt
 
 Alles onder **Homelab** maakt `docs.yml` zelf. Onderaan zo'n pagina staat een
 grijze regel die dat zegt. Bewerk die pagina's nooit: de volgende run
@@ -54,6 +61,9 @@ overschrijft ze. Pas de bron aan.
 | [Toestellen](/homelab/toestellen/) | UniFi (Client Devices). Is UniFi onbereikbaar, dan blijft de vorige versie staan |
 | Alle andere pagina's | met de hand geschreven, in `docs-site/content/` |
 
+Een geschrapte route laat geen pagina achter: die wordt vanzelf opgeruimd,
+pas nadat de rest opnieuw gemaakt is.
+
 Waar je een pagina met de hand aanpast, in `docs-site/content/`:
 
 <FileTree>
@@ -64,8 +74,8 @@ Waar je een pagina met de hand aanpast, in `docs-site/content/`:
     <FileTree.Folder name="docker" />
     <FileTree.Folder name="netwerk" />
     <FileTree.Folder name="ansible" />
+    <FileTree.Folder name="mensen" />
     <FileTree.File name="mac-mini.mdx" />
-    <FileTree.File name="mensen.mdx" />
     <FileTree.File name="opentofu.mdx" />
     <FileTree.File name="semaphore.mdx" />
     <FileTree.File name="woorden.mdx" />
@@ -74,16 +84,17 @@ Waar je een pagina met de hand aanpast, in `docs-site/content/`:
 
 Elke map heeft een `_meta.js` met de volgorde en de namen in de zijbalk.
 
-Elk codeblok krijgt `filename="<host>"`: waar je het draait (`laptop`, `pve01`,
-…). Een regel die je niet mag overslaan, markeer je met `{N}` na de filename, in
-plaats van een Let op-alinea eronder.
+## Zo schrijf je een pagina
 
-Een geschrapte route laat geen pagina achter: die wordt vanzelf opgeruimd,
-pas nadat de rest opnieuw gemaakt is.
-
-Draai dit na **elke** wijziging in de inventory. Een site die iets beweert wat
-niet meer waar is, is erger dan geen documentatie: je gelooft hem.
-
-**Let op:** Faalt hij op "De inventory is incompleet"? Dan laadde `homelab.proxmox.yml`
-niet (API plat, token verlopen). Controleer met `ansible-inventory --graph`;
-er is dan niets geschreven. Zie [Guests en API-token](/proxmox/beheren/#guests-en-api-token-checken).
+| Regel | Waarom |
+| --- | --- |
+| per onderwerp een pagina, per geval een `##`, stappen in `<Steps>` met `####`-koppen | de koppen rechts zijn de inhoudstafel |
+| een korte intro van 2-3 zinnen, geen `##` die de titel herhaalt | je bent meteen bij de eerste stap |
+| per stap een commando en hoogstens 1-2 zinnen | het waarom staat onderaan |
+| onderaan `## Goed om te weten` met de waaroms en de geschiedenis | de stappen blijven kort, de afweging gaat niet verloren |
+| naslag (velden, vlaggen, "na X draai Y") als tabel | opzoeken, niet lezen |
+| elk feit op één plek; elders een link | twee kopieën lopen uit elkaar |
+| geen tijden van Semaphore buiten [Semaphore](/semaphore/) | die veranderen, en dan klopt de rest niet meer |
+| een rood kader (`Callout`) alleen bij iets onomkeerbaars | anders lees je ze niet meer |
+| elk codeblok `filename="<host>"`: waar je het draait (`laptop`, `pve01`…) | geen twijfel op welke machine |
+| een regel die je niet mag overslaan: `{N}` na de filename | in plaats van een waarschuwing eronder |

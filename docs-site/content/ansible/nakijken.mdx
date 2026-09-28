@@ -12,7 +12,7 @@ veranderen. Alle commando's draai je vanuit de root van de repo.
 ## Gezondheidsrapport
 
 Eén pagina met de toestand van alle hosts. Leest alleen, verandert niets.
-Semaphore draait hem ook elke zondag om 08:00.
+Semaphore draait hem ook elke zondag ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
 
 <Steps>
 
@@ -40,7 +40,7 @@ Security-updates staan bovenaan bij hun host. Daar staat ook welke hosts een
 **herstart nodig** hebben. Bijwerken zelf: zie
 [Updates](/proxmox/onderhoud/).
 
-**Let op:** Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
+Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
 Die doet `update.yml` níét: het playbook werkt alleen Homebrew bij. macOS zelf
 update je met de hand op de Mac.
 
@@ -75,7 +75,7 @@ docker_routes_without_container:
 | `docker_ports_without_route` | een gepubliceerde poort die bewust geen route heeft |
 | `docker_routes_without_container` | een route waarvan de backend géén containerpoort is (qbittorrent met `network_mode: host`, Plex als macOS-app) |
 
-**Let op:** Zet er **altijd** een `why:` bij. Een gedempte melding zonder reden is over
+Zet er altijd een `why:` bij: een gedempte melding zonder reden is over
 een half jaar niet te onderscheiden van een vergissing.
 
 #### Commit en push de demper
@@ -92,7 +92,7 @@ is: [Goed om te weten](#goed-om-te-weten).
 ## Drift zoeken
 
 Is er iets met de hand gewijzigd, buiten de repo om? Semaphore kijkt dit
-dagelijks om 06:00 na.
+elke ochtend na ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
 
 <Steps>
 
@@ -111,7 +111,7 @@ de taken die iets zouden wijzigen. Verandert zelf niets.
 Staat er `NIET BEREIKT` in plaats van `gelijk aan de repo`? Dan is er op die
 host **niets gecontroleerd**.
 
-**Let op:** Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
+Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
 er in het totaal uit als een host zonder drift. Lees dus de regel per host.
 
 #### Lees de echte diffs
