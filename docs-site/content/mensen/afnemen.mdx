@@ -6,24 +6,11 @@ import { Steps } from 'nextra/components'
 
 # Toegang afnemen
 
-Iemand hoeft er niet meer bij. Je sluit elke plek af waar je iets gaf:
-Pocket ID, NeoGate, Tailscale, WireGuard en Vaultwarden. Alleen een toestel
-kwijt, niet de persoon? Zie [Toestel kwijt](/netwerk/toestellen/#een-toestel-is-kwijt-of-weg).
+Iemand hoeft er niet meer bij. NeoGate sluit bijna alles in één keer af; alleen
+WireGuard doe je met de hand. Alleen een toestel kwijt, niet de persoon? Zie
+[Toestel kwijt](/netwerk/toestellen/#een-toestel-is-kwijt-of-weg).
 
 <Steps>
-
-#### Vaultwarden
-
-[vault.neodata.be/admin](https://vault.neodata.be/admin) → **Users** → de
-persoon → **Delete**. Als eerste, anders weet je later niet meer dat hij er
-nog stond.
-
-#### Pocket ID
-
-[id.neodata.be](https://id.neodata.be) → **Users** → de persoon →
-**Disable** (of **Delete**). Dat stopt nieuwe logins. Een sessie die al
-openstaat in een app, blijft werken tot ze verloopt; verwijder de persoon dus
-ook in de apps waar het telt (Immich, Outline).
 
 #### NeoGate
 
@@ -32,30 +19,42 @@ persoon:
 
 | Kies | Doet |
 | --- | --- |
-| **Toegang intrekken** | haalt al zijn accounts weg, de persoon blijft in de lijst |
+| **Toegang intrekken** | sluit alles af, de persoon blijft in de lijst |
 | **Verwijderen** | hetzelfde, en haalt hem uit de lijst |
-| één dienst uitvinken | alleen die ene dienst weg |
+| één dienst uitvinken | alleen die ene dienst |
 
-Geeft een dienst een foutmelding, vink hem dan opnieuw uit.
+Afsluiten betekent: in Pocket ID en Vaultwarden **uitgezet** (niet
+weggegooid, zie hieronder), in Plex en Seerr weg, en van de tailnet gehaald.
 
-#### Tailscale-console
+#### Kijk of alles gelukt is
 
-NeoGate trekt alleen de **uitnodiging** in. Had de persoon die al aanvaard,
-dan blijft hij lid van de tailnet tot je hem hier weghaalt.
-
-| Scherm | Wat |
-| --- | --- |
-| [Tailscale admin console](https://login.tailscale.com/admin/users) → **Users** | de persoon → `⋯` → **Remove user** |
-| **Machines** | nog toestellen van hem? → **Remove** |
+Open de persoon → **Diensten**. Staat er een dienst rood, probeer die dan
+opnieuw.
 
 #### WireGuard
 
-UniFi → **Settings** → **VPN** → **VPN Server** → **Neodata VPN** → elk
-clientprofiel van die persoon verwijderen.
-
-#### Controleer
-
-De persoon staat niet meer in Pocket ID, NeoGate **Gezin**, Tailscale
-**Users** en Vaultwarden, en heeft geen profiel meer in UniFi.
+Had de persoon een profiel: UniFi → **Settings** → **VPN** → **VPN Server** →
+**Neodata VPN** → elk clientprofiel van die persoon verwijderen.
 
 </Steps>
+
+## Goed om te weten
+
+### Uitzetten, niet weggooien
+
+Pocket ID en Vaultwarden zet NeoGate uit. Een account weggooien in Vaultwarden
+gooit de kluis weg, en die krijgt niemand terug. Komt de persoon terug, dan
+zet een nieuwe uitnodiging alles weer aan. Echt weggooien doe je met de hand,
+op [vault.neodata.be/admin](https://vault.neodata.be/admin) en in Pocket ID.
+
+### Een open sessie blijft even werken
+
+Uitzetten in Pocket ID stopt nieuwe logins. Een app waarin de persoon nog
+ingelogd is, laat hem binnen tot die sessie verloopt. Haast? Verwijder hem ook
+in die app zelf (Immich, Outline).
+
+### Tailscale laat een beheerder staan
+
+NeoGate haalt van de tailnet alleen een gewoon lid weg. Heeft iemand daar een
+hogere rol gekregen, dan doe je dat met de hand in de
+[Tailscale-console](https://login.tailscale.com/admin/users).

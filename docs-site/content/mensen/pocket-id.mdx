@@ -6,7 +6,7 @@ title: Pocket ID
 
 [id.neodata.be](https://id.neodata.be) is de login van het homelab: één
 passkey voor bijna alle apps. Wie in welke app mag, hangt af van zijn groep.
-Iemand toevoegen: [Toegang geven](/mensen/toegang/#iemand-een-login-geven).
+Iemand toevoegen gaat via NeoGate: [Toegang geven](/mensen/toegang/).
 
 ## Per app
 
@@ -76,8 +76,10 @@ zijn eigen login; Caddy staat op zijn whitelist, zodat je via
 ### Wat in git staat en wat niet
 
 De groepen, de clients en welke groep waar mag, staan in `tofu/pocketid/`.
-De mensen, wie in welke groep zit en de passkeys niet: die zet je in het
-scherm. Zo haalt een `apply` nooit iemand weg die daar net is toegevoegd.
+De mensen en wie in welke groep zit niet: die beheert NeoGate, de passkeys de
+persoon zelf. Zo haalt een `apply` nooit iemand weg die daar net is
+toegevoegd. Alleen de `admin`-groep geef je met de hand in Pocket ID: NeoGate
+kan die niet geven.
 
 `tofu/pocketid/settings.tf` zet drie instellingen van Pocket ID zelf; de rest
 blijft van het scherm:
