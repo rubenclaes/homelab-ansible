@@ -1,4 +1,15 @@
 ---
+# AdGuard Home: de DNS-server van het hele netwerk.
+#
+#   ansible-playbook playbooks/adguard.yml
+#
+# Een dunne wrapper om de adguard-rol. Die installeert de binary en zet de
+# DNS-rewrites (<host>.home.arpa) via de API. AdGuardHome.yaml zelf blijft van
+# de web-UI: daar staan het adminwachtwoord en de filterregels in, en dat is
+# echte runtime-staat.
+#
+# In site.yml: ja. Draai daarna smoketest.yml --tags dns.
+
 - name: AdGuard Home
   hosts: adguard
   roles:

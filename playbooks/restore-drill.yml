@@ -7,7 +7,7 @@
 #
 # Zonder --check zet dit de nieuwste back-up van één guest terug op
 # {{ drill_vmid }}, start hem, leest er één bestand uit en sloopt hem weer.
-# Mét --check verandert er niets en zegt hij alleen welke back-up hij zou
+# Met --check verandert er niets en zegt hij alleen welke back-up hij zou
 # pakken - dat is op zichzelf al een bruikbare vraag.
 #
 # WAT DIT ECHT TEST, en waarom het het engste onbekende afdekt: de
@@ -16,21 +16,21 @@
 # het punt. site.yml bouwt caddy opnieuw; niets bouwt je AdGuard-filterlijst
 # opnieuw.
 #
-# EEN GEFAALDE DRILL LAAT DE CONTAINER STAAN: het
-# wrak is het nuttigste wat een mislukte drill oplevert. Opruimen met
-# `pct destroy {{ drill_vmid }}` als je uitgekeken bent. De volgende run
-# weigert dan trouwens te starten, met een melding die zegt waarom, en dat is
-# beter dan stilletjes over een vorige mislukking heen bouwen.
+# EEN GEFAALDE DRILL LAAT DE CONTAINER STAAN: het wrak is het nuttigste wat
+# een mislukte drill oplevert. Opruimen met `pct destroy {{ drill_vmid }}` als
+# je uitgekeken bent. De volgende run weigert dan trouwens te starten, met een
+# melding die zegt waarom, en dat is beter dan stilletjes over een vorige
+# mislukking heen bouwen.
 #
 # ALLEEN LXC. Een VM teruggezet en gestart op hetzelfde netwerk botst met het
 # origineel op MAC en IP; bij een container kan dit playbook net0 weghalen
 # voor het opstarten en dan nog steeds naar binnen via `pct exec`. Voor een
 # VM-herstel is er de runbook Herstellen, met de hand.
 #
-# Draai dit na elke wijziging aan de back-upjobs, en verder gewoon af en toe.
-# Een herstelpad dat nooit gelopen heeft is een aanname.
+# In site.yml: nee. Draai dit na elke wijziging aan de back-upjobs, en verder
+# gewoon af en toe. Een herstelpad dat nooit gelopen heeft is een aanname.
 
-- name: Zet de nieuwste back-up terug en lees hem
+- name: Restore the latest backup and read it back
   hosts: pve01
   gather_facts: true
   vars:
@@ -45,7 +45,7 @@
       {{ ((groups['proxmox_all_lxc'] | default([])) + (groups['proxmox_all_qemu'] | default([])))
          | map('extract', hostvars, 'proxmox_vmid') | map('int') | list }}
   tasks:
-    - name: Vraag om bevestiging
+    - name: Require confirmation
       ansible.builtin.assert:
         that: drill_confirm | default(false) | bool
         fail_msg: >-
@@ -78,7 +78,7 @@
           overschrijven. Verander drill_vmid.
         success_msg: "vmid {{ drill_vmid }} is van niemand"
 
-    - name: Lees de guests die op de node bestaan
+    - name: List the guests that exist on the node
       community.proxmox.proxmox_vm_info:
         api_host: "{{ pve_api_host }}"
         api_user: "{{ pve_api_user }}"
@@ -102,7 +102,7 @@
     # check_mode: false, zodat --check wél vertelt welke back-up hij zou
     # pakken. Dat is de vraag die je het vaakst hebt zonder iets te willen
     # terugzetten.
-    - name: Lees de back-uplijst van de PBS-storage
+    - name: Read the backup list from the PBS storage
       ansible.builtin.command:
         argv:
           - pvesh
@@ -151,7 +151,7 @@
     - name: Terugzetten en controleren
       when: not ansible_check_mode
       block:
-        - name: Zet de back-up terug op de drill-vmid
+        - name: Restore the backup onto the drill vmid
           ansible.builtin.command:
             argv:
               - pct
@@ -169,7 +169,7 @@
         # guest die op dit moment gewoon zijn werk doet. Zonder net0 is hij
         # onbereikbaar over het netwerk, en dat is precies goed - `pct exec`
         # gaat via de hypervisor, niet via een adres.
-        - name: Haal de netwerkkaart eraf voor hij start
+        - name: Strip the network card before it starts
           ansible.builtin.command: pct set {{ drill_vmid }} --delete net0
           changed_when: true
 
@@ -177,11 +177,11 @@
           ansible.builtin.command: pct set {{ drill_vmid }} --onboot 0 --hostname restore-drill
           changed_when: true
 
-        - name: Start hem
+        - name: Start it
           ansible.builtin.command: pct start {{ drill_vmid }}
           changed_when: true
 
-        - name: Wacht tot hij draait
+        - name: Wait until it is running
           ansible.builtin.command: pct status {{ drill_vmid }}
           register: restore_status
           until: "'running' in restore_status.stdout"
@@ -190,7 +190,7 @@
           changed_when: false
 
         # De eigenlijke proef. Alles hierboven was opbouw.
-        - name: Lees het controlebestand uit de teruggezette container
+        - name: Read the check file out of the restored container
           ansible.builtin.command:
             argv: [pct, exec, "{{ drill_vmid }}", --, stat, -c, "%s bytes, gewijzigd %y", "{{ restore_probe }}"]
           register: restore_probe_result
@@ -218,19 +218,19 @@
 # Een aparte play: hier komt hij alleen als
 # elke controle hierboven is geslaagd. Faalt er iets, dan blijft de container
 # staan en is dit de play die niet draait.
-- name: Ruim de drill-container op
+- name: Clean up the drill container
   hosts: pve01
   gather_facts: false
   tasks:
     - name: Opruimen
       when: not ansible_check_mode
       block:
-        - name: Zet hem stil
+        - name: Stop it
           ansible.builtin.command: pct stop {{ drill_vmid }}
           changed_when: true
           failed_when: false
 
-        - name: Sloop hem
+        - name: Destroy it
           ansible.builtin.command: pct destroy {{ drill_vmid }}
           changed_when: true
 

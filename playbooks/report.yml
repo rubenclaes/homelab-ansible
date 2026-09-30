@@ -5,33 +5,35 @@
 #   ansible-playbook playbooks/report.yml
 #
 # Leest alleen. Per host: openstaande upgrades, of hij een herstart nodig
-# heeft, schijfgebruik. Daarnaast de PBS-back-upgroepen, de vervaldatum van
+# heeft, en schijfgebruik. Daarnaast de PBS-back-upgroepen, de vervaldatum van
 # het wildcard-certificaat, en welke gepubliceerde Docker-poorten geen route
 # hebben (`docker_ports_without_route` in host_vars/docker/main.yml dempt wat
 # bewust geen route heeft).
 #
-# Niet in site.yml: traag, en hij hoort op een schema te staan in plaats van
-# in elke converge.
-#
 # Draai hem zonder --limit, of neem localhost erin mee. De HTML wordt daar
 # gerenderd; laat je localhost weg, dan is er niets om te publiceren en zegt
 # de laatste play dat ook.
+#
+# In site.yml: nee, hij is traag en hoort op een schema in plaats van in elke
+# converge.
+
 - name: Collect report data
   hosts: linux
   vars:
-    # An `Inst` line from `apt-get -s dist-upgrade` carries everything the
-    # Updates tab needs:
+    # Een `Inst`-regel uit `apt-get -s dist-upgrade` bevat alles wat het
+    # tabblad Updates nodig heeft:
     #
     #   Inst libc6 [2.36-9+deb12u7] (2.36-9+deb12u10 Debian-Security:12/... [amd64])
     #        \1     \2               \3              \4
     #
-    # The bracketed installed version is absent on a package apt is pulling in
-    # for the first time, so group 2 is optional and comes back as null there.
+    # De versie tussen blokhaken ontbreekt bij een pakket dat apt voor het
+    # eerst binnenhaalt, dus groep 2 is optioneel en komt daar als null terug.
     report_apt_inst_re: '^Inst (\S+) (?:\[([^]]*)\] )?\((\S+) ([^)]*)\)'
   tasks:
-    # One simulation, read twice: the count for the overview table and a row
-    # per package for the Updates tab. Asking apt a second time for the
-    # details would double the slowest part of this play for nothing.
+    # Eén simulatie, twee keer gelezen: het aantal voor de overzichtstabel en
+    # een regel per pakket voor het tabblad Updates. Apt een tweede keer om de
+    # details vragen zou het traagste deel van deze play verdubbelen, voor
+    # niets.
     - name: Simulate a dist-upgrade # noqa: command-instead-of-module
       ansible.builtin.command: apt-get -s dist-upgrade
       register: report_upgrade
@@ -84,28 +86,30 @@
 - name: Collect macOS report data
   hosts: macs
   vars:
-    # Every offered update prints two lines; this reads the second one:
+    # Elke aangeboden update drukt twee regels af; dit leest de tweede:
     #
     #   \tTitle: Safari, Version: 18.6, Size: 132316KiB, Recommended: YES,
     #             \1              \2
     #
-    # The `* Label:` line above it is the precise identifier, but the title is
-    # what a human recognises. Counting these lines rather than the labels
-    # keeps the Updates tab and the overview column on one source: two counts
-    # that can drift apart would eventually disagree, and the report would
-    # have no way to say which of them is right.
+    # De `* Label:`-regel erboven is de precieze aanduiding, maar de titel is
+    # wat een mens herkent. Deze regels tellen in plaats van de labels houdt
+    # het tabblad Updates en de overzichtskolom op één bron: twee tellingen
+    # die uit elkaar kunnen lopen gaan elkaar ooit tegenspreken, en dan kan
+    # het rapport niet zeggen welke van de twee klopt.
     report_swu_re: 'Title: (.+?), Version: ([^,]+),'
   tasks:
-    # `mbp` is ansible_connection: local, which means "whatever machine is
-    # running Ansible". Run from the MacBook that is a Mac; run from Semaphore
-    # (LXC 104) it is a Debian container. Gating on the gathered facts keeps
-    # both cases honest rather than reporting a Debian LXC as a Mac.
+    # `mbp` is ansible_connection: local, en dat betekent "de machine die
+    # Ansible draait". Vanaf de MacBook is dat een Mac; vanuit Semaphore
+    # (LXC 104) is het een Debian-container. Afgaan op de verzamelde facts
+    # houdt beide gevallen eerlijk, in plaats van een Debian-LXC als Mac te
+    # rapporteren.
     - name: Report on this host only when it really is a Mac
       when: ansible_facts['system'] == 'Darwin'
       block:
-        # One call, parsed twice below. This is the slow part of the play
-        # (~45s per Mac) and softwareupdate has no fast path, so it must not
-        # be run once per field. Progress goes to stderr, hence the redirect.
+        # Eén aanroep, hieronder twee keer gelezen. Dit is het trage deel van
+        # de play (~45s per Mac) en softwareupdate heeft geen snelle route,
+        # dus hij mag niet één keer per veld draaien. Voortgang gaat naar
+        # stderr, vandaar de omleiding.
         - name: List pending macOS updates
           ansible.builtin.shell: softwareupdate --list 2>&1
           register: report_swu
@@ -113,14 +117,14 @@
           check_mode: false
           failed_when: false
 
-        # `--json=v2` rather than `--quiet`: the same single call now also
-        # yields the installed and available versions the Updates tab wants,
-        # and JSON is immune to the "Downloading Homebrew API data" progress
-        # line that `2>/dev/null` used to suppress, because the module keeps
-        # stderr separate. A Mac without Homebrew yields no stdout at all,
-        # which the `or '{}'` below turns into an empty list rather than a
-        # parse error; that reads as healthy, and roles/macos installs brew
-        # anyway.
+        # `--json=v2` en geen `--quiet`: dezelfde ene aanroep levert nu ook de
+        # geïnstalleerde en beschikbare versies die het tabblad Updates wil,
+        # en JSON heeft geen last van de voortgangsregel "Downloading Homebrew
+        # API data" die `2>/dev/null` vroeger wegwerkte, want de module houdt
+        # stderr apart. Een Mac zonder Homebrew geeft helemaal geen stdout, en
+        # de `or '{}'` hieronder maakt daar een lege lijst van in plaats van
+        # een parsefout; dat leest als gezond, en roles/macos zet brew er toch
+        # op.
         - name: Read outdated Homebrew packages
           ansible.builtin.command: "{{ macos_brew_path }}/brew outdated --json=v2"
           register: report_brew
@@ -128,10 +132,10 @@
           check_mode: false
           failed_when: false
 
-        # Formulae and casks are two lists in the JSON but one package tree to
-        # a reader, so they flatten into one. A formula can have several
-        # installed versions side by side; joining them keeps the row honest
-        # instead of picking one arbitrarily.
+        # Formulae en casks zijn twee lijsten in de JSON, maar voor een lezer
+        # een pakketboom, dus ze worden er een. Een formula kan meerdere
+        # versies naast elkaar geïnstalleerd hebben; ze samenvoegen houdt de
+        # regel eerlijk, in plaats van er willekeurig één te kiezen.
         - name: Flatten outdated formulae and casks into rows
           ansible.builtin.set_fact:
             report_brew_rows: >-
@@ -159,8 +163,8 @@
           loop_control:
             label: "{{ f[0] | trim }}"
 
-        # BSD df has no --output=pcent, so the Linux play's approach does not
-        # port. NR==2 is the data line, $5 the capacity column.
+        # BSD-df kent geen --output=pcent, dus de aanpak van de Linux-play
+        # werkt hier niet. NR==2 is de dataregel, $5 de kolom met de vulling.
         - name: Measure root disk usage
           ansible.builtin.shell: set -o pipefail; df -P / | awk 'NR==2 {print $5}' | tr -dc '0-9'
           args:
@@ -169,16 +173,18 @@
           changed_when: false
           check_mode: false
 
-        # Deliberately the same keys as the Linux play's report_row, so the
-        # overview table in report.html.j2 needs no per-OS branching. Only the
-        # sources differ: softwareupdate for apt, `Action: restart` for the
-        # baseline role's reboot check.
+        # Met opzet dezelfde sleutels als report_row in de Linux-play, zodat de
+        # overzichtstabel in report.html.j2 niet per besturingssysteem hoeft te
+        # splitsen. Alleen de bronnen verschillen: softwareupdate in plaats van
+        # apt, `Action: restart` in plaats van de herstartcheck van de
+        # baseline-rol.
         #
-        # `pending` counts Homebrew as well as macOS, which it did not before
-        # the Updates tab existed. It has to: the tab lists both, so a Mac
-        # showing 0 in the overview and a brew row in the tab would be the
-        # same page contradicting itself. The Homebrew card below still breaks
-        # the number back down per package tree.
+        # `pending` telt Homebrew mee en niet alleen macOS, wat voor het
+        # tabblad Updates bestond nog niet zo was. Dat moet ook: het tabblad
+        # toont allebei, dus een Mac die 0 laat zien in het overzicht en een
+        # brew-regel in het tabblad zou zichzelf op dezelfde pagina
+        # tegenspreken. De Homebrew-kaart hieronder splitst het getal alsnog
+        # uit per pakketboom.
         - name: Build this Mac's report line
           ansible.builtin.set_fact:
             report_row:
@@ -238,11 +244,11 @@
       loop_control:
         label: "{{ item.Names }}"
 
-    # Published ports, for the route-drift table in the report. A container
-    # that publishes a port nobody proxies is reachable only as host:port,
-    # and a route pointing at a port nothing publishes is a dead name - the
-    # smoke test cannot see the first case at all, because it only tests
-    # routes that already exist.
+    # De gepubliceerde poorten, voor de route-drift-tabel in het rapport. Een
+    # container die een poort publiceert waar niemand naartoe proxyt is alleen
+    # als host:poort te bereiken, en een route die naar een poort wijst die
+    # niets publiceert is een dode naam. Het eerste geval kan de smoketest
+    # helemaal niet zien, want die test alleen routes die al bestaan.
     #
     # `Ports` is hier een string als "192.168.0.15:8081->8081/tcp, [::]:8081->8081/tcp",
     # dus de gepubliceerde poort is wat er vóór de pijl staat. Dubbel door
@@ -343,8 +349,9 @@
         return_content: true
       register: report_backups
       no_log: true
-      # Read-only, and the template needs the result: without this the task
-      # skips under --check and rendering dies on an undefined variable.
+      # Leest alleen, en de template heeft het resultaat nodig: zonder dit
+      # slaat de taak over onder --check en loopt het renderen stuk op een
+      # ongedefinieerde variabele.
       check_mode: false
 
     # Het adres van de caddy-host, met de naam er alleen als SNI bij. Niet de
@@ -366,9 +373,10 @@
       register: report_cert
       check_mode: false
 
-    # The report lists internal hostnames, IPs and backup ages. Render it to a
-    # private temp file rather than a predictable world-readable /tmp path,
-    # because the control node may be shared (Semaphore runs as its own user).
+    # Het rapport noemt interne hostnamen, IP-adressen en hoe oud de back-ups
+    # zijn. Renderen naar een privé tijdelijk bestand en niet naar een
+    # voorspelbaar, voor iedereen leesbaar pad in /tmp, want de controller kan
+    # gedeeld zijn (Semaphore draait als zijn eigen gebruiker).
     - name: Create a private temp file for the rendered report
       ansible.builtin.tempfile:
         state: file
@@ -382,19 +390,20 @@
         src: report.html.j2
         dest: "{{ report_tmp.path }}"
         mode: "0600"
-      # Renders to the control node's temp file even under --check, so the
-      # upload task below can show a real diff of what would be published.
-      # Removed again by the last play either way.
+      # Rendert ook onder --check naar het tijdelijke bestand op de
+      # controller, zodat de uploadtaak hieronder een echte diff kan tonen van
+      # wat er gepubliceerd zou worden. De laatste play ruimt het hoe dan ook
+      # weer op.
       check_mode: false
 
 - name: Publish the report
   hosts: caddy
   gather_facts: false
-  # The HTML is rendered by the localhost play above. A --limit that leaves
-  # localhost out skips that play, so there is nothing to publish - and
-  # reading report_tmp regardless fails during argument finalisation with an
-  # opaque "object of type 'HostVarsVars' has no attribute 'report_tmp'".
-  # Skipping deliberately turns that into a readable message.
+  # De HTML wordt gerenderd door de localhost-play hierboven. Een --limit die
+  # localhost weglaat slaat die play over, en dan is er niets te publiceren -
+  # en report_tmp toch lezen loopt stuk tijdens het afmaken van de argumenten,
+  # met het ondoorzichtige "object of type 'HostVarsVars' has no attribute
+  # 'report_tmp'". Bewust overslaan maakt daar een leesbare melding van.
   vars:
     report_rendered: "{{ 'localhost' in hostvars and hostvars['localhost'].report_tmp is defined }}"
   tasks:

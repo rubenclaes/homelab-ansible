@@ -7,15 +7,18 @@
 #
 # Twee checks, want ze zien elk iets anders:
 #   caddy  vraagt elke site uit caddy_sites op. Een 5xx of geen verbinding is
-#          stuk; een 401 of redirect niet, dat is een dienst die om inloggen
-#          vraagt.
+#          stuk; een 401 of een redirect niet, dat is een dienst die om
+#          inloggen vraagt.
 #   dns    vraagt elke <host>.home.arpa bij AdGuard op. Valt een rewrite om,
 #          dan blijven de routes werken (Caddy praat met IP-adressen) terwijl
 #          `ssh pve01.home.arpa` stilletjes stuk is.
 #
 # Faalt de eerste check, dan draait de tweede niet: los hem op en draai
-# opnieuw. Draai dit na caddy.yml of adguard.yml; staat ook dagelijks in
-# Semaphore. Niet in site.yml: het controleert, het convergeert niet.
+# opnieuw.
+#
+# In site.yml: nee, het controleert en het convergeert niet. Draai dit na
+# caddy.yml of adguard.yml; hij staat ook dagelijks in Semaphore.
+
 - name: Smoke test all Caddy sites
   hosts: caddy
   gather_facts: false
@@ -31,9 +34,10 @@
         label: "{{ item.name }}"
       register: smoke
       failed_when: false
-      # Requesting a URL changes nothing, and the assert below needs the
-      # result. Without this the whole playbook is unusable under --check:
-      # the task skips, leaving results with no `status` to read.
+      # Een URL opvragen verandert niets, en de assert hieronder heeft het
+      # resultaat nodig. Zonder dit is het hele playbook onbruikbaar onder
+      # --check: de taak slaat over, en dan staat er in de resultaten geen
+      # `status` om te lezen.
       check_mode: false
       changed_when: false
       delegate_to: localhost

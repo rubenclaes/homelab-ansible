@@ -1,14 +1,20 @@
 ---
-# De engine op elke host die er een van ons draait, en daarna de stacks op
-# elke host die er zelf een lijst voor heeft.
+# De Docker-engine op elke host die er een van ons draait, en daarna de stacks
+# op elke host die er zelf een lijst voor heeft.
 #
-# Vroeger stond hier `hosts: docker`, de ene host waarvan de stacks beschreven
-# waren. Daardoor kon een tweede docker-host er niet bij zonder dit bestand te
-# wijzigen. Nu bepaalt de inventory het: zet `docker_stacks_list` in de
-# host_vars van een host en hij wordt beheerd, laat hem leeg en de rol raakt
-# hem niet aan. De guard staat op de lijst en niet op de hostnaam, want anders
-# maakt de rol alsnog een deploy-key en kloont hij de containers-repo op een
-# host waar niets te doen valt.
+#   ansible-playbook playbooks/stacks.yml
+#
+# De inventory beslist wie meedoet: zet `docker_stacks_list` in de host_vars
+# van een host en hij wordt beheerd, laat hem leeg en de rol raakt hem niet
+# aan. Vroeger stond hier `hosts: docker`, de ene host waarvan de stacks
+# beschreven waren, en kon een tweede docker-host er niet bij zonder dit
+# bestand te wijzigen. De guard staat op de lijst en niet op de hostnaam,
+# want anders maakt de rol alsnog een deploy-key en kloont hij de
+# containers-repo op een host waar niets te doen valt.
+#
+# In site.yml: ja. Een nieuwe stack komt uit playbooks/new-service.yml; draai
+# daarna caddy.yml voor de route en docs.yml voor de pagina.
+
 - name: Docker engine
   hosts: docker_hosts
   roles:

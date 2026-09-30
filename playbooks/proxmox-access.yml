@@ -1,14 +1,18 @@
 ---
-# Proves that Ansible's API token (ansible@pve!automation) can see what the
-# dynamic inventory needs. The privileges themselves live in
-# tofu/proxmox/access.tf; run this after changing them there.
+# Bewijst dat het API-token van Ansible (ansible@pve!automation) ziet wat de
+# dynamische inventory nodig heeft.
 #
 #   ansible-playbook playbooks/proxmox-access.yml
 #
-# It queries the guest-agent endpoint through the API TOKEN rather than with
-# pvesh. pvesh runs as root and would succeed regardless of the token's
-# privileges, so it proves nothing about what the inventory plugin can
-# actually see.
+# De rechten zelf staan in tofu/proxmox/access.tf; draai dit nadat je ze daar
+# gewijzigd hebt.
+#
+# Hij bevraagt het guest-agent-endpoint via het TOKEN en niet met pvesh.
+# Pvesh draait als root en zou slagen wat het token ook mag, en bewijst dus
+# niets over wat de inventory-plugin echt te zien krijgt.
+#
+# In site.yml: ja. Leest alleen.
+
 - name: Verify the token can reach the guest agent
   hosts: proxmox
   gather_facts: true
@@ -47,23 +51,23 @@
       become: false
       no_log: true
 
-    # ansible.builtin.uri has no check-mode support, so the query above is
-    # skipped under --check and these results are empty. Reading them anyway
-    # errors on item.status. There is nothing to report in check mode because
-    # nothing was asked, so say so and move on - site.yml --check has to stay
-    # green now that this playbook is part of the converge.
+    # ansible.builtin.uri kent geen check-mode, dus de vraag hierboven wordt
+    # overgeslagen onder --check en deze resultaten zijn leeg. Ze toch lezen
+    # loopt stuk op item.status. In check-mode valt er niets te melden omdat
+    # er niets gevraagd is: dat zeggen en doorlopen, want site.yml --check
+    # moet groen blijven nu dit playbook in de converge zit.
     - name: Explain that reachability is not checked under --check
       ansible.builtin.debug:
-        msg: "Guest agent reachability is not verified under --check: uri cannot run in check mode"
+        msg: "Bereikbaarheid van de guest agent is niet nagekeken onder --check: uri kan niet in check-mode"
       when: ansible_check_mode
 
     - name: Report reachability per guest
       ansible.builtin.debug:
         msg: >-
           {{ item.item.name }} (vmid {{ item.item.vmid }}):
-          {{ 'agent reachable' if item.status == 200
-             else 'HTTP ' ~ item.status ~ (' - token lacks VM.Monitor' if item.status == 403
-             else ' - agent enabled but not responding inside the guest') }}
+          {{ 'agent bereikbaar' if item.status == 200
+             else 'HTTP ' ~ item.status ~ (' - token mist VM.Monitor' if item.status == 403
+             else ' - agent staat aan maar antwoordt niet in de guest') }}
       loop: "{{ proxmox_access_agent.results }}"
       loop_control:
         label: "{{ item.item.name }}"
@@ -75,6 +79,6 @@
         fail_msg: >-
           {{ proxmox_access_agent.results | selectattr('status', 'eq', 403)
              | map(attribute='item.name') | join(', ') }}
-          returned 403 - the token still lacks VM.Monitor.
-        success_msg: "No guest is blocked by token permissions"
+          gaf 403 - het token mist nog steeds VM.Monitor.
+        success_msg: "Geen enkele guest wordt geblokkeerd door de rechten van het token"
       when: not ansible_check_mode

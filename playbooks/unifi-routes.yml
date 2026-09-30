@@ -1,11 +1,16 @@
 ---
 # Controleert of elke Caddy-route naar een adres wijst dat een toestel in
-# UniFi nu echt heeft, met een Fixed IP. Vangt een upstream die verhuisd of
-# weg is. En of elk netwerk de DNS uitdeelt uit unifi_expected_dns.
+# UniFi nu echt heeft, met een Fixed IP. En of elk netwerk de DNS uitdeelt
+# uit unifi_expected_dns.
 #
 #   ansible-playbook playbooks/unifi-routes.yml
 #
-# Leest alleen. Verandert niets in UniFi of Caddy.
+# Leest alleen. Verandert niets in UniFi of Caddy. Vangt een upstream die
+# verhuisd of weg is: smoketest.yml ziet dat ook, maar pas als de dienst al
+# onbereikbaar is.
+#
+# In site.yml: nee, het controleert en het convergeert niet.
+
 - name: Caddy routes and DNS against UniFi
   hosts: localhost
   gather_facts: false

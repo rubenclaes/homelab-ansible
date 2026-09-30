@@ -1,26 +1,31 @@
 ---
-# Mints one single-use, pre-authorised Tailscale key and prints it once.
+# Maakt een Tailscale-sleutel aan: eenmalig, voorgeautoriseerd, en een keer
+# getoond.
 #
 #   ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 #
-# For things with a command line - a Windows PC, a NAS, a Raspberry Pi - where
-# `tailscale up --auth-key=...` is how you join. NOT for phones: the iOS and
-# Android apps sign in through a browser and have nowhere to paste a key.
+# Voor dingen met een commandoregel - een Windows-pc, een NAS, een Raspberry
+# Pi - waar `tailscale up --auth-key=...` de manier is om erbij te komen.
+# NIET voor telefoons: de iOS- en Android-app melden zich aan via een browser
+# en hebben nergens om een sleutel te plakken.
 #
-# `label` is free text. It becomes the key's description in the admin console
-# and is the only trace the key leaves, so make it something you recognise.
-# Not called `name`, because that is a task keyword and Ansible would read it
-# in places where a variable was meant.
+# `label` is vrije tekst. Het wordt de omschrijving van de sleutel in de
+# admin console en is het enige spoor dat de sleutel achterlaat, dus maak er
+# iets van dat je herkent. Hij heet niet `name`, want dat is een
+# task-keyword en Ansible zou het lezen waar een variabele bedoeld was.
 #
-# Run it from the workstation, not from Semaphore: the key is printed, and a
-# Semaphore task log would keep it.
+# Draai dit vanaf de werkplek en niet vanuit Semaphore: de sleutel wordt
+# afgedrukt, en een Semaphore-tasklog bewaart dat.
 #
-# hosts: tailscale is only there for the OAuth client, which since 23-09 lives
-# in group_vars/tailnet/ and reaches this host through the group
-# in its vault. Nothing connects to it: the play vars below make every task
-# run locally, and override the linux group's ansible_become, which would
-# otherwise sudo on the workstation. A play-level var overriding inventory is
-# exactly the trap update.yml warns about; here it is the point.
+# `hosts: tailscale` is er alleen voor de OAuth-client, die sinds 23-09 in
+# group_vars/tailnet/ staat en deze host via de groep in zijn vault bereikt.
+# Er wordt niets verbonden: de play vars hieronder laten elke taak lokaal
+# draaien, en overschrijven de ansible_become van de linux-groep, die anders
+# zou sudo'en op de werkplek. Een play var die de inventory overschrijft is
+# precies de val waar update.yml voor waarschuwt; hier is het de bedoeling.
+#
+# In site.yml: nee, dit maakt een geheim aan en drukt het af.
+
 - name: Tailscale key
   hosts: tailscale
   gather_facts: false
@@ -28,21 +33,21 @@
     ansible_connection: local
     ansible_become: false
   tasks:
-    # `is match` rather than `| regex_search`: the filter returns None when it
-    # does not match, and a conditional has to be a boolean.
+    # `is match` en geen `| regex_search`: dat filter geeft None terug als er
+    # geen match is, en een voorwaarde moet een boolean zijn.
     - name: Require a label for the key
       ansible.builtin.assert:
         that:
           - label is defined
           - label is match('^[a-z0-9][a-z0-9-]*$')
         fail_msg: >-
-          Pass -e label=<naam>, lowercase letters, digits and hyphens. It
-          becomes the key's description in the Tailscale admin console, so
-          make it something you will recognise later.
+          Geef -e label=<naam> mee: kleine letters, cijfers en streepjes. Het
+          wordt de omschrijving van de sleutel in de Tailscale admin console,
+          dus maak er iets van dat je later herkent.
         quiet: true
 
-    # public: the role's defaults (tag, expiry) stay visible for the message
-    # below; without it they vanish when the include ends.
+    # public: de defaults van de rol (tag, geldigheid) blijven zichtbaar voor
+    # het bericht hieronder; zonder dat zijn ze weg zodra de include eindigt.
     - name: Mint the key
       ansible.builtin.include_role:
         name: tailscale
@@ -52,12 +57,13 @@
         tailscale_key_description: "device-{{ label }}"
         tailscale_key_tags: "{{ tailscale_tags }}"
 
-    # Shown once, on purpose. The API cannot show it again; if it is lost,
-    # run this again and the unused key expires on its own.
+    # Eén keer getoond, met opzet. De API kan hem niet nog eens laten zien;
+    # ben je hem kwijt, draai dit dan opnieuw - de ongebruikte sleutel
+    # verloopt vanzelf.
     - name: Show the key
       ansible.builtin.debug:
         msg:
-          - "Single-use key for {{ label }}, id {{ tailscale_minted_key_id }}, valid {{ tailscale_key_expiry_seconds }}s:"
+          - "Eenmalige sleutel voor {{ label }}, id {{ tailscale_minted_key_id }}, geldig {{ tailscale_key_expiry_seconds }}s:"
           - "{{ tailscale_minted_key }}"
-          - "On the device: tailscale up --auth-key={{ tailscale_minted_key }}"
-          - "It joins pre-authorised, tagged {{ tailscale_tags | join(', ') }}, and the key is spent."
+          - "Op het toestel: tailscale up --auth-key={{ tailscale_minted_key }}"
+          - "Hij komt voorgeautoriseerd binnen met tag {{ tailscale_tags | join(', ') }}, en de sleutel is op."

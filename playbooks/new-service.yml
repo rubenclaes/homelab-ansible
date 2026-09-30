@@ -1,22 +1,28 @@
+---
+# Zet een nieuwe Docker-dienst in de steigers: compose-bestand, .env, vault,
+# docker_stacks_list en caddy_sites. Alles wat vroeger vijf handmatige
+# stappen was.
+#
+#   ansible-playbook playbooks/new-service.yml \
+#     -e svc_name=memos \
+#     -e svc_port=5230 \
+#     -e svc_image=ghcr.io/usememos/memos:0.24.4 \
+#     -e svc_volume=/var/opt/memos \
+#     -e '{"svc_desc": "Memos - snelle notities"}'
+#
+# Een waarde met spaties MOET als JSON binnenkomen. Ansible leest -e key=value
+# als een lijst paren gescheiden door spaties, dus -e 'svc_desc=a b c' wordt
+# stilletjes svc_desc=a plus twee losse woorden. Quoten in de shell helpt niet.
+#
+# Erna: push de containers-repo, draai dan stacks.yml en caddy.yml. Het
+# playbook drukt die stappen op het einde ook af.
+#
+# In site.yml: nee, dit schrijft in de repo en niet op een host.
+
 - name: Scaffold a new Docker service
   hosts: localhost
   gather_facts: false
 
-  # Everything the five manual steps used to do:
-  #   compose file -> .env -> vault -> docker_stacks_list -> caddy_sites
-  #
-  #   ansible-playbook playbooks/new-service.yml \
-  #     -e svc_name=memos \
-  #     -e svc_port=5230 \
-  #     -e svc_image=ghcr.io/usememos/memos:0.24.4 \
-  #     -e svc_volume=/var/opt/memos \
-  #     -e '{"svc_desc": "Memos - snelle notities"}'
-  #
-  # A value containing spaces MUST go in as JSON. Ansible reads -e key=value
-  # as a space-separated list of pairs, so -e 'svc_desc=a b c' quietly becomes
-  # svc_desc=a and two stray words. Quoting in the shell does not help.
-  #
-  # Afterwards: push the containers repo, then run stacks.yml and caddy.yml.
   vars:
     containers_repo: "{{ lookup('env', 'HOME') }}/Development/containers"
     svc_host: docker
@@ -48,10 +54,10 @@
           - svc_port is defined
           - svc_image is defined and svc_image | length > 0
         fail_msg: |
-          Missing arguments. Minimum:
+          Ontbrekende argumenten. Minimaal:
             ansible-playbook playbooks/new-service.yml \
               -e svc_name=<naam> -e svc_port=<poort> -e svc_image=<image:tag>
-          Optional: svc_volume, svc_desc, svc_subdomain, svc_host, svc_env
+          Optioneel: svc_volume, svc_desc, svc_subdomain, svc_host, svc_env
 
     - name: Read the current stack list
       ansible.builtin.slurp:
@@ -63,8 +69,8 @@
         src: "{{ caddy_vars }}"
       register: caddy_vars_raw
 
-    # Catching a clash here is far cheaper than catching it after a deploy:
-    # a duplicate port silently fails to bind, a duplicate name overwrites.
+    # Een botsing hier vangen is veel goedkoper dan na een deploy: een
+    # dubbele poort bindt stilletjes niet, een dubbele naam overschrijft.
     - name: Refuse to overwrite an existing service
       ansible.builtin.assert:
         that:
@@ -73,8 +79,8 @@
           - "'name: ' ~ svc_subdomain ~ ',' not in caddy_vars_text"
           - "'port: ' ~ svc_port ~ ',' not in caddy_vars_text"
         fail_msg: >-
-          '{{ svc_name }}' or port {{ svc_port }} is already taken —
-          check stacks/{{ svc_name }}, docker_stacks_list and caddy_sites.
+          '{{ svc_name }}' of poort {{ svc_port }} is al bezet - kijk naar
+          stacks/{{ svc_name }}, docker_stacks_list en caddy_sites.
       vars:
         stack_exists: "{{ (stack_dir ~ '/docker-compose.yml') is exists }}"
         docker_vars_text: "{{ docker_vars_raw.content | b64decode }}"
@@ -92,7 +98,8 @@
         dest: "{{ stack_dir }}/docker-compose.yml"
         mode: "0644"
 
-    # Gitignored in the containers repo; the copy below is the one that lasts.
+    # Gitignored in de containers-repo; de kopie hieronder is degene die
+    # blijft.
     - name: Write the .env next to it
       ansible.builtin.template:
         src: new-service/env.j2
@@ -105,8 +112,9 @@
         dest: "{{ env_file }}"
         mode: "0600"
 
-    # chdir matters: ansible.cfg points vault_identity_list at the relative
-    # path bin/vault-pass-client, which only resolves from the repo root.
+    # chdir is hier van belang: ansible.cfg wijst vault_identity_list naar het
+    # relatieve pad bin/vault-pass-client, en dat klopt alleen vanaf de
+    # repo-root.
     - name: Encrypt it under the stacks vault identity
       ansible.builtin.command:
         cmd: ansible-vault encrypt --encrypt-vault-id stacks {{ env_file }}
@@ -122,12 +130,13 @@
       register: vault_header
       failed_when: vault_header is changed
 
-    # A single brace is not a Jinja delimiter, so these lines need no escaping
-    # and are written as they will appear in the file.
+    # Een enkele accolade is geen Jinja-delimiter, dus deze regels hoeven niet
+    # ge-escaped te worden en staan er zoals ze in het bestand komen.
     #
-    # Both entries go directly under their list header rather than at the end:
-    # order is irrelevant to Ansible, and anchoring to a header is the one
-    # position that cannot land inside a comment block or another variable.
+    # Beide regels gaan direct onder hun lijstkop staan en niet onderaan: de
+    # volgorde maakt Ansible niets uit, en vastmaken aan een kop is de enige
+    # plek die niet in een commentaarblok of een andere variabele kan
+    # belanden.
     - name: Register the stack
       ansible.builtin.lineinfile:
         path: "{{ docker_vars }}"
@@ -143,9 +152,9 @@
     - name: What happens next
       ansible.builtin.debug:
         msg:
-          - "Created stacks/{{ svc_name }}/ in the containers repo."
-          - "Vaulted files/env/{{ svc_name }}.env."
-          - "Registered the stack and the route in the inventory."
+          - "stacks/{{ svc_name }}/ aangemaakt in de containers-repo."
+          - "files/env/{{ svc_name }}.env in de vault gezet."
+          - "De stack en de route staan in de inventory."
           - ""
           - "1. cd {{ containers_repo }} && git add stacks/{{ svc_name }} && git commit -m 'Add {{ svc_name }} stack' && git push"
           - "2. ansible-playbook playbooks/stacks.yml && ansible-playbook playbooks/caddy.yml"

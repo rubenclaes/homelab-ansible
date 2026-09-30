@@ -3,10 +3,17 @@
 #
 #   ansible-playbook playbooks/offsite.yml
 #
-# docker: elke nacht om 02:00 een file-level back-up van de app-data en de
-# foto's naar PBS (roles/pbs_client). pbs: de R2-datastore, de sync job en
-# r2-guard (roles/pbs, tags offsite). Het waarom staat in
+# Twee kanten, in een run:
+#   docker  elke nacht om 02:00 een file-level back-up van de app-data en de
+#           foto's naar PBS (roles/pbs_client).
+#   pbs     de R2-datastore, de sync job en r2-guard (roles/pbs, tag offsite).
+#
+# Het waarom staat in
 # docs/superpowers/specs/2026-09-25-offsite-backup-r2-design.md.
+#
+# In site.yml: nee, maar pbs.yml eronder wel. Draai restore-drill.yml na elke
+# wijziging hier: een herstelpad dat nooit gelopen heeft is een aanname.
+
 - name: Nightly file-level backup of the docker app data
   hosts: docker
   become: true

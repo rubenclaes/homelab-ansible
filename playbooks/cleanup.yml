@@ -1,27 +1,26 @@
 ---
-# Reclaim disk space. Safe by default: with no switch it only reports what it
-# would free and changes nothing.
+# Schijfruimte terugwinnen. Standaard veilig: zonder vlag rapporteert hij
+# alleen wat hij zou vrijmaken en verandert hij niets.
 #
-#   cleanup_apply   actually reclaim                            (default false)
+#   ansible-playbook playbooks/cleanup.yml                        # alleen rapport
+#   ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true  # echt opruimen
 #
-# Read with `| default(false)` rather than declared as a play var, so it can be
-# set in group_vars, host_vars, or on the command line. A play-level `vars:`
-# silently overrides inventory -- see the same reasoning in update.yml.
+# `cleanup_apply` wordt gelezen met `| default(false)` en staat niet als play
+# var, zodat hij ook in group_vars, host_vars of op de commandoregel kan. Een
+# `vars:` op play-niveau overschrijdt de inventory stilletjes - zelfde
+# redenering als in update.yml.
 #
-#   ansible-playbook playbooks/cleanup.yml                        # report only
-#   ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true  # reclaim
+# Blijft staan, bij elke instelling:
+#   - Docker-volumes. Daar staat de data van de stacks in (immich-postgres en
+#     consorten). Er één weggooien is een herstel, geen opruiming.
+#   - Containers, draaiend of gestopt. Een gestopte container houdt ook zijn
+#     image buiten de prune hieronder, en daarom overleeft een `down` stack dit.
+#   - Vastgezette pakketten. Autoremove respecteert dpkg-holds, dus de eigen
+#     Caddy-build in baseline_held_packages blijft.
+#   - Geinstalleerde Homebrew-versies. `brew cleanup` haalt achterhaalde
+#     versies en oude downloads weg; wat nu gelinkt is blijft.
 #
-# Never touched, at any setting:
-#   - Docker volumes. They hold the stacks' data (immich-postgres and friends).
-#     Deleting one is a restore, not a cleanup.
-#   - Containers, running or stopped. A stopped container also keeps its image
-#     out of the prune below, which is why a `down` stack survives this.
-#   - Held packages. dpkg holds are honoured by autoremove, so the custom Caddy
-#     build in baseline_held_packages stays put.
-#   - Installed Homebrew versions. `brew cleanup` removes superseded versions
-#     and stale downloads; whatever is currently linked stays.
-#
-# Deliberately not in site.yml: this one deletes. Tunables live in
+# In site.yml: nee, deze verwijdert. De knoppen staan in
 # inventory/group_vars/all/cleanup.yml.
 
 - name: Reclaim disk space on Debian hosts
@@ -35,9 +34,9 @@
       changed_when: false
       check_mode: false
 
-    # The names, not just a count: on pve01 this is where old proxmox-kernel-*
-    # packages show up, and seeing the list before applying is the whole point
-    # of the report run.
+    # De namen, niet alleen een aantal: op pve01 komen hier de oude
+    # proxmox-kernel-*-pakketten naar boven, en die lijst zien voor je
+    # opruimt is precies waar de rapportrun voor is.
     - name: List the packages autoremove would take # noqa: command-instead-of-module
       ansible.builtin.shell: set -o pipefail; apt-get -s autoremove | awk '/^Remv /{print $2}'
       args:
@@ -46,8 +45,9 @@
       changed_when: false
       check_mode: false
 
-    # systemd logs --disk-usage at LOG_INFO, which lands on stderr, so both
-    # streams are folded into stdout rather than guessing which one it is.
+    # systemd schrijft --disk-usage op LOG_INFO, en dat komt op stderr
+    # terecht. Beide stromen gaan daarom naar stdout, in plaats van te gokken
+    # welke van de twee het is.
     - name: Measure the journal on disk
       ansible.builtin.shell: journalctl --disk-usage 2>&1
       register: cleanup_journal_before
@@ -66,9 +66,10 @@
     - name: Reclaim it
       when: cleanup_apply | default(false) | bool
       block:
-        # autoclean cannot stand alone -- the module's required_one_of does not
-        # list it -- so the two run as one task. autoclean drops archives apt
-        # can no longer download; autoremove drops orphaned dependencies.
+        # autoclean kan niet alleen staan - de required_one_of van de module
+        # noemt hem niet - dus de twee draaien als één taak. autoclean gooit
+        # archieven weg die apt niet meer kan ophalen; autoremove gooit
+        # afhankelijkheden weg waar niets meer naar wijst.
         - name: Autoremove orphaned packages and stale apt archives
           ansible.builtin.apt:
             autoremove: true
@@ -77,10 +78,10 @@
         - name: Vacuum the journal
           ansible.builtin.shell: journalctl --vacuum-time={{ cleanup_journal_keep }} 2>&1
           register: cleanup_vacuum
-          # journalctl always exits 0 and prints one "freed <size>" line per
-          # journal directory. Changed only when at least one of them freed
-          # something -- a plain `'freed 0B' not in stdout` would call a run
-          # unchanged whenever /run/log/journal happened to be empty.
+          # journalctl eindigt altijd op 0 en drukt een "freed <grootte>"-regel
+          # af per journal-map. Changed dus alleen als er ergens echt iets
+          # vrijkwam: een kale `'freed 0B' not in stdout` zou een run
+          # onveranderd noemen zodra /run/log/journal toevallig leeg was.
           changed_when: >-
             cleanup_vacuum.stdout_lines
             | select('search', 'freed')
@@ -117,38 +118,41 @@
     - name: Reclaim it
       when: cleanup_apply | default(false) | bool
       block:
-        # docker_prune speaks to the Docker API directly, which needs requests
-        # -- not the Docker SDK for Python. docker_stacks installs its own
-        # libraries on `docker`, but docker-grafana-stack is not in that role,
-        # so ensure it here and this play stands on its own for both engines.
-        # Inside the block, not above it: a report run installs nothing, and
-        # `docker system df` above is a plain command that needs no library.
+        # docker_prune praat rechtstreeks met de Docker-API en heeft daarvoor
+        # requests nodig, niet de Docker SDK voor Python. docker_stacks zet
+        # zijn eigen bibliotheken op `docker`, maar docker-grafana-stack zit
+        # niet in die rol; hier zetten betekent dat deze play op beide engines
+        # op eigen benen staat. Binnen het block en niet erboven: een
+        # rapportrun installeert niets, en `docker system df` hierboven is een
+        # gewoon commando dat geen bibliotheek nodig heeft.
         - name: Ensure Python libraries for the Docker modules
           ansible.builtin.apt:
             name: python3-requests
             state: present
 
-        # Images are age-filtered, build cache is not, because the two cost
-        # different things to get wrong. An image that turns out to be needed
-        # has to be pulled again over the network; build cache only has to be
-        # rebuilt. `until` also measures the image's own creation timestamp
-        # rather than when it was pulled, so a long-stable upstream image
-        # counts as old even if it arrived yesterday -- another reason to keep
-        # a window on images and not on derived cache.
+        # Images krijgen een leeftijdsfilter, build cache niet, want fout zijn
+        # kost bij die twee iets anders. Een image dat toch nodig blijkt moet
+        # opnieuw over het netwerk binnenkomen; build cache hoeft alleen
+        # opnieuw gebouwd te worden. `until` kijkt bovendien naar het moment
+        # waarop het image gemaakt is en niet naar wanneer jij het ophaalde,
+        # dus een upstream-image dat al lang stilstaat telt als oud ook al
+        # kwam het gisteren binnen - nog een reden om een venster op images te
+        # houden en niet op afgeleide cache.
         #
-        # containers and volumes are false by default; they are spelled out
-        # because in a playbook that deletes, intent beats defaults.
-        # noqa on the task, not the key: ansible-lint applies jinja[spacing]
-        # per task, so an inline comment on a nested value is ignored.
+        # containers en volumes staan standaard al op false; ze staan er toch
+        # uitgeschreven, want in een playbook dat verwijdert wint bedoeling
+        # van defaults. De noqa staat op de taak en niet op de sleutel:
+        # ansible-lint past jinja[spacing] per taak toe, dus een comment op
+        # een geneste waarde wordt genegeerd.
         - name: Prune unused images, build cache and networks # noqa: jinja[spacing]
           community.docker.docker_prune:
             images: true
             images_filters:
               dangling: false
-              # ansible-lint sees the key name `until` and applies its rule for
-              # conditional expressions, which want a bare variable. This
-              # `until` is a Docker filter value, where a bare name would be
-              # passed through as the literal string. Hence the task-level noqa.
+              # ansible-lint ziet de sleutelnaam `until` en past zijn regel voor
+              # voorwaarden toe, die een kale variabele wil. Deze `until` is
+              # een Docker-filterwaarde, waar een kale naam als letterlijke
+              # tekst zou doorgaan. Vandaar de noqa op taakniveau.
               until: "{{ cleanup_docker_until }}"
             builder_cache: true
             builder_cache_all: true
@@ -167,25 +171,26 @@
                  + cleanup_pruned.builder_cache_space_reclaimed) / 1024 / 1024)
                  | round(1) }} MiB reclaimed.
 
-# Homebrew keeps every download it has ever made and every version it has
-# superseded. On a Mac that builds from source - the Mini, on macOS 14.6.1,
-# where Homebrew no longer ships bottles for everything - that is source
-# tarballs by the gigabyte.
+# Homebrew bewaart elke download die hij ooit deed en elke versie die hij
+# vervangen heeft. Op een Mac die uit source bouwt - de Mini, op macOS 14.6.1,
+# waar Homebrew niet meer voor alles bottles levert - zijn dat tarballs bij de
+# gigabyte.
 #
-# This lives here and NOT as a task at the end of update.yml, which is where it
-# looks like it belongs. On the mbp, `ansible` itself comes from Homebrew and
-# ansible_connection is local, so an update run can have just replaced the
-# interpreter that is executing the play; `brew cleanup` would then delete the
-# Cellar directory that running process still reads from. update.yml sets
-# HOMEBREW_NO_INSTALL_CLEANUP=1 to prevent exactly that, and a cleanup task
-# bolted onto the end would undo it. A separate run upgrades nothing, so the
-# linked version is the current one and cleanup has nothing dangerous to take.
+# Dit staat hier en NIET als taak aan het eind van update.yml, waar het lijkt
+# thuis te horen. Op de mbp komt `ansible` zelf uit Homebrew en is
+# ansible_connection lokaal, dus een update-run kan net de interpreter hebben
+# vervangen die de play uitvoert; `brew cleanup` zou dan de Cellar-map
+# weggooien waar dat draaiende proces nog uit leest. update.yml zet
+# HOMEBREW_NO_INSTALL_CLEANUP=1 om precies dat te voorkomen, en een
+# opruimtaak achteraan zou dat ongedaan maken. Een aparte run upgradet niets,
+# dus de gelinkte versie is de huidige en opruimen kan niets gevaarlijks
+# meenemen.
 - name: Reclaim disk space on the Macs
   hosts: macs
   gather_facts: false
   tasks:
-    # `brew --cache` rather than a hardcoded ~/Library/Caches/Homebrew: the
-    # location is Homebrew's to decide and it answers for it.
+    # `brew --cache` en geen vast ~/Library/Caches/Homebrew: de plek is aan
+    # Homebrew om te bepalen, en hij antwoordt erop.
     - name: Measure the Homebrew cache
       ansible.builtin.shell: >-
         set -o pipefail;
@@ -196,10 +201,10 @@
       changed_when: false
       check_mode: false
 
-    # The sizes, not just a count. Homebrew is conservative here: while an
-    # upgrade is still pending it keeps the download for the version you are
-    # about to move to, so the figure this reports is smaller than the cache on
-    # disk and gets larger once update.yml has run.
+    # De groottes, niet alleen een aantal. Homebrew is hier voorzichtig:
+    # zolang een upgrade nog openstaat houdt hij de download van de versie
+    # waar je naartoe gaat, dus het getal hier is kleiner dan de cache op
+    # schijf en wordt groter zodra update.yml gedraaid heeft.
     - name: List what a cleanup would remove
       ansible.builtin.command: >-
         {{ macos_brew_path }}/brew cleanup --dry-run --prune={{ cleanup_brew_prune }}
@@ -207,11 +212,11 @@
       changed_when: false
       check_mode: false
 
-    # Separate from cleanup, because they remove different things. `cleanup`
-    # drops old versions and downloads; `autoremove` drops formulae that were
-    # only ever pulled in as someone else's dependency and now hang loose.
-    # Taking minikube out of a host_vars list leaves a dozen of those behind,
-    # and no amount of `brew cleanup` will touch them.
+    # Los van cleanup, want ze halen iets anders weg. `cleanup` gooit oude
+    # versies en downloads weg; `autoremove` gooit formulae weg die alleen
+    # ooit als andermans afhankelijkheid zijn binnengekomen en nu los hangen.
+    # Minikube uit een host_vars-lijst halen laat er een stuk of tien achter,
+    # en geen enkele `brew cleanup` raakt die aan.
     - name: List the dependencies autoremove would take
       ansible.builtin.command: "{{ macos_brew_path }}/brew autoremove --dry-run"
       register: cleanup_brew_orphans
@@ -236,19 +241,20 @@
           ansible.builtin.command: >-
             {{ macos_brew_path }}/brew cleanup --prune={{ cleanup_brew_prune }}
           register: cleanup_brew_run
-          # brew exits 0 whether or not it removed anything, and prints one
-          # `Removing: <path>` line per item. No such line means nothing went.
+          # brew eindigt op 0 of hij nu iets weghaalde of niet, en drukt een
+          # `Removing: <pad>`-regel af per item. Geen zo'n regel betekent dat
+          # er niets weg is.
           changed_when: cleanup_brew_run.stdout is search('Removing:')
 
-        # After the formulae, not before: uninstalling minikube is what turns
-        # its dependencies into orphans in the first place, and the macos role
-        # runs in a different playbook. Running it here means the next cleanup
-        # sweeps up whatever the last converge orphaned.
+        # Na de formulae en niet ervoor: minikube deïnstalleren is juist wat
+        # zijn afhankelijkheden los maakt, en de macos-rol draait in een ander
+        # playbook. Hier draaien betekent dat de volgende opruimbeurt meeneemt
+        # wat de vorige converge heeft losgetrokken.
         - name: Remove dependencies nothing needs any more
           ansible.builtin.command: "{{ macos_brew_path }}/brew autoremove"
           register: cleanup_brew_autoremoved
-          # brew prints nothing at all when there is nothing to take, and exits
-          # 0 either way, so emptiness is the signal rather than any keyword.
+          # brew drukt helemaal niets af als er niets te halen valt, en eindigt
+          # hoe dan ook op 0. Leegte is hier dus het signaal, geen trefwoord.
           changed_when: cleanup_brew_autoremoved.stdout | trim | length > 0
 
         - name: Measure the Homebrew cache again

@@ -1,9 +1,15 @@
 ---
-# Meldt toestellen op het netwerk die niet in unifi_known_macs staan.
+# Meldt toestellen op het netwerk die niet in unifi_known_macs staan, met een
+# ntfy-bericht per toestel.
 #
 #   ansible-playbook playbooks/unifi-watch.yml
 #
-# Leest alleen. Verandert niets in UniFi.
+# Leest alleen. Verandert niets in UniFi. De lijst bijwerken doe je met
+# playbooks/unifi-clients.yml.
+#
+# In site.yml: nee, het controleert en het convergeert niet. Hoort op een
+# schema in Semaphore.
+
 - name: Unknown devices on the network
   hosts: localhost
   gather_facts: false

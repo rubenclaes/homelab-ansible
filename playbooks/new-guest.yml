@@ -8,8 +8,12 @@
 # `ansible`-serviceaccount aanmaken en de baseline toepassen. Daarna is het
 # een gewone host en mag site.yml erop.
 #
-# Wat dit NIET doet: de container maken (OpenTofu), of de dienst installeren
-# (een eigen rol, of playbooks/new-service.yml).
+# Wat dit NIET doet: de container maken (dat is OpenTofu), of de dienst
+# installeren (een eigen rol, of playbooks/new-service.yml).
+#
+# In site.yml: nee, dit is eenmalig per machine. Draai erna
+# `site.yml --limit <host>` en dan dotfiles.yml.
+
 - name: Make the new container reachable
   hosts: pve01
   gather_facts: true
@@ -40,11 +44,11 @@
       delegate_to: localhost
       become: false
 
-    # A container this new presents a host key nobody has seen, and Ansible
-    # cannot accept an unknown key non-interactively. `pct exec` reads it
-    # through the hypervisor rather than over the network, so this trusts a
-    # key taken from the machine's own disk instead of whatever answers on
-    # that address.
+    # Een container die zo nieuw is toont een hostkey die niemand ooit gezien
+    # heeft, en Ansible kan een onbekende sleutel niet zonder tussenkomst
+    # accepteren. `pct exec` leest hem via de hypervisor in plaats van over
+    # het netwerk, dus dit vertrouwt een sleutel van de schijf van de machine
+    # zelf en niet wat er toevallig op dat adres antwoordt.
     - name: Read its SSH host key through the hypervisor
       ansible.builtin.command: pct exec {{ new_guest_vmid }} -- cat /etc/ssh/ssh_host_ed25519_key.pub
       register: new_guest_host_key
@@ -61,18 +65,19 @@
       delegate_to: localhost
       become: false
 
-    # The dynamic inventory was read before this container existed, so it is
-    # not in it yet. This makes the plays below able to reach it now; the next
-    # run picks it up from Proxmox like any other guest.
+    # De dynamische inventory werd gelezen voor deze container bestond, dus
+    # hij staat er nog niet in. Hiermee kunnen de plays hieronder hem nu al
+    # bereiken; de volgende run pikt hem gewoon uit Proxmox op, als elke
+    # andere guest.
     - name: Add it to this run's inventory
       ansible.builtin.add_host:
         name: "{{ guest }}"
         ansible_host: "{{ new_guest_ip }}"
         groups: new_guest
 
-# Root with a key, because OpenTofu puts the ansible@neodata key in root at
-# creation (tofu/proxmox/containers.tf, user_account).
-# A container that did NOT get that key needs `-u root -k` and a password; see
+# Root met een sleutel, want OpenTofu zet de ansible@neodata-sleutel bij
+# aanmaak al in root (tofu/proxmox/containers.tf, user_account). Een container
+# die die sleutel NIET kreeg heeft `-u root -k` en een wachtwoord nodig; zie
 # playbooks/bootstrap.yml.
 - name: Create the ansible service account
   hosts: new_guest

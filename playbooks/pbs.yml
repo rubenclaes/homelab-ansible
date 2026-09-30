@@ -1,4 +1,14 @@
 ---
+# Proxmox Backup Server: de datastore en de back-upjobs.
+#
+#   ansible-playbook playbooks/pbs.yml
+#
+# De off-site kant (de R2-datastore, de sync job en r2-guard) zit in dezelfde
+# rol achter de tag `offsite`. playbooks/offsite.yml draait die samen met de
+# client op de docker-host.
+#
+# In site.yml: ja.
+
 - name: Proxmox Backup Server
   hosts: pbs
   roles:

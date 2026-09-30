@@ -1,4 +1,12 @@
 ---
+# De dotfiles op mijn MacBook: shell, prompt, git, editor.
+#
+#   ansible-playbook playbooks/dotfiles.yml
+#
+# Dezelfde rol draait ook op de WSL-werkplek, via playbooks/wsl.yml.
+#
+# In site.yml: ja, als laatste play.
+
 - name: Dotfiles on my MacBook
   hosts: mbp
   roles:

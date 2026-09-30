@@ -11,8 +11,9 @@
 # Wat het NIET doet: templates verwijderen. Wat je in de UI maakt blijft van
 # de UI. De lijst staat in inventory/host_vars/semaphore/main.yml.
 #
-# Staat in site.yml, na de semaphore-rol: de templates hebben een draaiende
+# In site.yml: ja, na semaphore.yml - de templates hebben een draaiende
 # Semaphore nodig om tegen te praten.
+
 - name: Semaphore templates
   hosts: semaphore
   roles:

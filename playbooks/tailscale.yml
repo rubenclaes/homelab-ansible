@@ -1,4 +1,15 @@
 ---
+# De Tailscale-client op elke host in de groep `tailnet`.
+#
+#   ansible-playbook playbooks/tailscale.yml
+#
+# Hosts melden zich aan met een sleutel die de rol zelf aanmaakt via de
+# OAuth-client in group_vars/tailnet/. Een sleutel voor een toestel dat niet
+# in deze inventory staat - een Windows-pc, een NAS - komt uit
+# playbooks/tailscale-key.yml.
+#
+# In site.yml: ja.
+
 - name: Tailscale client
   hosts: tailnet
   roles:

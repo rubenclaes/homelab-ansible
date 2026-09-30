@@ -1,6 +1,14 @@
 ---
-# oauth2-proxy eerst: de Caddyfile verwijst ernaar (forward_auth), dus die
-# moet al luisteren voor Caddy herlaadt, anders geven de beschermde sites 502.
+# De reverse proxy: elke *.neodata.be-route, met het wildcard-certificaat.
+#
+#   ansible-playbook playbooks/caddy.yml
+#
+# oauth2-proxy gaat voorop: de Caddyfile verwijst ernaar (forward_auth), dus
+# die moet al luisteren voordat Caddy herlaadt, anders geven de beschermde
+# sites 502.
+#
+# In site.yml: ja. Draai daarna smoketest.yml, die vraagt elke route echt op.
+
 - name: Caddy reverse proxy
   hosts: caddy
   roles:

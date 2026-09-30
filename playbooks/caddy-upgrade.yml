@@ -1,27 +1,28 @@
 ---
-# Controlled Caddy upgrade.
+# Caddy upgraden met behoud van zijn modules, en daarna elke site nakijken.
 #
 #   ansible-playbook playbooks/caddy-upgrade.yml
 #
-# Not part of site.yml and not scheduled: this replaces the binary that fronts
-# every service, so it is something you choose to do.
+# Waarom een playbook en niet `apt upgrade`: de draaiende binary is de
+# pakketversie met caddy-dns/cloudflare eraan toegevoegd via
+# `caddy add-package`. Apt zet daar de kale binary voor terug, en die weigert
+# te starten tegen een Caddyfile die de DNS-module gebruikt - waarmee elke
+# *.neodata.be-naam offline gaat. Daarom staat het pakket op hold.
+# `caddy upgrade` herbouwt met de huidige moduleset en houdt de plugin.
 #
-# Why a playbook rather than `apt upgrade`: the running binary is the packaged
-# one with caddy-dns/cloudflare added by `caddy add-package`, so apt would put
-# the stock binary back - and the stock binary refuses to start against a
-# Caddyfile using the DNS module, taking every *.neodata.be name down. That is
-# why the package is held. `caddy upgrade` rebuilds with the current module
-# set, which keeps the plugin.
+# Dit playbook vertrouwt daar niet blind op: het noteert de modules vooraf en
+# faalt als er achteraf één mist.
 #
-# The playbook records the modules before upgrading and fails if any are
-# missing afterwards, rather than trusting that.
+# In site.yml: nee, en ook niet op een schema. Dit vervangt de binary waar
+# elke dienst achter staat, dus het is iets wat je kiest.
+
 - name: Upgrade Caddy, keeping its modules
   hosts: caddy
   gather_facts: false
   vars:
-    # This playbook does not apply the caddy role, so the role's defaults are
-    # not in scope. Named here so the failure message can tell you the exact
-    # command to recover with.
+    # Dit playbook past de caddy-rol niet toe, dus de defaults van die rol
+    # gelden hier niet. Hier genoemd zodat de foutmelding je het exacte
+    # herstelcommando kan geven.
     caddy_dns_module: github.com/caddy-dns/cloudflare
 
   tasks:
@@ -52,10 +53,10 @@
       ansible.builtin.assert:
         that: caddy_upgrade_modules_before | length > 0
         fail_msg: >-
-          No dns.providers.* module found. This host is supposed to run a
-          build carrying caddy-dns/cloudflare; upgrading from here would not
-          restore it. Check `caddy list-modules` before continuing.
-        success_msg: "Module set recorded, safe to upgrade"
+          Geen dns.providers.*-module gevonden. Deze host hoort een build met
+          caddy-dns/cloudflare te draaien; upgraden vanaf hier zet die niet
+          terug. Kijk eerst naar `caddy list-modules`.
+        success_msg: "Moduleset genoteerd, upgraden kan"
 
     - name: Upgrade Caddy
       ansible.builtin.command: caddy upgrade
@@ -85,19 +86,19 @@
             | select('match', '^\s*dns\.providers\.') | map('trim') | list
           ) | length == 0
         fail_msg: >-
-          Modules were lost in the upgrade. Before:
-          {{ caddy_upgrade_modules_before | join(', ') }}. TLS issuance for
-          *.{{ caddy_domain }} will fail. Re-add with
-          `caddy add-package {{ caddy_dns_module }}` and restart.
+          Modules kwijtgeraakt in de upgrade. Voorheen:
+          {{ caddy_upgrade_modules_before | join(', ') }}. Certificaten voor
+          *.{{ caddy_domain }} gaan nu falen. Zet ze terug met
+          `caddy add-package {{ caddy_dns_module }}` en herstart.
         success_msg: >-
           {{ caddy_upgrade_version_before }} ->
           {{ caddy_upgrade_after.results[0].stdout.split()[0] }},
           modules intact
 
 
-  # Handlers, not inline tasks: they still run at the end of this play, which
-  # is before the imported smoke test below, so the order upgrade -> restart
-  # -> verify is preserved.
+  # Handlers en geen gewone taken: ze draaien aan het eind van deze play, en
+  # dat is nog voor de smoketest hieronder. Zo blijft de volgorde
+  # upgrade -> herstart -> nakijken overeind.
   handlers:
     - name: Restart Caddy on the new binary
       ansible.builtin.systemd_service:
@@ -112,7 +113,7 @@
       delegate_to: localhost
       become: false
 
-# Proves the upgrade against every site rather than just the process being up.
-# The DNS check comes along; it is quick and harmless.
+# Bewijst de upgrade tegen elke site, en niet alleen dat het proces draait.
+# De DNS-check loopt mee: die is snel en ongevaarlijk.
 - name: Smoke test every site
   ansible.builtin.import_playbook: smoketest.yml

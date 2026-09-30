@@ -5,6 +5,10 @@
 #   ansible-playbook playbooks/unifi-clients.yml
 #
 # Leest alleen. Verandert niets in UniFi.
+#
+# In site.yml: nee. Dit is het gereedschap bij unifi-watch.yml: een nieuw
+# toestel dat daar als onbekend binnenkomt, plak je hiermee op de lijst.
+
 - name: UniFi clients
   hosts: localhost
   gather_facts: false

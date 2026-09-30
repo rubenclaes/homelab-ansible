@@ -1,22 +1,24 @@
 ---
-# Node-level bridge configuration for pve01. NOT part of site.yml and never
-# will be.
+# De bridges van pve01, op node-niveau.
 #
-#   ansible-playbook playbooks/proxmox-network.yml                  # stage only
+#   ansible-playbook playbooks/proxmox-network.yml                  # alleen klaarzetten
 #   ansible-playbook playbooks/proxmox-network.yml -e proxmox_network_apply=true
 #
-# Without the flag this only writes /etc/network/interfaces.new and changes
-# nothing that is running. With it, the node reloads its network while you are
-# connected to it over that same network.
+# Zonder de vlag schrijft dit alleen /etc/network/interfaces.new en verandert
+# er niets aan wat draait. Met de vlag herlaadt de node zijn netwerk, terwijl
+# jij er over datzelfde netwerk mee verbonden bent.
 #
-# Before using the flag, know where the machine physically is. The dead-man
-# switch restores the previous configuration if anything goes wrong, but it is
-# a safety net, not a guarantee.
+# Weet waar de machine fysiek staat voordat je die vlag gebruikt. De
+# dead-man switch zet de vorige configuratie terug als er iets misgaat, maar
+# dat is een vangnet, geen garantie.
 #
-# Read the live configuration and diff it against inventory/group_vars/proxmox/
-# network.yml before the first real apply. The transcription in that file was
-# made once and has not been re-checked since; applying it blind assumes the
-# node has not been touched by hand in the meantime.
+# Lees de live configuratie en vergelijk hem met
+# inventory/group_vars/proxmox/network.yml voor de eerste echte apply. Die
+# overname is een keer gemaakt en sindsdien niet opnieuw nagekeken; blind
+# toepassen gaat ervan uit dat er ondertussen niets met de hand is gewijzigd.
+#
+# In site.yml: nee, en dat verandert niet.
+
 - name: Proxmox node networking
   hosts: proxmox
   gather_facts: true

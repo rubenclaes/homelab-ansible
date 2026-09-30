@@ -19,6 +19,8 @@
 # er viel niets te controleren. De regel eronder zegt het wel. Een slapende
 # Mac ziet er in een samenvatting uit als een host zonder drift, en dat is
 # precies het verschil tussen "niets te doen" en "niet gekeken".
+#
+# In site.yml: nee, het controleert en het convergeert niet.
 
 - name: Drift ten opzichte van de repo
   hosts: localhost
@@ -52,7 +54,7 @@
     #
     # failed_when: false, want een rode droogloop is een resultaat, geen fout
     # van dit playbook. De samenvatting hieronder zegt het.
-    - name: Draai de converge in droogloop
+    - name: Run the converge as a dry run
       ansible.builtin.command:
         cmd: >-
           ansible-playbook {{ drift_target }} --check --diff

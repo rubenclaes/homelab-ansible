@@ -1,8 +1,16 @@
 ---
-# De baseline, los. Doet hetzelfde als de eerste play van site.yml, dus
+# De Linux-baseline, los: pakketten, serviceaccount, tijdzone, sudo en het
+# herstartsignaal.
+#
+#   ansible-playbook playbooks/baseline.yml
+#
+# Doet hetzelfde als de eerste play van site.yml, dus
 # `ansible-playbook playbooks/site.yml --tags baseline` is hetzelfde commando.
 # Dit bestand bestaat omdat Semaphore er een template op kan richten zonder
 # dat die template de rest van site.yml hoeft uit te sluiten.
+#
+# In site.yml: ja, als eerste play.
+
 - name: Linux baseline
   hosts: linux
   roles:

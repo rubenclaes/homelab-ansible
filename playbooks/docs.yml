@@ -4,15 +4,17 @@
 #   ansible-playbook playbooks/docs.yml
 #
 # De pagina's onder homelab/ worden uit de inventory gegenereerd - de
-# machinepagina, en één pagina per route in caddy_sites (plus de diensten
-# zonder route uit docker_services_without_route) - en kunnen dus
-# niet uit de pas lopen. De rest van de site (Proxmox, Docker, Netwerk, ...)
-# is met de hand geschreven en wordt alleen meegenomen. Een geschrapte route
-# laat geen pagina achter: die wordt opgeruimd nadat de rest opnieuw
-# gerenderd is.
+# machinepagina, en één pagina per route in caddy_sites, plus de diensten
+# zonder route uit docker_services_without_route - en kunnen dus niet uit de
+# pas lopen. De rest van de site (Proxmox, Docker, Netwerk, ...) is met de
+# hand geschreven en wordt alleen meegenomen. Een geschrapte route laat geen
+# pagina achter: die wordt opgeruimd nadat de rest opnieuw gerenderd is.
 #
-# Draait `npm ci` en `npm run build` op de controller, niet op caddy, en
-# stuurt alleen het resultaat door.
+# `npm ci` en `npm run build` draaien op de controller, niet op caddy; alleen
+# het resultaat gaat erheen.
+#
+# In site.yml: nee. Draai hem na elke wijziging in de inventory.
+
 - name: Gather facts for the reference pages
   hosts: linux:macs
   gather_facts: true
@@ -32,11 +34,11 @@
     # onderhoud), zodat één onderwerp over vier mappen verspreid lag.
     docs_pages: [machines]
     docs_services: "{{ docs_site }}/content/homelab/diensten"
-    # Read straight off the caddy host. Safe here because none of these values
-    # contain a template themselves. A var whose VALUE is a hostvars template -
-    # caddy_tinyauth_upstream was one, until it was removed - cannot be read
-    # from a localhost play;
-    # that is what broke docs.yml and report.yml before.
+    # Rechtstreeks van de caddy-host gelezen. Dat kan hier, omdat geen van
+    # deze waarden zelf een template bevat. Een var wiens WAARDE een
+    # hostvars-template is - caddy_tinyauth_upstream was er zo een, tot hij
+    # verdween - kan je niet uit een localhost-play lezen; daar gingen
+    # docs.yml en report.yml eerder op stuk.
     caddy_domain: "{{ hostvars['caddy'].caddy_domain }}"
     caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
     # Elke host die stacks.yml beheert, niet alleen `docker`. Die regel is
@@ -209,17 +211,17 @@
         (item.path | basename | splitext | first)
         not in (['index'] + (docs_all_services | map(attribute='name') | list))
 
-    # `npm ci` installs exactly what package-lock.json pins, and fails rather
-    # than silently resolving something newer. Nextra is pinned to 4.5.0 on
-    # purpose: see docs-site/package.json.
+    # `npm ci` installeert exact wat package-lock.json vastlegt, en faalt
+    # liever dan stilletjes iets nieuwers te pakken. Nextra staat met opzet
+    # vast op 4.5.0: zie docs-site/package.json.
     #
-    # Installed unconditionally, with no `creates:` guard on node_modules.
-    # Semaphore re-clones the repo for every run, so the guard never fired
-    # there; on a workstation it fired for the wrong reason, skipping the
-    # install whenever node_modules existed - including after the lockfile
-    # had moved on, which built the site against stale dependencies. npm's
-    # cache (semaphore_npm_cache on the controller) keeps the unconditional
-    # install cheap.
+    # Altijd, zonder `creates:`-guard op node_modules. Semaphore klont de repo
+    # opnieuw voor elke run, dus daar sloeg die guard nooit aan; op een
+    # werkplek sloeg hij om de verkeerde reden aan en sloeg de installatie
+    # over zodra node_modules bestond - ook als de lockfile intussen verder
+    # was, waarmee de site tegen verouderde dependencies gebouwd werd. De
+    # cache van npm (semaphore_npm_cache op de controller) houdt de
+    # onvoorwaardelijke installatie goedkoop.
     - name: Install site dependencies
       ansible.builtin.command:
         cmd: npm ci --no-audit --no-fund
@@ -232,9 +234,9 @@
         chdir: "{{ docs_site }}"
       changed_when: true
 
-    # Plain tar rather than community.general.archive: `-C out .` keeps the
-    # paths relative to the site root, which archive cannot express as
-    # cleanly. Same reason report.yml and the baseline role carry this noqa.
+    # Gewone tar en geen community.general.archive: `-C out .` houdt de paden
+    # relatief aan de site-root, en dat kan archive niet zo netjes zeggen.
+    # Om dezelfde reden dragen report.yml en de baseline-rol deze noqa.
     - name: Pack the build for transfer # noqa: command-instead-of-module
       ansible.builtin.command:
         cmd: tar -czf out.tar.gz -C out .
@@ -247,9 +249,9 @@
   vars:
     docs_root: /var/www/homelab-docs
   tasks:
-    # Unpack into a fresh directory and swap it in, so a page deleted from the
-    # site does not linger on disk, and a failed build cannot leave the live
-    # site half-written.
+    # Uitpakken in een verse map en die omwisselen, zodat een pagina die van
+    # de site verdwenen is niet op schijf blijft hangen, en een mislukte build
+    # de live site niet half beschreven achterlaat.
     - name: Create a staging directory
       ansible.builtin.file:
         path: "{{ docs_root }}.new"

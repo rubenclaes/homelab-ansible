@@ -1,21 +1,26 @@
 ---
-# Master playbook: converges every managed host to its desired state.
+# Het hoofdplaybook: brengt elke beheerde host naar de staat die de repo
+# beschrijft.
 #
 #   ansible-playbook playbooks/site.yml
 #
-# Safe to run repeatedly. Everything here is idempotent and non-destructive.
+# Zo vaak draaien als je wil. Alles hierin is idempotent en verandert niets
+# onomkeerbaars.
 #
-# Deliberately NOT included (run these by hand, they provision or reboot):
-#   proxmox-oci.yml        creates OCI containers, and can rebuild them
-#   proxmox-network.yml    can make the hypervisor unreachable
-#   proxmox-autostart.yml  flips onboot on every guest
-#   restore-drill.yml      restores a backup onto a throwaway guest, then destroys it
-#   bootstrap.yml          first-contact root login, see the runbooks
-#   update.yml             package upgrades and reboots
-#   cleanup.yml            deletes: caches, old images, orphaned packages
-#   nfs.yml                sudo on the Mini wants a password, so it needs -K
-#   wsl.yml                the work laptop: often off, and sudo wants -K
-#   report.yml             read-only, but slow; scheduled separately
+# Met opzet NIET hierin - draai die met de hand, ze maken machines aan of
+# herstarten er een:
+#   proxmox-oci.yml        maakt OCI-containers, en kan ze herbouwen
+#   proxmox-network.yml    kan de hypervisor onbereikbaar maken
+#   proxmox-autostart.yml  zet onboot aan op elke guest
+#   restore-drill.yml      zet een back-up terug op een wegwerp-guest
+#   bootstrap.yml          eerste contact, logt in als root, zie de runbooks
+#   update.yml             pakketten bijwerken en herstarten
+#   cleanup.yml            verwijdert: caches, oude images, losse pakketten
+#   nfs.yml                sudo op de Mini vraagt een wachtwoord, dus -K
+#   wsl.yml                de werklaptop: vaak uit, en sudo vraagt -K
+#   report.yml             leest alleen, maar is traag; staat apart op schema
+#   smoketest.yml          controleert, convergeert niet
+#   drift.yml              controleert, convergeert niet
 
 - name: Linux baseline
   hosts: linux

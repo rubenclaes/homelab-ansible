@@ -1,12 +1,19 @@
 ---
-# First contact with ONE new host:
+# Eerste contact met ÉÉN nieuwe host: maakt het `ansible`-serviceaccount aan,
+# met zijn sleutel en een sudo-regel zonder wachtwoord.
 #
 #   ansible-playbook playbooks/bootstrap.yml --limit newhost -u root -k
 #
-# The play targets `linux` so --limit works the usual way, but refuses to run
-# against more than one host. Without that guard a forgotten --limit rewrites
-# /etc/sudoers.d/ansible on all eight: idempotent, so nothing breaks, but a
-# playbook meant for one new machine should not be able to touch the estate.
+# De play richt zich op `linux` zodat --limit gewoon werkt, maar weigert tegen
+# meer dan één host te draaien. Zonder die rem herschrijft een vergeten
+# --limit /etc/sudoers.d/ansible op alle acht: idempotent, dus er breekt
+# niets, maar een playbook dat voor een nieuwe machine bedoeld is hoort de
+# rest niet te kunnen raken.
+#
+# In site.yml: nee, dit logt in als root met een wachtwoord. Voor een nieuwe
+# LXC uit OpenTofu is playbooks/new-guest.yml de weg; die roept dezelfde
+# taken aan.
+
 - name: Bootstrap ansible service account
   hosts: linux
   vars:
@@ -18,11 +25,11 @@
       ansible.builtin.assert:
         that: ansible_play_hosts | length == 1
         fail_msg: >-
-          This would bootstrap {{ ansible_play_hosts | length }} hosts
-          ({{ ansible_play_hosts | join(', ') }}). Point it at one:
-          --limit <host>. Pass -e bootstrap_allow_many=true only if you really
-          mean all of them.
-        success_msg: "Bootstrapping {{ ansible_play_hosts | first }}"
+          Dit zou {{ ansible_play_hosts | length }} hosts bootstrappen
+          ({{ ansible_play_hosts | join(', ') }}). Richt het op één:
+          --limit <host>. Geef -e bootstrap_allow_many=true alleen mee als je
+          ze echt allemaal bedoelt.
+        success_msg: "Bootstrap van {{ ansible_play_hosts | first }}"
       when: not (bootstrap_allow_many | default(false) | bool)
       run_once: true
 

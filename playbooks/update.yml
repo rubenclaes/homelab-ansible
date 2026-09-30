@@ -1,20 +1,28 @@
 ---
-# Controlled system update.
+# Gecontroleerde systeemupdate: pakketten bijwerken, en herstarten alleen als
+# je daar expliciet om vraagt.
 #
-#   allow_reboot             reboot guests that need it        (default false)
-#   allow_hypervisor_reboot  also reboot pve01                 (default false)
-#   allow_cask_upgrade       upgrade Homebrew casks on the Macs (default false)
+#   ansible-playbook playbooks/update.yml                        # alleen pakketten
+#   ansible-playbook playbooks/update.yml -e allow_reboot=true   # en herstarten
 #
-# Per host, from the inventory rather than the command line:
-#   macos_brew_upgrade       upgrade formulae on this Mac      (default true)
+# De vlaggen:
+#   allow_reboot             herstart guests die dat nodig hebben  (standaard false)
+#   allow_hypervisor_reboot  herstart ook pve01                    (standaard false)
+#   allow_cask_upgrade       werk Homebrew-casks op de Macs bij    (standaard false)
 #
-# All three are read with `| default(false)` rather than declared as play vars,
-# so they can be set in group_vars, host_vars, or on the command line:
-#   ansible-playbook playbooks/update.yml -e allow_reboot=true
+# Per host, uit de inventory in plaats van de commandoregel:
+#   macos_brew_upgrade       werk formulae op deze Mac bij         (standaard true)
 #
-# Guests are patched to completion first, then the hypervisor. Running them in
-# one play would let pve01 reboot out from under the guests it hosts. The Macs
-# are unrelated to that order and come last, for the reason on their play.
+# Alle vier worden gelezen met `| default(...)` en staan niet als play var,
+# zodat ze ook in group_vars of host_vars kunnen. Een `vars:` op play-niveau
+# zou de inventory stilletjes overschrijven.
+#
+# Eerst de guests helemaal af, dan pas de hypervisor. In een play zou pve01
+# kunnen herstarten onder de guests die hij draait. De Macs staan daar los van
+# en komen als laatste, om de reden die bij hun play staat.
+#
+# In site.yml: nee, dit werkt pakketten bij en kan herstarten. Draai daarna
+# report.yml: de lijst openstaande updates hoort leeg te zijn.
 
 - name: Update guests
   hosts: linux:!proxmox
@@ -48,22 +56,23 @@
     - name: Warn when the hypervisor needs a reboot but is not allowed one
       ansible.builtin.debug:
         msg: >-
-          {{ inventory_hostname }} needs a reboot. Re-run with
-          -e allow_reboot=true -e allow_hypervisor_reboot=true
-          once the guests can take the downtime.
+          {{ inventory_hostname }} moet herstarten. Draai opnieuw met
+          -e allow_reboot=true -e allow_hypervisor_reboot=true zodra de guests
+          de downtime aankunnen.
       when:
         - baseline_reboot_needed | bool
         - not (allow_reboot | default(false) | bool and allow_hypervisor_reboot | default(false) | bool)
 
-# The Macs are not in `linux`, so neither play above touches them; apt is not
-# their package manager. They come last on purpose: Homebrew on the mbp owns
-# the `ansible` that is running this file (ansible_connection is local), and
-# upgrading it replaces the interpreter mid-run. Last keeps that window down to
-# nothing, and HOMEBREW_NO_INSTALL_CLEANUP stops brew from deleting the Cellar
-# directory the running process still reads from.
+# De Macs zitten niet in `linux`, dus geen van de plays hierboven raakt ze
+# aan; apt is hun pakketbeheerder niet. Ze komen met opzet als laatste:
+# Homebrew op de mbp is eigenaar van de `ansible` die dit bestand uitvoert
+# (ansible_connection is lokaal), en hem upgraden vervangt de interpreter
+# midden in de run. Als laatste is dat venster zo klein mogelijk, en
+# HOMEBREW_NO_INSTALL_CLEANUP houdt brew ervan af de Cellar-map te wissen
+# waar dat draaiende proces nog uit leest.
 #
-# No `become` here, deliberately: Homebrew refuses to run as root, and `macs`
-# inherits none of the `linux` group's become settings.
+# Geen `become` hier, met opzet: Homebrew weigert als root te draaien, en
+# `macs` erft niets van de become-instellingen van de linux-groep.
 - name: Update Macs
   hosts: macs
   serial: 1
@@ -71,11 +80,11 @@
   environment:
     HOMEBREW_NO_INSTALL_CLEANUP: "1"
   tasks:
-    # `upgrade_options: [formula]` becomes `brew upgrade --formula`, and that
-    # is not cosmetic. A bare `brew upgrade` upgrades outdated formulae AND
-    # casks, which would walk straight through the gate on the next task and
-    # restart Docker Desktop on a run that only asked for packages. The module
-    # prepends the dashes itself, so the value is written without them.
+    # `upgrade_options: [formula]` wordt `brew upgrade --formula`, en dat is
+    # geen detail. Een kale `brew upgrade` werkt formulae EN casks bij, en dat
+    # zou dwars door de rem op de volgende taak heen lopen en Docker Desktop
+    # herstarten op een run die alleen om pakketten vroeg. De module zet de
+    # streepjes er zelf voor, dus de waarde staat er zonder.
     - name: Update Homebrew itself and upgrade every formula
       community.general.homebrew:
         update_homebrew: true
@@ -84,25 +93,26 @@
         path: "{{ macos_brew_path }}"
       when: macos_brew_upgrade | default(true) | bool
 
-    # Not silent. A Mac that is skipped here stops receiving security fixes for
-    # everything Homebrew installed, and that is a decision someone has to keep
-    # seeing rather than discover a year later.
+    # Niet stil. Een Mac die hier overgeslagen wordt krijgt geen
+    # beveiligingsfixes meer voor alles wat via Homebrew binnenkwam, en dat is
+    # een besluit dat iemand moet blijven zien in plaats van een jaar later
+    # te ontdekken.
     - name: Say so when a Mac is deliberately left unpatched
       ansible.builtin.debug:
         msg: >-
-          {{ inventory_hostname }} skipped: macos_brew_upgrade is false.
-          Its formulae are frozen at whatever is installed now. Remove the
-          flag from its host_vars once the machine can take upgrades again.
+          {{ inventory_hostname }} overgeslagen: macos_brew_upgrade staat op
+          false. Zijn formulae blijven staan op wat er nu geïnstalleerd is.
+          Haal de vlag uit zijn host_vars zodra de machine upgrades aankan.
       when: not (macos_brew_upgrade | default(true) | bool)
 
-    # Off by default because a cask upgrade is not a package upgrade: it
-    # replaces applications. On the Mini that means docker-desktop, and
-    # restarting Docker there takes every compose stack on the machine down
-    # with it. Ask for it when you can take that, not on a routine patch run.
+    # Standaard uit, want een cask-upgrade is geen pakket-upgrade: hij
+    # vervangt applicaties. Op de Mini betekent dat docker-desktop, en Docker
+    # daar herstarten trekt elke compose-stack op de machine mee omlaag. Vraag
+    # erom wanneer je dat kan hebben, niet op een routinerun.
     #
-    # `greedy` stays at the module default (false), so casks that update
-    # themselves - Spotify, Chromium - are left to do that themselves rather
-    # than being reinstalled underneath a running app.
+    # `greedy` blijft op de default van de module (false), zodat casks die
+    # zichzelf bijwerken - Spotify, Chromium - dat zelf mogen blijven doen in
+    # plaats van onder een draaiende app te worden vervangen.
     - name: Upgrade casks
       community.general.homebrew_cask:
         upgrade_all: true

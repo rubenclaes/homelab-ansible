@@ -1,11 +1,13 @@
 ---
-# Shared by both plays in update.yml so guests and hypervisors patch identically.
+# Gedeeld door beide plays in update.yml, zodat guests en hypervisors op
+# dezelfde manier bijgewerkt worden.
 - name: Refresh cache and full-upgrade
   ansible.builtin.apt:
     update_cache: true
     upgrade: dist
-  # Packages in baseline_held_packages stay pinned: dpkg holds are honoured
-  # by dist-upgrade, so a custom Caddy build is never replaced here.
+  # Pakketten in baseline_held_packages blijven vastzitten: dist-upgrade
+  # respecteert dpkg-holds, dus een eigen Caddy-build wordt hier nooit
+  # vervangen.
 
 - name: Check whether a reboot is needed
   ansible.builtin.include_role:
