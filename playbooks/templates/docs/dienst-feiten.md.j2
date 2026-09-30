@@ -19,7 +19,10 @@
 | Upstream | `{{ up }}` |
 | Host | {{ ('[' ~ s.host ~ '](/homelab/machines/#' ~ s.host ~ ')') if s.host is defined and s.host in hostvars else ('`' ~ s.host ~ '` (buiten de inventory)' if s.host is defined else '— (vaste upstream)') }} |
 | Poort | {{ ('`' ~ s.port ~ '`') if s.port is defined else '—' }} |
-| Stack | {{ ('[' ~ s.stack ~ '](/homelab/machines/#' ~ s.host ~ ')') if s.stack is defined else '— (geen beheerde stack)' }} |
+{# De stack linkt naar zijn machine, en die is er niet bij een site met alleen
+   `upstream:`. Zonder deze tweede voorwaarde klapte de template daarop eruit;
+   in caddy_sites heeft vandaag elke regel een host, dus het is nooit gebeurd. -#}
+| Stack | {{ ('[' ~ s.stack ~ '](/homelab/machines/#' ~ s.host ~ ')') if (s.stack is defined and s.host is defined) else (('`' ~ s.stack ~ '`') if s.stack is defined else '— (geen beheerde stack)') }} |
 | Groepen | {{ grps | join(', ') if grps else '—' }} |
 | Eigenschappen | {{ flags | join(' · ') if flags else '—' }} |
 
