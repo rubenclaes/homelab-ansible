@@ -4,6 +4,7 @@ title: shelfmark
 
 # shelfmark
 
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
 Shelfmark — zoekt boeken en legt ze in de bookdrop van Grimmory
 
 | Eigenschap | Waarde |
@@ -16,4 +17,47 @@ Shelfmark — zoekt boeken en legt ze in de bookdrop van Grimmory
 | Groepen | docker_hosts, guests, linux |
 | Eigenschappen | — |
 
-<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Hij legt de boeken die hij vindt in de bookdrop van Grimmory. Inloggen gaat via
+[Pocket ID](https://id.neodata.be), voor de groep `gezin`. Noodtoegang is het
+lokale account `admin`, met wachtwoord.
+
+## De login via Pocket ID
+
+De instellingen staan als omgevingsvariabelen in de compose van de
+`containers`-repo (`stacks/media/docker-compose.yml`, bij `shelfmark`):
+`AUTH_METHOD=oidc` en de `OIDC_*`-regels. Het secret staat als
+`SHELFMARK_OIDC_CLIENT_SECRET` in `files/env/media.env`, de client in
+`tofu/pocketid/clients.tf`.
+
+Een omgevingsvariabele wint altijd van wat in Shelfmark zelf staat, en de UI
+kan dat veld dan niet meer wijzigen. Iets aanpassen doe je dus in de compose,
+dan pushen en `stacks.yml`.
+
+Bij de eerste login maakt Shelfmark het account zelf aan; wie ook in `admin`
+zit, wordt admin.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| OIDC-client | `tofu/pocketid/clients.tf` |
+| Callback-URL | `https://shelfmark.neodata.be/api/auth/oidc/callback` |
+
+## Goed om te weten
+
+### Het lokale account heet `admin`
+
+Shelfmark kan geen naam wijzigen in de UI. Op 27-09 is `rubenclaes` op `docker`
+hernoemd, met Shelfmark gestopt: `update users set username='admin' where
+username='rubenclaes'` in `/opt/containers/data/shelfmark/config/users.db`.
+
+### Waarom een nieuw account en geen koppeling
+
+Shelfmark koppelt een bestaand account op het OIDC-subject of op een
+**geverifieerd** mailadres. Pocket ID heeft geen mailserver, dus geen adres
+is geverifieerd, en koppelen op het subject zet het account om naar
+"alleen OIDC": dan is het wachtwoord, en daarmee de noodtoegang, weg. Een
+nieuw account naast een lokale `admin` houdt beide.

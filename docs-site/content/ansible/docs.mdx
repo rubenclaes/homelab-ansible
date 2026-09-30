@@ -50,26 +50,46 @@ er is dan niets geschreven. Zie [Guests en API-token](/proxmox/beheren/#guests-e
 
 ## Wat waar vandaan komt
 
-Alles onder **Homelab** maakt `docs.yml` zelf. Onderaan zo'n pagina staat een
-grijze regel die dat zegt. Bewerk die pagina's nooit: de volgende run
-overschrijft ze. Pas de bron aan.
+[Machines](/homelab/machines/) en [Toestellen](/homelab/toestellen/) maakt
+`docs.yml` helemaal zelf. Bewerk die nooit: de volgende run overschrijft ze.
+Pas de bron aan.
+
+Een dienstpagina is half-half. De feiten — adres, host, poort, stack, groepen —
+staan in één blok tussen twee MDX-commentaren:
+
+```mdx filename="homelab/diensten/vault.mdx"
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
+...
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+```
+
+Dat blok is van `docs.yml`, en elke run schrijft hij het opnieuw, waar het op
+de pagina ook staat. **Alles buiten het blok is van jou** en blijft staan: het
+runbook van die dienst, zijn naslagtabel met paden die niet in de inventory
+staan, zijn `## Goed om te weten`. Een nieuwe dienst krijgt vanzelf een pagina
+met alleen dat blok erop.
+
+Het bestand heet naar de route, niet naar de app: Vaultwarden staat in
+`vault.mdx`, Outline in `wiki.mdx`, Immich in `photos.mdx`.
 
 | Pagina | Bron |
 | --- | --- |
-| [Diensten](/homelab/diensten/), één pagina per dienst | `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus `docker_services_without_route` van elke docker-host |
+| [Diensten](/homelab/diensten/), één pagina per dienst | het blok uit `caddy_sites` in `inventory/host_vars/caddy/main.yml`, plus `docker_services_without_route` van elke docker-host; de uitleg eromheen met de hand |
 | [Machines](/homelab/machines/) | `inventory/00-static.yml`, de Proxmox-guests die `homelab.proxmox.yml` live ophaalt (ook hun cores, geheugen en schijf) en elke `docker_stacks_list` |
 | [Toestellen](/homelab/toestellen/) | UniFi (Client Devices). Is UniFi onbereikbaar, dan blijft de vorige versie staan |
 | Alle andere pagina's | met de hand geschreven, in `docs-site/content/` |
 
-Een geschrapte route laat geen pagina achter: die wordt vanzelf opgeruimd,
-pas nadat de rest opnieuw gemaakt is.
+Een dienst die uit de inventory verdwijnt, laat geen pagina achter die er nog
+live uitziet: die wordt opgeruimd, pas nadat de rest opnieuw gemaakt is. Staat
+er uitleg op, dan blijft hij wél staan en zegt de run dat — handwerk gooit een
+playbook niet weg.
 
 Waar je een pagina met de hand aanpast, in `docs-site/content/`:
 
 <FileTree>
   <FileTree.Folder name="content" defaultOpen>
     <FileTree.File name="index.mdx" />
-    <FileTree.Folder name="homelab (gemaakt door docs.yml, niet bewerken)" />
+    <FileTree.Folder name="homelab (feitenblokken van docs.yml)" />
     <FileTree.Folder name="proxmox" />
     <FileTree.Folder name="docker" />
     <FileTree.Folder name="netwerk" />
@@ -89,6 +109,7 @@ Elke map heeft een `_meta.js` met de volgorde en de namen in de zijbalk.
 | Regel | Waarom |
 | --- | --- |
 | per onderwerp een pagina, per geval een `##`, stappen in `<Steps>` met `####`-koppen | de koppen rechts zijn de inhoudstafel |
+| uitleg over één dienst hoort op zijn pagina onder Diensten, niet apart | tot 30-09 stond Vaultwarden onder Docker en `vault` onder Diensten: twee pagina's voor één ding |
 | een korte intro van 2-3 zinnen, geen `##` die de titel herhaalt | je bent meteen bij de eerste stap |
 | per stap een commando en hoogstens 1-2 zinnen | het waarom staat onderaan |
 | onderaan `## Goed om te weten` met de waaroms en de geschiedenis | de stappen blijven kort, de afweging gaat niet verloren |

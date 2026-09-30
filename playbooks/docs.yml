@@ -3,12 +3,15 @@
 #
 #   ansible-playbook playbooks/docs.yml
 #
-# De pagina's onder homelab/ worden uit de inventory gegenereerd - de
-# machinepagina, en één pagina per route in caddy_sites, plus de diensten
-# zonder route uit docker_services_without_route - en kunnen dus niet uit de
-# pas lopen. De rest van de site (Proxmox, Docker, Netwerk, ...) is met de
-# hand geschreven en wordt alleen meegenomen. Een geschrapte route laat geen
-# pagina achter: die wordt opgeruimd nadat de rest opnieuw gerenderd is.
+# De pagina's onder homelab/ komen uit de inventory - de machinepagina, en één
+# pagina per route in caddy_sites, plus de diensten zonder route uit
+# docker_services_without_route - en kunnen dus niet uit de pas lopen. De rest
+# van de site (Proxmox, Docker, Netwerk, ...) is met de hand geschreven en
+# wordt alleen meegenomen.
+#
+# Op een dienstpagina staan die twee náást elkaar: de feiten uit de inventory
+# in een blok tussen markers, dat elke run opnieuw geschreven wordt, en eronder
+# de uitleg met de hand. Zo heeft een dienst één pagina in plaats van twee.
 #
 # `npm ci` en `npm run build` draaien op de controller, niet op caddy; alleen
 # het resultaat gaat erheen.
@@ -61,6 +64,19 @@
       {%- endfor -%}
       {{ out }}
     docs_all_services: "{{ caddy_sites + docs_unrouted }}"
+    # De feiten van een dienst - adres, host, poort, stack - staan op zijn
+    # pagina in een blok tussen deze merktekens. De pagina zelf wordt één keer
+    # aangemaakt en daarna nooit meer overschreven, zodat de uitleg eronder van
+    # jou is. Tot 30-09 stond die uitleg apart onder docker/ (Vaultwarden,
+    # Outline, Immich, ...), naast de gegenereerde pagina van dezelfde dienst
+    # onder zijn routenaam (vault, wiki, photos): twee pagina's voor één ding,
+    # en de handgeschreven helft stond onder "hoe je iets doet" in plaats van
+    # bij de dienst.
+    #
+    # Het is een MDX-commentaar, dus het staat niet op de site. Wijzig deze
+    # tekst niet: blockinfile vindt de bestaande blokken dan niet meer en zet
+    # een tweede onderaan elke pagina.
+    docs_block_marker: '{/* {mark} feiten uit de inventory — geschreven door docs.yml */}'
   pre_tasks:
     # De helft van deze pagina's komt uit hosts die homelab.proxmox.yml live
     # ophaalt. Laadt die bron niet - API plat, geen route, token verlopen -
@@ -160,19 +176,40 @@
         dest: "{{ docs_services }}/index.mdx"
         mode: "0644"
 
-    - name: Render one page per service
+    # De pagina zelf maken we één keer, en daarna nooit meer: `force: false`.
+    # Wat erop staat buiten het feitenblok - een runbook, een naslagtabel met
+    # paden die niet in de inventory staan - is handwerk dat een nieuwe render
+    # niet mag wissen. Tot 30-09 stond dat handwerk apart onder docker/
+    # (Vaultwarden, Outline, Immich, ...), naast de gegenereerde pagina van
+    # dezelfde dienst onder zijn routenaam (vault, wiki, photos): twee
+    # pagina's voor één ding, en geen van de twee compleet.
+    - name: Create a page for each service that has none yet
       ansible.builtin.template:
-        src: docs/service.md.j2
+        src: docs/dienst.md.j2
         dest: "{{ docs_services }}/{{ item.name }}.mdx"
+        mode: "0644"
+        force: false
+      loop: "{{ docs_all_services }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # `| trim` houdt de laatste regel tegen de eindmarker aan; zonder dat
+    # groeit er elke run een lege regel bij.
+    - name: Write the facts block on each service page
+      ansible.builtin.blockinfile:
+        path: "{{ docs_services }}/{{ item.name }}.mdx"
+        marker: "{{ docs_block_marker }}"
+        block: "{{ lookup('template', 'docs/dienst-feiten.md.j2') | trim }}"
         mode: "0644"
       loop: "{{ caddy_sites }}"
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Render one page per service without a web route
-      ansible.builtin.template:
-        src: docs/service-unrouted.md.j2
-        dest: "{{ docs_services }}/{{ item.name }}.mdx"
+    - name: Write the facts block on each page of a service without a web route
+      ansible.builtin.blockinfile:
+        path: "{{ docs_services }}/{{ item.name }}.mdx"
+        marker: "{{ docs_block_marker }}"
+        block: "{{ lookup('template', 'docs/dienst-feiten-unrouted.md.j2') | trim }}"
         mode: "0644"
       loop: "{{ docs_unrouted }}"
       loop_control:
@@ -194,22 +231,52 @@
     # Deze volgorde heeft dat venster niet: de pagina's worden overschreven,
     # en pas als ze er allemaal staan gaat weg wat niet meer in caddy_sites
     # zit. Faalt er iets ervoor, dan staat de vorige set er nog gewoon.
+    #
+    # Blind wissen mag niet meer, sinds de uitleg op dezelfde pagina staat:
+    # een pagina met tekst ná de eindmarker is handwerk, en dat weggooien
+    # omdat een route verhuisde of even anders heet is niet terug te draaien.
+    # Die blijft staan, met een melding. Een pagina die niets anders bevat dan
+    # het feitenblok gaat wel weg.
     - name: Find the per-service pages on disk
       ansible.builtin.find:
         paths: "{{ docs_services }}"
         patterns: "*.mdx"
       register: docs_service_pages
 
-    - name: Remove pages for services that are no longer routed
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        state: absent
+    - name: Read the pages of services that are no longer in the inventory
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      register: docs_orphan_pages
       loop: "{{ docs_service_pages.files }}"
       loop_control:
         label: "{{ item.path | basename }}"
       when: >-
         (item.path | basename | splitext | first)
         not in (['index'] + (docs_all_services | map(attribute='name') | list))
+
+    - name: Remove the pages that hold nothing but the facts block
+      ansible.builtin.file:
+        path: "{{ item.source }}"
+        state: absent
+      loop: "{{ docs_orphan_pages.results | rejectattr('skipped', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.source | basename }}"
+      when: >-
+        ((item.content | b64decode).split(docs_block_marker | replace('{mark}', 'END'))
+         | last | trim) == ''
+
+    - name: Say which pages stay behind because someone wrote on them
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.source | basename }} hoort bij een dienst die niet meer in de
+          inventory staat, maar er staat uitleg op. De pagina blijft staan -
+          haal hem met de hand weg, of zet de tekst ergens anders neer.
+      loop: "{{ docs_orphan_pages.results | rejectattr('skipped', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.source | basename }}"
+      when: >-
+        ((item.content | b64decode).split(docs_block_marker | replace('{mark}', 'END'))
+         | last | trim) != ''
 
     # `npm ci` installeert exact wat package-lock.json vastlegt, en faalt
     # liever dan stilletjes iets nieuwers te pakken. Nextra staat met opzet

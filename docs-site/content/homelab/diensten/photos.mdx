@@ -4,6 +4,7 @@ title: photos
 
 # photos
 
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
 Immich — foto- en videobibliotheek
 
 | Eigenschap | Waarde |
@@ -16,4 +17,37 @@ Immich — foto- en videobibliotheek
 | Groepen | docker_hosts, guests, linux |
 | Eigenschappen | — |
 
-<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Inloggen gaat via [Pocket ID](https://id.neodata.be) (knop **Inloggen met
+Pocket ID**); de wachtwoord-login staat nog aan tot iedereen over is. Wie erin
+mag: [Pocket ID → Per app](/mensen/pocket-id/#per-app).
+
+Op de telefoon stap je over door uit te loggen en opnieuw in te loggen met
+dezelfde knop.
+
+## Een instelling aanpassen
+
+De instellingen staan in git, niet in de web-UI: onder **Administration →
+Settings** kan je ze alleen lezen. Aanpassen doe je in de `containers`-repo,
+`stacks/media/docker-compose.yml`, onderaan bij `configs.immich`. Alleen wat
+afwijkt van de standaard staat erin; de rest is de standaard van Immich.
+
+Daarna pushen en de stack opnieuw uitrollen (`stacks.yml`).
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Instellingen | `containers`-repo, `stacks/media/docker-compose.yml`, `configs.immich` |
+| Client-secret | `IMMICH_OIDC_CLIENT_SECRET` in `files/env/media.env` (vault `stacks`) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
+
+## Goed om te weten
+
+### Een nieuwe beheerder
+
+Wie in `admin` zit, krijgt bij de **eerste** login meteen de rol admin (de
+claim `immich_role` van die groep). Een bestaand account houdt zijn rol:
+Immich leest de claim alleen bij het aanmaken.

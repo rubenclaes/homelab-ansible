@@ -4,6 +4,7 @@ title: monitoring
 
 # monitoring
 
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
 Grafana — dashboards op Prometheus en Loki
 
 | Eigenschap | Waarde |
@@ -16,4 +17,39 @@ Grafana — dashboards op Prometheus en Loki
 | Groepen | docker_hosts, guests, linux |
 | Eigenschappen | host-header doorgegeven |
 
-<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+De dashboards staan op Prometheus en Loki. De stack `monitoring` staat in de
+repo [monitoring-stack](https://github.com/rubenclaes/monitoring-stack), niet in
+`containers`.
+
+Inloggen gaat via [Pocket ID](https://id.neodata.be) (**Sign in with Pocket
+ID**), en alleen voor de groep `admin`.
+
+## Wie welke rol krijgt
+
+De rol volgt bij elke login uit de groepen in Pocket ID:
+
+| Groep | Rol in Grafana |
+| --- | --- |
+| `admin` | Grafana Admin |
+| iets anders | Viewer, maar de client laat alleen `admin` binnen |
+
+Pas een rol dus niet in Grafana aan: de volgende login zet hem terug.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Instellingen | `monitoring-stack`, `stacks/monitoring/docker-compose.yml`, de `GF_AUTH_GENERIC_OAUTH_*`-regels |
+| Client-secret | `GRAFANA_OIDC_CLIENT_SECRET` in `files/env/monitoring.env` (vault `stacks`) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
+| Noodtoegang | de lokale `admin`, wachtwoord `GRAFANA_PASSWORD` in `monitoring.env` |
+
+## Goed om te weten
+
+### `GF_SERVER_ROOT_URL`
+
+Zonder die regel bouwt Grafana zijn redirect op `localhost:3000`, en Pocket ID
+weigert die. Hij moet het adres zijn waarop je Grafana opent.

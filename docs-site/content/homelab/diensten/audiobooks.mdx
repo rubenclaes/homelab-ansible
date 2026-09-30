@@ -4,6 +4,7 @@ title: audiobooks
 
 # audiobooks
 
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
 Audiobookshelf — luisterboeken en podcasts
 
 | Eigenschap | Waarde |
@@ -16,4 +17,56 @@ Audiobookshelf — luisterboeken en podcasts
 | Groepen | docker_hosts, guests, linux |
 | Eigenschappen | — |
 
-<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Inloggen gaat via [Pocket ID](https://id.neodata.be) (knop **Inloggen met
+Pocket ID**); de gewone login staat nog aan tot iedereen over is. Wie erin
+mag: [Pocket ID → Per app](/mensen/pocket-id/#per-app). Een bestaand account
+koppelt op gebruikersnaam, niet op mailadres: de oude accounts hebben er geen.
+
+## De login-instellingen aanpassen
+
+Audiobookshelf heeft geen configbestand. De login via Pocket ID zet
+`roles/audiobookshelf` over de API; de waarden staan in
+`roles/audiobookshelf/defaults/main.yml`. Pas ze daar aan, en dan:
+
+```bash filename="laptop"
+ansible-playbook playbooks/stacks.yml --limit docker --tags audiobookshelf
+```
+
+Pas je ze in de web-UI aan, dan zet de volgende run ze terug, en de Drift check
+wordt rood. De andere instellingen blijven van de web-UI.
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Login-instellingen | `roles/audiobookshelf/defaults/main.yml` |
+| API-sleutel en client-secret | `inventory/host_vars/docker/vault.yml` (vault `infra`) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
+
+## Goed om te weten
+
+### De API-sleutel
+
+De rol praat met Audiobookshelf via een API-sleutel van `rubenclaes`
+(**Settings → API Keys**, naam `ansible`). Verwijder je die, dan faalt de rol.
+Een nieuwe maken en in de vault zetten:
+
+```bash filename="laptop"
+ansible-vault edit inventory/host_vars/docker/vault.yml
+```
+
+### Waarom de groepen niet mee naar Audiobookshelf gaan
+
+Audiobookshelf kan een rol uit de groups-claim lezen, maar verwacht dan
+groepen die `admin`, `user` of `guest` heten, en weigert iedereen zonder. Onze
+groepen heten anders, dus die claim staat uit: nieuwe accounts zijn gewone
+gebruikers, en een admin maak je in Audiobookshelf zelf.
+
+### "undefined" in de redirect-URL
+
+Staat `authOpenIDSubfolderForRedirectURLs` niet op een lege tekst, dan zet
+Audiobookshelf letterlijk `undefined` in de callback-URL, en Pocket ID
+weigert. De rol zet hem daarom altijd op `""`.

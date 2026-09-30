@@ -1,0 +1,12 @@
+{#- De pagina van een dienst wordt één keer aangemaakt en daarna nooit meer
+    overschreven (`force: false` in docs.yml). Wat erin staat is dus jouw
+    pagina: alleen het blok tussen de merktekens wordt bijgewerkt. Zet de
+    uitleg over deze dienst eronder. -#}
+---
+title: {{ item.name }}
+---
+
+# {{ item.name }}
+
+{{ docs_block_marker | replace('{mark}', 'BEGIN') }}
+{{ docs_block_marker | replace('{mark}', 'END') }}

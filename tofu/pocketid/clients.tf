@@ -90,7 +90,7 @@ output "audiobookshelf_client_secret" {
 
 # Grimmory: een public client met PKCE, dus geen secret. Zijn instellingen
 # staan alleen in zijn eigen database; je zet ze met de hand, zie
-# docs-site/content/docker/grimmory.mdx. Bestaande accounts koppelt hij op
+# docs-site/content/homelab/diensten/books.mdx. Bestaande accounts koppelt hij op
 # gebruikersnaam, hoofdlettergevoelig.
 resource "pocketid_client" "grimmory" {
   name       = "Grimmory"

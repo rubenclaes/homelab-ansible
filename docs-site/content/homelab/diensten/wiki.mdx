@@ -4,6 +4,7 @@ title: wiki
 
 # wiki
 
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
 Outline — wiki voor het gezin: hoe werkt wat, garanties, codes
 
 | Eigenschap | Waarde |
@@ -16,4 +17,61 @@ Outline — wiki voor het gezin: hoe werkt wat, garanties, codes
 | Groepen | docker_hosts, guests, linux |
 | Eigenschappen | — |
 
-<small>Deze pagina wordt automatisch gemaakt. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Wat er in staat: hoe werkt wat in huis, garanties, codes, contacten. Inloggen
+gaat alleen via [Pocket ID](https://id.neodata.be), voor `gezin` en `familie`
+([iemand toevoegen](/mensen/toegang/)). Outline maakt het account bij de eerste
+login; rechten (lezer, bewerker, beheerder) zet je daarna in Outline onder
+**Instellingen → Leden**.
+
+## Een pagina of de hele wiki terugzetten
+
+Een verwijderde pagina staat 30 dagen in de **Prullenbak** van Outline. Pas
+als het daar niet meer staat, heb je de back-up nodig.
+
+Elke nacht komt er een dump van de database op `docker`, in
+`/opt/containers/data/_dumps/outline.sql.gz`; de bijlagen staan in
+`/opt/containers/data/outline/data`. Beide gaan mee in de back-up
+`host/docker-data` naar PBS. Wil je een oudere dump dan die van vannacht, zet
+`data.pxar` dan terug in een lege map (niet over `/opt/containers/data`) zoals
+in [Zet de app-data terug](/proxmox/r2/#zet-de-app-data-en-fotos-terug), met
+`store1` in plaats van `offsite`, en neem de dump daaruit. Dan, op `docker`:
+
+```bash filename="docker"
+docker stop outline
+docker exec outline-postgres dropdb -U outline outline
+docker exec outline-postgres createdb -U outline outline
+zcat outline.sql.gz | docker exec -i outline-postgres psql -U outline outline
+docker start outline
+```
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Compose-file | `containers`-repo, `stacks/outline/docker-compose.yml` |
+| Geheimen | `files/env/outline.env` (vault `stacks`) |
+| OIDC-client | `tofu/pocketid/clients.tf` |
+| Data | `/opt/containers/data/outline/` op `docker` |
+| Poort | `3002` |
+
+## Goed om te weten
+
+### Waarom `OIDC_ISSUER_URL` en geen losse URL's
+
+De handleiding van Pocket ID noemt vier losse URL's. Maar Outline zet PKCE
+alleen aan als het de instellingen zelf ophaalt via de issuer. De client in
+Pocket ID eist PKCE, dus met losse URL's faalt het inloggen.
+
+### Waarom de datamap van Ansible komt
+
+Docker maakt een ontbrekende datamap aan als root, en Outline draait als uid
+1001. Dan faalt de eerste upload met "permission denied". Daarom maakt de rol
+`docker_stacks` de map `/opt/containers/data/outline/data` vooraf aan met
+eigenaar 1001 (`dirs` bij de stack in `docker_stacks_list`).
+
+Eerst deed een init-container (`outline-init`) dat. Maar een gestopte container
+start bij elke `docker compose up` opnieuw, dus de rol meldde elke keer
+"changed" en de nachtelijke drift-check werd rood zonder echte drift.
