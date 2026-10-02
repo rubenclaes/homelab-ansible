@@ -1,0 +1,116 @@
+---
+title: 'pve01 opnieuw: machines'
+---
+
+import { Steps, Callout } from 'nextra/components'
+
+# pve01 opnieuw: machines
+
+Deel 3 van 3, na [de back-ups](/proxmox/pve01-backups/). Guests met data komen
+uit PBS; `caddy`, `tailscale` en `ntfy` bouw je nieuw.
+
+<Callout type="error">
+Eerst alles uit PBS terugzetten, pas dan `bin/tofu proxmox plan`. Een `apply`
+daarvoor maakt elke ontbrekende guest leeg op zijn nummer, en dan kan de
+back-up er niet meer op ([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
+</Callout>
+
+<Steps>
+
+#### Zet de guests met data terug uit PBS
+
+Volg [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up)
+voor `adguard` (107, als eerste: DNS), `semaphore` (104), `haos` (101),
+`docker-grafana-stack` (102) en `docker` (103). Ze bestaan nog niet, dus laat
+`--force` weg.
+
+`qmrestore` maakt de VM zelf aan, met de instellingen en het MAC-adres uit de
+back-up. Je hoeft 101 tot 103 niet eerst te maken
+([waarom niet met OpenTofu](/opentofu/#pbs-bewaart-de-inhoud-opentofu-de-vorm)).
+
+#### Haal het container-template op
+
+Op pve01, als root:
+
+```bash filename="pve01"
+pveam update
+pveam download local debian-13-standard_13.1-2_amd64.tar.zst
+```
+
+Een verse Proxmox heeft het niet, en OpenTofu haalt het niet zelf op. Het
+staat als `lxc_template` in `tofu/proxmox/containers.tf`.
+
+#### Kijk wat OpenTofu wil maken
+
+```bash filename="laptop"
+bin/tofu proxmox plan
+```
+
+Lees de lijst. Alleen `caddy` en `tailscale` mogen erbij komen
+(`2 to add`). Staat er een andere guest bij, of `must be replaced`: stop, en
+zet die guest eerst terug uit PBS.
+
+#### Maak `caddy` en `tailscale`
+
+```bash filename="laptop"
+bin/tofu proxmox apply   # typ yes
+ansible-playbook playbooks/new-guest.yml -e guest=caddy
+ansible-playbook playbooks/new-guest.yml -e guest=tailscale
+```
+
+OpenTofu maakt ze met hun oude nummer, adres en MAC-adres. `new-guest.yml`
+zet ze daarna klaar, één per keer.
+
+#### Geef `adguard` en `tailscale` hun `/dev/net/tun`
+
+```bash filename="laptop"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+De rol `proxmox_tun` zet de twee `lxc.`-regels als root in hun config, en
+herstart een container alleen als hij ze net kreeg. Zonder start
+`tailscaled` niet.
+
+#### Bouw `ntfy`
+
+```bash filename="laptop"
+ansible-playbook playbooks/proxmox-oci.yml
+```
+
+`ntfy` komt niet uit PBS maar wordt nieuw gebouwd: gebruikers, rechten en
+tokens staan in `lxcs.yml` en de vault, dus er gaat niets verloren behalve de
+berichten van de laatste uren. Het image komt van Docker Hub, dus pve01 moet
+al internet hebben. Tot hij draait, komen de meldingen van Proxmox alleen in
+`mail-to-root` terecht.
+
+#### Zet de diensten op de nieuwe containers
+
+```bash filename="laptop"
+ansible-playbook playbooks/caddy.yml
+ansible-playbook playbooks/tailscale.yml
+ansible-playbook playbooks/semaphore.yml   # niet site.yml --limit semaphore: die faalt
+```
+
+Een opnieuw aangemelde `tailscale` biedt `192.168.0.0/24` opnieuw aan. Keur die
+route goed in de Tailscale admin console, anders werkt toegang van buitenaf niet.
+
+#### Trek alles gelijk
+
+```bash filename="laptop"
+ansible-playbook playbooks/site.yml --check --diff    # lees dit echt: back-up vs repo
+ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/docs.yml
+ansible-playbook playbooks/report.yml
+bin/tofu proxmox plan                                  # moet "No changes" zeggen
+```
+
+Zegt het plan niet `No changes`, dan wijkt een teruggezette guest af van
+`tofu/proxmox/`. Kijk wat, en beslis welke kant klopt.
+
+Stopt `stacks.yml` met een deploy-key? Dat gebeurt alleen op een host die
+**nieuw** gebouwd is. Zet de getoonde publieke sleutel in GitHub onder
+Settings → Deploy keys (`docker` → `rubenclaes/containers`,
+`docker-grafana-stack` → `rubenclaes/monitoring-stack`) en draai opnieuw. Kwam
+de host uit PBS, dan staat de oude sleutel er nog.
+
+</Steps>

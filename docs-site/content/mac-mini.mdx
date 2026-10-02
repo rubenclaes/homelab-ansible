@@ -204,15 +204,10 @@ Waarom `-K` niet helpt: zie [Casks die root nodig hebben](#casks-die-root-nodig-
 
 ### Waarom er geen Docker meer op de Mini staat
 
-Tot 25-09 draaiden hier nog drie containers: Duplicati, Alloy en een
-Portainer-agent. Duplicati had sinds 18-02 geen back-up meer gemaakt, en Alloy
-en de agent waren er alleen voor de containers op de Mini zelf. Samen met
-OrbStack kostten ze zo'n 1,4 GB van de 8 GB RAM. Ze zijn weg, en OrbStack
-staat stil en start niet mee bij het inloggen. Na een herinstallatie hoef je
-OrbStack dus niet terug te zetten.
-
-Hun data staat in `~/Container/_archief/*-2026-09-25.tar.gz`, de oude
-Duplicati-back-ups in `/Volumes/media01/backups/duplicati-*`.
+Wat hier draaide, is naar `docker` verhuisd of opgeruimd, en OrbStack kostte
+zo'n 1,4 GB van de 8 GB RAM. OrbStack staat nog geïnstalleerd maar start niet
+mee. Na een herinstallatie hoef je hem dus niet terug te zetten. Waar de oude
+data staat: onderaan `inventory/host_vars/macmini/main.yml`.
 
 ### Waarom `nfs.yml` niet in `site.yml` zit
 
@@ -225,14 +220,10 @@ Mini niet. Een geplande run zou dus blijven hangen op dat wachtwoord.
 Krijg je `[Errno 1] Operation not permitted` bij het vervangen van
 `/etc/exports`, dan is dat **geen** sudo-probleem. `/etc/exports` draagt het
 macOS-label `com.apple.macl`, en een proces dat onder `sshd` start mag zo'n
-bestand niet aanraken, ook niet als root. Hetzelfde commando werkt lokaal in
-Terminal. De oplossing is `sshd` Volledige schijftoegang geven (zie
-[Mac mini is weg](#de-mac-mini-is-weg)) en daarna
-**opnieuw verbinden**.
-
-Al geprobeerd op 23-09, werkt niet: `unsafe_writes: true`, `xattr -d
-com.apple.macl` en in het bestand schrijven in plaats van het vervangen.
-Details in `roles/nfs_exports/tasks/main.yml`.
+bestand niet aanraken, ook niet als root. De oplossing is `sshd` Volledige
+schijftoegang geven (zie [Mac mini is weg](#de-mac-mini-is-weg)) en daarna
+**opnieuw verbinden**. Wat níét werkt, staat in
+`roles/nfs_exports/tasks/main.yml`.
 
 ### macOS kan `/etc/exports` niet vooraf nakijken
 
@@ -242,17 +233,17 @@ en controleert daarna, en faalt luid als het mis is. Repareer in
 
 ### Waarom Semaphore de Macs niet doet
 
-`mbp` heeft `ansible_connection: local`: "de machine die Ansible draait". Vanuit
-Semaphore is dat de Semaphore-container, niet je MacBook. Daarom draait de
-template "Update guests" met `--limit guests:!semaphore`.
+Vanuit Semaphore is `mbp` de Semaphore-container, niet je MacBook
+([uitleg](/semaphore/#de-limits-in-de-templates)). Daarom draait "Update
+guests" met `--limit guests:!semaphore`, en werk je de Macs bij vanaf je
+MacBook.
 
 ### De Mac mini en Homebrew
 
-De Mac mini draait macOS 14.6.1. Voor Homebrew is dat een *Tier 3*-configuratie:
-er worden geen kant-en-klare pakketten (bottles) meer gebouwd, dus alles moet
-vanaf broncode. Een volledige run duurde 22 minuten en faalde alsnog; dertien
-pakketten werden niet eens geprobeerd. Casks werken wel, want dat zijn
-kant-en-klare apps. De pakketten komen pas terug na een nieuwere macOS.
+De Mac mini draait macOS 14.6.1. Daarvoor bouwt Homebrew geen kant-en-klare
+pakketten (bottles) meer, dus alles moet vanaf broncode: uren werk, en een
+deel lukt niet eens. Casks werken wel, want dat zijn kant-en-klare apps. De
+pakketten komen pas terug na een nieuwere macOS.
 
 ### Casks die root nodig hebben
 

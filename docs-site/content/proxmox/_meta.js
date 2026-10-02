@@ -11,7 +11,9 @@ export default {
   backups: 'Back-ups',
   '-- stuk': { type: 'separator', title: 'Als het stuk is' },
   herstellen: 'Een guest terugzetten',
-  pve01: 'pve01 opnieuw opbouwen',
+  pve01: 'pve01 opnieuw: de host',
+  'pve01-backups': 'pve01 opnieuw: back-ups',
+  'pve01-machines': 'pve01 opnieuw: machines',
   'tweede-kopie': 'Tweede kopie',
   r2: 'Terughalen uit R2'
 }

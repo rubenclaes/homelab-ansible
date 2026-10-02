@@ -9,6 +9,23 @@ import { Steps } from 'nextra/components'
 Waar de back-ups staan, wat je **nu al** moet doen zodat terugzetten later
 lukt, en hoe je test dat terugzetten echt werkt.
 
+## Waar de back-ups staan
+
+| | Dagelijks | Wekelijks | Buiten het huis |
+| --- | --- | --- | --- |
+| Wanneer | elke nacht 02:30 | zondag 01:00 | elke nacht 04:00 |
+| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) | Cloudflare R2 |
+| Wat | alle guests behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 | alleen wat git niet kan herbouwen, zie [Terughalen uit R2](/proxmox/r2/) |
+| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps | kopie van PBS, door `r2-guard` |
+| Bewaart | 7 | 2 | 3 |
+| Versleuteld | ja | **nee** | ja |
+| Redt je van | een kapotte guest | een pve01 die weg is | een huis dat weg is |
+
+Daarnaast maakt `docker` om 02:00 zelf een back-up van zijn app-data en
+foto's naar PBS (`docker-data-backup.timer`); die gaat mee naar R2. Bron:
+`inventory/group_vars/proxmox/backup.yml` en `storage.yml`, en `pbs_offsite`
+in `inventory/host_vars/pbs/main.yml`.
+
 ## Vooraf: doe dit nu
 
 Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
@@ -30,7 +47,7 @@ Print wat eruit komt, en bewaar het **buiten het huis** (bv. ook in de
 wachtwoordkluis). Zonder deze sleutel zijn de back-ups op PBS niet terug te
 zetten.
 
-Doe hetzelfde met de sleutel van `docker` (app-data en foto's, sinds 25-09):
+Doe hetzelfde met de sleutel van `docker` (app-data en foto's):
 
 ```bash filename="laptop"
 ssh docker 'sudo proxmox-backup-client key paperkey /root/.config/proxmox-backup/docker-data.key --output-format text'
@@ -116,53 +133,36 @@ bij het aanmaken. Vervang je de client in Pocket ID, zet het nieuwe secret dan
 in de vault (`vault_pbs_oidc_client_secret`) én met de hand in PBS:
 `proxmox-backup-manager openid update pocketid --client-key <secret>`.
 
-### De twee back-upjobs
+### Waarom R2 zo voorzichtig is
 
-| | Dagelijks | Wekelijks |
-| --- | --- | --- |
-| Wanneer | elke nacht 02:30 | zondag 01:00 |
-| Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) |
-| Welke guests | alle behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 |
-| Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps |
-| Bewaart | 7 | 2 |
-| Versleuteld | ja | **nee** |
-| Redt je van | een kapotte guest | een pve01 die weg is |
-
-De dagelijkse is de hoofdkopie. Maar die staat op pve01 zelf: sterft die
-machine met zijn schijven, dan gaan guests en back-ups samen. Daarvoor is de
-wekelijkse. Bron: `inventory/group_vars/proxmox/backup.yml` en `storage.yml`.
-
-### Buiten het huis: Cloudflare R2
-
-De dagelijkse en de wekelijkse kopie staan allebei in huis. Sinds 25-09-2026
-gaat er elke nacht om 04:00 ook een kopie naar Cloudflare R2, maar **alleen
-wat git niet kan herbouwen** (zie [Terughalen uit R2](/proxmox/r2/#terughalen-uit-r2)). Zo
-past het in de gratis 10 GB: op 25-09 was het 3,1 GB.
-
-| Tijd | Wat |
-| --- | --- |
-| 02:00 | `docker` maakt een back-up van zijn app-data en foto's naar PBS (`docker-data-backup.timer`) |
-| 02:30 | de gewone back-up van alle machines naar PBS |
-| 04:00 | `r2-guard` telt wat er in R2 staat. Onder de drempel start hij zelf de kopie van de gekozen groepen naar R2 (de laatste 3 versies), en meet daarna opnieuw |
+R2 moet binnen de gratis 10 GB blijven, en Cloudflare kent geen harde
+uitgavengrens. Daarom:
 
 | Keuze | Waarom |
 | --- | --- |
-| alleen r2-guard start de sync, de job heeft geen schema | Cloudflare kent geen harde uitgavengrens voor R2. r2-guard checkt eerst; bij twijfel of een crash gaat er die nacht niets heen |
+| alleen r2-guard start de sync, de job heeft geen schema | r2-guard checkt eerst; bij twijfel of een crash gaat er die nacht niets heen |
 | stop boven 8 GB, 800.000 Class A- of 8.000.000 Class B-operaties per maand; waarschuwing vanaf 6,5 GB | wat één nacht uploadt, weet hij pas achteraf. De 2 GB onder de gratis 10 GB vangt een drukke nacht op |
-| r2-guard telt de bucket zelf | de cijfers van Cloudflare lopen tot een dag achter (op 25-09: 0 GB bij 3 GB) |
+| r2-guard telt de bucket zelf | de cijfers van Cloudflare lopen tot een dag achter |
 | nooit wissen in R2 (`remove-vanished` uit) | anders wist een lege `store1` (na een herbouw of ransomware) alles in R2, net als je het nodig hebt. Oude versies ruimt de prune job op |
 
 Ansible dwingt dit af: komt er een schema of `remove-vanished` bij, dan haalt
 de volgende run het weg.
 
+### Waarom de dagelijkse niet genoeg is
+
+De dagelijkse staat op pve01 zelf: sterft die machine met zijn schijven, dan
+gaan guests en back-ups samen. Daarvoor is de wekelijkse op de Mini, en voor
+brand of diefstal de kopie in R2.
+
 De dumps op de Mini zijn niet versleuteld: iedereen die die NFS-share kan
 mounten, kan ze lezen. Die in R2 wel: Cloudflare ziet alleen versleutelde
 blokken.
 
-### Faalt de wekelijkse job, dan meldt niemand dat
+### De wekelijkse job nakijken
 
-Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job stil. Kijk
-af en toe zelf:
+Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job. Beide
+jobs melden een fout via ntfy ([Meldingen](/semaphore/#meldingen-op-je-iphone)).
+Zelf kijken:
 
 ```bash filename="laptop"
 ssh pve01 'sudo pvesm list macmini-backup'

@@ -219,7 +219,7 @@ wildcard-rewrite). Volg daarvoor [Geen DNS](/netwerk/dns/#geen-dns).
 
 | Guest | vmid | Soort | Opslag | Bij verlies |
 | --- | --- | --- | --- | --- |
-| `pbs` | 100 | VM | `local-lvm` + `vm-hdd` | met de hand, zie [pve01 is weg](/proxmox/pve01/) |
+| `pbs` | 100 | VM | `local-lvm` + `vm-hdd` | met de hand, zie [pve01 opnieuw: back-ups](/proxmox/pve01-backups/#maak-de-pbs-vm-100-met-de-hand) |
 | `haos` (Home Assistant) | 101 | VM | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) |
 | `docker-grafana-stack` | 102 | VM | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) |
 | `docker` | 103 | VM | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) |
@@ -254,8 +254,7 @@ Proxmox niet kent, weigert het, met de lijst van wat wel bestaat.
 
 ### `/dev/net/tun` doet Ansible als root
 
-`tailscale` (108) en `adguard` (107, sinds 23-09 op de tailnet als globale
-nameserver) hebben `/dev/net/tun` nodig. Een apparaat doorgeven mag van
+`tailscale` (108) en `adguard` (107) hebben `/dev/net/tun` nodig. Een apparaat doorgeven mag van
 Proxmox alleen root, niet een API-token, dus OpenTofu kan het niet. `pct set`
 weigert de regels op deze Proxmox-versie. Daarom schrijft `roles/proxmox_tun`
 ze via SSH als root in `/etc/pve/lxc/<vmid>.conf`. Welke containers:

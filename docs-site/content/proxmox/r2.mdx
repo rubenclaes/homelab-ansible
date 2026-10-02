@@ -28,7 +28,7 @@ vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
 
 #### Bouw pve01 en PBS opnieuw
 
-Volg [pve01 is weg](/proxmox/pve01/) tot en met *Installeer PBS in de VM*. PBS
+Volg [pve01 opnieuw opbouwen](/proxmox/pve01/) en [de back-ups](/proxmox/pve01-backups/) tot en met *Installeer PBS in de VM*. PBS
 begint leeg.
 
 #### Koppel R2 opnieuw, zonder iets te wissen
@@ -113,7 +113,7 @@ Zet het secret in `inventory/group_vars/all/vault.yml`
 
 #### Bouw `docker` opnieuw, zonder de stacks te starten
 
-Zie [pve01 opnieuw opbouwen](/proxmox/pve01/), deel 3. Start de stacks nog
+Zie [pve01 opnieuw: machines](/proxmox/pve01-machines/). Start de stacks nog
 **niet**. Zet dan token en sleutel klaar:
 
 ```bash filename="laptop"

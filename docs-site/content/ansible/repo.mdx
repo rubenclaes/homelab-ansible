@@ -42,10 +42,9 @@ houdt het overzichtelijk: OpenTofu beslist wat er *bestaat*, Ansible wat er
 
 ### Waarom elke host een map heeft
 
-Tot 02-10-2026 hadden sommige hosts één bestand (`host_vars/mbp.yml`) en
-andere een map (`host_vars/docker/main.yml`). Twee vormen betekent twee keer
-zoeken, en `new-service.yml` moest ze allebei kennen. Nu heeft elke host een
-map: krijgt hij later een geheim, dan zet je er gewoon `vault.yml` naast.
+Eén vorm voor elke host: je zoekt nooit op twee plekken, en een playbook dat
+host_vars leest (`new-service.yml`) hoeft maar één vorm te kennen. Krijgt een
+host later een geheim, dan zet je er gewoon `vault.yml` naast.
 
 ### Waarom elke rol zijn eigen sleutelbestanden heeft
 

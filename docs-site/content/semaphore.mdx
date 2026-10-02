@@ -143,19 +143,13 @@ ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_pass
 ```
 
 Abonneer op het topic `homelab`. Proxmox en PBS sturen daar hun
-waarschuwingen en fouten heen, elk met een eigen token (een mislukte back-up bijvoorbeeld), rechtstreeks naar
-`192.168.0.32` en dus niet via Caddy: een melding over een storing mag niet
-afhangen van Caddy of AdGuard. Geslaagde back-ups komen er bewust niet: wie
-elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
+waarschuwingen en fouten heen, zoals een mislukte back-up. Geslaagde back-ups
+niet ([waarom](#waarom-geen-melding-bij-succes)).
 
-Een mislukte back-up stuurt de hele log mee, en dat is al snel meer dan de
-4 KB die in één bericht past. Die komt binnen als "You received a file:
-attachment.txt": de titel zegt wat er misging, de bijlage is de log. Daarvoor
-staat `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n bericht
-en krijg je niets.
-
-Buitenshuis zonder VPN krijg je wel het seintje, maar kan de app de inhoud
-niet ophalen. `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar.
+| Je ziet | Betekent |
+| --- | --- |
+| "You received a file: attachment.txt" | de log was groter dan 4 KB; de titel zegt wat er misging, de bijlage is de log |
+| wel een seintje, maar geen inhoud | je bent buitenshuis zonder VPN: `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar |
 
 ## Inloggen
 
@@ -190,6 +184,14 @@ Daarom heeft de lokale `admin` het adres `admin@semaphore.local`, en niet dat
 van een persoon. Rollen leest Semaphore niet uit de groepen: admin maken gaat
 met de hand, zoals hierboven.
 
+### Waarom geen melding bij succes
+
+Wie elke nacht een "OK" krijgt, leest de ene "failed" niet meer. Proxmox en
+PBS sturen rechtstreeks naar `192.168.0.32`, niet via Caddy: een melding over
+een storing mag niet afhangen van Caddy of AdGuard. Grote logs komen als
+bijlage dankzij `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy
+zo'n bericht en krijg je niets.
+
 ### De limits in de templates
 
 - **`!semaphore`** — houdt een job van zijn eigen container af. Herstart
@@ -197,9 +199,8 @@ met de hand, zoals hierboven.
   machine patch je met de hand.
 - **`!mbp`** — `mbp` heeft `ansible_connection: local`. Vanuit Semaphore
   betekent dat "de container die de job draait", niet je MacBook. Die zit in
-  `macs` en krijgt dan macOS-taken: zo liep `Cleanup (report)` op 23-09 vast
-  op "Measure the Homebrew cache" in een Debian-container. Aan je bureau klopt
-  `mbp` wel; daar draai je zonder limit.
+  `macs` en zou macOS-taken krijgen in een Debian-container. Aan je bureau
+  klopt `mbp` wel; daar draai je zonder limit.
 - **Geen limit** bij `Homelab Report`, met opzet. `report.yml` slaat de
   macOS-taken zelf over als hij geen Mac ziet. En `all` telt de impliciete
   `localhost` niet mee: met een kale `all:!mbp` is de run groen maar
@@ -217,35 +218,15 @@ schema dat zijn eigen schema's herschrijft terwijl het draait, wil je niet.
 
 ### Waarom de tijden lokale tijd zijn
 
-Tot 23-09 las Semaphore elke cron als UTC (`Drift check` met `0 6 * * *`
-eindigde op `06:00:37Z`, dus 08:00 hier). UTC schuift mee met de zomertijd.
-De `semaphore`-rol zet nu `SEMAPHORE_SCHEDULE_TIMEZONE` uit
-`semaphore_schedule_timezone` (`Europe/Brussels`), als omgevingsvariabele en
+Zonder instelling leest Semaphore elke cron als UTC, en dan schuift alles een
+uur mee met de zomertijd. De `semaphore`-rol zet daarom
+`SEMAPHORE_SCHEDULE_TIMEZONE` (`Europe/Brussels`), als omgevingsvariabele en
 niet in de gevaulte `config.json`, zodat je hem kunt nalezen.
-
-### Baseline (dry run) deed vroeger echt iets
-
-Tot 23-09 draaide hij `baseline.yml` **zonder** `--check`: wie ging kijken,
-paste de baseline toe op elke Linux-host. Nu met `--check --diff`. Niet
-hernoemd, want een nieuwe naam maakt een tweede template en laat de
-geschiedenis achter.
 
 ### Waarom `Stacks` dagelijks draait
 
-Het begon met de Mac mini: na een herstart van OrbStack kwamen stacks met een
-schijf onder `/Volumes` niet terug, en `restart: unless-stopped` helpt niet
-tegen een start die mislukt. Sinds 25-09 draait daar geen container meer, maar
-dagelijks bleef: een stack die ergens stilvalt, trekt binnen een dag bij. De eerste beheerde run is op
-23-09 met de hand gedaan en was schoon (`changed=0`): een schema dat zijn
-eerste run onbewaakt doet, is een gok.
-
-### De Semaphore-API kent geen gedeeltelijke update
-
-Een `UPDATE` zet élke kolom uit het verzoek; wat je weglaat wordt leeg. Daarom
-bouwt de rol het verzoek op uit wat de server nu heeft, met alleen onze velden
-erover. Om dezelfde reden stuurt hij `environment_ids` mee: laat je dat weg,
-dan draait de template zonder environment. Denk hieraan voor je de rol
-"vereenvoudigt".
+`restart: unless-stopped` helpt niet tegen een container die niet wil
+starten. Een stack die ergens stilvalt, trekt zo binnen een dag bij.
 
 ### Een template hernoemen
 
@@ -253,4 +234,4 @@ dan draait de template zonder environment. Denk hieraan voor je de rol
 `semaphore_templates_list`, dan maakt de rol een tweede template en blijft de
 oude staan, met zijn schema. Hernoem hem dus eerst in de UI, en draai dan
 `semaphore-templates.yml --check`: de template moet onder `update` staan, niet
-onder `create`. Zo werd `DNS smoketest` op 23-09 `Smoketest`.
+onder `create`.

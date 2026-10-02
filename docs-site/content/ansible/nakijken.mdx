@@ -137,14 +137,13 @@ De samenvatting zegt wie en wat. Hoe precies, staat in dit log (gitignored).
 
 `site.yml` trekt gelijk. `report.yml` is traag en hoort op een schema,
 `drift.yml` en `smoketest.yml` controleren alleen, en `cleanup.yml`
-verwijdert. Uitzondering: `semaphore-templates.yml` zit er wél in, sinds 23-09.
+verwijdert. Uitzondering: `semaphore-templates.yml` zit er wél in.
 
 ### De rapportvergelijkingen lopen over alle containerhosts
 
 `docker`, `docker-grafana-stack` en de Mac mini (`docker_hosts` plus `macs`,
-dezelfde regel als `stacks.yml`). Tot 22-09 keek hij alleen naar `docker`, en
-zo bleven drie dode routes en een dienst zonder compose-bestand op de Mini
-maandenlang onopgemerkt. Een nieuwe host komt er vanzelf bij.
+dezelfde regel als `stacks.yml`). Een nieuwe host komt er vanzelf bij: wie
+alleen naar `docker` kijkt, mist dode routes op de andere.
 
 ### docs en report zijn niet publiek
 

@@ -149,13 +149,6 @@ schrijft het adres dus nergens anders op, en zet een guest **nooit** in
 ### Waarom OpenTofu voor de machines
 
 OpenTofu onthoudt wat het gemaakt heeft, en toont eerst een plan: wat erbij
-komt, wat verandert, wat weg zou gaan. Pas na `yes` gebeurt er iets.
-
-Vroeger maakte Ansible de containers. Dat maakte alleen wat ontbrak, en raakte
-een bestaande guest nooit aan. Zette je `memory` hoger in de lijst, dan
-gebeurde er niets, en liepen lijst en werkelijkheid stilletjes uit elkaar.
-Nu toont elk plan zo'n verschil meteen.
-
-De taakverdeling: **PBS bewaart de inhoud** (de schijf), **OpenTofu de vorm**
-(cores, geheugen, schijfgrootte, adres, MAC). Samen krijg je een guest precies
-terug.
+komt, wat verandert, wat weg zou gaan. Pas na `yes` gebeurt er iets. Zet je
+`memory` hoger, dan toont het plan dat meteen. Meer:
+[OpenTofu](/opentofu/#pbs-bewaart-de-inhoud-opentofu-de-vorm).

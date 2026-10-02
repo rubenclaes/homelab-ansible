@@ -178,7 +178,7 @@ betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
 
 | Wat | Waar dan |
 | --- | --- |
-| `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 is weg](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
+| `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 opnieuw opbouwen](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
 | `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen. `root@pam` is ook de noodtoegang als Pocket ID plat ligt |
 | wie er via Pocket ID binnenkomt (`rubenclaes@pocketid`) | Proxmox maakt die bij de eerste login; de groep komt uit Pocket ID |
 | `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/) |
@@ -193,10 +193,21 @@ Na een ramp: eerst alles terugzetten uit PBS, pas dan `plan`
 ### PBS bewaart de inhoud, OpenTofu de vorm
 
 Een back-up in PBS is de schijf van een guest: alles wat erop staat. OpenTofu
-kent de vorm: cores, geheugen, schijfgrootte, adres, MAC. Samen krijg je een
-guest precies terug. Vroeger maakte Ansible de containers, maar alleen als ze
-ontbraken; een bestaande guest raakte het nooit aan. Nu toont elk plan het
-meteen als Proxmox en de repo uit elkaar lopen.
+kent de vorm: cores, geheugen, schijfgrootte, adres, MAC. Een guest opnieuw
+maken met OpenTofu geeft een lege schijf, en de waarde zit in de schijf. Na een
+ramp zet `qmrestore` daarom schijf én instellingen terug, en houdt OpenTofu
+daarna de vorm juist. Het MAC-adres telt het meest: daar hangt de
+DHCP-reservering aan, en `haos` herkent zichzelf eraan.
+
+### Waarom OpenTofu een eigen gebruiker heeft
+
+`tofu@pve` mag gebruikers en rechten zetten, `ansible@pve` alleen wat Ansible
+nodig heeft. Zo heeft elk programma zijn eigen token, trek je het ene in
+zonder het andere, en hoeft geen van beide root te zijn.
+
+`tofu@pve` zelf en beide tokens maak je met de hand (`pveum`): je kan niet de
+sleutel beheren waarmee je binnenkomt, en een programma kan niet het token
+maken dat het zelf nodig heeft om te draaien.
 
 ### Waarom OpenTofu en niet de console
 

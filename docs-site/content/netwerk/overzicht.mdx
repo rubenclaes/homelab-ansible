@@ -27,11 +27,11 @@ nergens in huis. Wat dan: [Geen DNS](/netwerk/dns/#geen-dns).
 
 ### Waarom geen tweede DNS-server?
 
-UniFi deelde vroeger ook `1.1.1.1` uit, als reserve. Maar een toestel vraagt
-**ze allebei**, en `1.1.1.1` kent onze namen niet. Kreeg je toevallig dat
-antwoord, dan opende `dns.neodata.be` niet ("This site can't be reached"), en
-kwam er reclame door. Nu deelt UniFi alleen AdGuard uit. De echte oplossing is een **tweede
-AdGuard** als reserve (staat in `TODO.md`, A5).
+Een reserve zoals `1.1.1.1` werkt niet: een toestel vraagt **ze allebei**, en
+`1.1.1.1` kent onze namen niet. Krijg je toevallig dat antwoord, dan opent
+`dns.neodata.be` niet en komt er reclame door. Daarom deelt UniFi alleen
+AdGuard uit. De echte oplossing is een **tweede AdGuard** (staat in
+`TODO.md`).
 
 Wat UniFi hoort uit te delen staat in `unifi_expected_dns`
 (`inventory/group_vars/all/unifi.yml`). Elke ochtend controleert Semaphore

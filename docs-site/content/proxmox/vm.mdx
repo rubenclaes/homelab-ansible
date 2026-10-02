@@ -17,21 +17,8 @@ als bij een container.
 
 Voorbeeld: een VM `nieuwehost` met Debian.
 
-| Stap | Waar | Wat |
-| --- | --- | --- |
-| 1 | Proxmox-scherm | Debian-ISO ophalen |
-| 2 | je werkstation | blok in `vms.tf`, `bin/tofu proxmox apply` |
-| 3 | Proxmox-console | Debian installeren |
-| 4 | in de VM | guest agent aanzetten |
-| 5 | UniFi | adres vastzetten |
-| 6–8 | je werkstation | Ansible hem laten zien, sleutel erop, `bootstrap` + `baseline` |
-| 9 | je werkstation | MAC vastzetten, commit en push |
-
-Bouw je een **vervanger** van een bestaande VM (bv. `docker`)? Dan maak je
-geen nieuwe VM: je zet een back-up terug uit PBS, zie
-[Herstellen](/proxmox/herstellen/). Zijn vorm (cores, geheugen, schijf en
-vooral het **MAC-adres**, waar zijn vaste adres in UniFi aan hangt) staat al
-in `tofu/proxmox/vms.tf`.
+Een **vervanger** voor een bestaande VM (bv. `docker`) maak je niet zo: zet
+een back-up terug, zie [Herstellen](/proxmox/herstellen/).
 
 <Steps>
 
@@ -227,10 +214,10 @@ niet "zoveel als er vrij is". Linux vult elk vrij geheugen in de VM met
 bestandscache. Zonder balloon geeft een VM dat nooit terug, dus voor pve01 is
 het gewoon bezet.
 
-De `docker`-VM had tot 23-09 28 GB. Proxmox zag 26 GB in gebruik, maar de
-containers zelf gebruikten er samen maar ~4,2 GB van. De rest was cache. Op
-pve01 bleef daardoor maar ~9 GB over voor alle andere guests en de ZFS-cache.
-Nu heeft hij 16 GB, genoeg voor de pieken van Immich.
+Voorbeeld: `docker` had 28 GB en Proxmox zag er 26 in gebruik, maar de
+containers gebruikten samen ~4,2 GB. De rest was cache, en die ontbrak op
+pve01 voor de andere guests. Nu heeft hij 16 GB, genoeg voor de pieken van
+Immich.
 
 Wat een VM echt gebruikt, zie je **binnen** de VM, niet in Proxmox:
 
@@ -259,6 +246,5 @@ en niet wat er toevallig op dat adres antwoordt.
 Een VM ontleent zijn waarde aan wat er op zijn schijf staat, niet aan zijn
 instellingen. OpenTofu maakt de lege machine met de juiste vorm, maar het
 besturingssysteem erop installeren doe je één keer met de hand: elke VM is
-anders (Home Assistant OS, PBS, Debian). Een bestaande VM kwijt? Dan maak je
-hem niet opnieuw, je zet een back-up terug uit PBS. `tofu/proxmox/vms.tf`
-houdt daarna zijn vorm juist.
+anders (Home Assistant OS, PBS, Debian). Een bestaande VM kwijt? Dan zet je
+een back-up terug uit PBS ([waarom](/opentofu/#pbs-bewaart-de-inhoud-opentofu-de-vorm)).
