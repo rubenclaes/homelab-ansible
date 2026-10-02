@@ -1,0 +1,67 @@
+---
+title: Waar staat wat
+---
+
+# Waar staat wat
+
+Hoe de repo `homelab-ansible` is ingedeeld, en waar je iets aanpast. Eén regel
+houdt het overzichtelijk: OpenTofu beslist wat er *bestaat*, Ansible wat er
+*in* een machine draait ([meer](/opentofu/)).
+
+## De mappen
+
+| Map | Wat erin staat |
+| --- | --- |
+| `inventory/` | de machines en hun instellingen. Hier pas je het meest aan |
+| `inventory/group_vars/<groep>/` | wat voor een hele groep geldt (`proxmox`, `macs`, `all`, ...) |
+| `inventory/host_vars/<host>/` | wat voor één machine geldt: `main.yml`, en `vault.yml` voor de geheimen |
+| `roles/` | per onderdeel de stappen (caddy, adguard, pbs, ...). Eén rol doet één ding |
+| `playbooks/` | wat je draait. `site.yml` zet alles gelijk; de rest zie [Een playbook draaien](/ansible/playbooks/) |
+| `playbooks/tasks/` | stukken die meerdere playbooks delen (UniFi uitlezen, een host bootstrappen) |
+| `playbooks/templates/` | wat een playbook op je laptop maakt: deze docs, het rapport, een nieuwe dienst |
+| `files/env/` | de `.env` van elke Docker-stack, versleuteld |
+| `files/tailscale/` | de Tailscale-regels, die OpenTofu zet |
+| `tofu/` | OpenTofu, één map per systeem (`proxmox`, `tailscale`, `pocketid`) |
+| `bin/` | hulpscripts: `tofu`, de vault-wachtwoorden, `check-vaulted` |
+| `collections/`, `requirements.txt` | de versies van Ansible en zijn collections |
+| `.githooks/`, `.github/` | de controle vóór elke commit, en dezelfde in GitHub |
+| `docs-site/` | deze site |
+| `TODO.md` | wat nog moet. Wat af is, staat in git |
+
+## Waar je iets aanpast
+
+| Je wil | Bestand |
+| --- | --- |
+| een instelling voor één machine | `inventory/host_vars/<host>/main.yml` |
+| een geheim voor één machine | `inventory/host_vars/<host>/vault.yml` (`ansible-vault edit`) |
+| een machine erbij of eraf | `tofu/proxmox/`, zie [Nieuwe container](/proxmox/container/) |
+| een app in Docker | [Nieuwe app draaien](/docker/toevoegen/) |
+| software rechtstreeks op een machine | [Eigen rol](/ansible/rol/) |
+
+## Goed om te weten
+
+### Waarom elke host een map heeft
+
+Tot 02-10-2026 hadden sommige hosts één bestand (`host_vars/mbp.yml`) en
+andere een map (`host_vars/docker/main.yml`). Twee vormen betekent twee keer
+zoeken, en `new-service.yml` moest ze allebei kennen. Nu heeft elke host een
+map: krijgt hij later een geheim, dan zet je er gewoon `vault.yml` naast.
+
+### Waarom elke rol zijn eigen sleutelbestanden heeft
+
+`pbs` en `pbs_client` hebben elk een kopie van `proxmox-archive-keyring.gpg`.
+Dat is met opzet: een rol leest alleen uit zijn eigen map, zodat je hem kan
+kopiëren of verwijderen zonder dat een andere rol stukgaat. Vervang je de
+sleutel, doe het dan in beide.
+
+### Waarom de docs en het rapport geen rol zijn
+
+Een rol zet een machine gelijk. `docs.yml`, `report.yml` en `new-service.yml`
+doen dat niet: ze lezen de inventory en maken iets op je laptop. Hun templates
+staan daarom bij de playbooks, in `playbooks/templates/`.
+
+### AI-plannen staan niet in git
+
+Plannen en specs die een AI-assistent maakt (`docs/superpowers/`) zijn
+werknotities. Het waarom dat blijft, komt op deze site; de rest staat in
+`git log`. Daarom staat die map in `.gitignore`.

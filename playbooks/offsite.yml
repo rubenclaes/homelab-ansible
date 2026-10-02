@@ -8,8 +8,8 @@
 #           foto's naar PBS (roles/pbs_client).
 #   pbs     de R2-datastore, de sync job en r2-guard (roles/pbs, tag offsite).
 #
-# Het waarom staat in
-# docs/superpowers/specs/2026-09-25-offsite-backup-r2-design.md.
+# Het waarom staat op de docs-site: Proxmox → Back-ups, "Buiten het huis:
+# Cloudflare R2".
 #
 # In site.yml: nee, maar pbs.yml eronder wel. Draai restore-drill.yml na elke
 # wijziging hier: een herstelpad dat nooit gelopen heeft is een aanname.

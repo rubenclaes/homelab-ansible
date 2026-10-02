@@ -1,4 +1,5 @@
 export default {
+  repo: 'Waar staat wat',
   laptop: 'Laptop klaarzetten',
   commandos: "Handige commando's",
   playbooks: 'Een playbook draaien',

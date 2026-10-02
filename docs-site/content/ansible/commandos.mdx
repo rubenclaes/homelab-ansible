@@ -64,9 +64,9 @@ Je afkortingen staan in de inventory, niet in `~/.zshrc`.
 
 #### Voeg de regel toe
 
-In `inventory/host_vars/mbp.yml`, onder `dotfiles_zsh_block: |-`:
+In `inventory/host_vars/mbp/main.yml`, onder `dotfiles_zsh_block: |-`:
 
-```yaml filename="inventory/host_vars/mbp.yml"
+```yaml filename="inventory/host_vars/mbp/main.yml"
   alias gs='git status'
 ```
 
@@ -79,7 +79,7 @@ ansible-playbook playbooks/dotfiles.yml && exec zsh
 #### Commit en push
 
 ```bash filename="laptop"
-git add inventory/host_vars/mbp.yml && git commit -m 'Alias gs' && git push
+git add inventory/host_vars/mbp/main.yml && git commit -m 'Alias gs' && git push
 ```
 
 </Steps>

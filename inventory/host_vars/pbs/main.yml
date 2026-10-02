@@ -66,7 +66,7 @@ pbs_notification_matchers:
 
 # Off-site kopie naar Cloudflare R2, sinds 25-09-2026. Alleen wat niet uit
 # git herbouwd kan worden, zodat het binnen de gratis 10 GB blijft. Het
-# waarom per groep staat in docs/superpowers/specs/2026-09-25-offsite-backup-r2-design.md.
+# waarom staat op de docs-site: Proxmox → Back-ups en Terughalen uit R2.
 #
 # De drempels zijn ruim onder de gratis laag (10 GB, 1M Class A, 10M
 # Class B): R2 kent geen uitgavengrens, dus r2-guard stopt de sync zelf.

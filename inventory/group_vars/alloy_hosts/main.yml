@@ -1,7 +1,7 @@
 ---
 # Waar Alloy naartoe schrijft. Dit is de Loki in de monitoring-stack op
 # docker-grafana-stack, die zijn 3100 op het LAN aanbiedt - dat staat ook zo
-# in docker_ports_without_route in host_vars/docker-grafana-stack.yml, met
+# in docker_ports_without_route in host_vars/docker-grafana-stack/main.yml, met
 # "push/query api voor alloy en grafana" als reden. Nagekeken op 23-09: een
 # lege POST naar dit adres geeft 400, dus hij luistert en antwoordt.
 #

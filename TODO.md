@@ -99,7 +99,7 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in
-      `host_vars/macmini.yml`.
+      `host_vars/macmini/main.yml`.
 
 ---
 

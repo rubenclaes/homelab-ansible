@@ -71,12 +71,18 @@ Voor je commit: `bin/check-vaulted && ansible-lint`
 
 ## Waar staat wat
 
+OpenTofu beslist wat er *bestaat*, Ansible wat er *in* een machine draait.
+
 | Map | Wat |
 | --- | --- |
-| `inventory/` | de servers en hun instellingen (hier pas je het meest aan) |
+| `inventory/` | de servers en hun instellingen (hier pas je het meest aan); per host een map `host_vars/<host>/` met `main.yml` en `vault.yml` |
 | `roles/` | per onderdeel de stappen (caddy, adguard, ...) |
-| `playbooks/` | wat je uitvoert |
-| `files/env/` | versleutelde instellingen van de Docker-apps |
+| `playbooks/` | wat je uitvoert; `site.yml` zet alles gelijk |
+| `files/` | versleutelde `.env` van de Docker-apps, en de Tailscale-regels |
+| `tofu/` | OpenTofu: de machines op Proxmox, Tailscale en Pocket ID |
+| `bin/` | hulpscripts (`tofu`, vault-wachtwoorden, `check-vaulted`) |
 | `docs-site/` | de documentatie |
+
+Meer uitleg: [Waar staat wat](https://docs.neodata.be/ansible/repo/).
 
 Iets gewijzigd? Pas dan ook de uitleg aan in `docs-site/content/`, op de pagina van het onderwerp (Proxmox, Docker, Netwerk, ...).

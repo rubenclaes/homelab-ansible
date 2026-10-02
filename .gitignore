@@ -30,6 +30,9 @@ vault_pass
 
 # Subagent-driven-development scratch: ledgers, briefs, review packages.
 .superpowers/
+# AI-plannen en -specs zijn werknotities. Het waarom dat blijft, staat op de
+# docs-site; de rest staat in git log.
+docs/superpowers/
 
 # Droogloop-logs van playbooks/drift.yml.
 .drift/

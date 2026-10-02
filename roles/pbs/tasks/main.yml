@@ -6,8 +6,7 @@
 # appliance for ownership of its own state. That reasoning was reversed on
 # 2026-09-21: it holds for large hand-tuned runtime state like
 # AdGuardHome.yaml, but not for one datastore and two jobs that are small,
-# stable, and worthless to reconstruct by hand during a rebuild. See
-# docs/superpowers/specs/2026-09-21-proxmox-rebuild-path-design.md, decision 1.
+# stable, and worthless to reconstruct by hand during a rebuild.
 #
 # API tokens remain unmanaged. They are secrets, and nothing in this repo
 # reads /etc/pve/priv or its PBS equivalent.

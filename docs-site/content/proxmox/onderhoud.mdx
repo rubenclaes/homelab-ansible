@@ -188,7 +188,7 @@ Allemaal standaard **uit**. Zonder vlaggen wordt er gepatcht en verder niets.
 | `allow_reboot` | opdrachtregel | herstart guests die het nodig hebben |
 | `allow_hypervisor_reboot` | opdrachtregel | ook `pve01`; werkt alleen samen met `allow_reboot` |
 | `allow_cask_upgrade` | opdrachtregel | ook de apps op de Macs |
-| `macos_brew_upgrade` | `host_vars/<mac>.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
+| `macos_brew_upgrade` | `host_vars/<mac>/main.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
 
 `allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
 ongeluk `pve01` meenemen.
