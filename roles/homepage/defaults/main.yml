@@ -10,10 +10,12 @@ homepage_caddy_host: caddy
 
 homepage_title: Neodata
 
-# Volgorde van de groepen op de pagina. Een site die in homepage_tiles geen
-# groep heeft, komt in homepage_default_group, onderaan.
+# Volgorde van de groepen op de pagina, en op welk tabblad elk staat:
+# [{name, tab}]. Een site die in homepage_tiles geen groep heeft, komt in
+# homepage_default_group, onderaan op homepage_default_tab.
 homepage_groups: []
 homepage_default_group: Overig
+homepage_default_tab: Beheer
 
 # Per site-naam uit caddy_sites: title, group, icon. Alles optioneel.
 homepage_tiles: {}
@@ -23,3 +25,5 @@ homepage_hidden: []
 
 # Links zonder eigen caddy_sites-regel, als bladwijzers bovenaan.
 homepage_bookmarks: []
+# Het tabblad waarop de bladwijzers staan.
+homepage_bookmark_tab: Beheer

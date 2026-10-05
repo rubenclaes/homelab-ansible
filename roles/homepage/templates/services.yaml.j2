@@ -3,7 +3,7 @@
 # (title, group, icon) in the inventory, not this file.
 {% set caddy = hostvars[homepage_caddy_host] %}
 {% set sites = caddy.caddy_sites | rejectattr('name', 'in', homepage_hidden) | list %}
-{% for group in homepage_groups + [homepage_default_group] %}
+{% for group in (homepage_groups | map(attribute='name') | list) + [homepage_default_group] %}
 {% set ns = namespace(members=[]) %}
 {% for s in sites if homepage_tiles.get(s.name, {}).get('group', homepage_default_group) == group %}
 {% set ns.members = ns.members + [s] %}

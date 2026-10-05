@@ -144,42 +144,53 @@ docker_services_without_route:
 # Elke site uit caddy_sites krijgt vanzelf een tegel; hier staat alleen hoe
 # hij eruitziet. Een nieuwe dienst zonder regel hier komt onder "Overig",
 # zonder icoon. Iconen: .png is dashboard-icons, mdi- is Material Design.
-homepage_groups: [Media, Downloads, Handig, Huis, Beheer, Monitoring]
+# Twee tabbladen: Thuis voor wat het gezin en gasten gebruiken, Beheer voor
+# jou. Elke route uit caddy_sites heeft hieronder een groep; een route zonder
+# komt in "Overig" op Beheer. Iconen: dashboard-icons (`naam.png`) of
+# Material Design (`mdi-...`) als er geen is.
+homepage_groups:
+  - { name: Media, tab: Thuis }
+  - { name: Spelen & delen, tab: Thuis }
+  - { name: Handig, tab: Thuis }
+  - { name: Huis, tab: Thuis }
+  - { name: Downloads, tab: Beheer }
+  - { name: Infrastructuur, tab: Beheer }
+  - { name: Netwerk, tab: Beheer }
+  - { name: Monitoring, tab: Beheer }
 homepage_hidden: [home] # de pagina zelf
 homepage_tiles:
-  photos: { title: Immich, group: Media, icon: immich.png }
+  # Thuis
   plex: { title: Plex, group: Media, icon: plex.png }
+  overseerr: { title: Overseerr, group: Media, icon: overseerr.png }
   audiobooks: { title: Audiobookshelf, group: Media, icon: audiobookshelf.png }
   books: { title: Grimmory, group: Media, icon: booklore.png }
-  overseerr: { title: Overseerr, group: Media, icon: overseerr.png }
-
-  sonarr: { title: Sonarr, group: Downloads, icon: sonarr.png }
-  radarr: { title: Radarr, group: Downloads, icon: radarr.png }
-  bazarr: { title: Bazarr, group: Downloads, icon: bazarr.png }
-  cleanuparr: { title: Cleanuparr, group: Downloads, icon: cleanuparr.png }
-  prowlarr: { title: Prowlarr, group: Downloads, icon: prowlarr.png }
-  torrent: { title: qBittorrent, group: Downloads, icon: qbittorrent.png }
-  openbooks: { title: OpenBooks, group: Downloads, icon: mdi-book-search }
-  shelfmark: { title: Shelfmark, group: Downloads, icon: shelfmark.png }
-  metube: { title: MeTube, group: Downloads, icon: metube.png }
-
+  shelfmark: { title: Shelfmark, group: Media, icon: shelfmark.png }
+  openbooks: { title: OpenBooks, group: Media, icon: mdi-book-search }
+  photos: { title: Immich, group: Media, icon: immich.png }
+  games: { title: RomM, group: Spelen & delen, icon: romm.png }
+  files: { title: Gedeelde map, group: Spelen & delen, icon: copyparty.png }
+  pairdrop: { title: PairDrop, group: Spelen & delen, icon: pairdrop.png }
   vault: { title: Vaultwarden, group: Handig, icon: vaultwarden.png }
-  pairdrop: { title: PairDrop, group: Handig, icon: pairdrop.png }
+  wiki: { title: Wiki, group: Handig, icon: outline.png }
   pdf: { title: BentoPDF, group: Handig, icon: bentopdf.png }
   tools: { title: IT-Tools, group: Handig, icon: it-tools.png }
-  code: { title: code-server, group: Handig, icon: code-server.png }
-  wiki: { title: Outline, group: Handig, icon: outline.png }
-
+  metube: { title: MeTube, group: Handig, icon: metube.png }
   haos: { title: Home Assistant, group: Huis, icon: home-assistant.png }
-  neogate: { title: NeoGate, group: Huis, icon: mdi-shield-key }
-  id: { title: Pocket ID, group: Huis, icon: pocket-id.png }
-
-  proxmox: { title: Proxmox, group: Beheer, icon: proxmox.png }
-  backup: { title: Proxmox Backup, group: Beheer, icon: proxmox-backup-server.png }
-  dns: { title: AdGuard Home, group: Beheer, icon: adguard-home.png }
-  unifi: { title: UniFi, group: Beheer, icon: unifi.png }
-  semaphore: { title: Semaphore, group: Beheer, icon: semaphore.png }
-
+  neogate: { title: NeoGate, group: Huis, icon: mdi-shield-account }
+  # Beheer
+  sonarr: { title: Sonarr, group: Downloads, icon: sonarr.png }
+  radarr: { title: Radarr, group: Downloads, icon: radarr.png }
+  prowlarr: { title: Prowlarr, group: Downloads, icon: prowlarr.png }
+  bazarr: { title: Bazarr, group: Downloads, icon: bazarr.png }
+  torrent: { title: qBittorrent, group: Downloads, icon: qbittorrent.png }
+  cleanuparr: { title: Cleanuparr, group: Downloads, icon: cleanuparr.png }
+  proxmox: { title: Proxmox, group: Infrastructuur, icon: proxmox.png }
+  backup: { title: Back-ups (PBS), group: Infrastructuur, icon: proxmox-backup-server.png }
+  semaphore: { title: Semaphore, group: Infrastructuur, icon: semaphore.png }
+  code: { title: code-server, group: Infrastructuur, icon: code-server.png }
+  id: { title: Pocket ID, group: Infrastructuur, icon: pocket-id.png }
+  dns: { title: AdGuard, group: Netwerk, icon: adguard-home.png }
+  unifi: { title: UniFi, group: Netwerk, icon: unifi.png }
   monitoring: { title: Grafana, group: Monitoring, icon: grafana.png }
   prometheus: { title: Prometheus, group: Monitoring, icon: prometheus.png }
   ntfy: { title: ntfy, group: Monitoring, icon: ntfy.png }

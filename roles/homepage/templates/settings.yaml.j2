@@ -9,9 +9,16 @@ statusStyle: dot
 hideVersion: true
 target: _self
 
+{# Elke groep op een tabblad. Een groep zonder tab staat op elk tabblad, dus
+   ook de bladwijzers en de restgroep krijgen er een. #}
 layout:
-{% for group in homepage_groups + [homepage_default_group] %}
-  {{ group | to_json }}:
+{% for group in homepage_groups + [{'name': homepage_default_group, 'tab': homepage_default_tab}] %}
+  {{ group.name | to_json }}:
+    tab: {{ group.tab | to_json }}
     style: row
     columns: 4
+{% endfor %}
+{% for name in homepage_bookmarks | map(attribute='group') | unique %}
+  {{ name | to_json }}:
+    tab: {{ homepage_bookmark_tab | to_json }}
 {% endfor %}
