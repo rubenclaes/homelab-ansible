@@ -18,6 +18,7 @@ diensten erin.
 | [pbs](#pbs) | VM | `192.168.0.181` | 1 |
 | [adguard](#adguard) | LXC-container | `192.168.0.29` | 1 |
 | [caddy](#caddy) | LXC-container | `192.168.0.25` | — |
+| [lancache](#lancache) | LXC-container | `192.168.0.33` | — |
 | [ntfy](#ntfy) | LXC-container | `192.168.0.32` | 1 |
 | [semaphore](#semaphore) | LXC-container | `192.168.0.30` | 1 |
 | [tailscale](#tailscale) | LXC-container | `192.168.0.50` | — |
@@ -97,6 +98,12 @@ Diensten: [dns](/homelab/diensten/dns/)
 `192.168.0.25` · Debian 12.15 · VMID 106 · 1 core · 512 MB · 6 GB
 
 De voordeur: stuurt elk `*.neodata.be`-adres naar de juiste machine, regelt de certificaten, en draait oauth2-proxy voor de login vóór apps zonder eigen login.
+
+### lancache
+
+`192.168.0.33` · VMID 110 · 2 cores · 2.0 GB · 4 GB
+
+Geen diensten met een eigen adres.
 
 ### ntfy
 
