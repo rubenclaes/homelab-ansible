@@ -26,6 +26,10 @@
 # `onboot: false` voor een container die alleen af en toe draait (lancache):
 # pve01 start hem niet na een herstart, en proxmox-oci.yml en
 # proxmox-autostart.yml laten hem uit. Weglaten is `true`.
+#
+# `remove_paths`: bestanden die het image in een latere laag weghaalt. De
+# OCI-import van Proxmox past die verwijderingen niet toe; de rol haalt ze na
+# het aanmaken alsnog weg.
 pve_oci_lxcs:
   - vmid: 109
     hostname: ntfy
@@ -76,6 +80,66 @@ pve_oci_lxcs:
             'proxmox:' ~ vault_ntfy_unifi_token ~ ':unifi',
             'proxmox:' ~ vault_ntfy_vaultwarden_token ~ ':vaultwarden',
             'proxmox:' ~ vault_ntfy_neogate_token ~ ':neogate'] | join(',') }}
+
+  # LANCache voor LAN parties: houdt game-downloads bij, zodat de tweede
+  # download uit huis komt. Staat uit; playbooks/lancache.yml zet hem aan en
+  # uit, samen met de omleiding in AdGuard. Niet in de back-ups
+  # (group_vars/proxmox/backup.yml): de cache is weggooibaar.
+  - vmid: 110
+    hostname: lancache
+    # Er is alleen `latest`. Het template wordt één keer opgehaald en blijft
+    # dan staan, dus dit is in de praktijk vast. Bijwerken: het template
+    # weghalen en opnieuw bouwen met -e proxmox_oci_recreate=true; de cache
+    # gaat dan mee, en dat mag.
+    image: docker.io/lancachenet/monolithic
+    version: latest
+    # ENTRYPOINT plus CMD van het image.
+    entrypoint: /bin/bash -e /init/entrypoint.sh /init/supervisord.sh
+    cores: 2
+    memory: 2048
+    disk: { storage: vm-hdd, size: 4 }
+    ip: 192.168.0.33/24
+    hwaddr: BC:24:11:97:37:2A
+    port: 80
+    onboot: false
+    # Wat de Dockerfile van het image met `rm` weghaalt, maar de OCI-import
+    # van Proxmox laat staan. Vooral site.conf: die antwoordt met
+    # default_server op poort 80 en geeft op alles een 404.
+    remove_paths:
+      - /etc/nginx/sites-enabled/site.conf
+      - /etc/nginx/sites-enabled/status.conf
+      - /etc/nginx/sites-enabled/default
+      - /etc/nginx/stream-enabled/stream_proxy_example
+      - /etc/nginx/conf.d/gzip.conf
+    volumes:
+      - { mp: /data/cache, storage: vm-hdd, size: 600 }
+      - { mp: /data/logs, storage: vm-hdd, size: 2 }
+    # De rol vervangt de hele env van het image. Dit is die van het image
+    # (lancachenet/monolithic:latest, 09-2026), met onze waarden erover.
+    env:
+      LC_ALL: en_GB.UTF-8
+      LANG: en_GB.UTF-8
+      LANGUAGE: en_GB.UTF-8
+      TZ: Europe/Brussels
+      SUPERVISORD_EXIT_ON_FATAL: "1"
+      SUPERVISORD_LOGLEVEL: WARN
+      GENERICCACHE_VERSION: "2"
+      CACHE_MODE: monolithic
+      WEBUSER: www-data
+      CACHE_INDEX_SIZE: 500m
+      # Onder de 600 GB van het volume, zodat nginx opruimt voor het vol is.
+      CACHE_DISK_SIZE: 550g
+      MIN_FREE_DISK: 10g
+      CACHE_MAX_AGE: 3560d
+      CACHE_SLICE_SIZE: 1m
+      # Nooit AdGuard: die stuurt de omgeleide namen naar deze container terug.
+      UPSTREAM_DNS: 9.9.9.9 149.112.112.112
+      BEAT_TIME: 1h
+      LOGFILE_RETENTION: "3560"
+      CACHE_DOMAINS_REPO: https://github.com/uklans/cache-domains.git
+      CACHE_DOMAINS_BRANCH: master
+      NGINX_WORKER_PROCESSES: auto
+      NGINX_LOG_FORMAT: cachelog
 
 # Containers die /dev/net/tun krijgen, voor Tailscale: adguard (107, DNS van
 # de tailnet) en tailscale (108, subnet-router). Zie roles/proxmox_tun.

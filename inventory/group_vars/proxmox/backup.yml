@@ -55,7 +55,8 @@ pve_backup_jobs:
       schedule: "02:30"
       storage: pbs
       all: 1
-      exclude: "100"
+      # 110 is lancache: 600 GB cache die je zo weer vult.
+      exclude: "100,110"
       mode: snapshot
       enabled: 1
       notes-template: "{% raw %}{{guestname}}{% endraw %}"

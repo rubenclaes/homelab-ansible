@@ -173,6 +173,27 @@
     proxmox_oci_upid: "{{ proxmox_oci_create.json.data }}"
   when: proxmox_oci_create is not skipped
 
+# Proxmox's OCI import does not apply whiteouts: a file a later image layer
+# deletes is still there in the container. For lancache that is the stock
+# nginx site with default_server on :80, which answers every request with a
+# 404. remove_paths lists what the image's Dockerfile removes. Only after a
+# create: the rootfs keeps the change, and a rebuild comes back through here.
+# As root through pct mount, like the image pull, so it works on a container
+# that is not running.
+- name: Remove what the image deletes in a later layer - {{ oci.hostname }}
+  ansible.builtin.shell:
+    cmd: |
+      set -eu
+      pct mount {{ oci.vmid }} >/dev/null
+      trap 'pct unmount {{ oci.vmid }}' EXIT
+      rm -rf -- {{ oci.remove_paths | map('regex_replace', '^', '/var/lib/lxc/' ~ oci.vmid ~ '/rootfs') | map('quote') | join(' ') }}
+    executable: /bin/bash
+  become: true
+  when:
+    - proxmox_oci_create is not skipped
+    - oci.remove_paths | default([]) | length > 0
+  changed_when: true
+
 # uri skips its writes under --check, so these reports are all a dry run shows.
 - name: Report that the container would be created - {{ oci.hostname }}
   ansible.builtin.debug:

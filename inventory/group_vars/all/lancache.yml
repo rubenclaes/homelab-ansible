@@ -1,0 +1,7 @@
+---
+# Adres en vmid van LANCache, voor roles/lancache en smoketest.yml. Afgeleid
+# van zijn entry in pve_oci_lxcs (group_vars/proxmox/lxcs.yml), zodat ze
+# maar op één plek staan.
+lancache_oci: "{{ hostvars['pve01'].pve_oci_lxcs | selectattr('hostname', 'eq', 'lancache') | first }}"
+lancache_ip: "{{ lancache_oci.ip | split('/') | first }}"
+lancache_vmid: "{{ lancache_oci.vmid | int }}"
