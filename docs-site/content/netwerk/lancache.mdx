@@ -46,11 +46,13 @@ per 100 GB.
 #### Eén keer: log in en kies de games
 
 ```bash filename="laptop"
-ssh -t docker 'sudo mkdir -p /opt/containers/data/steamprefill && sudo docker run -it --rm --dns 192.168.0.29 -v /opt/containers/data/steamprefill:/Config tpill90/steam-lancache-prefill:v3.7.2 select-apps'
+ssh -t docker 'sudo install -d -m 700 /opt/containers/data/steamprefill && sudo docker run -it --rm --dns 192.168.0.29 -v /opt/containers/data/steamprefill:/Config tpill90/steam-lancache-prefill:v3.7.2 select-apps'
 ```
 
 Log in met je Steam-account (wachtwoord en de code van Steam Guard), en vink
-de games aan. Je keuze aanpassen: hetzelfde commando opnieuw.
+de games aan. Vraagt hij op het einde of hij meteen moet vullen: zeg nee, dat
+doet de volgende stap (met LANCache aan). Je keuze aanpassen: hetzelfde
+commando opnieuw.
 
 #### Vul de cache
 
