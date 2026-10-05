@@ -1,0 +1,5 @@
+---
+# RomM reads config.yml at startup.
+- name: Restart RomM
+  ansible.builtin.command: docker restart {{ romm_container }}
+  changed_when: true

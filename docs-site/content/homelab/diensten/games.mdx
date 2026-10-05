@@ -51,6 +51,25 @@ info. Sneller: in RomM **Scan** → de console → **Scan**.
 Sommige consoles (PlayStation, Game Boy Advance) hebben een BIOS nodig om in de
 browser te spelen. Die gaat in `Games/bios/<console>/`.
 
+## Samen spelen (netplay)
+
+<Steps>
+
+#### Open een room
+
+Start de game in de browser en klik in de balk onderaan op **Netplay**. Maak
+een room aan met een naam.
+
+#### Laat de anderen meedoen
+
+Zij openen dezelfde game in RomM, klikken ook op **Netplay** en kiezen jouw
+room. Elk speelt met zijn eigen controller of toetsenbord.
+
+</Steps>
+
+Werkt het best met consoles voor meerdere spelers: NES, SNES, Mega Drive,
+N64. Iedereen moet ingelogd zijn, dus ook gasten (groep `gast`).
+
 ## Iemand toegang geven
 
 Zet de persoon in Pocket ID in een van de vier groepen, via
@@ -81,6 +100,15 @@ niet bij de ROMs.
 RomM leest bij elke login de groepen. Zet je iemand in `admin`, dan is hij bij
 de volgende login admin in RomM; haal je hem eruit, dan niet meer. Wat een
 gewone gebruiker mag, stel je in RomM in bij de standaard-rechtengroep.
+
+### Netplay en config.yml
+
+Netplay staat aan in `config.yml` van RomM (`/opt/containers/data/romm/config`).
+`roles/romm` zet daar alleen het netplay-blok in; de rest van dat bestand
+schrijft RomM zelf als je iets instelt in de web-UI, en het netplay-blok laat
+hij staan. De STUN-server (`stun.cloudflare.com`) helpt alleen als twee
+browsers elkaar niet rechtstreeks vinden, zoals via de VPN; op het LAN is hij
+niet nodig.
 
 ### Hoesjes zonder sleutel
 

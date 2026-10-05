@@ -1,0 +1,36 @@
+---
+# Only the keys below are ours. RomM writes the rest of config.yml itself (the
+# web UI saves platform bindings and exclusions there) and keeps netplay when
+# it does, so read, merge, and write back only when something differs.
+- name: Read the RomM config file
+  ansible.builtin.slurp:
+    src: "{{ romm_config_file }}"
+  register: romm_config_raw
+
+- name: Work out the config with our settings merged in
+  ansible.builtin.set_fact:
+    romm_config_current: "{{ romm_config_now }}"
+    romm_config_wanted: >-
+      {{ romm_config_now | combine({'emulatorjs': {'netplay': {
+           'enabled': romm_netplay_enabled,
+           'ice_servers': romm_netplay_ice_servers}}}, recursive=true) }}
+  vars:
+    # An empty file (a fresh RomM) is None, not {}.
+    romm_config_now: "{{ (romm_config_raw.content | b64decode | from_yaml) or {} }}"
+
+- name: Write the settings into the RomM config
+  ansible.builtin.copy:
+    content: "{{ romm_config_wanted | to_nice_yaml(indent=2) }}"
+    dest: "{{ romm_config_file }}"
+    owner: "{{ romm_uid }}"
+    group: "{{ romm_uid }}"
+    mode: "0644"
+  when: romm_config_wanted != romm_config_current
+  notify: Restart RomM
+
+# Owned by root, RomM cannot save a setting from its own UI.
+- name: Let RomM write its own config
+  ansible.builtin.file:
+    path: "{{ romm_config_file }}"
+    owner: "{{ romm_uid }}"
+    group: "{{ romm_uid }}"

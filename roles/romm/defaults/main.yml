@@ -1,0 +1,13 @@
+---
+romm_config_file: /opt/containers/data/romm/config/config.yml
+romm_container: romm
+# RomM runs as this uid and rewrites config.yml when settings change in its UI.
+romm_uid: 1000
+
+# Netplay in the browser (EmulatorJS): one player opens a room, the others
+# join from their own browser. On the LAN the browsers find each other by
+# their own address; the STUN server only helps when that fails (tailnet,
+# VPN). STUN sees nothing but the public address.
+romm_netplay_enabled: true
+romm_netplay_ice_servers:
+  - urls: "stun:stun.cloudflare.com:3478"

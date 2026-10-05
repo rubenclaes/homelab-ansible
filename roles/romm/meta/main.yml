@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  role_name: romm
+  author: rubenclaes
+  description: >-
+    Sets the RomM settings that live in its config.yml (netplay), merged into
+    what RomM and its web UI already wrote there.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+
+dependencies: []
