@@ -26,14 +26,15 @@ docker_stacks_list:
       - { path: /opt/containers/data/romm/redis-data, owner: 1000 }
       - { path: /mnt/ssdnas/Games, owner: 1000 }
   # copyparty (files.neodata.be): de gedeelde map voor LAN parties. Draait als
-  # uid 1000; de bestanden op de NFS-share, zijn index lokaal.
+  # uid 1000; de bestanden op de eigen NVMe-schijf (docker_stacks_local_disks),
+  # zijn index in /opt/containers/data.
   - name: files
     path: files
     desc: "copyparty — gedeelde map in de browser, voor LAN parties"
     dirs:
       - { path: /opt/containers/data/files/hist, owner: 1000 }
-      - { path: /mnt/ssdnas/Games/lan, owner: 1000 }
-      - { path: /mnt/ssdnas/Games/lan/installers, owner: 1000 }
+      - { path: /srv/files/share, owner: 1000 }
+      - { path: /srv/files/share/installers, owner: 1000 }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
@@ -77,6 +78,13 @@ docker_stacks_wait_for_mounts:
   - /mnt/ssdnas
   - /mnt/media01
   - /mnt/faststore
+  - /srv/files
+
+# De tweede schijf van deze VM (scsi1, 300 GB op de NVMe van pve01, buiten de
+# back-up; tofu/proxmox/vms.tf): de gedeelde map van copyparty. Via by-id, want
+# sinds die schijf erbij kwam heet hij sda en de systeemschijf sdb.
+docker_stacks_local_disks:
+  - { dev: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1, path: /srv/files }
 
 # Poorten die alleen Caddy mag bereiken: hun login is forward-auth in Caddy
 # (`auth:` in caddy_sites), en die mag je niet omzeilen door rechtstreeks naar

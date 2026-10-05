@@ -25,6 +25,27 @@
   loop_control:
     label: "{{ item.path }}"
 
+# force is off: a disk that already has a filesystem is left alone, so a
+# mistyped dev cannot wipe data. Only an empty disk gets one.
+- name: Make a filesystem on empty local data disks
+  community.general.filesystem:
+    dev: "{{ item.dev }}"
+    fstype: ext4
+  loop: "{{ docker_stacks_local_disks }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Mount the local data disks
+  ansible.posix.mount:
+    src: "{{ item.dev }}"
+    path: "{{ item.path }}"
+    fstype: ext4
+    opts: defaults,discard
+    state: mounted
+  loop: "{{ docker_stacks_local_disks }}"
+  loop_control:
+    label: "{{ item.path }}"
+
 - name: Verify mount units exist # noqa: command-instead-of-module
   ansible.builtin.command: systemctl show -p LoadState --value {{ item.strip('/') | replace('/', '-') }}.mount
   loop: "{{ docker_stacks_wait_for_mounts }}"

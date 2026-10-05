@@ -230,6 +230,20 @@ resource "proxmox_virtual_environment_vm" "docker" {
     ssd          = true
   }
 
+  # De gedeelde map van copyparty (files.neodata.be): op de NVMe van pve01, zodat
+  # de schijf nooit de grens is, alleen het netwerk. Weggooibaar spul van LAN
+  # parties, dus buiten de back-up: backup = false hier, en pbs_client neemt
+  # alleen /opt/containers/data. Gemount op /srv/files door roles/docker_stacks
+  # (docker_stacks_local_disks).
+  disk {
+    interface    = "scsi1"
+    datastore_id = "vm-hdd"
+    size         = 300
+    discard      = "on"
+    ssd          = true
+    backup       = false
+  }
+
   network_device {
     bridge      = local.guest_network.bridge
     model       = "virtio"

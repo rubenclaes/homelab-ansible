@@ -31,6 +31,10 @@ docker_stacks_docker_cli: ~
 
 docker_stacks_wait_for_mounts: []
 docker_stacks_nfs_mounts: []
+# Extra local disks for stack data: [{dev, path}]. dev is a stable path
+# (/dev/disk/by-id/...): sdX names shift when a disk is added. The role makes
+# an ext4 filesystem only on a disk that has none, and mounts it on path.
+docker_stacks_local_disks: []
 
 # Published ports that only the reverse proxy may reach, because their login is
 # forward-auth in Caddy. Empty = no firewall rules at all.

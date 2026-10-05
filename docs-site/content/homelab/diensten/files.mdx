@@ -36,17 +36,17 @@ installers, mods en maps die iedereen nodig heeft in `installers/`.
 
 ## Een bestand van je laptop erin
 
-In de browser slepen. Of vanaf de terminal, rechtstreeks op de share:
+In de browser slepen. Of vanaf de terminal, rechtstreeks op de schijf:
 
 ```bash filename="laptop"
-scp mod.zip docker:/mnt/ssdnas/Games/lan/installers/
+scp mod.zip docker:/srv/files/share/installers/
 ```
 
 ## Goed om te weten
 
 | Wat | Waar |
 | --- | --- |
-| de bestanden | `/mnt/ssdnas/Games/lan` (NFS van de Mac mini), geen back-up |
+| de bestanden | `/srv/files/share` op `docker`: een eigen schijf van 300 GB op de NVMe van pve01, geen back-up |
 | de index (zoeken) | `/opt/containers/data/files/hist` op `docker` |
 | de rechten | `copyparty.conf` in `containers/stacks/files/` |
 
@@ -57,6 +57,15 @@ je naam en groepen mee als headers. copyparty gelooft die headers alleen van
 Caddy (`xff-src`), en de firewall op `docker` laat poort 3923 ook alleen van
 Caddy toe (`docker_stacks_proxy_only_ports`). Wie zelf zo'n header meestuurt,
 komt er dus niet mee binnen.
+
+### Waarom een eigen schijf
+
+Eerst stond de map op de "SSD Nas" van de Mac mini. Dat is een externe harde
+schijf achter NFS: ongeveer 85 MB/s lezen, voor iedereen samen. De NVMe van
+pve01 haalt meer dan 1 GB/s, dus nu is alleen het netwerk de grens: 1 Gbit per
+vriend met een kabel, 2,5 Gbit voor pve01 in totaal. De schijf heet `scsi1` in
+`tofu/proxmox/vms.tf` (`backup = false`) en wordt op `/srv/files` gemount door
+`docker_stacks_local_disks`; uploads stoppen als er nog 5 GB vrij is.
 
 ### Waarom PairDrop niet volstaat
 
