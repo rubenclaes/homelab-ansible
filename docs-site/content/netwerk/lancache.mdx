@@ -37,22 +37,18 @@ want die onthoudt het oude adres.
 
 ## Vooraf vullen
 
-De avond voor de party: zet de Steam-games die jullie spelen al in de cache.
-Dan krijgt ook de eerste vriend ze aan LAN-snelheid. Reken op 30 à 45 minuten
-per 100 GB.
+Zet de games de avond voor de party al in de cache. Dan is ook de eerste vriend
+meteen klaar.
 
 <Steps>
 
-#### Eén keer: log in en kies de games
+#### Kies de games (één keer)
 
 ```bash filename="laptop"
 ssh -t docker 'sudo install -d -m 700 /opt/containers/data/steamprefill && sudo docker run -it --rm --dns 192.168.0.29 -v /opt/containers/data/steamprefill:/Config tpill90/steam-lancache-prefill:v3.7.2 select-apps'
 ```
 
-Log in met je Steam-account (wachtwoord en de code van Steam Guard), en vink
-de games aan. Vraagt hij op het einde of hij meteen moet vullen: zeg nee, dat
-doet de volgende stap (met LANCache aan). Je keuze aanpassen: hetzelfde
-commando opnieuw.
+Log in met Steam en vink de games aan. Vraagt hij "prefill now?": zeg **nee**.
 
 #### Vul de cache
 
@@ -60,11 +56,14 @@ commando opnieuw.
 ansible-playbook playbooks/lancache-prefill.yml
 ```
 
-Zet LANCache aan, haalt elke gekozen game één keer door de cache, en zet hem
-weer uit. Met `-e lancache_after=on` blijft hij aan, voor als de party meteen
-begint. Een game die al in de cache zit en niet veranderd is, slaat hij over.
+Duurt ongeveer 40 minuten per 100 GB. LANCache gaat vanzelf aan en weer uit.
 
 </Steps>
+
+| Wil je | Zet erachter |
+| --- | --- |
+| dat LANCache daarna aan blijft | `-e lancache_after=on` |
+| ook de Mac-versie (standaard alleen Windows) | `-e prefill_os=windows,macos` |
 
 ## Uitzetten
 

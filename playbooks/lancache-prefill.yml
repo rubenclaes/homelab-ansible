@@ -4,6 +4,10 @@
 #
 #   ansible-playbook playbooks/lancache-prefill.yml
 #   ansible-playbook playbooks/lancache-prefill.yml -e lancache_after=on   # laat hem aan
+#   ansible-playbook playbooks/lancache-prefill.yml -e prefill_os=windows,macos
+#
+# Standaard alleen de Windows-versie van elke game: wat de vrienden draaien.
+# Wie op een Mac speelt (of test), zet macos erbij.
 #
 # LANCache aan, SteamPrefill haalt elke gekozen game één keer door de cache,
 # LANCache weer uit (of aan, met lancache_after=on). Faalt de prefill, dan
@@ -62,22 +66,19 @@
     prefill_config: /opt/containers/data/steamprefill
     prefill_image: tpill90/steam-lancache-prefill:v3.7.2@sha256:4c940d040ef422abec322a7b5afabe4adcf052f62d39eca5c2d336ffab0eaccc
     prefill_dns: "{{ hostvars['adguard']['ansible_host'] }}"
+    prefill_os: windows
   tasks:
     # async: honderden GB duren uren, en een SSH-sessie die zo lang een
     # commando vasthoudt, breekt vroeg of laat.
     - name: Run SteamPrefill
+      # --os wil elk systeem als eigen argument (--os windows macos), dus
+      # prefill_os wordt op de komma gesplitst.
       ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - --dns
-          - "{{ prefill_dns }}"
-          - --volume
-          - "{{ prefill_config }}:/Config"
-          - "{{ prefill_image }}"
-          - prefill
-          - --no-ansi
+        argv: >-
+          {{ ['docker', 'run', '--rm', '--dns', prefill_dns,
+              '--volume', prefill_config ~ ':/Config', prefill_image,
+              'prefill', '--os'] + (prefill_os | split(',') | map('trim') | list)
+             + ['--no-ansi'] }}
       register: prefill_run
       async: 43200
       poll: 30
