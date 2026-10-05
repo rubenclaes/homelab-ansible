@@ -14,6 +14,17 @@ docker_stacks_list:
     desc: "Outline — wiki voor het gezin, inloggen via Pocket ID"
     dirs:
       - { path: /opt/containers/data/outline/data, owner: 1001 }
+  # RomM draait als uid 1000. De ROMs staan op de NFS-share; die mapt alles
+  # al naar 1000, maar de map moet er zijn vóór de stack opkomt.
+  - name: romm
+    path: romm
+    desc: "RomM — retro-games, spelen in de browser, inloggen via Pocket ID"
+    dirs:
+      - { path: /opt/containers/data/romm/resources, owner: 1000 }
+      - { path: /opt/containers/data/romm/assets, owner: 1000 }
+      - { path: /opt/containers/data/romm/config, owner: 1000 }
+      - { path: /opt/containers/data/romm/redis-data, owner: 1000 }
+      - { path: /mnt/ssdnas/Games, owner: 1000 }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
@@ -184,6 +195,9 @@ pbs_client_excludes:
   - /immich/model-cache
   - /grimmory/mariadb
   - /outline/postgres
+  - /romm/mariadb
+  # Cache van RomM's taken; komt vanzelf terug.
+  - /romm/redis-data
 pbs_client_extra_archives:
   # Alleen de originelen; thumbs en video's maakt Immich opnieuw, en zijn
   # eigen DB-back-ups vervangt de dump hieronder.
@@ -204,6 +218,10 @@ pbs_client_dumps:
       'mariadb-dump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction "$MYSQL_DATABASE"'
   - name: outline
     command: docker exec outline-postgres pg_dump -U outline outline
+  - name: romm
+    command: >-
+      docker exec romm-db sh -c
+      'mariadb-dump -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" --single-transaction "$MARIADB_DATABASE"'
 pbs_client_schedule: "*-*-* 02:00:00"
 pbs_client_ntfy_url: http://192.168.0.32/homelab
 pbs_client_ntfy_token: "{{ hostvars['pve01'].vault_ntfy_pbs_token }}"

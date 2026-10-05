@@ -121,11 +121,11 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
     Shelfmark en Vaultwarden `gezin`. Elke nieuwe client krijgt
     `allowed_user_groups` volgens deze lijst:
     - `admin`: Proxmox, PBS, Semaphore, Grafana, Prometheus,
-      code-server, de *arr-apps, qBittorrent, en de onboarding in NeoGate.
+      code-server, de *arr-apps, qBittorrent, RomM, en de onboarding in NeoGate.
     - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
-      Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools.
-    - `familie`: Immich, Audiobookshelf, Grimmory, Outline.
-    - Geen `gast` tot er echt een is.
+      Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools, RomM.
+    - `familie`: Immich, Audiobookshelf, Grimmory, Outline, RomM.
+    - `gast` (op bezoek): RomM. Sinds 05-10 in `tofu/pocketid/groups.tf`.
   - [ ] Rollen volgen uit de groep (groups-claim), nooit met de hand per app.
   - [ ] Eerst de mailadressen per persoon gelijkzetten in de apps, anders
         komt er een tweede account naast het bestaande.

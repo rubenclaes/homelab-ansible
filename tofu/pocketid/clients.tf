@@ -275,3 +275,29 @@ output "vaultwarden_client_secret" {
   value     = pocketid_client.vaultwarden.client_secret
   sensitive = true
 }
+
+# RomM: OIDC_* in de compose van de containers-repo (stacks/romm), het secret
+# in romm.env als ROMM_OIDC_CLIENT_SECRET. RomM leest de groups-claim: `admin`
+# wordt admin in RomM, de rest een gewone gebruiker. RomM stuurt altijd PKCE.
+resource "pocketid_client" "romm" {
+  name       = "RomM"
+  client_id  = "romm"
+  launch_url = "https://games.neodata.be"
+
+  callback_urls = ["https://games.neodata.be/api/oauth/openid"]
+
+  is_public    = false
+  pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.admin.id,
+    pocketid_group.gezin.id,
+    pocketid_group.familie.id,
+    pocketid_group.gast.id,
+  ]
+}
+
+output "romm_client_secret" {
+  value     = pocketid_client.romm.client_secret
+  sensitive = true
+}

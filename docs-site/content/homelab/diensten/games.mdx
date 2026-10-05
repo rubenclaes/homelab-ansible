@@ -1,0 +1,77 @@
+---
+title: games
+---
+
+import { Steps } from 'nextra/components'
+
+# games
+
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Je retro-games op één plek, met hoesjes en info, en spelen in de browser.
+Inloggen gaat via [Pocket ID](https://id.neodata.be): `admin`, `gezin`,
+`familie` en `gast` mogen erin. Wie in `admin` zit, is ook admin in RomM; de
+rest is een gewone gebruiker.
+
+## Een game toevoegen
+
+<Steps>
+
+#### Zet het bestand in de map van zijn console
+
+```bash filename="laptop"
+scp "Super Mario World.sfc" docker:/mnt/ssdnas/Games/roms/snes/
+```
+
+Eén map per console onder `roms/`, met de naam die RomM kent: `snes`, `gba`,
+`n64`, `psx`, `megadrive`, ... Op de Mac mini is het
+`/Volumes/SSD Nas/Games/roms/<console>/`.
+
+#### Wacht even
+
+RomM ziet nieuwe bestanden zelf en scant ze binnen vijf minuten, met hoesje en
+info. Sneller: in RomM **Scan** → de console → **Scan**.
+
+</Steps>
+
+Sommige consoles (PlayStation, Game Boy Advance) hebben een BIOS nodig om in de
+browser te spelen. Die gaat in `Games/bios/<console>/`.
+
+## Iemand toegang geven
+
+Zet de persoon in Pocket ID in een van de vier groepen, via
+[NeoGate](/mensen/toegang/). Voor een gast: de groep `gast`. Die mag alleen in
+RomM, en kan er spelen en downloaden, niets weggooien.
+
+## Goed om te weten
+
+### Eerste keer: de lokale admin
+
+Bij de eerste start vraagt RomM een lokaal admin-account. Dat is de
+noodtoegang als Pocket ID plat ligt: wachtwoord in Vaultwarden. Gewoon
+inloggen doe je met de knop **Pocket ID**.
+
+### Waar wat staat
+
+| Wat | Waar | Back-up |
+| --- | --- | --- |
+| de ROMs | `/mnt/ssdnas/Games` (NFS van de Mac mini) | nee: groot, en opnieuw op te halen |
+| saves, states, hoesjes, config | `/opt/containers/data/romm` op `docker` | ja, elke nacht naar PBS en R2 |
+| de database | dump in `_dumps/romm.sql.gz` | ja, zelfde weg |
+
+De saves zijn het enige dat je echt kwijt kan zijn. Daarom staan ze lokaal en
+niet bij de ROMs.
+
+### Rollen komen uit Pocket ID
+
+RomM leest bij elke login de groepen. Zet je iemand in `admin`, dan is hij bij
+de volgende login admin in RomM; haal je hem eruit, dan niet meer. Wat een
+gewone gebruiker mag, stel je in RomM in bij de standaard-rechtengroep.
+
+### Hoesjes zonder sleutel
+
+De info komt nu van Hasheous, LaunchBox en PlayMatch: die vragen geen
+account. Mist er veel, dan kan IGDB (een gratis Twitch-sleutel) of
+ScreenScraper erbij, als `IGDB_CLIENT_ID` en `IGDB_CLIENT_SECRET` in
+`files/env/romm.env` en de compose in `containers/stacks/romm/`.

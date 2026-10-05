@@ -33,3 +33,10 @@ resource "pocketid_group" "familie" {
   name          = "familie"
   friendly_name = "Familie"
 }
+
+# Wie op bezoek komt en een paar dingen mag: minder dan familie. Alleen apps
+# waar een gast niets kan stukmaken laten deze groep toe (RomM).
+resource "pocketid_group" "gast" {
+  name          = "gast"
+  friendly_name = "Gast"
+}
