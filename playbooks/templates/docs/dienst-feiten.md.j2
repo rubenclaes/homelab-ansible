@@ -11,11 +11,22 @@
 {# proxmox_all_* en proxmox_pve01_* zijn artefacten van de dynamische Proxmox-
    inventory en zeggen een lezer niets; de echte groep heet gewoon `proxmox`. -#}
 {% set grps = h.group_names | default([]) | reject('match', 'proxmox_') | sort | list -%}
+{# Login: `auth:` (één groep of een lijst) is de login van Caddy via
+   oauth2-proxy en Pocket ID. Zonder `auth:` beslist de app zelf: een eigen
+   login, OIDC, of niets. -#}
+{% set auth_groups = [] -%}
+{% for g in ([s.auth] | flatten if s.auth is defined else []) %}{% set _ = auth_groups.append('`' ~ g ~ '`') %}{% endfor -%}
+{% set auth_open = [] -%}
+{% for p in s.auth_skip | default([]) %}{% set _ = auth_open.append('`' ~ p ~ '`') %}{% endfor -%}
+{% set login = ('Pocket ID via Caddy, voor ' ~ (auth_groups | join(', '))
+               ~ ((' · zonder login: ' ~ (auth_open | join(', '))) if auth_open else ''))
+              if auth_groups else 'door de app zelf' -%}
 {{ s.desc | default('Niet gedocumenteerd.') }}
 
 | Eigenschap | Waarde |
 | --- | --- |
 | URL | [{{ s.name }}.{{ caddy_domain }}](https://{{ s.name }}.{{ caddy_domain }}) |
+| Login | {{ login }} |
 | Upstream | `{{ up }}` |
 | Host | {{ ('[' ~ s.host ~ '](/homelab/machines/#' ~ s.host ~ ')') if s.host is defined and s.host in hostvars else ('`' ~ s.host ~ '` (buiten de inventory)' if s.host is defined else '— (vaste upstream)') }} |
 | Poort | {{ ('`' ~ s.port ~ '`') if s.port is defined else '—' }} |

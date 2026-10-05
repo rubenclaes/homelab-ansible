@@ -63,7 +63,7 @@ Hier geef je mensen toegang: NeoGate zet ze in Pocket ID, deelt Plex en nodigt
 uit voor Tailscale en Vaultwarden, en sluit dat alles weer af. Zie
 [Toegang geven](/mensen/toegang/).
 
-**OCI-container**: een container op pve01 gemaakt uit een Docker-image, zonder Docker erin. Hier alleen `ntfy`.
+**OCI-container**: een container op pve01 gemaakt uit een Docker-image, zonder Docker erin. Hier `ntfy` en `lancache`.
 
 **OIDC**: de standaard waarmee een app het inloggen aan Pocket ID overlaat.
 Elke app heeft daarvoor een *client* in `tofu/pocketid/clients.tf`.
@@ -96,6 +96,11 @@ zet, zoals je met de hand `apt install` zou doen. Geen Docker.
 **Route**: één regel in `caddy_sites` die zegt: "stuur `naam.neodata.be` door
 naar deze machine op deze poort".
 
+**SSD Nas**: de externe schijf aan de Mac mini (`/Volumes/SSD Nas`, op
+`docker` gemount als `/mnt/ssdnas`). Ondanks de naam een harde schijf, geen
+SSD: ongeveer 85 MB/s lezen en 60 MB/s schrijven. Goed voor ROMs, boeken en
+muziek; niet voor iets dat snel moet.
+
 **Stack**: één Docker-app: een map in de `containers`-repo met een
 `docker-compose.yml` en een `.env`.
 
@@ -119,6 +124,11 @@ stilzet, mét reden.
 er twee: `infra` en `stacks`.
 
 **VM** of **virtuele machine**: een volledige machine op pve01, met een eigen kernel en besturingssysteem. Zwaarder dan een container. Commando's: `qm`.
+
+**vm-hdd**: de ZFS-pool op pve01 waar de VM's en containers op staan.
+Ondanks de naam geen harde schijf maar een NVMe-SSD (Corsair MP600 Core,
+1,8 TB): meer dan 1 GB/s. Hier staan ook de cache van LANCache en de gedeelde
+map van copyparty.
 
 **vmid**: het unieke nummer van een guest in Proxmox (bv. `107` is `adguard`).
 
