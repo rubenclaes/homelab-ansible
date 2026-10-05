@@ -157,3 +157,40 @@
           {{ dns_smoketest_public_name }}. The rewrites are fine; the upstream is not.
         success_msg: "{{ dns_smoketest_public_name }} resolves, so forwarding works"
         quiet: true
+
+    # LANCache staat alleen tijdens een party aan (playbooks/lancache.yml).
+    # Wijst DNS naar hem terwijl hij niet antwoordt - pve01 herstart tijdens
+    # een party - dan downloadt niemand in huis nog een game.
+    - name: Ask AdGuard where Steam downloads go
+      ansible.builtin.command:
+        argv: [dig, +short, +time=3, +tries=1, "@{{ dns_smoketest_server }}", lancache.steamcontent.com, A]
+      register: dns_smoketest_lancache
+      failed_when: false
+      changed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+
+    - name: Ask LANCache whether it answers
+      ansible.builtin.uri:
+        url: "http://{{ lancache_ip }}/lancache-heartbeat"
+        status_code: 204
+        timeout: 5
+      register: dns_smoketest_lancache_beat
+      failed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+      when: lancache_ip in dns_smoketest_lancache.stdout_lines
+
+    - name: Require LANCache to answer when DNS points at it
+      ansible.builtin.assert:
+        that: >-
+          lancache_ip not in dns_smoketest_lancache.stdout_lines
+          or dns_smoketest_lancache_beat.status | default(0) == 204
+        fail_msg: >-
+          AdGuard stuurt game-downloads naar LANCache ({{ lancache_ip }}), maar die
+          antwoordt niet. Draai ansible-playbook playbooks/lancache.yml -e lancache=off
+          (of =on als de party nog bezig is).
+        success_msg: LANCache staat uit, of staat aan en antwoordt
+        quiet: true

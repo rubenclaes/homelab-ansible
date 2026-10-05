@@ -1,0 +1,72 @@
+---
+# Starts or stops the lancache container over the Proxmox API, with the
+# automation token, from the controller. Runs against pve01.
+- name: Read the state of lancache
+  ansible.builtin.uri:
+    url: "{{ lancache_pve_api }}/nodes/{{ lancache_pve_node }}/lxc/{{ lancache_vmid }}/status/current"
+    headers: "{{ lancache_pve_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: lancache_power_before
+  check_mode: false
+  no_log: true
+
+# shutdown, not stop: nginx gets to close its cache files. forceStop after
+# 30 s, so a hung container still goes down.
+- name: Start or shut down lancache, to {{ lancache }}
+  ansible.builtin.uri:
+    url: >-
+      {{ lancache_pve_api }}/nodes/{{ lancache_pve_node }}/lxc/{{ lancache_vmid }}/status/{{
+         'start' if lancache == 'on' else 'shutdown?forceStop=1&timeout=30' }}
+    method: POST
+    headers: "{{ lancache_pve_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: lancache_power_change
+  when: (lancache == 'on') != (lancache_power_before.json.data.status == 'running')
+  changed_when: true
+  no_log: true
+
+# uri skips its writes under --check, so this is all a dry run shows.
+- name: Report what a real run would do to lancache
+  ansible.builtin.debug:
+    msg: "lancache would be {{ 'started' if lancache == 'on' else 'shut down' }}"
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - (lancache == 'on') != (lancache_power_before.json.data.status == 'running')
+
+- name: Wait until lancache is {{ 'running' if lancache == 'on' else 'stopped' }}
+  ansible.builtin.uri:
+    url: "{{ lancache_pve_api }}/nodes/{{ lancache_pve_node }}/lxc/{{ lancache_vmid }}/status/current"
+    headers: "{{ lancache_pve_headers }}"
+    validate_certs: false
+  delegate_to: localhost
+  become: false
+  register: lancache_power_after
+  until: lancache_power_after.json.data.status == ('running' if lancache == 'on' else 'stopped')
+  retries: 24
+  delay: 5
+  when:
+    - lancache_power_change is not skipped
+    - not ansible_check_mode
+  no_log: true
+
+# Running is not answering: the entrypoint clones cache-domains and writes the
+# nginx config first. Only when this answers may DNS point here.
+- name: Wait for lancache to answer
+  ansible.builtin.uri:
+    url: "{{ lancache_heartbeat_url }}"
+    status_code: 204
+    timeout: 5
+  delegate_to: localhost
+  become: false
+  register: lancache_heartbeat
+  until: lancache_heartbeat.status == 204
+  retries: 36
+  delay: 5
+  when:
+    - lancache == 'on'
+    - not ansible_check_mode

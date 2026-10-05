@@ -1,0 +1,6 @@
+---
+# LANCache (ct 110) staat meestal uit, en een gestopte container krijgt van
+# de Proxmox-inventory geen adres. Zonder dit zou lancache.home.arpa alleen
+# bestaan als hij draait, en de smoketest rood worden zodra je hem aanzet.
+# Het adres komt uit zijn entry in pve_oci_lxcs (group_vars/all/lancache.yml).
+ansible_host: "{{ lancache_ip }}"

@@ -1,0 +1,59 @@
+---
+# LANCache aan of uit, voor een LAN party.
+#
+#   ansible-playbook playbooks/lancache.yml -e lancache=on
+#   ansible-playbook playbooks/lancache.yml -e lancache=off
+#
+# Aan: eerst de container (ct 110 op pve01), en pas als die antwoordt de
+# omleiding in AdGuard. Uit: eerst de omleiding weg, dan de container. In die
+# volgorde wijst DNS nooit naar een cache die er niet is: dan zou niemand in
+# huis nog een game kunnen downloaden.
+#
+# De container staat met opzet uit (onboot: false in pve_oci_lxcs). Herstart
+# pve01 tijdens een party, dan staat hij uit en wijst DNS nog naar hem:
+# draai dan gewoon opnieuw `on`, of `off`. smoketest.yml wordt in dat geval rood.
+#
+# In site.yml: nee. Aan of uit is een keuze van het moment, geen gewenste
+# toestand.
+
+- name: Check the request
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Require -e lancache=on or -e lancache=off
+      ansible.builtin.assert:
+        that: lancache | default('') in ['on', 'off']
+        fail_msg: "Zeg wat je wil: -e lancache=on of -e lancache=off. Er is niets veranderd."
+        quiet: true
+
+- name: Start LANCache
+  hosts: pve01
+  gather_facts: false
+  tags: [power]
+  tasks:
+    - name: Start the container and wait until it answers
+      ansible.builtin.import_role:
+        name: lancache
+        tasks_from: power.yml
+      when: lancache == 'on'
+
+- name: Point or unpoint the downloads in AdGuard
+  hosts: adguard
+  gather_facts: false
+  tags: [dns]
+  tasks:
+    - name: Set the rewrites
+      ansible.builtin.import_role:
+        name: lancache
+        tasks_from: dns.yml
+
+- name: Stop LANCache
+  hosts: pve01
+  gather_facts: false
+  tags: [power]
+  tasks:
+    - name: Shut the container down
+      ansible.builtin.import_role:
+        name: lancache
+        tasks_from: power.yml
+      when: lancache == 'off'

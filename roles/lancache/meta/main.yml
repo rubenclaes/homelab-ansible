@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: lancache
+  author: rubenclaes
+  description: >-
+    Turns LANCache on or off: starts or stops its OCI container on Proxmox,
+    and points the game download domains at it with AdGuard rewrites.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+
+# Composed by playbooks/lancache.yml, which also decides the order.
+dependencies: []

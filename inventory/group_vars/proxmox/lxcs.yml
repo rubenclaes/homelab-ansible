@@ -98,7 +98,8 @@ pve_oci_lxcs:
     cores: 2
     memory: 2048
     disk: { storage: vm-hdd, size: 4 }
-    ip: 192.168.0.33/24
+    # Het adres zelf staat in group_vars/all/lancache.yml.
+    ip: "{{ lancache_ip }}/24"
     hwaddr: BC:24:11:97:37:2A
     port: 80
     onboot: false

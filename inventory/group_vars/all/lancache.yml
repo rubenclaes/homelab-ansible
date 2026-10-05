@@ -1,7 +1,7 @@
 ---
-# Adres en vmid van LANCache, voor roles/lancache en smoketest.yml. Afgeleid
-# van zijn entry in pve_oci_lxcs (group_vars/proxmox/lxcs.yml), zodat ze
-# maar op één plek staan.
-lancache_oci: "{{ hostvars['pve01'].pve_oci_lxcs | selectattr('hostname', 'eq', 'lancache') | first }}"
-lancache_ip: "{{ lancache_oci.ip | split('/') | first }}"
-lancache_vmid: "{{ lancache_oci.vmid | int }}"
+# Het adres van LANCache (ct 110), voor zijn entry in pve_oci_lxcs
+# (group_vars/proxmox/lxcs.yml), zijn host_vars, roles/lancache en
+# smoketest.yml. Hier en niet in die entry: een waarde die via
+# hostvars['pve01'] wordt afgeleid, kan Ansible niet oplossen als een andere
+# host hem via hostvars['lancache'] opvraagt (de AdGuard-rol, de smoketest).
+lancache_ip: 192.168.0.33

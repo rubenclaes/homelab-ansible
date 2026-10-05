@@ -1,0 +1,95 @@
+---
+# Points the game download domains at lancache, or stops doing so. Runs
+# against adguard. Only rewrites of a domain in lancache_domains with
+# lancache_ip as answer belong to lancache; anything else is left alone, and
+# roles/adguard leaves these alone in turn (it owns only its own zone).
+- name: Find the AdGuard API
+  ansible.builtin.include_role:
+    name: adguard
+    tasks_from: api.yml
+    public: true
+
+# The guard against the worst case: DNS sends every download to a cache that
+# is not there, and nothing in the house can download a game.
+- name: Ask lancache whether it answers
+  ansible.builtin.uri:
+    url: "{{ lancache_heartbeat_url }}"
+    status_code: 204
+    timeout: 5
+  delegate_to: localhost
+  become: false
+  register: lancache_dns_heartbeat
+  failed_when: false
+  check_mode: false
+  when: lancache == 'on'
+
+- name: Refuse to point DNS at a lancache that does not answer
+  ansible.builtin.assert:
+    that: lancache_dns_heartbeat.status | default(0) == 204
+    fail_msg: >-
+      lancache ({{ lancache_ip }}) antwoordt niet. De omleiding in AdGuard is
+      niet gezet. Draai het hele playbook, niet alleen --tags dns:
+      ansible-playbook playbooks/lancache.yml -e lancache=on
+    quiet: true
+  when:
+    - lancache == 'on'
+    - not ansible_check_mode
+
+- name: Read the current rewrite list
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/rewrite/list"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+    return_content: true
+  register: lancache_rewrite_list
+  check_mode: false
+  no_log: true
+
+- name: Work out what differs
+  ansible.builtin.set_fact:
+    lancache_rewrites_add: "{{ lancache_domains | difference(lancache_present) if lancache == 'on' else [] }}"
+    lancache_rewrites_remove: "{{ lancache_present if lancache == 'off' else [] }}"
+  vars:
+    lancache_present: >-
+      {{ lancache_rewrite_list.json | selectattr('answer', 'eq', lancache_ip)
+         | selectattr('domain', 'in', lancache_domains) | map(attribute='domain') | list }}
+
+- name: Report the rewrites that will change
+  ansible.builtin.debug:
+    msg:
+      add: "{{ lancache_rewrites_add | length }} naar {{ lancache_ip }}"
+      remove: "{{ lancache_rewrites_remove | length }}"
+  changed_when: true
+  when: lancache_rewrites_add | length > 0 or lancache_rewrites_remove | length > 0
+
+- name: Point the download domains at lancache
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/rewrite/add"
+    method: POST
+    body_format: json
+    body:
+      domain: "{{ item }}"
+      answer: "{{ lancache_ip }}"
+      enabled: true
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ lancache_rewrites_add }}"
+  changed_when: true
+  no_log: true
+
+- name: Stop pointing them at lancache
+  ansible.builtin.uri:
+    url: "{{ adguard_api_url }}/control/rewrite/delete"
+    method: POST
+    body_format: json
+    body:
+      domain: "{{ item }}"
+      answer: "{{ lancache_ip }}"
+    url_username: "{{ adguard_api_user }}"
+    url_password: "{{ adguard_api_password }}"
+    force_basic_auth: true
+  loop: "{{ lancache_rewrites_remove }}"
+  changed_when: true
+  no_log: true

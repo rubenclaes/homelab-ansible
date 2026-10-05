@@ -1,0 +1,100 @@
+---
+# on or off. No default: playbooks/lancache.yml requires -e lancache=...
+# lancache:
+
+lancache_pve_api: "https://{{ pve_api_host }}:8006/api2/json"
+lancache_pve_headers:
+  Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token_id }}={{ pve_api_token_secret }}"
+lancache_pve_node: pve01
+# From its entry in pve_oci_lxcs; only used in plays against pve01, where that
+# list is a plain group var.
+lancache_vmid: "{{ (pve_oci_lxcs | selectattr('hostname', 'eq', 'lancache') | first).vmid }}"
+
+# What lancache answers on when nginx is up (monolithic's generic config).
+lancache_heartbeat_url: "http://{{ lancache_ip }}/lancache-heartbeat"
+
+# The download domains that are pointed at lancache. From uklans/cache-domains
+# commit 1a3cbc75256f34a4cb1d98848db7c2715e17c6f3, games only: steam,
+# epicgames, blizzard, riot, origin, uplay, xboxlive, sony, nintendo. Copied
+# rather than fetched, so a run never depends on GitHub and a change shows up
+# in a diff. To update: take the same files at a newer commit.
+lancache_domains:
+  # steam
+  - lancache.steamcontent.com
+  # epicgames
+  - cdn.unrealengine.com
+  - cdn1.epicgames.com
+  - cdn1.unrealengine.com
+  - cdn2.epicgames.com
+  - cdn2.unrealengine.com
+  - cdn3.unrealengine.com
+  - cloudflare.epicgamescdn.com
+  - download.epicgames.com
+  - download2.epicgames.com
+  - download3.epicgames.com
+  - download4.epicgames.com
+  - egdownload.fastly-edge.com
+  - egs-cloudfront-chunks.epicgamescdn.com
+  - epicgames-download1.akamaized.net
+  - fastly-download.epicgames.com
+  # blizzard
+  - "*.cdn.blizzard.com"
+  - blizzard.vo.llnwd.net
+  - blzddist1-a.akamaihd.net
+  - blzddist2-a.akamaihd.net
+  - blzddist3-a.akamaihd.net
+  - cdn.blizzard.com
+  - dist.blizzard.com
+  - dist.blizzard.com.edgesuite.net
+  - edge.blizzard.top.comcast.net
+  - level3.blizzard.com
+  - nydus.battle.net
+  # riot
+  - "*.dyn.riotcdn.net"
+  - l3cdn.riotgames.com
+  - riotgamespatcher-a.akamaihd.net
+  - riotgamespatcher-a.akamaihd.net.edgesuite.net
+  - worldwide.l3cdn.riotgames.com
+  # origin
+  - cdn-patch.swtor.com
+  - lvlt.cdn.ea.com
+  - origin-a.akamaihd.net
+  # uplay
+  - "*.cdn.ubi.com"
+  # xboxlive
+  - assets1.xboxlive.com
+  - assets1.xboxlive.com.nsatc.net
+  - assets2.xboxlive.com
+  - d1.xboxlive.com
+  - xbox-mbr.xboxlive.com
+  - xvcf1.xboxlive.com
+  - xvcf2.xboxlive.com
+  # sony
+  - "*.gs2-ww-prod.psn.akadns.net"
+  - "*.gs2.sonycoment.loris-e.llnwd.net"
+  - "*.gs2.ww.prod.dl.playstation.net"
+  - "*.gs2.ww.prod.dl.playstation.net.edgesuite.net"
+  - gs-sec.ww.np.dl.playstation.net
+  - gs2-ww-prod.psn.akadns.net
+  - gs2.ww.prod.dl.playstation.net
+  - gs2.ww.prod.dl.playstation.net.edgesuite.net
+  - gst.prod.dl.playstation.net
+  - playstation4.sony.akadns.net
+  - psnobj.prod.dl.playstation.net
+  - sgst.prod.dl.playstation.net
+  - theia.dl.playstation.net
+  - tmdb.np.dl.playstation.net
+  - uef.np.dl.playstation.net
+  - vulcan.dl.playstation.net
+  # nintendo
+  - "*.hac.lp1.d4c.nintendo.net"
+  - "*.hac.lp1.eshop.nintendo.net"
+  - "*.wup.eshop.nintendo.net"
+  - "*.wup.shop.nintendo.net"
+  - ccs.cdn.wup.shop.nintendo.net.edgesuite.net
+  - ecs-lp1.hac.shop.nintendo.net
+  - geisha-wup.cdn.nintendo.net
+  - geisha-wup.cdn.nintendo.net.edgekey.net
+  - idbe-wup.cdn.nintendo.net
+  - idbe-wup.cdn.nintendo.net.edgekey.net
+  - receive-lp1.dg.srv.nintendo.net
