@@ -72,6 +72,7 @@ caddy_sites:
   - { name: books, host: docker, port: 6061, stack: media, desc: "Grimmory — bibliotheek voor e-books, strips en luisterboeken" }
   - { name: shelfmark, host: docker, port: 8087, stack: media, desc: "Shelfmark — zoekt boeken en legt ze in de bookdrop van Grimmory" }
   - { name: games, host: docker, port: 8090, stack: romm, desc: "RomM — retro-games, spelen in de browser" }
+  - { name: files, auth: [gezin, gast], host: docker, port: 3923, stack: files, desc: "copyparty — gedeelde map, vooral voor LAN parties" }
 
   # --- Mac mini ---
   - { name: plex, host: macmini, port: 32400, desc: "Plex — de hoofdtaak van de Mac mini" }

@@ -25,6 +25,15 @@ docker_stacks_list:
       - { path: /opt/containers/data/romm/config, owner: 1000 }
       - { path: /opt/containers/data/romm/redis-data, owner: 1000 }
       - { path: /mnt/ssdnas/Games, owner: 1000 }
+  # copyparty (files.neodata.be): de gedeelde map voor LAN parties. Draait als
+  # uid 1000; de bestanden op de NFS-share, zijn index lokaal.
+  - name: files
+    path: files
+    desc: "copyparty — gedeelde map in de browser, voor LAN parties"
+    dirs:
+      - { path: /opt/containers/data/files/hist, owner: 1000 }
+      - { path: /mnt/ssdnas/Games/lan, owner: 1000 }
+      - { path: /mnt/ssdnas/Games/lan/installers, owner: 1000 }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
@@ -85,6 +94,9 @@ docker_stacks_proxy_only_ports:
   - 9696 # prowlarr
   - 6767 # bazarr
   - 8443 # code-server
+  # copyparty gelooft de gebruiker en groepen in de headers alleen van Caddy;
+  # deze regel zorgt dat niemand anders er rechtstreeks bij kan.
+  - 3923 # copyparty
 docker_stacks_proxy_source: "{{ hostvars['caddy']['ansible_host'] }}"
 
 # Published ports that deliberately have no Caddy route, so the drift table in
