@@ -55,7 +55,7 @@ docker_stacks_nfs_mounts:
   # De backslash gaat dus eerst. Een waarde die hier al geescapet staat als
   # `SSD\040Nas` wordt daardoor `SSD\134040Nas`, en dat matcht nooit met wat
   # er in /etc/fstab staat. Gevolg tot 23-09: deze taak meldde `changed` bij
-  # elke droogloop, en de dagelijkse Drift check werd er rood van.
+  # elke dry run, en de dagelijkse Drift check werd er rood van.
   #
   # En het bleef niet bij ruis. Bij een ECHTE run schrijft de module die
   # dubbel geescapete waarde weg, en `\134040` decodeert naar een letterlijke
@@ -193,7 +193,7 @@ homepage_bookmarks:
 # De live-mappen van de databases gaan niet mee: een kopie van een draaiende
 # database kan stuk zijn. In de plaats komt een dump in _dumps/.
 #
-# Excludes zijn patronen vanaf de wortel van het archief, niet volledige
+# Excludes zijn patronen vanaf de root van het archief, niet volledige
 # paden, en gelden voor alle archieven van de snapshot.
 pbs_client_server: 192.168.0.181
 pbs_client_auth_id: "docker-data@pbs!backup"

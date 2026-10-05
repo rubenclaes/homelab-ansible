@@ -8,7 +8,7 @@
 
 # Opnieuw lezen, want templates.yml heeft er net misschien een paar
 # aangemaakt en die hebben pas sinds dat moment een id. Onder --check is er
-# niets aangemaakt, dus een nieuwe template krijgt in een droogloop ook nog
+# niets aangemaakt, dus een nieuwe template krijgt in een dry run ook nog
 # geen schema te zien. Dat klopt: die kan er nog niet zijn.
 - name: Re-read the templates now the missing ones exist
   ansible.builtin.uri:

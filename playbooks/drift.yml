@@ -5,7 +5,7 @@
 #   ansible-playbook playbooks/drift.yml -e drift_fail=true    # faalt bij drift
 #
 # Draait `site.yml --check --diff` en vat de uitkomst samen. Verandert zelf
-# niets; de droogloop eronder ook niet.
+# niets; de dry run eronder ook niet.
 #
 # Waarom dit bestaat: `site.yml --check --diff` geeft een scherm vol dat je
 # alleen leest als je er speciaal voor gaat zitten. Deze samenvatting past in
@@ -32,7 +32,7 @@
     drift_target: playbooks/site.yml
 
     # Leeg betekent: de hele estate. Gezet, dan gaat het als --limit mee naar
-    # de droogloop hieronder - en NIET naar dit playbook zelf, dat op
+    # de dry run hieronder - en NIET naar dit playbook zelf, dat op
     # localhost draait.
     #
     # Waarom dit bestaat: vanuit Semaphore hoort `mbp` er niet bij. Die host
@@ -48,11 +48,11 @@
         state: directory
         mode: "0755"
 
-    # chdir naar de repowortel: ansible.cfg wijst vault_identity_list naar het
+    # chdir naar de repo-root: ansible.cfg wijst vault_identity_list naar het
     # relatieve pad bin/vault-pass-client, en dat lost alleen vanaf daar op.
     # Zelfde reden als in new-service.yml.
     #
-    # failed_when: false, want een rode droogloop is een resultaat, geen fout
+    # failed_when: false, want een rode dry run is een resultaat, geen fout
     # van dit playbook. De samenvatting hieronder zegt het.
     - name: Run the converge as a dry run
       ansible.builtin.command:

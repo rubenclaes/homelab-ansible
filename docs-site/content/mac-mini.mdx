@@ -154,7 +154,7 @@ ansible-playbook playbooks/update.yml --limit mbp    # alleen je MacBook
 
 Dit doet `brew upgrade --formula`: alleen pakketten, geen apps.
 
-#### Wil je ook de apps: zet de cask-vlag aan
+#### Wil je ook de apps: zet de cask-flag aan
 
 ```bash filename="laptop"
 ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true

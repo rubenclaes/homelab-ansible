@@ -33,7 +33,7 @@ Tijden zijn lokale tijd (Europe/Brussels).
 
 | Template | Doet |
 | --- | --- |
-| Baseline (dry run) | `baseline.yml --check --diff`: droogloop, verandert niets |
+| Baseline (dry run) | `baseline.yml --check --diff`: verandert niets |
 | Caddy | `caddy.yml` |
 | Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
 
@@ -86,7 +86,7 @@ $EDITOR inventory/host_vars/semaphore/main.yml
 Laat de limits staan. Waarom: zie
 [De limits in de templates](#de-limits-in-de-templates).
 
-#### Probeer droog
+#### Probeer eerst een dry run
 
 ```bash filename="laptop"
 ansible-playbook playbooks/semaphore-templates.yml --check
@@ -126,7 +126,7 @@ een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
 | --- | --- |
 | templates aanmaken en bijwerken | templates verwijderen: wat je uit de lijst haalt, blijft in de UI staan, mét schema |
 | de cron zetten | een gepauzeerd schema weer aanzetten |
-| naam, playbook, argumenten, beschrijving | surveys, views, vaults en de vlaggen onder *Advanced* |
+| naam, playbook, argumenten, beschrijving | surveys, views, vaults en de flags onder *Advanced* |
 
 `site.yml` draait `semaphore-templates.yml` ook mee, maar alleen als je hem
 **met de hand en zonder limit** draait. De geplande `Site converge` slaat hem
@@ -208,7 +208,7 @@ zo'n bericht en krijg je niets.
   maakt een job niet rood, alleen stil.
 - **`drift_limit`** in plaats van `--limit` bij `Drift check` — `drift.yml`
   draait zelf op `localhost`; een `--limit` zou die play raken, niet de
-  droogloop eronder.
+  dry run eronder.
 
 ### Een schema herschrijft zichzelf niet
 

@@ -97,7 +97,7 @@ ansible-playbook playbooks/proxmox-datacenter.yml -e proxmox_datacenter_create=t
 ```
 
 Maakt `macmini-backup` en de twee back-upjobs uit
-`inventory/group_vars/proxmox/storage.yml` en `backup.yml`. Alleen hier de vlag
+`inventory/group_vars/proxmox/storage.yml` en `backup.yml`. Alleen hier de flag
 `-e proxmox_datacenter_create=true`, zie
 [waarom](#waarom-proxmox_datacenter_create-niet-standaard-aan-staat).
 
@@ -120,5 +120,5 @@ Klaar? Ga verder met [de machines](/proxmox/pve01-machines/).
 
 Op een gezonde node betekent ontbrekende opslag: "de inventory klopt niet". Op
 een herbouwde node: "de inventory is de waarheid, maak het aan". Alleen jij
-weet welke van de twee het is. Daarom zet je de vlag zelf, en alleen bij een
+weet welke van de twee het is. Daarom zet je de flag zelf, en alleen bij een
 herbouw.

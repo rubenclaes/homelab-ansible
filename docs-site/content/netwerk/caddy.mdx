@@ -128,7 +128,7 @@ Caddy niet en controleert niets.
 
 ## Caddy-logs doorzoeken
 
-Elk verzoek van buiten gaat langs `caddy`. Grafana Alloy stuurt die logs naar
+Elk request van buiten gaat langs `caddy`. Grafana Alloy stuurt die logs naar
 Loki in de monitoring-stack.
 
 <Steps>
@@ -141,7 +141,7 @@ Ga naar [monitoring.neodata.be](https://monitoring.neodata.be) en zoek in Loki.
 
 | Query | Wat je ziet |
 | --- | --- |
-| `{job="caddy"}` | elk verzoek dat de reverse proxy afhandelde |
+| `{job="caddy"}` | elk request dat de reverse proxy afhandelde |
 | `{job="caddy-runtime"}` | wat Caddy zelf meldt: certificaten, herladen, fouten |
 
 #### Filter met `| json`

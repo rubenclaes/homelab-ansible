@@ -94,7 +94,7 @@ alloy_extra_groups:
 
 # --- Forward-auth (roles/oauth2_proxy) ---
 # oauth2-proxy draait op deze container naast Caddy; sites met `auth:` in
-# caddy_sites vragen het per verzoek. Aanmelden gebeurt op auth.neodata.be.
+# caddy_sites vragen het per request. Aanmelden gebeurt op auth.neodata.be.
 # Ligt het plat, dan zijn die apps nog rechtstreeks op hun LAN-adres bereikbaar.
 caddy_forward_auth: true
 caddy_forward_auth_upstream: 127.0.0.1:4180

@@ -53,12 +53,12 @@
          | rejectattr('name', 'in', semaphore_templates_existing.json | map(attribute='name') | list) | list }}
 
 # Alleen de velden die deze rol bezit worden vergeleken. Alles daarbuiten -
-# surveys, views, vaults, de vlaggen onder "Advanced" - mag in de UI staan
+# surveys, views, vaults, de flags onder "Advanced" - mag in de UI staan
 # zoals het staat, en een verschil daar hoort geen update uit te lokken.
 #
 # En daarom gaat het payload uit wat de server NU heeft, met onze velden
 # eroverheen. De API kent geen gedeeltelijke update: zijn UPDATE-statement zet
-# elke kolom uit het verzoek, dus een veld dat je weglaat wordt leeggemaakt.
+# elke kolom uit het request, dus een veld dat je weglaat wordt leeggemaakt.
 # Zou dit alleen onze eigen velden sturen, dan wist elke update de survey,
 # de view en de task_params van een template - stil, en pas merkbaar bij de
 # volgende run van die job.
@@ -92,7 +92,7 @@
        semaphore_templates_current.environment_id | default(0) | int]
 
 # De uri-taken hieronder slaan over onder --check. Dit is dus de enige plek
-# waar een droogloop laat zien wat er zou gebeuren - zelfde reden als de
+# waar een dry run laat zien wat er zou gebeuren - zelfde reden als de
 # rapportagetaak in roles/adguard/tasks/rewrites.yml.
 - name: Report the templates that will change
   ansible.builtin.debug:

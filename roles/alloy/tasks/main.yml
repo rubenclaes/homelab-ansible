@@ -1,6 +1,6 @@
 ---
 # Installeert Grafana Alloy en laat hem de bestanden uit alloy_log_targets
-# naar Loki duwen. Het patroon van caddy en tailscale: keyring, repo, pakket,
+# naar Loki pushen. Het patroon van caddy en tailscale: keyring, repo, pakket,
 # config met een validatie ervoor, dienst aan.
 - name: Install the Grafana archive keyring
   ansible.builtin.copy:

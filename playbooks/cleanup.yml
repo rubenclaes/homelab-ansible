@@ -1,5 +1,5 @@
 ---
-# Schijfruimte terugwinnen. Standaard veilig: zonder vlag rapporteert hij
+# Schijfruimte terugwinnen. Standaard veilig: zonder flag rapporteert hij
 # alleen wat hij zou vrijmaken en verandert hij niets.
 #
 #   ansible-playbook playbooks/cleanup.yml                        # alleen rapport

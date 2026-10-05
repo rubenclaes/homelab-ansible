@@ -14,7 +14,7 @@ houdt het overzichtelijk: OpenTofu beslist wat er *bestaat*, Ansible wat er
 | --- | --- |
 | `inventory/` | de machines en hun instellingen. Hier pas je het meest aan |
 | `inventory/group_vars/<groep>/` | wat voor een hele groep geldt (`proxmox`, `macs`, `all`, ...) |
-| `inventory/host_vars/<host>/` | wat voor één machine geldt: `main.yml`, en `vault.yml` voor de geheimen |
+| `inventory/host_vars/<host>/` | wat voor één machine geldt: `main.yml`, en `vault.yml` voor de secrets |
 | `roles/` | per onderdeel de stappen (caddy, adguard, pbs, ...). Eén rol doet één ding |
 | `playbooks/` | wat je draait. `site.yml` zet alles gelijk; de rest zie [Een playbook draaien](/ansible/playbooks/) |
 | `playbooks/tasks/` | stukken die meerdere playbooks delen (UniFi uitlezen, een host bootstrappen) |

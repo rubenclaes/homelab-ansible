@@ -5,10 +5,10 @@
     state: directory
     mode: "0700"
 
-# Het sjabloon loopt over groups['linux'], en op pve01 na komt die groep
+# Het template loopt over groups['linux'], en op pve01 na komt die groep
 # volledig uit homelab.proxmox.yml. Laadt de Proxmox-API niet - en die is hier
 # wisselvallig bereikbaar - dan levert dat geen foutmelding maar een lege
-# groep, en schrijft het sjabloon een SSH-config met nog een enkele host erin.
+# groep, en schrijft het template een SSH-config met nog een enkele host erin.
 # Je merkt dat pas als je de volgende dag geen enkele host meer kunt bereiken.
 #
 # Niet hard falen: de rest van deze rol (git, zshrc) heeft de inventory niet
@@ -32,7 +32,7 @@
   ansible.builtin.debug:
     msg: >-
       ~/.ssh/config.d/homelab niet aangeraakt: de inventory leverde geen
-      Proxmox-gasten, dus het sjabloon zou hem bijna leeg schrijven. Controleer
+      Proxmox-guests, dus het template zou hem bijna leeg schrijven. Controleer
       met `ansible-inventory --graph` of de Proxmox-API bereikbaar is en draai
       dit opnieuw. Het bestaande bestand is ongewijzigd.
   when: not (dotfiles_inventory_complete | bool)

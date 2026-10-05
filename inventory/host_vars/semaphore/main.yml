@@ -23,7 +23,7 @@ semaphore_api_password: "{{ vault_semaphore_api_password }}"
 #
 # LET OP bij de eerste run. `name` is de sleutel waarop gezocht wordt, en die
 # moet letterlijk overeenkomen met wat er nu in Semaphore staat. Draai daarom
-# eerst een droogloop en lees de rapportageregel: staat een template die je
+# eerst een dry run en lees de rapportageregel: staat een template die je
 # dacht bij te werken onder `create`, dan wijkt de naam af en zou je een
 # tweede maken. Hernoem er dan één van voor je het echt draait.
 #
@@ -56,7 +56,7 @@ semaphore_templates_list:
   # geen melding.
   #
   # `drift_limit` en niet `--limit`: dit playbook draait zelf op localhost en
-  # start de droogloop als los commando. Een --limit hier zou die play raken
+  # start de dry run als los commando. Een --limit hier zou die play raken
   # in plaats van de converge eronder.
   - name: "Drift check"
     playbook: playbooks/drift.yml
@@ -108,7 +108,7 @@ semaphore_templates_list:
     playbook: playbooks/restore-drill.yml
     description: "Zet een PBS-back-up terug op een wegwerp-guest, leest er staat uit, sloopt hem."
     schedule: "0 4 1 * *"
-    # Zonder deze vlag stopt het playbook bij zijn eerste assert, elke maand.
+    # Zonder deze flag stopt het playbook bij zijn eerste assert, elke maand.
     arguments: ["-e", "drill_confirm=true"]
 
   # De limit houdt hem van zijn eigen container af; die machine patch je met
@@ -137,11 +137,11 @@ semaphore_templates_list:
   # sleutel waarop deze rol zoekt, dus hernoemen had een tweede template
   # gemaakt en de taakgeschiedenis van deze achtergelaten.
   #
-  # `--diff` staat erbij omdat een droogloop zonder diff alleen taaknamen laat
+  # `--diff` staat erbij omdat een dry run zonder diff alleen taaknamen laat
   # zien en niet wát er zou veranderen. Wil je een korter scherm, haal hem weg.
   - name: "Baseline (dry run)"
     playbook: playbooks/baseline.yml
-    description: "Droogloop van de baseline op elke Linux-host. Verandert niets."
+    description: "Dry run van de baseline op elke Linux-host. Verandert niets."
     arguments: ["--check", "--diff"]
 
   - name: "Caddy"

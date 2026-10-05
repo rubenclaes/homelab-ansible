@@ -4,12 +4,12 @@ caddy_repo_uri: https://dl.cloudsmith.io/public/caddy/stable/deb/debian
 
 # Rechten op de logbestanden die Caddy zelf aanmaakt. Caddy's default is 0600,
 # en dat is prima zolang niemand anders ze hoeft te lezen. Sinds 23-09 leest
-# Grafana Alloy ze en duwt ze naar Loki; die draait als gebruiker `alloy`, niet
+# Grafana Alloy ze en pusht ze naar Loki; die draait als gebruiker `alloy`, niet
 # als root, en komt er via groep `caddy` bij. Op 0600 heeft die groep er niets
 # aan - vandaar 0640 en niet alleen het groepslidmaatschap.
 #
 # Blijft 0640 en wordt het geen 0644: de toegangslogs dragen IP-adressen en
-# volledige paden van elk verzoek aan het huis. Wie ze mag lezen is een
+# volledige paden van elk request aan het huis. Wie ze mag lezen is een
 # beslissing, geen bijkomstigheid.
 #
 # LET OP: Caddy past deze mode toe bij het OPENEN van een logbestand, en een

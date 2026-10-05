@@ -1,5 +1,5 @@
 ---
-# Logverzameling: Grafana Alloy duwt logbestanden naar de Loki in de
+# Logverzameling: Grafana Alloy pusht logbestanden naar de Loki in de
 # monitoring-stack.
 #
 #   ansible-playbook playbooks/alloy.yml

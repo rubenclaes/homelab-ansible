@@ -52,7 +52,7 @@ scp mod.zip docker:/mnt/ssdnas/Games/lan/installers/
 
 ### Waarom copyparty geen eigen login heeft
 
-Caddy vraagt bij elk verzoek aan oauth2-proxy of je aangemeld bent, en geeft
+Caddy vraagt bij elk request aan oauth2-proxy of je aangemeld bent, en geeft
 je naam en groepen mee als headers. copyparty gelooft die headers alleen van
 Caddy (`xff-src`), en de firewall op `docker` laat poort 3923 ook alleen van
 Caddy toe (`docker_stacks_proxy_only_ports`). Wie zelf zo'n header meestuurt,

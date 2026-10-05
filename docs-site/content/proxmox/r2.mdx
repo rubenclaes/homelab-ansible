@@ -103,11 +103,11 @@ sudo proxmox-backup-manager user create docker-data@pbs
 sudo proxmox-backup-manager user generate-token docker-data@pbs backup   # toont het secret één keer
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id docker-data@pbs
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id 'docker-data@pbs!backup'
-sudo proxmox-backup-manager cert info | grep -i fingerprint              # de nieuwe vingerafdruk
+sudo proxmox-backup-manager cert info | grep -i fingerprint              # de nieuwe fingerprint
 ```
 
 Zet het secret in `inventory/group_vars/all/vault.yml`
-(`vault_pbs_docker_data_token`) en de vingerafdruk in
+(`vault_pbs_docker_data_token`) en de fingerprint in
 `inventory/host_vars/docker/main.yml` (`pbs_client_fingerprint`). De sleutel
 (`vault_pbs_docker_data_key`) blijft dezelfde: die staat ook op papier.
 
@@ -136,7 +136,7 @@ ssh docker
 sudo -i
 export PBS_REPOSITORY='docker-data@pbs!backup@192.168.0.181:offsite'
 export PBS_PASSWORD_FILE=/root/.config/proxmox-backup/token
-export PBS_FINGERPRINT='<de nieuwe vingerafdruk>'
+export PBS_FINGERPRINT='<de nieuwe fingerprint>'
 proxmox-backup-client snapshot list                       # neem de nieuwste
 proxmox-backup-client restore host/docker-data/<tijd> data.pxar /opt/containers/data \
   --keyfile /root/.config/proxmox-backup/docker-data.key

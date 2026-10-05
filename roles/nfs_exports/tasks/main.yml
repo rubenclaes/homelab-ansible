@@ -22,11 +22,11 @@
 # probeert:
 #
 #   - `unsafe_writes: true`. Lijkt ervoor gemaakt, maar in
-#     module_utils/basic.py springt die vlag alleen in bij EBUSY:
+#     module_utils/basic.py springt die flag alleen in bij EBUSY:
 #       if unsafe_writes and ex.errno == errno.EBUSY:
 #     Wij krijgen EPERM, dus hij doet niets.
 #   - `xattr -d com.apple.macl /etc/exports`. Geeft zelf EPERM, over SSH en
-#     lokaal. De vlag is kernel-beschermd.
+#     lokaal. De flag is kernel-beschermd.
 #   - In het bestand schrijven in plaats van het te vervangen
 #     (`cat ... > /etc/exports`). Over SSH ook EPERM.
 #

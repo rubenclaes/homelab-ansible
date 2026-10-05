@@ -79,7 +79,7 @@ jobs:
         uses: opentofu/setup-opentofu@v1
 
       # Zelfde controle als .githooks/pre-commit: zonder backend en zonder
-      # geheimen, dus ook op een fork. Vangt een commit met --no-verify.
+      # secrets, dus ook op een fork. Vangt een commit met --no-verify.
       - name: Check formatting and validity
         env:
           TF_VAR_state_passphrase: ci-validate-only

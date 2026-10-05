@@ -61,7 +61,7 @@
     mode: "0750"
 
 # counter-reset-schedule monthly en de drempels: PBS telt zelf de S3-
-# verzoeken en meldt (via de bestaande ntfy-matcher) als ze oplopen. Een
+# requests en meldt (via de bestaande ntfy-matcher) als ze oplopen. Een
 # tweede vangnet naast r2-guard, dat wel stopt.
 - name: Create the off-site datastore
   ansible.builtin.command:

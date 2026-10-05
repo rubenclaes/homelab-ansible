@@ -101,7 +101,7 @@ resource "proxmox_virtual_environment_container" "this" {
   }
 
   # nesting voor systemd; keyctl voor Docker-achtige dingen in caddy/adguard.
-  # Een vlag behalve nesting zetten of veranderen mag alleen root@pam, ook bij
+  # Een flag behalve nesting zetten of veranderen mag alleen root@pam, ook bij
   # het aanmaken (pve-container, check_ct_modify_config_perm). Een NIEUWE
   # container met keyctl: zie docs "Een nieuwe container".
   features {

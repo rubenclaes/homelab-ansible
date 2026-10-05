@@ -42,7 +42,7 @@ De bridges staan onder `pve_node_interfaces`:
 | `gateway` | `192.168.0.1` | alleen op `vmbr0`, daar zit de default route |
 | `bridge_ports` | `nic0` | de fysieke poort eronder |
 
-#### Kijk droog wat er zou veranderen
+#### Dry run: kijk wat er zou veranderen
 
 ```bash filename="laptop"
 ansible-playbook playbooks/proxmox-network.yml --check --diff
@@ -57,7 +57,7 @@ ansible-playbook playbooks/proxmox-network.yml                        # schrijft
 ssh pve01 diff /etc/network/interfaces /etc/network/interfaces.new    # dit gaat er veranderen
 ```
 
-Zonder vlag schrijft het playbook alleen `/etc/network/interfaces.new`. Wat
+Zonder flag schrijft het playbook alleen `/etc/network/interfaces.new`. Wat
 draait blijft ongemoeid.
 
 #### Pas toe
@@ -109,11 +109,11 @@ git push
 `proxmox_network_apply` staat op `false` in de rol-defaults en mag nergens in de
 inventory op `true`. Een gewone run die de bridges van de hypervisor kan
 herschrijven, kan in één keer alles platleggen. Toepassen doe je alleen per
-run, met de vlag op de commandline.
+run, met de flag op de commandline.
 
 ### De dodemansknop
 
-Met de vlag gebeurt dit:
+Met de flag gebeurt dit:
 
 1. de draaiende config wordt gekopieerd naar `/etc/network/interfaces.before-ansible`
 2. een `systemd-run`-timer wordt gewapend die die kopie na **180 seconden** terugzet en `ifreload -a` draait

@@ -25,7 +25,7 @@ Uitleg per taak staat op [docs.neodata.be](https://docs.neodata.be).
    chmod 600 ~/.ssh/ansible_ed25519
    ```
 
-3. De twee wachtwoorden voor de geheimen neerzetten (staan in de
+3. De twee wachtwoorden voor de secrets neerzetten (staan in de
    wachtwoordkluis):
 
    ```bash

@@ -81,9 +81,9 @@ Gateway, template en de Ansible-sleutel staan één keer onderaan hetzelfde
 bestand. Die hoef je niet in te vullen.
 
 Een nieuwe container met `keyctl = true` lukt niet via OpenTofu.
-Proxmox laat elke vlag behalve `nesting` alleen `root@pam` zetten, ook bij het
+Proxmox laat elke flag behalve `nesting` alleen `root@pam` zetten, ook bij het
 aanmaken, en OpenTofu werkt met een token. Maak hem dus met `keyctl = false`,
-zet de vlag als root op pve01 (`pct set <id> --features nesting=1,keyctl=1`),
+zet de flag als root op pve01 (`pct set <id> --features nesting=1,keyctl=1`),
 en zet daarna `true` in `containers.tf` tot het plan leeg is.
 
 #### Kijk wat OpenTofu gaat doen

@@ -29,6 +29,6 @@ nfs_exports_mask: 255.255.255.0
 nfs_exports_mapall: "1000:1000"
 
 # -alldirs laat de client ook een submap van de export mounten in plaats van
-# alleen de wortel. macOS eist dat de export een mountpunt is; alle drie de
+# alleen de root. macOS eist dat de export een mountpunt is; alle drie de
 # shares zijn losse volumes onder /Volumes, dus dat klopt hier.
 nfs_exports_alldirs: true

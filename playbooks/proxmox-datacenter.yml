@@ -7,7 +7,7 @@
 # een storage, een job, of de data erachter.
 #
 # Netwerk op node-niveau staat hier met opzet NIET in: dat kan de node
-# onbereikbaar maken en zit in playbooks/proxmox-network.yml achter een vlag.
+# onbereikbaar maken en zit in playbooks/proxmox-network.yml achter een flag.
 #
 # In site.yml: ja.
 

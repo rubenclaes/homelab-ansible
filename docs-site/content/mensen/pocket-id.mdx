@@ -32,7 +32,7 @@ waar mag, staat per app in `tofu/pocketid/clients.tf`. Een nieuwe app erbij:
 ## Een login voor apps zonder eigen login
 
 Voor code-server, de *arr-apps, Prometheus, qBittorrent en de tools. Caddy
-vraagt bij elk verzoek aan oauth2-proxy (naast Caddy) of je aangemeld bent en
+vraagt bij elk request aan oauth2-proxy (naast Caddy) of je aangemeld bent en
 in de juiste groep zit. Zo niet, dan stuurt hij je naar `auth.neodata.be` en
 daarna terug. Eén keer aanmelden geldt voor al die apps.
 
@@ -111,4 +111,4 @@ Caddy-logs, dan is dit de eerste verdachte. Snel verhelpen: de
 oauth2-proxy weigert standaard een adres dat niet geverifieerd is (een 500 na
 het aanmelden). Daarom staat `insecure_oidc_allow_unverified_email` aan: het
 adres beslist hier niets, de groep wel. De rol staat in `roles/oauth2_proxy`,
-de geheimen in `inventory/host_vars/caddy/vault.yml`.
+de secrets in `inventory/host_vars/caddy/vault.yml`.

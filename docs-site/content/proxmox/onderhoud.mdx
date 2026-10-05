@@ -91,7 +91,7 @@ ansible-playbook playbooks/update.yml --limit linux \
   -e allow_reboot=true -e allow_hypervisor_reboot=true
 ```
 
-Eerst worden de guests gepatcht, dan pas `pve01`. Je hebt **beide** vlaggen
+Eerst worden de guests gepatcht, dan pas `pve01`. Je hebt **beide** flags
 nodig.
 
 #### Controleer of alles terug is
@@ -102,13 +102,13 @@ ansible-playbook playbooks/smoketest.yml   # werkt elk adres nog, antwoordt AdGu
 
 </Steps>
 
-Zonder de vlaggen patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
+Zonder de flags patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
 krijgt dan een melding dat hij een reboot nodig heeft.
 
 ## Schijfruimte vrijmaken
 
 Een schijf loopt vol. `cleanup.yml` rapporteert eerst en verwijdert pas met een
-vlag. Semaphore ruimt elke zaterdagnacht echt op ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
+flag. Semaphore ruimt elke zaterdagnacht echt op ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
 
 <Steps>
 
@@ -119,7 +119,7 @@ ansible-playbook playbooks/cleanup.yml                 # rapporteert alleen
 ansible-playbook playbooks/cleanup.yml --limit macs    # alleen de Macs (brew-cache)
 ```
 
-Zonder vlag verandert hij niets. Je krijgt de **namen** van wat weg zou gaan,
+Zonder flag verandert hij niets. Je krijgt de **namen** van wat weg zou gaan,
 niet alleen een aantal.
 
 #### Lees het lijstje
@@ -179,9 +179,9 @@ Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)
 is `site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
 niet over wat er hoort te staan.
 
-### Alle vlaggen
+### Alle flags
 
-Allemaal standaard **uit**. Zonder vlaggen wordt er gepatcht en verder niets.
+Allemaal standaard **uit**. Zonder flags wordt er gepatcht en verder niets.
 
 | Variabele | Waar | Doet |
 | --- | --- | --- |

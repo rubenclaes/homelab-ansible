@@ -36,7 +36,7 @@ if git diff --cached --name-only | grep -q '^\.ansible/'; then
 fi
 
 # 3. OpenTofu: opmaak en geldigheid, alleen voor een project waar iets van
-#    gestaged is. Zonder backend (-backend=false), dus zonder R2 of geheimen;
+#    gestaged is. Zonder backend (-backend=false), dus zonder R2 of secrets;
 #    de passphrase is een dummy, want validate leest geen state.
 #
 #    Op een kopie van wat gestaged is, niet op de werkmap: die twee kunnen

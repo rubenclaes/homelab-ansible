@@ -1,5 +1,5 @@
 # De state staat in Cloudflare R2, niet in git (geen slot, en hij bevat
-# geheimen) en niet op de homelab (ligt pve01 plat, dan is de kaart ook weg).
+# secrets) en niet op de homelab (ligt pve01 plat, dan is de kaart ook weg).
 #
 # Het endpoint en de sleutel komen uit env (AWS_ENDPOINT_URL_S3,
 # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY), gezet door bin/tofu.

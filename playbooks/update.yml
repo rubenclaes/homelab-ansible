@@ -5,7 +5,7 @@
 #   ansible-playbook playbooks/update.yml                        # alleen pakketten
 #   ansible-playbook playbooks/update.yml -e allow_reboot=true   # en herstarten
 #
-# De vlaggen:
+# De flags:
 #   allow_reboot             herstart guests die dat nodig hebben  (standaard false)
 #   allow_hypervisor_reboot  herstart ook pve01                    (standaard false)
 #   allow_cask_upgrade       werk Homebrew-casks op de Macs bij    (standaard false)
@@ -102,7 +102,7 @@
         msg: >-
           {{ inventory_hostname }} overgeslagen: macos_brew_upgrade staat op
           false. Zijn formulae blijven staan op wat er nu geïnstalleerd is.
-          Haal de vlag uit zijn host_vars zodra de machine upgrades aankan.
+          Haal de flag uit zijn host_vars zodra de machine upgrades aankan.
       when: not (macos_brew_upgrade | default(true) | bool)
 
     # Standaard uit, want een cask-upgrade is geen pakket-upgrade: hij

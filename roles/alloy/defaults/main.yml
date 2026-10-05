@@ -1,11 +1,11 @@
 ---
-# Grafana Alloy: de agent die logbestanden van een host naar Loki duwt.
+# Grafana Alloy: de agent die logbestanden van een host naar Loki pusht.
 #
 # De defaults dragen de uitleg van deze rol. Wat een variabele betekent en
 # waarom hij die waarde heeft, staat hier.
 #
-# Waarom een agent op de host en niet iets centraals: Loki trekt niet, hij
-# wordt geduwd. De logs van Caddy staan als bestand op de caddy-host, dus daar
+# Waarom een agent op de host en niet iets centraals: Loki pullt niet, er
+# wordt naar hem gepusht. De logs van Caddy staan als bestand op de caddy-host, dus daar
 # moet iets staan dat ze leest. Op de docker-hosts doet de Alloy ín de
 # monitoring-stack dat al voor containerlogs; deze rol is voor hosts die geen
 # container zijn.

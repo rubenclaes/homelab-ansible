@@ -34,7 +34,7 @@ vault_pass
 # docs-site; de rest staat in git log.
 docs/superpowers/
 
-# Droogloop-logs van playbooks/drift.yml.
+# Dry-run-logs van playbooks/drift.yml.
 .drift/
 
 # OpenTofu: providers en werkbestanden. De state staat in R2, nooit hier.

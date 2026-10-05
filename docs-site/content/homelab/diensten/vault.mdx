@@ -97,7 +97,7 @@ secret als `VW_SSO_CLIENT_SECRET` in `files/env/vaultwarden.env`, de client in
 
 ### Waarom Vaultwarden een eigen back-up heeft
 
-PBS neemt `docker` elke nacht mee, maar dat is een momentopname van een
+PBS neemt `docker` elke nacht mee, maar dat is een snapshot van een
 draaiende database. Voor de meeste apps is dat goed genoeg; voor de
 wachtwoorden van de familie niet. De eigen back-up gebruikt `sqlite3 .backup`,
 wat altijd een consistente kopie geeft, en komt om 02:00, vóór PBS om 02:30.
