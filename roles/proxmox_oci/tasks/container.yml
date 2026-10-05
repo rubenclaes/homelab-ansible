@@ -154,7 +154,7 @@
            'net0': 'name=eth0,bridge=' ~ pve_guest_network.bridge ~ ',ip=' ~ oci.ip ~ ',gw=' ~ pve_guest_network.gateway
                    ~ (',hwaddr=' ~ oci.hwaddr if oci.hwaddr is defined else ''),
            'unprivileged': 1,
-           'onboot': 1,
+           'onboot': 1 if (oci.onboot | default(true)) else 0,
            'searchdomain': pve_guest_network.searchdomain,
            'tags': 'oci',
            'description': proxmox_oci_description,
@@ -224,6 +224,23 @@
       changed_when: true
       no_log: "{{ proxmox_oci_no_log }}"
 
+    # onboot is the switch for a container that only runs now and then
+    # (lancache): false means pve01 does not start it, and neither does this role.
+    - name: Set onboot on {{ oci.hostname }}
+      ansible.builtin.uri:
+        url: "{{ proxmox_oci_api }}/nodes/{{ proxmox_oci_node }}/lxc/{{ oci.vmid }}/config"
+        method: PUT
+        headers: "{{ proxmox_oci_headers }}"
+        body_format: form-urlencoded
+        body:
+          onboot: "{{ 1 if (oci.onboot | default(true)) else 0 }}"
+        validate_certs: false
+      delegate_to: localhost
+      become: false
+      when: (proxmox_oci_live.json.data.onboot | default(0) | int) != (1 if (oci.onboot | default(true)) else 0)
+      changed_when: true
+      no_log: "{{ proxmox_oci_no_log }}"
+
     # --- running ----------------------------------------------------------
     - name: Read the state of {{ oci.hostname }}
       ansible.builtin.uri:
@@ -245,10 +262,12 @@
       changed_when: true
       when:
         - ansible_check_mode
-        - proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
+        - >-
+          (proxmox_oci_state.json.data.status != 'running' and (oci.onboot | default(true)))
+          or (proxmox_oci_state.json.data.status == 'running' and (proxmox_oci_config_differs | bool))
 
     # env is read at start, so a changed env on a running container means a
-    # reboot. A stopped container is started either way: onboot says it should run.
+    # reboot. A stopped container is started only when onboot says it should run.
     - name: Start or reboot {{ oci.hostname }}
       ansible.builtin.uri:
         url: >-
@@ -260,7 +279,10 @@
       delegate_to: localhost
       become: false
       register: proxmox_oci_power
-      when: proxmox_oci_state.json.data.status != 'running' or (proxmox_oci_config_differs | bool)
+      when:
+        - >-
+          (proxmox_oci_state.json.data.status != 'running' and (oci.onboot | default(true)))
+          or (proxmox_oci_state.json.data.status == 'running' and (proxmox_oci_config_differs | bool))
       changed_when: true
       no_log: "{{ proxmox_oci_no_log }}"
 
@@ -277,4 +299,6 @@
         timeout: 60
       delegate_to: localhost
       become: false
-      when: oci.port is defined
+      when:
+        - oci.port is defined
+        - (oci.onboot | default(true)) or proxmox_oci_state.json.data.status == 'running'

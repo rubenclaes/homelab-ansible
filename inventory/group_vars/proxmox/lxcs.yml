@@ -22,6 +22,10 @@
 # geeft een waarschuwing; pas met -e proxmox_oci_recreate=true wordt de
 # container opnieuw gebouwd. Dat gooit ook de volumes weg, dus alles wat moet
 # overleven hoort in env, niet op de schijf.
+#
+# `onboot: false` voor een container die alleen af en toe draait (lancache):
+# pve01 start hem niet na een herstart, en proxmox-oci.yml en
+# proxmox-autostart.yml laten hem uit. Weglaten is `true`.
 pve_oci_lxcs:
   - vmid: 109
     hostname: ntfy

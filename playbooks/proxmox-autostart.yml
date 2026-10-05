@@ -38,7 +38,12 @@
       loop: "{{ guests.proxmox_vms }}"
       loop_control:
         label: "{{ item.vmid }} {{ item.name }}"
-      when: (item.config.onboot | default(0) | int) != 1
+      # Een OCI-container met onboot: false (lancache) staat met opzet uit
+      # na een herstart. Hier aanzetten zou dat ongedaan maken.
+      when:
+        - (item.config.onboot | default(0) | int) != 1
+        - item.vmid | int not in (pve_oci_lxcs | default([]) | rejectattr('onboot', 'undefined')
+                                  | rejectattr('onboot') | map(attribute='vmid') | map('int') | list)
       changed_when: true
       delegate_to: localhost
       become: false
