@@ -1,0 +1,113 @@
+---
+title: tv
+---
+
+import { Steps } from 'nextra/components'
+
+# tv
+
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
+Tunarr — eigen tv-zenders voor Live TV in Plex
+
+| Eigenschap | Waarde |
+| --- | --- |
+| URL | [tv.neodata.be](https://tv.neodata.be) |
+| Login | Pocket ID via Caddy, voor `admin` |
+| Upstream | `192.168.0.15:8000` |
+| Host | [docker](/homelab/machines/#docker) |
+| Poort | `8000` |
+| Stack | [tunarr](/homelab/machines/#docker) |
+| Groepen | docker_hosts, guests, linux |
+| Eigenschappen | — |
+
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Tunarr maakt van je films en series gewone tv-zenders: een zender die de hele
+dag Friends speelt, een filmzender, ... met een gids erbij. Plex ziet Tunarr
+als een tv-tuner, dus iedereen kijkt gewoon in Plex onder **Live TV**.
+
+Alleen `admin` kan zenders maken. Kijken kan iedereen die Plex heeft.
+
+## Eerste keer: Tunarr aan Plex koppelen
+
+<Steps>
+
+#### Plex als bron
+
+In Tunarr: **Settings** → **Sources** → **Add** → Plex. Meld aan met je
+Plex-account en kies de Mac mini. Zet bij **Edit Libraries** de bibliotheken
+aan die je in zenders wil gebruiken.
+
+#### Een zender maken
+
+**Channels** → **New**. Geef hem een nummer en naam, en voeg bij
+**Programming** films of series toe. Kies een volgorde, bv. **Time Slots**
+voor "elke avond om 20u een film".
+
+#### Tunarr in Plex als tuner
+
+In Plex: **Settings** → **Live TV & DVR** → **Set Up Plex DVR**. Plex vindt
+Tunarr niet vanzelf; vul het adres met de hand in:
+
+```text
+http://192.168.0.15:8000
+```
+
+Bij de gids: **Have an XMLTV guide on your server?** en vul in:
+
+```text
+http://192.168.0.15:8000/api/xmltv.xml
+```
+
+De zenders koppelen vanzelf. Klik **Continue**.
+
+</Steps>
+
+Een nieuwe zender later: maak hem in Tunarr, en klik in Plex bij de tuner op
+**Refresh Guide** / **Scan Channels**.
+
+## Goed om te weten
+
+### Plex praat rechtstreeks, niet via Caddy
+
+Tunarr heeft geen eigen login. Via `tv.neodata.be` zet Caddy er Pocket ID voor.
+Plex kan die login niet doen, dus Plex gebruikt `192.168.0.15:8000`. De
+firewall op `docker` laat op die poort alleen Caddy en de Mac mini binnen
+(`docker_stacks_proxy_only_ports` met `also:`). Vanaf je laptop werkt
+`192.168.0.15:8000` dus niet; gebruik `tv.neodata.be`.
+
+Noodtoegang als Pocket ID plat ligt: `ssh -L 8000:localhost:8000 docker`, dan
+`http://localhost:8000`.
+
+### Geen GPU
+
+De `docker`-VM heeft geen videokaart: Tunarr zet elke zender om op de CPU.
+Eén à twee zenders tegelijk gaat; hapert het, zet dan in Tunarr bij
+**Settings** → **FFmpeg** een lagere resolutie (720p).
+
+### De bestanden komen van de share, niet via Plex
+
+De media hangen in de container op dezelfde paden als op de Mac mini
+(`/Volumes/media01`, `/Volumes/SSD Nas`), alleen-lezen. Zo leest Tunarr de
+bestanden rechtstreeks en hoeft Plex ze niet door te sturen.
+
+### Waar wat staat
+
+| Wat | Waar | Back-up |
+| --- | --- | --- |
+| zenders, instellingen, database | `/opt/containers/data/tunarr` op `docker` | ja, elke nacht naar PBS en R2 |
+| Tunarr's eigen back-up | `/opt/containers/data/tunarr/backups`, elke nacht om 4u, de laatste 3 | ja, zelfde weg |
+| de compose | `containers/stacks/tunarr/` | git |
+
+De database is SQLite. Is de kopie in PBS stuk, pak dan Tunarr's eigen
+back-up uit (Tunarr heeft daar geen knop voor):
+
+```bash filename="docker"
+cd /opt/containers/data/tunarr
+sudo docker stop tunarr
+sudo mkdir /tmp/tunarr-restore
+sudo tar -xf backups/tunarr-backup-<datum>.tar -C /tmp/tunarr-restore
+sudo cp /tmp/tunarr-restore/db.db /tmp/tunarr-restore/settings.json .
+sudo docker start tunarr
+```

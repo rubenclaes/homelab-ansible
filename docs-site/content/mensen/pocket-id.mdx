@@ -31,14 +31,14 @@ waar mag, staat per app in `tofu/pocketid/clients.tf`. Een nieuwe app erbij:
 
 ## Een login voor apps zonder eigen login
 
-Voor code-server, de *arr-apps, Prometheus, qBittorrent en de tools. Caddy
-vraagt bij elk request aan oauth2-proxy (naast Caddy) of je aangemeld bent en
-in de juiste groep zit. Zo niet, dan stuurt hij je naar `auth.neodata.be` en
-daarna terug. Eén keer aanmelden geldt voor al die apps.
+Voor code-server, de *arr-apps, Prometheus, qBittorrent, Tunarr en de tools.
+Caddy vraagt bij elk request aan oauth2-proxy (naast Caddy) of je aangemeld
+bent en in de juiste groep zit. Zo niet, dan stuurt hij je naar
+`auth.neodata.be` en daarna terug. Eén keer aanmelden geldt voor al die apps.
 
 | Groep | Apps |
 | --- | --- |
-| `admin` | code-server, Sonarr, Radarr, Prowlarr, Bazarr, Prometheus, qBittorrent |
+| `admin` | code-server, Sonarr, Radarr, Prowlarr, Bazarr, Prometheus, qBittorrent, Tunarr |
 | `gezin` | IT-Tools, MeTube, BentoPDF, PairDrop, OpenBooks, copyparty |
 | `gast` | IT-Tools, BentoPDF, PairDrop, copyparty |
 
@@ -59,9 +59,11 @@ Vraagt de app zelf geen login van een LAN-adres, zet zijn poort dan ook in
 `docker_stacks_proxy_only_ports` (`inventory/host_vars/docker/main.yml`). Dat
 is een firewallregel in de Docker-keten `DOCKER-USER`: alleen Caddy mag nog
 op die poort. Zonder kon iedereen op de wifi via `192.168.0.15:8989`
-rechtstreeks binnen. Zo staan Sonarr, Radarr, Prowlarr, Bazarr en
-code-server. De apps onderling praten via het Docker-netwerk en merken er
-niets van.
+rechtstreeks binnen. Zo staan Sonarr, Radarr, Prowlarr, Bazarr,
+code-server en Tunarr. De apps onderling praten via het Docker-netwerk en
+merken er niets van. Moet één andere machine er toch rechtstreeks bij, zet
+haar dan in `also:`, zoals de Mac mini voor Tunarr:
+`{ port: 8000, also: [192.168.0.26] }`.
 
 qBittorrent draait met host-netwerk, en die regel raakt hem niet. Hij houdt
 zijn eigen login; Caddy staat op zijn whitelist, zodat je via
@@ -71,7 +73,7 @@ zijn eigen login; Caddy staat op zijn whitelist, zodat je via
 
 | App | Noodtoegang |
 | --- | --- |
-| Sonarr, Radarr, Prowlarr, Bazarr, code-server | `ssh -L 8989:localhost:8989 docker` en dan `http://localhost:8989` (andere poort, zelfde manier) |
+| Sonarr, Radarr, Prowlarr, Bazarr, code-server, Tunarr | `ssh -L 8989:localhost:8989 docker` en dan `http://localhost:8989` (andere poort, zelfde manier) |
 | qBittorrent, de tools | rechtstreeks op `192.168.0.15:<poort>` |
 
 ## Goed om te weten

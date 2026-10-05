@@ -35,6 +35,11 @@ docker_stacks_list:
       - { path: /opt/containers/data/files/hist, owner: 1000 }
       - { path: /srv/files/share, owner: 1000 }
       - { path: /srv/files/share/installers, owner: 1000 }
+  # Tunarr draait als root en maakt zijn datamap zelf; de media leest hij
+  # alleen (ro) van de NFS-shares.
+  - name: tunarr
+    path: tunarr
+    desc: "Tunarr — eigen tv-zenders uit de Plex-bibliotheek, voor Live TV in Plex"
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
@@ -105,6 +110,10 @@ docker_stacks_proxy_only_ports:
   # copyparty gelooft de gebruiker en groepen in de headers alleen van Caddy;
   # deze regel zorgt dat niemand anders er rechtstreeks bij kan.
   - 3923 # copyparty
+  # Tunarr heeft geen login. Plex op de Mac mini haalt er de zenders en de
+  # gids rechtstreeks op (HDHomeRun op :8000), niet via Caddy: daar zou hij
+  # vastlopen op de Pocket ID-login.
+  - { port: 8000, also: ["{{ hostvars['macmini']['ansible_host'] }}"] } # tunarr
 docker_stacks_proxy_source: "{{ hostvars['caddy']['ansible_host'] }}"
 
 # Published ports that deliberately have no Caddy route, so the drift table in
@@ -184,6 +193,7 @@ homepage_tiles:
   bazarr: { title: Bazarr, group: Downloads, icon: bazarr.png }
   torrent: { title: qBittorrent, group: Downloads, icon: qbittorrent.png }
   cleanuparr: { title: Cleanuparr, group: Downloads, icon: cleanuparr.png }
+  tv: { title: Tunarr, group: Downloads, icon: tunarr.png }
   proxmox: { title: Proxmox, group: Infrastructuur, icon: proxmox.png }
   backup: { title: Back-ups (PBS), group: Infrastructuur, icon: proxmox-backup-server.png }
   semaphore: { title: Semaphore, group: Infrastructuur, icon: semaphore.png }

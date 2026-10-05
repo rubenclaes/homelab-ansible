@@ -11,8 +11,12 @@ set -eu
 
 iptables -N DOCKER-USER 2>/dev/null || true
 iptables -F DOCKER-USER
-{% for port in docker_stacks_proxy_only_ports %}
-iptables -A DOCKER-USER -i {{ docker_stacks_lan_interface }} -p tcp -m conntrack --ctorigdst {{ ansible_host }} --ctorigdstport {{ port }} -s {{ docker_stacks_proxy_source }} -j RETURN
+{% for item in docker_stacks_proxy_only_ports %}
+{% set port = item.port if item is mapping else item %}
+{% set sources = [docker_stacks_proxy_source] + (item.also | default([]) if item is mapping else []) %}
+{% for source in sources %}
+iptables -A DOCKER-USER -i {{ docker_stacks_lan_interface }} -p tcp -m conntrack --ctorigdst {{ ansible_host }} --ctorigdstport {{ port }} -s {{ source }} -j RETURN
+{% endfor %}
 iptables -A DOCKER-USER -i {{ docker_stacks_lan_interface }} -p tcp -m conntrack --ctorigdst {{ ansible_host }} --ctorigdstport {{ port }} -j DROP
 {% endfor %}
 iptables -A DOCKER-USER -j RETURN
