@@ -1,0 +1,102 @@
+---
+title: LANCache
+---
+
+import { Steps } from 'nextra/components'
+
+# LANCache
+
+Voor een LAN party: een game komt één keer via internet binnen, en iedereen
+daarna krijgt hem uit de cache, aan de snelheid van het netwerk. Buiten een
+party staat LANCache uit.
+
+## Aanzetten
+
+<Steps>
+
+#### Zet hem aan
+
+```bash filename="laptop"
+ansible-playbook playbooks/lancache.yml -e lancache=on
+```
+
+Start de container op pve01 en wacht tot hij antwoordt. Pas dan stuurt AdGuard
+de downloads van Steam, Epic, Battle.net, Riot, EA, Ubisoft, Xbox, PlayStation
+en Nintendo naar hem.
+
+#### Kijk of hij werkt
+
+```bash filename="laptop"
+dig +short lancache.steamcontent.com @192.168.0.29
+```
+
+Geeft `192.168.0.33`. Steam op een pc die al openstond: even opnieuw starten,
+want die onthoudt het oude adres.
+
+</Steps>
+
+## Uitzetten
+
+```bash filename="laptop"
+ansible-playbook playbooks/lancache.yml -e lancache=off
+```
+
+Eerst gaat de omleiding in AdGuard weg, dan stopt de container. Downloads gaan
+weer gewoon via internet. De cache blijft staan voor de volgende party.
+
+## Nakijken wat er uit de cache komt
+
+```bash filename="laptop"
+ssh pve01 'sudo pct exec 110 -- tail -f /data/logs/access.log'
+```
+
+`HIT` kwam uit de cache, `MISS` via internet (en staat er nu wel in).
+
+## Goed om te weten
+
+| Wat | Waarde |
+| --- | --- |
+| Container | ct 110 `lancache`, `192.168.0.33`, op pve01 |
+| Cache | 600 GB op `vm-hdd`, nginx ruimt op vanaf 550 GB |
+| Instellingen | `pve_oci_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`; het adres in `inventory/group_vars/all/lancache.yml` |
+| Welke domeinen | `lancache_domains` in `roles/lancache/defaults/main.yml` |
+
+### Waarom alleen tijdens een party
+
+Staat LANCache aan en ligt hij plat, dan stuurt AdGuard elke game-download
+naar een adres waar niets antwoordt, en kan niemand in huis nog iets
+downloaden. Daarom staat hij uit tenzij je hem nodig hebt, en start hij ook
+niet vanzelf als pve01 herstart. `lancache.yml` zet de omleiding pas als de
+cache antwoordt.
+
+### pve01 herstart tijdens een party
+
+Dan staat de container uit, maar wijst DNS nog naar hem. De dagelijkse
+smoketest wordt daar rood van. Draai gewoon opnieuw `-e lancache=on`, of
+`off` als de party voorbij is.
+
+### Waarom niet in de back-up
+
+De cache vult zichzelf opnieuw bij de eerste download. 600 GB elke nacht naar
+PBS wegschrijven kost meer dan het oplevert. De dagelijkse back-upjob sluit
+ct 110 uit. Let op: `pct destroy --purge 110` haalt 110 ook uit die
+uitsluiting; `proxmox-datacenter.yml` zet hem terug.
+
+### Waarom AdGuard en niet de DNS van LANCache
+
+LANCache heeft zelf een DNS-container, maar dan zou het huis tijdens een party
+twee DNS-servers hebben. AdGuard krijgt gewoon een rewrite per downloaddomein.
+LANCache zelf vraagt zijn namen aan Quad9, niet aan AdGuard: anders zou hij de
+omgeleide namen naar zichzelf terugkrijgen.
+
+### Bestanden die het image weggooit, staan er toch
+
+De OCI-import van Proxmox voert de verwijderingen uit latere lagen van een
+image niet uit. Bij LANCache bleef zo een standaard-nginx-site staan die op
+alles een 404 gaf. `remove_paths` bij zijn entry in `pve_oci_lxcs` haalt die
+bestanden weg na het aanmaken, ook bij een herbouw.
+
+### Alleen HTTP
+
+Steam, Epic en de andere winkels leveren games over HTTP, en die kan LANCache
+bewaren. Wat over HTTPS komt (inloggen, de winkel zelf) gaat gewoon langs.

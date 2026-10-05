@@ -4,5 +4,6 @@ export default {
   blokkeren: 'Reclame blokkeren',
   caddy: 'Adressen (Caddy)',
   vpn: 'VPN',
+  lancache: 'LANCache',
   toestellen: 'Toestellen'
 }
