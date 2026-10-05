@@ -36,6 +36,7 @@ Wat je nodig hebt buiten deze repo:
 
 Met de hand, van USB, met vast adres **`192.168.0.10`**, op de 2,5GbE-poort (`enp3s0`, `vmbr0`). Dat adres staat hard
 in `inventory/00-static.yml` en in `pve_api_host`. Een ander adres breekt alles.
+De kabel gaat in **poort 16** van de switch ([waarom](#de-kabel-in-poort-16)).
 
 #### Importeer de ZFS-pool `vm-hdd`
 
@@ -160,6 +161,13 @@ in `tofu/proxmox/access.tf`.
 Klaar? Ga verder met [de back-ups](/proxmox/pve01-backups/).
 
 ## Goed om te weten
+
+### De kabel in poort 16
+
+De switch (USW Pro Max 16 PoE) heeft maar vier poorten van 2,5 Gbit: 13 tot 16.
+In een andere poort draait pve01 op 1 Gbit, en dat deelt alles erop: LANCache,
+copyparty, Plex-verkeer, de back-ups. Zo stond hij tot 05-10 in poort 6.
+Nakijken: `ssh pve01 'sudo ethtool enp3s0 | grep Speed'` geeft `2500Mb/s`.
 
 ### Het API-token staat op twee plekken
 
