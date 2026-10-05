@@ -27,6 +27,11 @@ image moet nakijken:
   Kaal start dat de help en stopt meteen, zonder melding.
 - **`volumes`**: elke map waar het programma naar schrijft en die niet in het
   image zit. Ontbreekt er een, dan stopt de container.
+- **`remove_paths`**: bestanden die het image in een latere laag weggooit
+  (`rm` in de Dockerfile). De OCI-import van Proxmox laat ze staan; de rol
+  haalt ze na het aanmaken weg ([waarom](#bestanden-die-het-image-weggooit-staan-er-toch)).
+- **`onboot: false`** voor een container die alleen af en toe draait: dan
+  start pve01 hem niet, en de rol en `proxmox-autostart.yml` ook niet.
 
 Zet alles wat moet blijven bestaan in `env`, niet op de schijf
 ([waarom](#updaten-is-opnieuw-bouwen)).
@@ -65,7 +70,8 @@ $EDITOR inventory/group_vars/proxmox/lxcs.yml
 ```
 
 In `pve_oci_lxcs`, het veld `version`. Een vaste versie, nooit `latest`: dan
-weet je wat er draait, en een herbouw geeft je hetzelfde terug.
+weet je wat er draait, en een herbouw geeft je hetzelfde terug. Uitzondering:
+`lancache`, waarvan alleen `latest` bestaat (zie zijn entry).
 
 #### Kijk eerst wat er zou gebeuren
 
@@ -160,6 +166,14 @@ Een herbouw sloopt de container **en zijn volumes**. Daarom staat alles wat
 moet overleven in `env`: voor ntfy zijn dat de gebruikers, rechten en tokens,
 die er na de start meteen weer zijn. Je verliest alleen de berichtcache van de
 laatste uren.
+
+### Bestanden die het image weggooit, staan er toch
+
+Een image bestaat uit lagen, en een latere laag kan een bestand uit een eerdere
+weggooien. De OCI-import van Proxmox voert dat weggooien niet uit: het bestand
+staat gewoon in de container. Bij `lancache` was dat een standaard-nginx-site
+die op elke vraag een 404 gaf. Zet zulke bestanden in `remove_paths`; vind ze
+via de `rm`-regels in de Dockerfile van het image.
 
 ### `printf %s`, niet `echo`
 

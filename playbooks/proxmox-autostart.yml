@@ -1,5 +1,6 @@
 ---
-# Zet `onboot` aan op elke guest die hem uit heeft staan.
+# Zet `onboot` aan op elke guest die hem uit heeft staan, behalve een
+# OCI-container met `onboot: false` in pve_oci_lxcs (lancache).
 #
 #   ansible-playbook playbooks/proxmox-autostart.yml
 #

@@ -19,6 +19,8 @@
 - name: Check the request
   hosts: localhost
   gather_facts: false
+  # Ook met --tags power of --tags dns: anders gaat een foute -e stil voorbij.
+  tags: [always]
   tasks:
     - name: Require -e lancache=on or -e lancache=off
       ansible.builtin.assert:

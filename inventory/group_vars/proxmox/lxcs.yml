@@ -90,7 +90,8 @@ pve_oci_lxcs:
     # Er is alleen `latest`. Het template wordt één keer opgehaald en blijft
     # dan staan, dus dit is in de praktijk vast. Bijwerken: het template
     # weghalen en opnieuw bouwen met -e proxmox_oci_recreate=true; de cache
-    # gaat dan mee, en dat mag.
+    # gaat dan mee, en dat mag. Daarna proxmox-datacenter.yml: het weggooien
+    # haalt 110 ook uit de uitsluiting van de back-upjob.
     image: docker.io/lancachenet/monolithic
     version: latest
     # ENTRYPOINT plus CMD van het image.

@@ -79,8 +79,9 @@ smoketest wordt daar rood van. Draai gewoon opnieuw `-e lancache=on`, of
 
 De cache vult zichzelf opnieuw bij de eerste download. 600 GB elke nacht naar
 PBS wegschrijven kost meer dan het oplevert. De dagelijkse back-upjob sluit
-ct 110 uit. Let op: `pct destroy --purge 110` haalt 110 ook uit die
-uitsluiting; `proxmox-datacenter.yml` zet hem terug.
+ct 110 uit. Let op: opnieuw bouwen (`proxmox-oci.yml -e
+proxmox_oci_recreate=true`, of `pct destroy --purge 110`) haalt 110 ook uit
+die uitsluiting. Draai daarna `proxmox-datacenter.yml`, die zet hem terug.
 
 ### Waarom AdGuard en niet de DNS van LANCache
 

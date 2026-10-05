@@ -154,7 +154,8 @@ staan op `onboot: 0`.
 #### Bedenk welke guests níét mogen meestarten
 
 Het playbook zet `onboot` aan op **elke** guest die het uit heeft staan, ook op
-een guest die je bewust uit liet.
+een guest die je bewust uit liet. Behalve een OCI-container met
+`onboot: false` in `pve_oci_lxcs`, zoals `lancache`: die blijft uit.
 
 #### Draai het playbook
 

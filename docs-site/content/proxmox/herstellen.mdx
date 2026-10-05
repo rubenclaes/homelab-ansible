@@ -228,6 +228,7 @@ wildcard-rewrite). Volg daarvoor [Geen DNS](/netwerk/dns/#geen-dns).
 | `adguard` | 107 | LXC | `vm-hdd` | [terugzetten](#terugzetten-uit-de-back-up) of [geen DNS](/netwerk/dns/#geen-dns) |
 | `tailscale` | 108 | LXC | `vm-hdd` | [herbouwen](#een-container-opnieuw-bouwen) |
 | `ntfy` | 109 | LXC uit een OCI-image | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, zie [OCI-container](/proxmox/oci/) |
+| `lancache` | 110 | LXC uit een OCI-image, staat meestal uit | `vm-hdd` | opnieuw bouwen met `proxmox-oci.yml`, daarna `proxmox-datacenter.yml`; de cache is weggooibaar, zie [LANCache](/netwerk/lancache/) |
 
 Bron: `tofu/proxmox/vms.tf` en `containers.tf`; `ntfy` uit
 `pve_oci_lxcs` in `inventory/group_vars/proxmox/lxcs.yml`.

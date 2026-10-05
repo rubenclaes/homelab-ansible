@@ -27,9 +27,10 @@ ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, na
 
 Kies een nummer dat daar niet in staat.
 
-Neem **niet** `109` of `110`: daar staan nog oude back-ups van in PBS, en een
-nieuwe guest met dat nummer komt in dezelfde back-upgroep terecht. `199` is
-gereserveerd voor de restore-drill.
+`199` is gereserveerd voor de restore-drill. Een nummer dat vroeger gebruikt
+werd en nog back-ups in PBS heeft, neem je niet: een nieuwe guest met dat
+nummer komt in dezelfde back-upgroep, en de opruimregels gooien dan de oude
+weg. Kijk het na met `ssh pve01 'sudo pvesm list pbs | grep /<nummer>/'`.
 
 #### Zoek een vrij adres
 

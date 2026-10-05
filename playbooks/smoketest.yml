@@ -5,13 +5,14 @@
 #   ansible-playbook playbooks/smoketest.yml --tags caddy   # alleen de routes
 #   ansible-playbook playbooks/smoketest.yml --tags dns     # alleen AdGuard
 #
-# Twee checks, want ze zien elk iets anders:
+# Twee plays, want ze zien elk iets anders:
 #   caddy  vraagt elke site uit caddy_sites op. Een 5xx of geen verbinding is
 #          stuk; een 401 of een redirect niet, dat is een dienst die om
 #          inloggen vraagt.
 #   dns    vraagt elke <host>.home.arpa bij AdGuard op. Valt een rewrite om,
 #          dan blijven de routes werken (Caddy praat met IP-adressen) terwijl
-#          `ssh pve01.home.arpa` stilletjes stuk is.
+#          `ssh pve01.home.arpa` stilletjes stuk is. Dezelfde play kijkt of
+#          AdGuard game-downloads naar een LANCache stuurt die niet antwoordt.
 #
 # Faalt de eerste check, dan draait de tweede niet: los hem op en draai
 # opnieuw.
