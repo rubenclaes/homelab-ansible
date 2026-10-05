@@ -118,11 +118,11 @@ Met de flag gebeurt dit:
 1. de draaiende config wordt gekopieerd naar `/etc/network/interfaces.before-ansible`
 2. een `systemd-run`-timer wordt gewapend die die kopie na **180 seconden** terugzet en `ifreload -a` draait
 3. de nieuwe config wordt via de Proxmox-API toegepast
-4. vanaf je werkstation wordt elk adres uit `pve_node_interfaces` op poort 22 geprobeerd
+4. vanaf je laptop wordt elk adres uit `pve_node_interfaces` op poort 22 geprobeerd
 5. lukt dat, dan wordt de timer gestopt
 
 Valt het playbook ergens tussenuit, dan komt de node vanzelf terug op een
-config die werkte. De test draait bewust vanaf je werkstation: op de node zelf
+config die werkte. De test draait bewust vanaf je laptop: op de node zelf
 slaagt hij altijd, dus bewijst hij niets.
 
 ### Waarom 180 seconden

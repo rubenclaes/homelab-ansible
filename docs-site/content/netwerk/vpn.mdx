@@ -6,50 +6,38 @@ import { Steps } from 'nextra/components'
 
 # VPN
 
-Van buitenaf binnenkomen: via Tailscale of via WireGuard op de UniFi-gateway.
-Wie waar mag op Tailscale, regel je in [OpenTofu](/opentofu/).
+Twee wegen van buitenaf naar binnen: **Tailscale** (ct 108 op pve01) en
+**WireGuard** op de UniFi-gateway. Ze vallen los van elkaar om, met opzet: ligt
+pve01 eruit, precies wanneer je erbij wil, dan werkt WireGuard nog. Iemand
+anders VPN geven: [Toegang geven](/mensen/toegang/#iemand-vpn-geven).
 
 ## Zelf van buitenaf binnen
-
-Je bent niet thuis en wil aan het homelab. Er zijn twee wegen: WireGuard en
-Tailscale.
-
-| Je wil… | Neem | Waarom |
-| --- | --- | --- |
-| `*.neodata.be`, `*.home.arpa` of een `192.168.0.x`-adres | **Tailscale** of **WireGuard** | allebei komen op het LAN |
-| een machine op de tailnet, via zijn `100.x`-adres | **Tailscale** | |
-| erbij terwijl de ene niet werkt | **de andere** | ze hangen aan verschillende dingen, zie [Twee wegen naar binnen](/netwerk/overzicht/#twee-wegen-naar-binnen) |
-
-Zet er maar één aan; iOS houdt ook maar één VPN tegelijk actief.
 
 <Steps>
 
 #### Zet één VPN aan
 
-Op je iPhone: de **Tailscale**-app aan, of de **WireGuard**-app → **Neodata VPN**
-aan. Niet allebei.
+Op je iPhone: de **Tailscale**-app, of de **WireGuard**-app → **Neodata VPN**.
+Niet allebei: iOS houdt maar één VPN tegelijk actief. Allebei komen op het
+LAN; alleen voor een `100.x`-adres op de tailnet heb je Tailscale nodig.
 
-#### Test van buitenaf
+#### Test via mobiele data
 
-Zet wifi uit en open `pve01.home.arpa` of een dienst, bv.
+Zet wifi uit en open `pve01.home.arpa` of
 [photos.neodata.be](https://photos.neodata.be). Werkt die naam, dan werken de
 VPN, de route en de DNS.
 
-#### Werkt het niet?
+#### Werkt het niet? Neem de andere
 
-Zet hem uit en probeer de andere. Werkt Tailscale wel en WireGuard niet, volg
-dan [Netwerk → De VPN nakijken](#de-vpn-nakijken).
+Werkt Tailscale wel en WireGuard niet, kijk dan
+[WireGuard nakijken](#wireguard-nakijken).
 
 </Steps>
 
-Geeft je provider je een ander WAN-adres, dan werkt UniFi `vpn.neodata.be`
-zelf bij (Dynamic DNS). Werkt WireGuard onderweg toch ineens niet, neem dan
-Tailscale en kijk thuis het adres na.
+## WireGuard nakijken
 
-## De VPN nakijken
-
-Je komt van buitenaf niet meer binnen. WireGuard "Neodata VPN" staat in de
-**UniFi-controller**, niet in deze repo.
+Je komt via WireGuard niet meer binnen. "Neodata VPN" staat in de
+UniFi-controller, niet in deze repo.
 
 <Steps>
 
@@ -60,50 +48,42 @@ dig +short vpn.neodata.be
 ```
 
 Vergelijk met het WAN-adres in UniFi. Verschillen ze, dan is je provider van
-IP gewisseld en heeft de Dynamic DNS in UniFi de record niet (of nog niet)
-bijgewerkt. Kijk die regel na, en open hem en klik **Save** om een update te
-forceren. Zie
-[Het WAN-adres is dynamisch](#het-wan-adres-is-dynamisch).
+IP gewisseld en heeft de Dynamic DNS in UniFi de record niet bijgewerkt. Open
+die regel en klik **Save** om een update te forceren
+([waar](#het-wan-adres-is-dynamisch)).
 
 #### Controleer de DNS die de VPN uitdeelt
 
 | Waar | Veld | Waarde | Waarom |
 | --- | --- | --- | --- |
-| UniFi → de VPN-server "Neodata VPN" | DNS-server | `192.168.0.29` | de AdGuard in ct 107; alleen die kent de `*.home.arpa`-namen |
+| UniFi → Settings → VPN → VPN Server → Neodata VPN | DNS-server | `192.168.0.29` | AdGuard; alleen die kent de `*.home.arpa`-namen |
 
 Gewijzigd? Importeer het profiel dan opnieuw op de telefoon: de waarde zit in
-het profiel, alleen de server aanpassen is niet genoeg.
+het profiel, de server aanpassen is niet genoeg.
 
 #### Test via mobiele data
 
-Zet wifi uit op je telefoon, zet de VPN aan en open `pve01.home.arpa`, of ping
-het. Werkt die naam, dan werkt de hele keten: VPN, route én DNS.
+Wifi uit, VPN aan, open `pve01.home.arpa`.
 
 </Steps>
-
-Hoe de VPN nu staat (endpoint, subnet, profielen): zie
-[Twee wegen naar binnen](/netwerk/overzicht/#twee-wegen-naar-binnen).
 
 ## Tailscale-sleutel voor een apparaat
 
 Voor alles met een commandline: een Windows-pc, een NAS, een Raspberry Pi.
-**Niet voor telefoons**: de iOS- en Android-app loggen in via de browser en
-hebben geen plek om een sleutel te plakken.
+Niet voor telefoons: de iOS- en Android-app loggen in via de browser.
 
 <Steps>
 
-#### Maak de sleutel, vanaf je werkstation
+#### Maak de sleutel
 
 ```bash filename="laptop"
 ansible-playbook playbooks/tailscale-key.yml -e label=pc-ouders
 ```
 
 `label` mag alleen kleine letters, cijfers en koppeltekens bevatten. In de
-Tailscale-console wordt het `device-pc-ouders`: het enige spoor dat de
-sleutel achterlaat. Kies dus iets wat je over een half jaar nog herkent.
-
-Niet vanuit Semaphore: de sleutel wordt afgedrukt, en een Semaphore-log
-bewaart hem.
+Tailscale-console wordt het `device-pc-ouders`: het enige spoor dat de sleutel
+achterlaat, dus kies iets wat je over een half jaar nog herkent. Niet vanuit
+Semaphore: de sleutel wordt afgedrukt, en een Semaphore-log bewaart hem.
 
 #### Gebruik hem binnen 10 minuten op het apparaat
 
@@ -111,39 +91,83 @@ bewaart hem.
 tailscale up --auth-key=<sleutel>
 ```
 
-De sleutel is eenmalig en al goedgekeurd. Na 600 seconden verloopt hij.
+Eenmalig en al goedgekeurd. Kwijt of verlopen? Maak een nieuwe: de API toont
+een sleutel geen tweede keer.
 
 #### Controleer in de Tailscale-console
 
 Het apparaat staat erbij met de tag `tag:homelab`.
 
-Sleutel kwijt of verlopen? Draai stap 1 opnieuw. De API kan een sleutel geen
-tweede keer tonen, en een ongebruikte verloopt vanzelf.
-
 </Steps>
+
+## Hoe het staat
+
+| | Tailscale | WireGuard "Neodata VPN" |
+| --- | --- | --- |
+| Draait op | ct 108 op pve01 | de UniFi-gateway |
+| Weg als | pve01 eruit ligt | de gateway eruit ligt |
+| Endpoint | — (regelt Tailscale) | `vpn.neodata.be:51820` |
+| Geeft | `192.168.0.0/24`, beperkt per persoon ([zie onder](#wie-mag-wat-via-tailscale)) | `192.168.0.0/24`, alles |
+| VPN-subnet | `100.x` (tailnet) | `10.10.30.0/24`, gateway `10.10.30.1` |
+| Profielen | per persoon, via NeoGate | per toestel; nu één: de iPhone, `10.10.30.2/32` |
+| Beheer | git, via [OpenTofu](/opentofu/#tailscale-regels-aanpassen) | UniFi, met de hand |
+
+### Hoe Tailscale op het LAN komt
+
+ct 108 is een *subnet router*: hij biedt `192.168.0.0/24` aan, en die route is
+goedgekeurd in de Tailscale-console. Wie de route aanneemt, komt via Tailscale
+bij elk `192.168.0.x`-adres. Aannemen gebeurt per toestel: "Use Tailscale
+subnets" op iOS en Android, `--accept-routes` op de Mac.
+
+| Toestel | Neemt de route aan | Waarom |
+| --- | --- | --- |
+| iPhone, MacBook | ja | ze reizen mee |
+| Mac mini, ct 107, ct 108 | nee, met opzet | ze zitten zelf al op het LAN; een route naar je eigen LAN via Tailscale maakt een omweg en breekt verbindingen die rechtstreeks moeten |
+
+Een verloren toestel met Tailscale komt daardoor ook op het LAN: trek het in,
+zie [Een toestel is kwijt of weg](/netwerk/toestellen/#een-toestel-is-kwijt-of-weg).
+
+### Wie mag wat via Tailscale
+
+De toegangsregels van de tailnet (`files/tailscale/policy.hujson`) beperken
+wie waar mag komen:
+
+| Wie | Mag bij | Waarom |
+| --- | --- | --- |
+| jij (`rubes.claes@gmail.com`) | alles | beheer |
+| iedereen anders | Caddy `192.168.0.25`, poort 80 en 443 | alle diensten (`*.neodata.be`) lopen via Caddy |
+| iedereen anders | `adguard` (tag `homelab`), poort 53 | zonder DNS lost `*.neodata.be` niet op |
+| iedereen anders | de Mac mini `100.74.124.12`, poort 32400 | Plex rechtstreeks, voor de Tailscale-boxen bij de tv's |
+
+Zonder deze regels geldt "alles mag alles": dan kon iedereen die via NeoGate
+Tailscale kreeg ook bij pve01, Proxmox, SSH en de Mac mini. Aanpassen:
+[Tailscale-regels aanpassen](/opentofu/#tailscale-regels-aanpassen).
 
 ## Goed om te weten
 
 ### Waarom de tailnet een 100.x-adres als DNS heeft
 
 Een LAN-adres (`192.168.0.29`) als tailnet-nameserver werkt alleen voor
-toestellen die de subnet-route accepteren. Onderweg heb je dan helemaal geen
-DNS. Daarom zit ct 107 zelf op de tailnet, met `--accept-dns=false` zodat hij
-zijn DNS niet via een omweg bij zichzelf gaat halen.
+toestellen die de subnet-route aannemen: onderweg zonder route heb je dan
+geen DNS. Daarom zit ct 107 zelf op de tailnet, met `--accept-dns=false` zodat
+hij zijn DNS niet via een omweg bij zichzelf gaat halen.
 
 ### Het WAN-adres is dynamisch
 
 Je provider kan je WAN-adres veranderen. Daarom werkt UniFi `vpn.neodata.be`
-zelf bij in Cloudflare:
+zelf bij in Cloudflare, en gebruikt het WireGuard-profiel de naam, niet het
+adres:
 
 | Waar | Wat |
 | --- | --- |
 | UniFi → Settings → Internet → WAN → Advanced → Dynamic DNS | service **Cloudflare**, hostname `vpn.neodata.be` |
 
-Dat staat in UniFi, niet in deze repo. Het WireGuard-profiel op je toestel
-gebruikt de naam `vpn.neodata.be`, niet het adres, dus na een wissel volgt het
-vanzelf. UniFi kan bij de VPN-server nog waarschuwen dat hij op "Existing IP
-Address" staat; met Dynamic DNS actief mag die waarschuwing blijven staan.
+UniFi kan bij de VPN-server waarschuwen dat hij op "Existing IP Address"
+staat; met Dynamic DNS actief mag die waarschuwing blijven staan. Het adres is
+sinds september niet gewisseld, dus de update is nog nooit echt nodig geweest.
 
-Het adres is sinds september niet gewisseld, dus de update is nog nooit echt
-nodig geweest.
+### Plex van een ander via Tailscale
+
+De Plex-app probeert soms eerst de Mac mini rechtstreeks
+(`192.168.0.26:32400`). Dat is dicht, dus hij valt terug op de eigen
+verbinding van Plex van buitenaf, of op `plex.neodata.be`.

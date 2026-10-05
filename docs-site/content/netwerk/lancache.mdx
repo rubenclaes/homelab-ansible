@@ -113,10 +113,10 @@ smoketest wordt daar rood van. Draai gewoon opnieuw `-e lancache=on`, of
 ### Waarom niet in de back-up
 
 De cache vult zichzelf opnieuw bij de eerste download. 600 GB elke nacht naar
-PBS wegschrijven kost meer dan het oplevert. De dagelijkse back-upjob sluit
-ct 110 uit. Let op: opnieuw bouwen (`proxmox-oci.yml -e
+PBS wegschrijven kost meer dan het oplevert, dus de dagelijkse back-upjob
+sluit ct 110 uit. Opnieuw bouwen (`proxmox-oci.yml -e
 proxmox_oci_recreate=true`, of `pct destroy --purge 110`) haalt 110 ook uit
-die uitsluiting. Draai daarna `proxmox-datacenter.yml`, die zet hem terug.
+die uitsluiting: draai daarna `proxmox-datacenter.yml`, die zet hem terug.
 
 ### Waarom AdGuard en niet de DNS van LANCache
 
@@ -125,12 +125,10 @@ twee DNS-servers hebben. AdGuard krijgt gewoon een rewrite per downloaddomein.
 LANCache zelf vraagt zijn namen aan Quad9, niet aan AdGuard: anders zou hij de
 omgeleide namen naar zichzelf terugkrijgen.
 
-### Bestanden die het image weggooit, staan er toch
+### Waarom `remove_paths` bij zijn entry
 
-De OCI-import van Proxmox voert de verwijderingen uit latere lagen van een
-image niet uit. Bij LANCache bleef zo een standaard-nginx-site staan die op
-alles een 404 gaf. `remove_paths` bij zijn entry in `pve_oci_lxcs` haalt die
-bestanden weg na het aanmaken, ook bij een herbouw.
+Zonder bleef er een standaard-nginx-site staan die op alles een 404 gaf: zie
+[Bestanden die het image weggooit](/proxmox/oci/#bestanden-die-het-image-weggooit-staan-er-toch).
 
 ### Vooraf vullen draait op docker, niet op je laptop
 

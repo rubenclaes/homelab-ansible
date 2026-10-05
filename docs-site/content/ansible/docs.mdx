@@ -90,12 +90,14 @@ Waar je een pagina met de hand aanpast, in `docs-site/content/`:
   <FileTree.Folder name="content" defaultOpen>
     <FileTree.File name="index.mdx" />
     <FileTree.Folder name="homelab (feitenblokken van docs.yml)" />
-    <FileTree.Folder name="proxmox" />
+    <FileTree.Folder name="proxmox (machines maken en aanpassen)" />
     <FileTree.Folder name="docker" />
     <FileTree.Folder name="netwerk" />
-    <FileTree.Folder name="ansible" />
     <FileTree.Folder name="mensen" />
     <FileTree.File name="mac-mini.mdx" />
+    <FileTree.Folder name="onderhoud (bijwerken, opruimen, nakijken)" />
+    <FileTree.Folder name="backups (en alles terugzetten)" />
+    <FileTree.Folder name="ansible" />
     <FileTree.File name="opentofu.mdx" />
     <FileTree.File name="semaphore.mdx" />
     <FileTree.File name="woorden.mdx" />
@@ -109,13 +111,16 @@ Elke map heeft een `_meta.js` met de volgorde en de namen in de zijbalk.
 | Regel | Waarom |
 | --- | --- |
 | per onderwerp een pagina, per geval een `##`, stappen in `<Steps>` met `####`-koppen | de koppen rechts zijn de inhoudstafel |
-| uitleg over één dienst hoort op zijn pagina onder Diensten, niet apart | tot 30-09 stond Vaultwarden onder Docker en `vault` onder Diensten: twee pagina's voor één ding |
-| een korte intro van 2-3 zinnen, geen `##` die de titel herhaalt | je bent meteen bij de eerste stap |
-| per stap een commando en hoogstens 1-2 zinnen | het waarom staat onderaan |
+| uitleg over één dienst hoort op zijn pagina onder Diensten, niet apart (ntfy, PBS, Vaultwarden) | tot 30-09 stond Vaultwarden onder Docker en `vault` onder Diensten: twee pagina's voor één ding |
+| een korte intro van 2-3 zinnen, dan `Voorbeeld: <ding>.`; geen `##` die de titel herhaalt | je bent meteen bij de eerste stap |
+| per stap een commando en hoogstens 1-2 zinnen; stappen zonder nummer in de kop | `<Steps>` nummert zelf, en het waarom staat onderaan |
+| verandert de repo, dan is de laatste stap `Commit en push` | Semaphore draait uit git: wat niet gepusht is, bestaat niet |
 | onderaan `## Goed om te weten` met de waaroms en de geschiedenis | de stappen blijven kort, de afweging gaat niet verloren |
 | naslag (velden, flags, "na X draai Y") als tabel | opzoeken, niet lezen |
 | een vakterm blijft Engels: dry run, flag, template, request, snapshot, secrets | een letterlijke vertaling ("droogloop", "vlag") zegt minder dan het woord dat je in de tools en online ziet |
 | elk feit op één plek; elders een link | twee kopieën lopen uit elkaar |
+| de tekst van een link is de titel van waar hij heen gaat, of `waarom` | je weet waar je uitkomt, en de zoekfunctie vindt dezelfde woorden |
+| je eigen machine heet `laptop`, niet werkstation | één woord, zoals in `filename="laptop"` |
 | geen tijden van Semaphore buiten [Semaphore](/semaphore/) | die veranderen, en dan klopt de rest niet meer |
 | een rood kader (`Callout`) alleen bij iets onomkeerbaars | anders lees je ze niet meer |
 | elk codeblok `filename="<host>"`: waar je het draait (`laptop`, `pve01`…) | geen twijfel op welke machine |

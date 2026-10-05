@@ -6,20 +6,20 @@ import { Steps, Callout } from 'nextra/components'
 
 # pve01 opnieuw: machines
 
-Deel 3 van 3, na [de back-ups](/proxmox/pve01-backups/). Guests met data komen
+Deel 3 van 3, na [de back-ups](/backups/pve01-backups/). Guests met data komen
 uit PBS; `caddy`, `tailscale` en `ntfy` bouw je nieuw.
 
 <Callout type="error">
 Eerst alles uit PBS terugzetten, pas dan `bin/tofu proxmox plan`. Een `apply`
 daarvoor maakt elke ontbrekende guest leeg op zijn nummer, en dan kan de
-back-up er niet meer op ([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
+back-up er niet meer op ([waarom](/backups/terugzetten/#eerst-terugzetten-dan-pas-plan)).
 </Callout>
 
 <Steps>
 
 #### Zet de guests met data terug uit PBS
 
-Volg [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up)
+Volg [Terugzetten uit de back-up](/backups/terugzetten/#terugzetten-uit-de-back-up)
 voor `adguard` (107, als eerste: DNS), `semaphore` (104), `haos` (101),
 `docker-grafana-stack` (102) en `docker` (103). Ze bestaan nog niet, dus laat
 `--force` weg.

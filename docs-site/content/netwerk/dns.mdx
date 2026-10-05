@@ -7,15 +7,14 @@ import { Steps, Tabs } from 'nextra/components'
 # DNS en AdGuard
 
 Alle DNS van het huis loopt via één container: AdGuard (`adguard`, ct 107,
-`192.168.0.29`). Hier haal je DNS terug, kijk je hem na en zet je de resolver
-van een host om. Hoe het in elkaar zit: [Overzicht](/netwerk/overzicht/).
-Reclame blokkeren: [Reclame blokkeren](/netwerk/blokkeren/).
+`192.168.0.29`). Ligt hij plat, dan werkt in huis niets meer. Reclame
+blokkeren: [Reclame blokkeren](/netwerk/blokkeren/).
 
 ## Geen DNS
 
 Niets resolvet: `*.home.arpa` niet en `*.neodata.be` niet. Zolang ct 107
-stilstaat, heeft het hele huis geen internet: UniFi deelt geen tweede
-DNS-server uit ([waarom](/netwerk/overzicht/#waarom-geen-tweede-dns-server)).
+stilstaat, heeft het hele huis geen internet
+([waarom geen tweede](#waarom-geen-tweede-dns-server)).
 
 Ansible werkt nog: de inventory gebruikt IP-adressen, geen namen. Zet op het
 toestel waarmee je herstelt met de hand `9.9.9.9` als DNS, en haal het weg als
@@ -32,11 +31,11 @@ ssh pve01 'sudo pct start 107'     # als hij "stopped" zegt
 
 #### Is hij stuk: zet hem terug uit de back-up
 
-Volg [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up)
-met vmid 107. Dat is de snelle en volledige weg. Liever niet opnieuw bouwen:
-een nieuwe AdGuard mist je login en de upstream-resolvers.
+Volg [Een guest terugzetten](/backups/terugzetten/#terugzetten-uit-de-back-up)
+met vmid 107. Dat is de snelle en volledige weg: een nieuwe AdGuard mist je
+login en de upstream-resolvers.
 
-#### Geen back-up? Dan toch opnieuw bouwen
+#### Geen back-up? Dan opnieuw bouwen
 
 ```bash filename="laptop"
 ssh pve01 'sudo pct destroy 107'                    # als hij nog half bestaat
@@ -47,17 +46,14 @@ ansible-playbook playbooks/proxmox-datacenter.yml   # zet /dev/net/tun terug
 ```
 
 OpenTofu maakt hem opnieuw met nummer 107, adres `192.168.0.29` en zijn oude
-MAC. Hij vraagt zijn eigen DNS aan `1.1.1.1` (staat zo in
-`tofu/proxmox/containers.tf`), dus de installatie loopt ook zonder werkende
-AdGuard. Zie [Container herbouwen](/proxmox/herstellen/#een-container-opnieuw-bouwen).
-
-Daarna, met de hand:
+MAC. Hij vraagt zijn eigen DNS aan `1.1.1.1`, dus de installatie loopt ook
+zonder werkende AdGuard. Daarna, met de hand:
 
 1. loop de setup-wizard af op `http://192.168.0.29:3000`, met dezelfde login als in `inventory/host_vars/adguard/vault.yml`
-2. zet in AdGuard de upstream-DNS; de rewrites, ook `*.neodata.be`, zet `adguard.yml` terug
+2. zet in AdGuard de upstream-DNS
 
 ```bash filename="laptop"
-ansible-playbook playbooks/site.yml --limit adguard   # rewrites *.home.arpa + filterlijsten
+ansible-playbook playbooks/site.yml --limit adguard   # rewrites en filterlijsten
 ```
 
 #### Test de DNS
@@ -77,8 +73,8 @@ Pas dan de DNS-server aan in UniFi (DHCP). Anders blijft het huis zoeken naar
 
 ## DNS controleren
 
-Antwoordt DNS nog wat het moet? Deze test vraagt elke naam op bij AdGuard en
-vergelijkt met de inventory.
+Antwoordt AdGuard nog wat het moet? Semaphore test dit ook elke dag
+([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
 
 <Steps>
 
@@ -89,19 +85,15 @@ ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
 Vraagt `<host>.home.arpa` op voor elke host met een adres, rechtstreeks bij
-AdGuard (`192.168.0.29`), en vergelijkt met het adres in de inventory. Daarna
-nog één publieke naam (`google.com`).
+AdGuard, en vergelijkt met het adres in de inventory. Daarna nog één publieke
+naam (`google.com`; een andere met `-e dns_smoketest_public_name=...`).
 
 #### Lees wat rood is
-
-Je krijgt de naam en beide adressen te zien.
 
 | Rood op | Betekent |
 | --- | --- |
 | een `.home.arpa`-naam | een rewrite ontbreekt of wijst naar een **oud adres** |
 | de publieke naam | AdGuards upstream is weg: het huis vindt geen enkele naam meer |
-
-Een andere publieke naam kies je met `-e dns_smoketest_public_name=...`.
 
 #### Zet de rewrites opnieuw en test
 
@@ -112,23 +104,22 @@ ansible-playbook playbooks/smoketest.yml --tags dns
 
 </Steps>
 
-Semaphore draait de test ook elke ochtend ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
-
 ## DNS-server van een host omzetten
 
 Een host moet een andere resolver gebruiken. Voorbeeld: `caddy` (ct 106) moet
-`192.168.0.29` gebruiken.
+`192.168.0.29` gebruiken. Wie welke hoort te hebben:
+[Wie welke DNS gebruikt](#wie-welke-dns-gebruikt).
 
 <Steps>
 
-#### Kijk eerst hoe de host zijn DNS regelt
+#### Kijk hoe de host zijn DNS regelt
 
 ```bash filename="laptop"
 ssh caddy 'ls -l /etc/resolv.conf'
 ```
 
-Een pijl `->` in de output betekent: systemd-resolved beheert het bestand.
-Bewerk het dan niet rechtstreeks; dat is bij de volgende netwerkwijziging weg.
+Een pijl `->` betekent: systemd-resolved beheert het bestand. Bewerk het dan
+niet rechtstreeks; dat is bij de volgende netwerkwijziging weg.
 
 #### Zet de nieuwe DNS-server
 
@@ -152,53 +143,110 @@ ssh -t caddy 'sudoedit /etc/resolv.conf'   # nameserver 192.168.0.29
 </Tabs.Tab>
 </Tabs>
 
-#### Zet het ook in `containers.tf` (alleen bij een LXC)
+#### Bij een LXC: zet het ook in `containers.tf`
 
-In `tofu/proxmox/containers.tf`, bij de regel van de container:
-`dns_servers = ["192.168.0.29"]`. Laat `searchdomain` staan zoals het is.
+Bij de regel van de container: `dns_servers = ["192.168.0.29"]`. Anders draait
+een herstart van de container je wijziging terug. Niet met
+`pct set --nameserver`: het volgende plan zet het dan weer terug.
 
 ```bash filename="laptop"
 bin/tofu proxmox plan    # alleen zijn dns, "update in-place"
 bin/tofu proxmox apply
+git add tofu/proxmox/containers.tf && git commit -m 'caddy: DNS via AdGuard' && git push
 ```
 
-Anders draait een herstart van de container je wijziging terug. Niet met
-`pct set --nameserver`: het volgende plan zet het dan weer terug. Commit en
-push daarna.
-
 Niet op `tailscale` (ct 108): daar staat `100.100.100.100`, en dat beheert
-tailscaled zelf voor MagicDNS.
+tailscaled zelf.
 
 #### Controleer de resolver
 
 ```bash filename="laptop"
 ssh caddy 'getent hosts pve01.home.arpa'   # 192.168.0.10 - vanaf de host zelf
-dig +short pve01.home.arpa                 # 192.168.0.10 - vanaf je werkstation
 dig +short books.neodata.be                # 192.168.0.25 - de wildcard naar Caddy
-```
-
-`pve01.home.arpa` bewijst het: die naam kent alleen de AdGuard in ct 107.
-
-#### Controleer alle namen in één keer
-
-```bash filename="laptop"
 ansible-playbook playbooks/smoketest.yml --tags dns
 ```
 
-Zie [DNS controleren](#dns-controleren) voor wat hij wel en niet dekt.
+`pve01.home.arpa` bewijst het: die naam kent alleen AdGuard.
 
 </Steps>
 
-Welke host welke resolver hoort te hebben: zie
-[Hoe het netwerk nu staat](/netwerk/overzicht/#wie-gebruikt-welke-dns).
+## Wat AdGuard antwoordt
+
+| Je vraagt | AdGuard antwoordt | Waar dat staat |
+| --- | --- | --- |
+| een dienst: `vault.neodata.be` | `192.168.0.25` (Caddy) | één rewrite in AdGuard: *alles* van `neodata.be` gaat naar Caddy. Een nieuwe dienst heeft geen eigen regel nodig |
+| een server: `pve01.home.arpa` | zijn adres | Ansible zet de rewrite, uit de inventory |
+| een ander toestel: `nuki.home.arpa` | zijn adres | UniFi, als Local DNS Record, zie [Een toestel een naam geven](/netwerk/toestellen/#een-toestel-een-naam-geven) |
+| `google.com` | het echte adres | vraagt het door aan Quad9 |
+| een reclame- of malwaresite | niets | de [blocklists](/netwerk/blokkeren/) |
+
+Een regel die je met de hand in AdGuard zet, laat Ansible staan.
+
+### Wie welke DNS gebruikt
+
+Alles gebruikt `192.168.0.29`: telefoons, laptops, de Mac mini, alle servers,
+de WireGuard-VPN. Behalve:
+
+| Toestel | Gebruikt | Waarom |
+| --- | --- | --- |
+| AdGuard zelf | `1.1.1.1` | hij kan zichzelf niet om hulp vragen; zo kan hij ook updaten als hij zelf stuk is |
+| de tailscale-container (108) | `100.100.100.100` | Tailscale regelt dat zelf. **Niet aankomen** |
+| wie via Tailscale binnenkomt | `100.84.46.18` | ook AdGuard, maar zijn Tailscale-adres ([waarom](/netwerk/vpn/#waarom-de-tailnet-een-100x-adres-als-dns-heeft)) |
+
+### De instellingen van AdGuard
+
+In `adguard_dns` (`inventory/host_vars/adguard/main.yml`), toegepast met
+`ansible-playbook playbooks/adguard.yml`. Verander je ze in de web-UI, dan zet
+de volgende run ze terug.
+
+| Instelling | Staat op | Wat het doet |
+| --- | --- | --- |
+| Upstream | twee Quad9-adressen, parallel | hij vraagt beide en neemt het snelste antwoord |
+| Timeout | 3 seconden | antwoordt Quad9 niet, dan geeft hij na 3 s op, niet na 10 |
+| Fallback | `9.9.9.10` | reserve als de versleutelde verbinding naar Quad9 stuk is |
+| Optimistic cache | aan | een naam die hij al kent, geeft hij meteen, en hij ververst hem op de achtergrond |
+| Rate limit | uit | stond op 20 vragen per seconde per toestel; een drukke server haalde dat en kreeg dan geen antwoord meer |
+| Private reverse DNS | `192.168.0.1` | vraagt aan UniFi hoe een toestel heet |
+
+Een nieuwe upstream test de rol eerst: antwoordt die niet, dan verandert er
+niets. Een nieuwe naam duurt zo'n 20 ms, een naam die AdGuard al kent 3 ms.
 
 ## Goed om te weten
+
+### Waarom geen tweede DNS-server
+
+Een reserve zoals `1.1.1.1` werkt niet: een toestel vraagt **ze allebei**, en
+`1.1.1.1` kent onze namen niet. Krijg je toevallig dat antwoord, dan opent
+`dns.neodata.be` niet en komt er reclame door. Daarom deelt UniFi alleen
+AdGuard uit. De echte oplossing is een tweede AdGuard (staat in `TODO.md`).
+
+Wat UniFi hoort uit te delen, staat in `unifi_expected_dns`
+(`inventory/group_vars/all/unifi.yml`); `unifi-routes.yml` controleert het
+elke dag en wordt rood als UniFi afwijkt.
+
+### Vaste adressen van caddy en adguard
+
+Caddy (`192.168.0.25`) en AdGuard (`192.168.0.29`) vragen hun adres niet aan
+UniFi: het staat vast in hun eigen instellingen in Proxmox. Anders hing het
+hele huis af van één instelling in UniFi, en ging daar iets mis, dan werkten
+DNS én alle diensten niet meer. In UniFi staan ze ook als Fixed IP, alleen
+zodat UniFi die adressen nooit aan een ander toestel geeft.
+
+### Het zoekdomein `home.arpa`
+
+Elke container zoekt korte namen op onder `home.arpa`. De waarde staat één
+keer, in `inventory/group_vars/proxmox/guest_network.yml`: Ansible (`ntfy`) en
+OpenTofu (`containers.tf`) lezen allebei dat bestand. Zonder nam een container
+`neodata.be` over van pve01, en kwam `semaphore.neodata.be` bij de container
+zelf uit in plaats van bij Caddy: de dagelijkse test zag de site als stuk,
+terwijl hij werkte. Mist een container het, zet `searchdomain` in zijn regel,
+`plan`, `apply` en `ssh pve01 'sudo pct reboot <vmid>'`.
 
 ### De DNS-test rekent zelf
 
 `smoketest.yml` berekent de lijst namen op dezelfde manier als de
-`adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de lijst
-van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
+`adguard`-rol, maar met een eigen kopie van die uitdrukking. Leende hij de
+lijst van de rol, dan zou een fout in die lijst zichzelf goedkeuren.
 
 ### Waarom DNS naar ct 107 moest
 

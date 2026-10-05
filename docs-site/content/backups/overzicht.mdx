@@ -6,8 +6,10 @@ import { Steps } from 'nextra/components'
 
 # Back-ups
 
-Waar de back-ups staan, wat je **nu al** moet doen zodat terugzetten later
-lukt, en hoe je test dat terugzetten echt werkt.
+Drie kopieën: elke nacht naar PBS, elke week naar de Mac mini, elke nacht
+het belangrijkste naar Cloudflare R2. Hier staat wat waar staat, wat je
+**nu al** moet doen zodat terugzetten later lukt, en hoe je test dat het
+werkt. Iets stuk? Kies links onder **Als het stuk is**.
 
 ## Waar de back-ups staan
 
@@ -15,16 +17,20 @@ lukt, en hoe je test dat terugzetten echt werkt.
 | --- | --- | --- | --- |
 | Wanneer | elke nacht 02:30 | zondag 01:00 | elke nacht 04:00 |
 | Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) | Cloudflare R2 |
-| Wat | alle guests behalve 100 (PBS) | 101, 102, 103, 104, 106, 107, 108 | alleen wat git niet kan herbouwen, zie [Terughalen uit R2](/proxmox/r2/) |
+| Wat | alle guests behalve 100 (PBS) en 110 (LANCache) | 101, 102, 103, 104, 106, 107, 108 | alleen wat git niet kan herbouwen, zie [Terughalen uit R2](/backups/r2/) |
 | Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps | kopie van PBS, door `r2-guard` |
 | Bewaart | 7 | 2 | 3 |
 | Versleuteld | ja | **nee** | ja |
 | Redt je van | een kapotte guest | een pve01 die weg is | een huis dat weg is |
+| Terugzetten | [Een guest terugzetten](/backups/terugzetten/) | [Tweede kopie](/backups/tweede-kopie/) | [Terughalen uit R2](/backups/r2/) |
 
 Daarnaast maakt `docker` om 02:00 zelf een back-up van zijn app-data en
 foto's naar PBS (`docker-data-backup.timer`); die gaat mee naar R2. Bron:
 `inventory/group_vars/proxmox/backup.yml` en `storage.yml`, en `pbs_offsite`
 in `inventory/host_vars/pbs/main.yml`.
+
+Een mislukte back-up meldt zich via ntfy, een geslaagde niet
+([Meldingen](/homelab/diensten/ntfy/#meldingen-op-je-iphone)).
 
 ## Vooraf: doe dit nu
 
@@ -32,33 +38,16 @@ Doe dit terwijl alles nog werkt. Achteraf kan het niet meer.
 
 <Steps>
 
-#### Maak een papieren kopie van de PBS-sleutel
+#### Maak een papieren kopie van de twee PBS-sleutels
 
 ```bash filename="laptop"
-ssh pve01
-```
-
-```bash filename="pve01"
-sudo ls /etc/pve/priv/storage/                                         # hier hoort pbs.enc te staan
-sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text
-```
-
-Print wat eruit komt, en bewaar het **buiten het huis** (bv. ook in de
-wachtwoordkluis). Zonder deze sleutel zijn de back-ups op PBS niet terug te
-zetten.
-
-Doe hetzelfde met de sleutel van `docker` (app-data en foto's):
-
-```bash filename="laptop"
+ssh pve01 'sudo proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text'
 ssh docker 'sudo proxmox-backup-client key paperkey /root/.config/proxmox-backup/docker-data.key --output-format text'
 ```
 
-Papier is het echte vangnet, niet de wachtwoordkluis: Vaultwarden draait
-zelf in de homelab, en brandt het huis af, dan zit hij in R2 achter precies
-deze sleutels. Bewaar sleutels en vault-wachtwoorden samen.
-
-`proxmox-backup-client key show` toont alleen de fingerprint, niet de
-sleutel zelf: daar kan je niets mee terugzetten.
+De eerste is de sleutel van alle guests, de tweede die van de app-data en
+foto's van `docker`. Print beide en bewaar ze **buiten het huis**. Zonder deze
+sleutels zijn de back-ups op PBS en in R2 niet terug te zetten.
 
 #### Bewaar de twee vault-wachtwoorden op dezelfde plek
 
@@ -68,17 +57,11 @@ cat ~/.ansible/vault_pass_stacks
 ```
 
 Ze openen alles wat de repo versleuteld bewaart: API-tokens, logins, de
-`.env`-bestanden van de stacks. Ze staan niet in git, met opzet.
-
-Kwijt, dan is de repo compleet maar onbruikbaar: bijna elk playbook leest een
-vault-bestand, en de wachtwoorden zijn nergens uit af te leiden. De enige weg
-terug is elk vault-bestand opnieuw maken en elk secret opnieuw zetten.
+`.env`-bestanden van de stacks. Ze staan met opzet niet in git.
 
 </Steps>
 
-## Herstellen testen
-
-### Af en toe: bewijs dat herstellen werkt
+## Testen dat terugzetten werkt
 
 Een herstelpad dat nooit gedraaid heeft, is een aanname.
 
@@ -86,57 +69,117 @@ Een herstelpad dat nooit gedraaid heeft, is een aanname.
 ansible-playbook playbooks/restore-drill.yml -e drill_confirm=true
 ```
 
-Bewijst dat je je **data** terugkrijgt uit PBS: de sleutel werkt en het archief
-is heel. Draait vanzelf op de 1e van de maand; met de hand na wijzigingen aan
-de back-upjobs.
+Zet de nieuwste back-up van één container terug op vmid 199, leest er een
+bestand uit, en sloopt 199 weer. Zo weet je dat de sleutel werkt en het
+archief heel is. Alleen containers: een teruggezette VM zou met het origineel
+botsen op MAC en IP.
+Semaphore draait hem elke maand
+([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)); met de hand na een
+wijziging aan de back-upjobs.
 
-Hij zet de back-up terug op vmid 199 en sloopt die op het eind.
+| Wil je | Zet erachter |
+| --- | --- |
+| een bepaalde guest (standaard kiest hij zelf een container) | `-e guest=<naam>` |
+| alleen zien welke back-up hij zou pakken | `--check` |
 
 **Faalt de drill, dan blijft 199 staan**, zodat je kan kijken wat er misging.
 Opruimen: `ssh pve01 'sudo pct destroy 199'`.
 
-`restore-drill.yml --check` zegt alleen welke back-up hij zou pakken, zonder
-iets te doen.
+Het bouwpad (`bin/tofu proxmox apply`, `new-guest.yml`, de baseline) test je
+gewoon door het te gebruiken: elke nieuwe container loopt het van begin tot
+eind.
 
-De drill kiest zelf een container uit wat Proxmox nu draait (geen
-OCI-containers zoals `ntfy`), of neemt die van `-e guest=<naam>`.
+## De R2-sync weer aanzetten
 
-Het bouwpad zelf (`bin/tofu proxmox apply`, `new-guest.yml`, `bootstrap.yml`,
-de baseline) bewijs je gewoon door het te gebruiken: elke nieuwe container
-loopt het van begin tot eind.
+Je kreeg de melding **"R2-sync gestopt"** (of elke nacht "R2-sync staat nog
+stil"). `r2-guard` start de kopie naar R2 niet meer, zodat het nooit geld
+kost ([waarom](#waarom-r2-zo-voorzichtig-is)). Er gaat niets naar R2 tot jij
+hem weer aanzet.
 
-## Inloggen op PBS
+<Steps>
 
-Op [backup.neodata.be](https://backup.neodata.be) kies je bij **Realm**
-"Pocket ID (id.neodata.be)". Pocket ID laat alleen de groep `admin` door en
-vraagt elke keer je passkey. `root@pam` blijft de noodtoegang.
+#### Lees waarom
 
-PBS leest geen groepen uit Pocket ID. Wie admin is op PBS, staat daarom bij
-naam in `pbs_oidc.admins` (`inventory/host_vars/pbs/main.yml`); wie er niet
-op staat, krijgt geen account. Iemand toevoegen:
-
-```bash
-$EDITOR inventory/host_vars/pbs/main.yml   # naam onder pbs_oidc.admins
-ansible-playbook playbooks/pbs.yml --tags oidc
+```bash filename="laptop"
+ssh pbs 'sudo cat /var/lib/r2-guard/stopped'
 ```
 
-Iemand weghalen doet de rol niet vanzelf (hij voegt alleen toe):
-`proxmox-backup-manager user remove <naam>@pocketid` op `pbs`, en dan de naam
-uit de lijst.
+| Reden | Wat doen |
+| --- | --- |
+| "r2-guard faalde" of "Cloudflare gaf fouten" | het Cloudflare-token werkt niet (verlopen, ingetrokken), of Cloudflare had een storing. Nieuw token nodig? Account Analytics: Read, in `inventory/host_vars/pbs/vault.yml` als `vault_cf_analytics_token`, dan `ansible-playbook playbooks/pbs.yml --tags offsite` |
+| boven 8 GB | er staat te veel in R2, meestal door de foto's: zie de volgende stap |
+| te veel operaties | ongewoon: kijk in Cloudflare → R2 → Metrics wat er zo vaak gebeurde |
+
+#### Te vol: minder versies bewaren
+
+```bash filename="laptop"
+ssh pbs 'sudo proxmox-backup-manager prune-job update offsite-prune --keep-last 2'
+ssh pbs 'sudo proxmox-backup-manager sync-job update offsite-r2 --transfer-last 2'
+```
+
+De jobs staan al in PBS, dus `keep_last` in de inventory aanpassen verandert
+ze niet: doe het met de hand, en pas daarna de inventory aan. R2 wordt pas
+kleiner na de prune **en** de garbage collection daarna (allebei dagelijks).
+
+#### Meet, dan pas weer aan
+
+```bash filename="laptop"
+ssh pbs 'sudo rm /var/lib/r2-guard/stopped && sudo /usr/local/sbin/r2-guard --dry-run'
+```
+
+Je ziet `R2: … GB …` en `(dry-run, geen sync)`, geen STOP: de sync loopt
+vannacht weer. Staat er toch STOP, dan is hij al opnieuw gestopt: terug naar
+de eerste stap.
+
+</Steps>
 
 ## Goed om te weten
 
-### Een nieuw client-secret voor PBS
+### Papier, niet de wachtwoordkluis
 
-PBS geeft het secret van de realm nooit terug, dus de rol stuurt het alleen
-bij het aanmaken. Vervang je de client in Pocket ID, zet het nieuwe secret dan
-in de vault (`vault_pbs_oidc_client_secret`) én met de hand in PBS:
-`proxmox-backup-manager openid update pocketid --client-key <secret>`.
+Vaultwarden draait zelf in de homelab. Brandt het huis af, dan zit hij in R2,
+achter precies deze sleutels. Bewaar de sleutels en de vault-wachtwoorden dus
+samen, op papier. `proxmox-backup-client key show` toont alleen de
+fingerprint: daar kan je niets mee terugzetten.
+
+Vault-wachtwoorden kwijt? Dan is de repo compleet maar onbruikbaar: bijna elk
+playbook leest een vault-bestand. De enige weg terug is elk vault-bestand
+opnieuw maken en elk secret opnieuw zetten.
+
+### Waarom de dagelijkse niet genoeg is
+
+De dagelijkse staat op pve01 zelf: sterft die machine met zijn schijven, dan
+gaan guests en back-ups samen. Daarvoor is de wekelijkse op de Mini, en voor
+brand of diefstal de kopie in R2. De dumps op de Mini zijn niet versleuteld:
+wie die NFS-share kan mounten, kan ze lezen. Die in R2 wel.
+
+### Waarom maar twee dumps op de Mini
+
+`media01` op de Mini is bijna vol en draagt ook Time Machine. Daarom staat
+`prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je meer, kijk
+dan eerst `df` op de Mini: loopt die schijf vol, dan breken beide back-ups
+tegelijk.
+
+### De wekelijkse job nakijken
+
+Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job, en
+krijg je een melding. Zelf kijken:
+
+```bash filename="laptop"
+ssh pve01 'sudo pvesm list macmini-backup'
+ssh pve01 'df -h /mnt/pve/macmini-backup'
+```
+
+### Een nieuwe guest in de wekelijkse
+
+De dagelijkse naar PBS neemt elke guest vanzelf mee, de wekelijkse niet: die
+heeft een vaste lijst. Zie [Afwerken](/proxmox/afwerken/#zet-hem-in-de-wekelijkse-back-up).
 
 ### Waarom R2 zo voorzichtig is
 
 R2 moet binnen de gratis 10 GB blijven, en Cloudflare kent geen harde
-uitgavengrens. Daarom:
+uitgavengrens. Ansible dwingt dit af: komt er een schema of `remove-vanished`
+bij, dan haalt de volgende run het weg.
 
 | Keuze | Waarom |
 | --- | --- |
@@ -144,34 +187,3 @@ uitgavengrens. Daarom:
 | stop boven 8 GB, 800.000 Class A- of 8.000.000 Class B-operaties per maand; waarschuwing vanaf 6,5 GB | wat één nacht uploadt, weet hij pas achteraf. De 2 GB onder de gratis 10 GB vangt een drukke nacht op |
 | r2-guard telt de bucket zelf | de cijfers van Cloudflare lopen tot een dag achter |
 | nooit wissen in R2 (`remove-vanished` uit) | anders wist een lege `store1` (na een herbouw of ransomware) alles in R2, net als je het nodig hebt. Oude versies ruimt de prune job op |
-
-Ansible dwingt dit af: komt er een schema of `remove-vanished` bij, dan haalt
-de volgende run het weg.
-
-### Waarom de dagelijkse niet genoeg is
-
-De dagelijkse staat op pve01 zelf: sterft die machine met zijn schijven, dan
-gaan guests en back-ups samen. Daarvoor is de wekelijkse op de Mini, en voor
-brand of diefstal de kopie in R2.
-
-De dumps op de Mini zijn niet versleuteld: iedereen die die NFS-share kan
-mounten, kan ze lezen. Die in R2 wel: Cloudflare ziet alleen versleutelde
-blokken.
-
-### De wekelijkse job nakijken
-
-Slaapt de Mini op zondagnacht, of is de share weg, dan faalt de job. Beide
-jobs melden een fout via ntfy ([Meldingen](/semaphore/#meldingen-op-je-iphone)).
-Zelf kijken:
-
-```bash filename="laptop"
-ssh pve01 'sudo pvesm list macmini-backup'
-ssh pve01 'df -h /mnt/pve/macmini-backup'
-```
-
-### Waarom maar twee dumps bewaren
-
-`media01` op de Mini is bijna vol en draagt ook Time Machine.
-Daarom staat `prune-backups keep-last=2` op de opslag (ongeveer 50 GB). Wil je
-meer, kijk dan eerst `df` op de Mini. Loopt die schijf vol, dan breken beide
-back-ups tegelijk.

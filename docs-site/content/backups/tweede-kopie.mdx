@@ -20,7 +20,7 @@ ssh pve01 'sudo pvesm status | grep macmini-backup'
 
 Staat hij er niet (herbouwde node)? Doe dan eerst *Maak de map voor de tweede
 kopie* en *Zet de overige opslag en de back-upjobs terug* uit
-[pve01 opnieuw: back-ups](/proxmox/pve01-backups/).
+[pve01 opnieuw: back-ups](/backups/pve01-backups/).
 
 #### Zoek de dump
 
@@ -33,7 +33,7 @@ Namen zoals `macmini-backup:backup/vzdump-lxc-107-2026_09_21-01_00_05.tar.zst`
 
 #### Zet de dump terug
 
-Precies zoals in [Terugzetten uit back-up](/proxmox/herstellen/#terugzetten-uit-de-back-up),
+Precies zoals in [Terugzetten uit de back-up](/backups/terugzetten/#terugzetten-uit-de-back-up),
 alleen met deze naam:
 
 ```bash filename="pve01"
@@ -57,8 +57,8 @@ ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
 ```
 
 Hij begint zonder back-ups. Koppel hem daarna als opslag `pbs` zoals in
-[pve01 opnieuw: back-ups](/proxmox/pve01-backups/#koppel-pbs-in-proxmox), met een
+[pve01 opnieuw: back-ups](/backups/pve01-backups/#koppel-pbs-in-proxmox), met een
 **nieuwe** encryptiesleutel, en maak daar meteen een papieren kopie van (zie
-[Vooraf](/proxmox/backups/#vooraf-doe-dit-nu)).
+[Vooraf](/backups/overzicht/#vooraf-doe-dit-nu)).
 
 </Steps>

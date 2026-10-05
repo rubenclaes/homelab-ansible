@@ -1,16 +1,16 @@
 ---
-title: pve01 opnieuw opbouwen
+title: 'pve01 opnieuw: de host'
 ---
 
 import { Steps, Callout } from 'nextra/components'
 
-# pve01 opnieuw opbouwen
+# pve01 opnieuw: de host
 
 pve01 zelf is weg, bijvoorbeeld een dode bootschijf. Je bouwt hem op in drie
-delen, in deze volgorde: **pve01 zelf** (deze pagina), dan de
-[back-ups](/proxmox/pve01-backups/), dan de [machines](/proxmox/pve01-machines/).
-Deze site draait óp pve01; dezelfde tekst staat in elke clone van de repo, in
-`docs-site/content/proxmox/`.
+delen, in deze volgorde: **de host** (deze pagina), dan de
+[back-ups](/backups/pve01-backups/), dan de [machines](/backups/pve01-machines/).
+Deze site draait óp pve01: dezelfde tekst staat in elke clone van de repo, in
+`docs-site/content/backups/`.
 
 ## Voor je begint
 
@@ -24,18 +24,19 @@ sleutel en vault-wachtwoorden begint hier niets.
 Wat je nodig hebt buiten deze repo:
 
 - een USB-stick met Proxmox VE
-- de **PBS-encryptiesleutel** (je papieren kopie, zie [Vooraf](/proxmox/backups/#vooraf-doe-dit-nu))
+- de **PBS-encryptiesleutel** (je papieren kopie, zie [Vooraf](/backups/overzicht/#vooraf-doe-dit-nu))
 - het wachtwoord van `pve@pbs` (niet in de repo)
 - op de Mac mini: de gedeelde schijf `/Volumes/media01`
 
-## pve01 zelf
+## De stappen
 
 <Steps>
 
 #### Installeer Proxmox op hetzelfde adres
 
-Met de hand, van USB, met vast adres **`192.168.0.10`**, op de 2,5GbE-poort (`enp3s0`, `vmbr0`). Dat adres staat hard
-in `inventory/00-static.yml` en in `pve_api_host`. Een ander adres breekt alles.
+Met de hand, van USB, met vast adres **`192.168.0.10`**, op de 2,5GbE-poort
+(`enp3s0`, `vmbr0`). Dat adres staat hard in `inventory/00-static.yml` en in
+`pve_api_host`: een ander adres breekt alles.
 De kabel gaat in **poort 16** van de switch ([waarom](#de-kabel-in-poort-16)).
 
 #### Importeer de ZFS-pool `vm-hdd`
@@ -49,7 +50,7 @@ zpool import vm-hdd      # "in use by another system"? dan: zpool import -f vm-h
 - **Lukt het**: de VM-schijven en de PBS-datastore zijn er nog. Ga door.
 - **Lukt het niet**: de PBS-back-ups zijn weg. Doe deel 1, sla in deel 2 alles
   over tot *Maak de map voor de tweede kopie*, doe deel 2 verder af, en ga dan
-  naar [Tweede kopie](/proxmox/tweede-kopie/).
+  naar [Tweede kopie](/backups/tweede-kopie/).
 
 #### Maak de gebruiker van OpenTofu
 
@@ -158,7 +159,7 @@ in `tofu/proxmox/access.tf`.
 
 </Steps>
 
-Klaar? Ga verder met [de back-ups](/proxmox/pve01-backups/).
+Klaar? Ga verder met [de back-ups](/backups/pve01-backups/).
 
 ## Goed om te weten
 

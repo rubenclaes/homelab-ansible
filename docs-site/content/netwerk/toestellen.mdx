@@ -7,12 +7,12 @@ import { Steps } from 'nextra/components'
 # Toestellen
 
 Een toestel dat bijkomt, een naam moet krijgen, dat je niet kent, of dat
-kwijt is. Dit gebeurt met de hand in UniFi. De lijst van alle toestellen staat
-onder [Homelab → Toestellen](/homelab/toestellen/).
+kwijt is. Dit gebeurt met de hand in UniFi ([waarom](#waarom-unifi-met-de-hand)).
+De lijst van alle toestellen: [Toestellen](/homelab/toestellen/).
 
 ## Een nieuw toestel op het netwerk
 
-Voorbeeld: een nieuwe printer of TV. Alles gebeurt in UniFi, met de hand.
+Voorbeeld: een nieuwe printer.
 
 <Steps>
 
@@ -65,8 +65,16 @@ met `upstream:`, zie
 ## Een toestel een naam geven
 
 De Query Log van AdGuard toont `192.168.0.23` of `iPhone`, en je wil
-`iphone-karen`. De naam komt uit UniFi, niet uit AdGuard: AdGuard vraagt bij
-elk IP aan de UCG wie dat is.
+`iphone-karen`. AdGuard vraagt bij elk IP aan UniFi wie dat is, en toont dan:
+
+| In UniFi | Dan zie je in AdGuard | Voorbeeld |
+| --- | --- | --- |
+| het toestel heeft een **Local DNS Record** | die naam | `iphone-karen.home.arpa` |
+| geen record | de naam die het toestel zelf kiest | `iPhone`, `Mac` |
+| geen record, en het toestel kiest geen naam | alleen het IP | `192.168.0.23` |
+
+De **alias** in UniFi telt hier niet. Welke toestellen al een record hebben:
+de kolom **DNS-naam** op [Toestellen](/homelab/toestellen/).
 
 <Steps>
 
@@ -192,10 +200,6 @@ AdGuard kan zelf ook namen geven (Settings → Client settings). Dan zou elk
 toestel op twee plaatsen staan, en krijgt een toestel een ander IP, dan klopt
 AdGuard niet meer. Nu is UniFi de enige bron: hij deelt het adres uit en kent
 dus altijd de juiste naam. AdGuard vraagt het hem via `local_ptr_upstreams`.
-
-De **alias** in UniFi telt daarvoor niet. De UCG geeft AdGuard alleen het
-Local DNS Record, of anders de naam die het toestel zelf opgeeft (`iPhone`,
-`Mac`, `LGwebOSTV`).
 
 `unifi-routes.yml` vergelijkt alleen; Ansible schrijft niet naar UniFi (zie
 hieronder). De eerste lading records is wel eenmalig via de API gezet.

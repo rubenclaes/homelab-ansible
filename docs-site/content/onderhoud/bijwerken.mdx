@@ -6,82 +6,68 @@ import { Steps, Callout } from 'nextra/components'
 
 # Bijwerken
 
-De guests en pve01 zelf bijwerken, en schijfruimte vrijmaken. Eerst zien
-wat er openstaat? Kijk in het
-[Gezondheidsrapport](/ansible/nakijken/#gezondheidsrapport), tabblad **Updates**.
+De guests, pve01 en de Macs bijwerken. Patchen van de guests gebeurt vanzelf,
+herstarten **nooit**: dat moment kies jij. Wat er openstaat, zie je in het
+[Gezondheidsrapport](/onderhoud/nakijken/#gezondheidsrapport), tabblad
+**Updates**.
+
+Caddy en de OCI-containers doen niet mee met `update.yml`: zie
+[Caddy bijwerken](/netwerk/caddy/#caddy-bijwerken) en
+[Een OCI-container bijwerken](/proxmox/oci/#een-oci-container-bijwerken).
 
 ## Guests patchen en herstarten
 
-Patchen gebeurt vanzelf: Semaphore draait "Update guests" elke zondagnacht
-([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)), behalve op `semaphore` zelf. Herstarten gebeurt **nooit**
-vanzelf, ook niet in die zondagse run: jij kiest het moment.
-
-Met de hand doe je dit als je niet op zondag wil wachten, om Semaphore te
-patchen, of als een guest `REBOOT NEEDED` meldt.
+Semaphore patcht de guests elke week ("Update guests",
+[schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)), behalve `semaphore`
+zelf. Met de hand doe je het als je niet wil wachten, voor `semaphore`, of als
+een guest `REBOOT NEEDED` meldt.
 
 <Steps>
 
 #### Patch de guests
 
 ```bash filename="laptop"
-ansible-playbook playbooks/update.yml --limit guests
+ansible-playbook playbooks/update.yml --limit guests      # alle guests
+ansible-playbook playbooks/update.yml --limit semaphore   # alleen Semaphore
 ```
 
-`apt full-upgrade`, één host na de andere. Er wordt **niet** herstart.
-
-#### Of: patch alleen Semaphore
-
-```bash filename="laptop"
-ansible-playbook playbooks/update.yml --limit semaphore
-```
-
-Altijd vanaf je laptop, nooit vanuit Semaphore zelf.
-
-Semaphore patcht zichzelf niet, met opzet. Herstart de container halverwege een
-run, dan is de job dood en weet je niet of de upgrade af is.
+`apt full-upgrade`, één host na de andere, zonder herstart. Semaphore patch je
+altijd vanaf je laptop ([waarom](/semaphore/#de-limits-in-de-templates)).
 
 #### Kijk of er een herstart nodig is
 
 Zoek in de output naar `REBOOT NEEDED`. Staat die er niet, dan ben je klaar.
 
-#### Herstart één guest
+#### Herstart wat het nodig heeft
 
 ```bash filename="laptop"
-ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true
+ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true   # één guest
+ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true   # alle guests
 ```
 
-Hij patcht eerst, en herstart alleen als het nodig is.
-
-Herstart je `docker`, dan liggen alle stacks erop even plat.
-
-#### Of: alle guests die het nodig hebben
-
-```bash filename="laptop"
-ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true
-```
+Hij patcht eerst, en herstart alleen wie het nodig heeft. Herstart je
+`docker`, dan liggen alle stacks erop even plat.
 
 </Steps>
 
-Alleen de **VM's** (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
-reboot. Een **LXC** heeft geen eigen kernel: hij gebruikt die van `pve01`. Een
-nieuwe kernel voor de LXC's betekent dus:
-[`pve01` herstarten](#de-hypervisor).
+Alleen de VM's (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
+herstart. Een LXC gebruikt de kernel van pve01: een nieuwe kernel voor de
+LXC's is [pve01 herstarten](#pve01-bijwerken-en-herstarten).
 
-## De hypervisor
+## pve01 bijwerken en herstarten
 
-`pve01` zelf bijwerken en herstarten, bijvoorbeeld voor een nieuwe
-Proxmox-kernel.
+Bijvoorbeeld voor een nieuwe Proxmox-kernel.
 
 <Callout type="error">
-**Nooit vanuit Semaphore.** Semaphore is een container **op** `pve01`. Een
-reboot van `pve01` doodt de job die hem gaf. Draai dit altijd vanaf je laptop.
+**Nooit vanuit Semaphore.** Semaphore is een container óp pve01: een herstart
+van pve01 doodt de job die hem gaf. Altijd vanaf je laptop.
 </Callout>
 
 <Steps>
 
 #### Kies een moment waarop alles even weg mag
 
-Een herstart van `pve01` legt **elke guest** plat: ook DNS (`adguard`) en alle
+Een herstart van pve01 legt **elke guest** plat, ook DNS (`adguard`) en alle
 `*.neodata.be`-adressen (`caddy`).
 
 #### Patch en herstart
@@ -91,8 +77,7 @@ ansible-playbook playbooks/update.yml --limit linux \
   -e allow_reboot=true -e allow_hypervisor_reboot=true
 ```
 
-Eerst worden de guests gepatcht, dan pas `pve01`. Je hebt **beide** flags
-nodig.
+Eerst de guests, dan pas pve01. Je hebt **beide** flags nodig.
 
 #### Controleer of alles terug is
 
@@ -102,68 +87,72 @@ ansible-playbook playbooks/smoketest.yml   # werkt elk adres nog, antwoordt AdGu
 
 </Steps>
 
-Zonder de flags patcht een run `pve01` gewoon mee, maar herstart hij niet. Je
-krijgt dan een melding dat hij een reboot nodig heeft.
+Zonder de flags patcht een run pve01 gewoon mee, maar herstart hij niet: je
+krijgt een melding dat hij een herstart nodig heeft.
 
-## Schijfruimte vrijmaken
+## De Macs
 
-Een schijf loopt vol. `cleanup.yml` rapporteert eerst en verwijdert pas met een
-flag. Semaphore ruimt elke zaterdagnacht echt op ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
+Homebrew bijwerken op `mbp` en `macmini`. Semaphore doet de Macs niet
+([waarom](#waarom-semaphore-de-macs-niet-doet)): draai dit vanaf je MacBook.
 
 <Steps>
 
-#### Kijk eerst wat er weg kan
+#### Werk de pakketten bij
 
 ```bash filename="laptop"
-ansible-playbook playbooks/cleanup.yml                 # rapporteert alleen
-ansible-playbook playbooks/cleanup.yml --limit macs    # alleen de Macs (brew-cache)
+ansible-playbook playbooks/update.yml --limit macs   # beide Macs
+ansible-playbook playbooks/update.yml --limit mbp    # alleen je MacBook
 ```
 
-Zonder flag verandert hij niets. Je krijgt de **namen** van wat weg zou gaan,
-niet alleen een aantal.
+Dit is `brew upgrade --formula`: alleen pakketten, geen apps. De Mac mini
+slaat zijn pakketten over ([waarom](#de-mac-mini-en-homebrew)) en zegt dat
+elke run.
 
-#### Lees het lijstje
-
-Let vooral op `pve01`: daar duiken oude `proxmox-kernel-*`-pakketten op. Dat
-lijstje zien vóór je opruimt, is het hele punt van deze stap.
-
-#### Ruim echt op
+#### Ook de apps: zet de cask-flag aan
 
 ```bash filename="laptop"
-ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true
+ansible-playbook playbooks/update.yml --limit macs -e allow_cask_upgrade=true
 ```
 
-Zet `cleanup_apply` nooit in de inventory: het is de schakelaar die een
-rapport in een verwijdering verandert; een default in `group_vars` maakt elke
-run destructief.
+Een open app kan even afgesloten worden. Apps die zichzelf updaten (Spotify,
+Chromium) laat hij met rust.
+
+#### Kijk of elke Mac aan de beurt kwam
+
+De Macs gaan één voor één. Faalt er een, dan stopt de play en komt de
+volgende niet meer aan de beurt, zonder dat het log dat zegt. Kijk per Mac in
+de output.
 
 </Steps>
 
-### Wat hij nooit aanraakt
+macOS zelf werkt `update.yml` niet bij: het rapport toont wel welke
+macOS-updates klaarliggen, installeren doe je met de hand op de Mac.
 
-| Blijft staan | Waarom |
-| --- | --- |
-| Docker-volumes | daar staat de data van de stacks; weggooien is een restore, geen cleanup |
-| containers, ook gestopte | een gestopte container houdt zijn image buiten de prune, dus een `down`-stack overleeft dit |
-| gepinde pakketten | `autoremove` respecteert dpkg-holds, dus de custom Caddy-build blijft |
-| de geïnstalleerde Homebrew-versie | alleen oude versies en oude downloads gaan |
+### Een cask die faalt op `sudo`
 
-### De knoppen
+```
+sudo: a terminal is required to read the password
+Error: <naam>: Failure while executing; `/usr/bin/sudo -u root -E -- ...`
+```
 
-In `inventory/group_vars/all/cleanup.yml`:
+Doe die ene cask met de hand, mét terminal (`-t`):
 
-| Var | Standaard | Doet |
+```bash filename="laptop"
+ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew upgrade --cask <naam>'   # of: uninstall --cask
+```
+
+Waarom `-K` niet helpt: [Casks die root nodig hebben](#casks-die-root-nodig-hebben).
+
+## Alle flags
+
+Allemaal standaard **uit**. Zonder flags wordt er gepatcht en verder niets.
+
+| Variabele | Waar | Doet |
 | --- | --- | --- |
-| `cleanup_journal_keep` | `14d` | hoeveel journal-geschiedenis blijft |
-| `cleanup_docker_until` | `720h` | ongebruikte images jonger dan dit blijven staan |
-| `cleanup_brew_prune` | `30` | brew-downloads ouder dan zoveel dagen gaan weg |
-
-Pakketten weghalen die je niet meer wil, doe je **niet** hier: dat gaat via de
-`*_absent`-lijsten in de host_vars en `site.yml`. Zie
-[Welke van de drie playbooks?](#welke-van-de-drie-playbooks) voor het verschil.
-
-Waarom `brew cleanup` hier zit en niet in `update.yml`, en waarom build cache
-geen leeftijdsgrens heeft: [Goed om te weten](#goed-om-te-weten).
+| `allow_reboot` | commandline | herstart guests die het nodig hebben |
+| `allow_hypervisor_reboot` | commandline | ook pve01; werkt alleen samen met `allow_reboot` |
+| `allow_cask_upgrade` | commandline | ook de apps op de Macs |
+| `macos_brew_upgrade` | `host_vars/<mac>/main.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
 
 ## Goed om te weten
 
@@ -171,49 +160,45 @@ geen leeftijdsgrens heeft: [Goed om te weten](#goed-om-te-weten).
 
 | Playbook | De vraag | Wat hij doet |
 | --- | --- | --- |
-| `site.yml` | staat alles er zoals beschreven? | installeert wat ontbreekt, haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust. |
-| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt. |
-| `cleanup.yml` | valt er schijfruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen. |
+| `site.yml` | staat alles er zoals beschreven? | installeert wat ontbreekt, haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust |
+| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt |
+| `cleanup.yml` | valt er schijfruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen, zie [Opruimen](/onderhoud/opruimen/) |
 
 Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)
-is `site.yml --tags macos`, níét `cleanup.yml`. Cleanup gaat over schijfruimte,
-niet over wat er hoort te staan.
+is dus `site.yml --tags macos`, niet `cleanup.yml`.
 
-### Alle flags
-
-Allemaal standaard **uit**. Zonder flags wordt er gepatcht en verder niets.
-
-| Variabele | Waar | Doet |
-| --- | --- | --- |
-| `allow_reboot` | commandline | herstart guests die het nodig hebben |
-| `allow_hypervisor_reboot` | commandline | ook `pve01`; werkt alleen samen met `allow_reboot` |
-| `allow_cask_upgrade` | commandline | ook de apps op de Macs |
-| `macos_brew_upgrade` | `host_vars/<mac>/main.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
-
-`allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
-ongeluk `pve01` meenemen.
-
-### Waarom de volgorde: guests, dan `pve01`, dan de Macs
+### Waarom de volgorde: guests, dan pve01, dan de Macs
 
 `update.yml` heeft drie plays, elk met `serial: 1`: één host is klaar voor de
-volgende begint. Een mislukte upgrade sloopt zo één machine, niet alles. Guests
-gaan vóór `pve01`, anders kan `pve01` herstarten terwijl zijn guests nog bezig
-zijn.
+volgende begint, dus een mislukte upgrade sloopt één machine, niet alles.
+Guests gaan vóór pve01, anders kan pve01 herstarten terwijl zijn guests nog
+bezig zijn. De Macs komen laatst: op de MacBook komt `ansible` zelf uit
+Homebrew, en een upgrade vervangt het programma dat op dat moment draait.
 
-De Macs komen als laatste omdat op de MacBook `ansible` zelf uit Homebrew komt.
-Een upgrade vervangt het programma dat op dat moment draait. Achteraan is dat
-risico zo klein mogelijk.
+`allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
+ongeluk pve01 meenemen.
 
-### Waarom `brew cleanup` niet in `update.yml` zit
+### Waarom Semaphore de Macs niet doet
 
-Op de MacBook komt `ansible` zelf uit Homebrew en is de verbinding `local`. Een
-update vervangt de interpreter die de playbook draait; `brew cleanup` zou daarna
-de map weggooien waar dat proces nog uit leest. Daarom zet `update.yml`
-`HOMEBREW_NO_INSTALL_CLEANUP=1`, en zit de opruiming in `cleanup.yml`, dat
-niets upgradet.
+Vanuit Semaphore is `mbp` de Semaphore-container, niet je MacBook
+([uitleg](/semaphore/#de-limits-in-de-templates)). Daarom draait "Update
+guests" met `--limit guests:!semaphore`.
 
-### Images en build cache
+### De Mac mini en Homebrew
 
-Images hebben een leeftijdsgrens (`cleanup_docker_until`), build cache niet. Een
-image dat toch nodig blijkt moet opnieuw over het netwerk; build cache wordt
-gewoon opnieuw gebouwd.
+De Mac mini draait macOS 14.6.1, en daarvoor bouwt Homebrew geen kant-en-klare
+pakketten (bottles) meer: alles moet vanaf broncode, uren werk, en een deel
+lukt niet. Daarom staat `macos_brew_upgrade: false` in
+`inventory/host_vars/macmini/main.yml`. Casks werken wel, dat zijn
+kant-en-klare apps. De pakketten komen terug na een nieuwere macOS.
+
+### Casks die root nodig hebben
+
+Sommige casks zetten bestanden onder `/Library`, en bij een upgrade roept brew
+zelf `sudo` aan. Over SSH is er geen terminal, dus sudo kan geen wachtwoord
+vragen. `-K` helpt niet: dat is het sudo-wachtwoord van Ansible, en Ansible
+zit hier niet tussen.
+
+Automatisch kan het wel (`SUDO_ASKPASS` met een scriptje dat het wachtwoord
+uit de vault haalt), maar dan krijgt elke brew-taak op die Mac je
+inlogwachtwoord, voor een handvol casks. Bewust niet gedaan.

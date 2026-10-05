@@ -8,10 +8,10 @@ import { Steps } from 'nextra/components'
 
 Eén programma uit een Docker-image, als eigen container op pve01, zonder
 Docker ertussen: geen Debian, geen SSH, geen apt (sinds Proxmox 9.1, nog een
-tech preview). Alleen voor iets kleins dat moet blijven werken als de machine
-`docker` plat ligt. `ntfy` is het voorbeeld: wie meldt dat `docker` stuk is,
-mag er niet zelf op draaien. Al de rest hoort op `docker`, met compose en
-healthchecks.
+tech preview). Alleen voor iets kleins dat moet blijven werken als `docker`
+plat ligt, zoals [ntfy](/homelab/diensten/ntfy/) en
+[LANCache](/netwerk/lancache/). Al de rest hoort op `docker`:
+[Dienst toevoegen](/docker/toevoegen/).
 
 ## Een OCI-container maken
 
@@ -20,8 +20,7 @@ healthchecks.
 #### Zet hem in `pve_oci_lxcs`
 
 In `inventory/group_vars/proxmox/lxcs.yml`, met een vaste `version`, nooit
-`latest`. Kijk naar `ntfy` als voorbeeld. Twee dingen die je bij een nieuw
-image moet nakijken:
+`latest`. Kijk naar `ntfy` als voorbeeld. Kijk bij een nieuw image na:
 
 - **`entrypoint`**: veel images hebben een `ENTRYPOINT` zonder argumenten.
   Kaal start dat de help en stopt meteen, zonder melding.
@@ -45,21 +44,27 @@ ansible-playbook playbooks/proxmox-oci.yml
 De rol haalt het image op, maakt de container, zet `entrypoint` en `env`, en
 start hem. Een tweede run doet niets.
 
-#### Geef hem een naam (optioneel)
+De container staat daarna in de inventory, in de groep `appliances`.
+
+#### Geef hem een adres (optioneel)
 
 Zoals bij een gewone container, in `caddy_sites`: zie
-[Afwerken → Geef hem een adres](/proxmox/afwerken/#geef-hem-een-adres-optioneel).
-Geef hem een vaste `upstream` in plaats van alleen `host`: een gestopte
-OCI-container heeft geen adres in de inventory, en dan faalt de Caddyfile
-voor elke site. De container staat na de eerste run in de inventory, onder
-`appliances`.
+[Afwerken](/proxmox/afwerken/#geef-hem-een-adres-optioneel). Maar met een
+vaste `upstream` in plaats van `host`: een gestopte OCI-container heeft geen
+adres in de inventory, en dan faalt de Caddyfile voor elke site.
+
+#### Commit en push
+
+```bash filename="laptop"
+git add inventory && git commit -m 'feat: <naam> als OCI-container' && git push
+```
 
 </Steps>
 
 ## Een OCI-container bijwerken
 
-`ntfy` doet niet mee met `update.yml`: er zit geen apt in. Bijwerken is een
-nieuwer image nemen en de container opnieuw bouwen.
+Een OCI-container doet niet mee met `update.yml`: er zit geen apt in.
+Bijwerken is een nieuwer image nemen en de container opnieuw bouwen.
 
 <Steps>
 
@@ -101,46 +106,6 @@ git push
 
 </Steps>
 
-## Een ntfy-token erbij
-
-Elke app die meldingen stuurt, krijgt een eigen token op het account
-`proxmox` (mag schrijven op het topic `homelab`). Zo trek je er één in zonder
-de rest. Nu zijn dat er vijf: proxmox, pbs, unifi, vaultwarden en neogate.
-
-<Steps>
-
-#### Maak het token en versleutel het
-
-```bash filename="laptop"
-TOKEN=tk_$(LC_ALL=C tr -dc a-z0-9 </dev/urandom | head -c 29)
-printf %s "$TOKEN" | ansible-vault encrypt_string --encrypt-vault-id infra \
-  --stdin-name vault_ntfy_<app>_token
-```
-
-Zet de output in `inventory/group_vars/all/vault.yml`
-(`ansible-vault edit`), of als los bestand ernaast zoals
-`ntfy_neogate.yml`.
-
-#### Zet het in de lijst
-
-Voeg `'proxmox:' ~ vault_ntfy_<app>_token ~ ':<app>'` toe aan
-`NTFY_AUTH_TOKENS` in `inventory/group_vars/proxmox/lxcs.yml`, dan:
-
-```bash filename="laptop"
-ansible-playbook playbooks/proxmox-oci.yml --check   # "env would be set"
-ansible-playbook playbooks/proxmox-oci.yml           # ntfy herstart even
-```
-
-#### Test
-
-```bash filename="laptop"
-curl -H "Authorization: Bearer $TOKEN" -d test https://ntfy.neodata.be/homelab
-```
-
-Geeft `200`. Geef de app daarna `https://ntfy.neodata.be/homelab` en het token.
-
-</Steps>
-
 ## Goed om te weten
 
 ### Waarom anders dan een gewone container
@@ -174,13 +139,3 @@ weggooien. De OCI-import van Proxmox voert dat weggooien niet uit: het bestand
 staat gewoon in de container. Bij `lancache` was dat een standaard-nginx-site
 die op elke vraag een 404 gaf. Zet zulke bestanden in `remove_paths`; vind ze
 via de `rm`-regels in de Dockerfile van het image.
-
-### `printf %s`, niet `echo`
-
-Een newline op het einde komt mee in het token, en Proxmox weigert dan de hele
-env met `400 Parameter verification failed`. De oude tokens blijven werken,
-het nieuwe niet.
-
-### `--encrypt-vault-id infra`
-
-Verplicht: er zijn twee vault-id's en `encrypt_string` kiest niet zelf.

@@ -6,16 +6,13 @@ import { Steps } from 'nextra/components'
 
 # Nieuwe container
 
-Een extra container (LXC) op pve01, bijvoorbeeld voor software die een eigen
-machine hoort te hebben. Twijfel je tussen container en VM? Kies de container:
-die start in een seconde, kost bijna geen geheugen, en alles gaat automatisch.
+Een extra container (LXC) op pve01, voor software die een eigen machine hoort
+te hebben. Twijfel je tussen container en VM: kies de container. Die start in
+een seconde, kost bijna geen geheugen, en alles gaat automatisch. Gewoon een
+Docker-app? Dan heb je geen nieuwe machine nodig: [Dienst toevoegen](/docker/toevoegen/).
 
-Wil je gewoon een **Docker-app** draaien? Dan heb je geen nieuwe machine nodig,
-zie [Dienst toevoegen](/docker/toevoegen/).
-
-Voorbeeld: Vaultwarden op een eigen LXC. Alles gebeurt vanaf je werkstation,
-het Proxmox-scherm heb je niet nodig. **OpenTofu** maakt de container (zie
-[OpenTofu](/opentofu/)), daarna zet Ansible hem klaar.
+Voorbeeld: Vaultwarden op een eigen LXC. [OpenTofu](/opentofu/) maakt de
+container, Ansible zet hem klaar.
 
 <Steps>
 
@@ -25,12 +22,13 @@ het Proxmox-scherm heb je niet nodig. **OpenTofu** maakt de container (zie
 ssh pve01 'sudo pvesh get /cluster/resources --type vm'   # elke guest: vmid, naam, status
 ```
 
-Kies een nummer dat daar niet in staat.
+Kies een nummer dat daar niet in staat, en niet `199` (de restore-drill).
+Heeft het nummer nog oude back-ups in PBS, neem dan een ander
+([waarom](#een-oud-nummer-hergebruiken)):
 
-`199` is gereserveerd voor de restore-drill. Een nummer dat vroeger gebruikt
-werd en nog back-ups in PBS heeft, neem je niet: een nieuwe guest met dat
-nummer komt in dezelfde back-upgroep, en de opruimregels gooien dan de oude
-weg. Kijk het na met `ssh pve01 'sudo pvesm list pbs | grep /<nummer>/'`.
+```bash filename="laptop"
+ssh pve01 'sudo pvesm list pbs | grep /<nummer>/'   # moet leeg zijn
+```
 
 #### Zoek een vrij adres
 
@@ -74,17 +72,11 @@ Voeg in `local.containers` een blok toe, naast de andere:
 | `disk` | opslag + grootte in GB. `vm-hdd` voor gewone dingen, `local-lvm` als het snel moet |
 | `ip` | het vrije adres, met `/24` erachter |
 | `mac` | `null`: dan kiest Proxmox er een. Zet hem na het bouwen vast (zie hieronder) |
-| `dns_servers` / `searchdomain` | zoals hierboven: AdGuard als DNS, `home.arpa` als zoekdomein |
-| `keyctl` | `false`. Alleen `true` voor Docker in de container |
+| `dns_servers` / `searchdomain` | laten zoals in het voorbeeld: AdGuard als DNS, `home.arpa` als zoekdomein |
+| `keyctl` | `false`. Docker in de container? Zie [Docker in een container](#docker-in-een-container-keyctl) |
 
 Gateway, template en de Ansible-sleutel staan één keer onderaan hetzelfde
 bestand. Die hoef je niet in te vullen.
-
-Een nieuwe container met `keyctl = true` lukt niet via OpenTofu.
-Proxmox laat elke flag behalve `nesting` alleen `root@pam` zetten, ook bij het
-aanmaken, en OpenTofu werkt met een token. Maak hem dus met `keyctl = false`,
-zet de flag als root op pve01 (`pct set <id> --features nesting=1,keyctl=1`),
-en zet daarna `true` in `containers.tf` tot het plan leeg is.
 
 #### Kijk wat OpenTofu gaat doen
 
@@ -115,13 +107,13 @@ erop en past de baseline toe. Aan het eind staat in beeld wat je hierna doet.
 
 #### Zet het MAC-adres vast
 
-Proxmox koos een MAC. Kijk welk, zet het in plaats van `null` bij `mac`, en
-draai `bin/tofu proxmox plan`: dat moet nu `No changes` zeggen. Zo krijgt
-een herbouw hetzelfde MAC, en dus hetzelfde adres in UniFi.
-
 ```bash filename="laptop"
 ssh pve01 'sudo pct config 111 | grep net0'   # hwaddr=BC:24:11:...
 ```
+
+Zet dat MAC in plaats van `null` bij `mac`, en draai `bin/tofu proxmox plan`:
+dat moet nu `No changes` zeggen. Zo krijgt een herbouw hetzelfde MAC, en dus
+hetzelfde adres in UniFi.
 
 #### Commit en push
 
@@ -131,9 +123,9 @@ git commit -m "feat: vaultwarden container"
 git push
 ```
 
-#### Werk de container af
+#### Werk hem af
 
-De machine staat er, maar is nog leeg. Ga verder met
+De machine staat er, maar is nog leeg: ga verder met
 [Afwerken](/proxmox/afwerken/).
 
 </Steps>
@@ -153,3 +145,23 @@ OpenTofu onthoudt wat het gemaakt heeft, en toont eerst een plan: wat erbij
 komt, wat verandert, wat weg zou gaan. Pas na `yes` gebeurt er iets. Zet je
 `memory` hoger, dan toont het plan dat meteen. Meer:
 [OpenTofu](/opentofu/#pbs-bewaart-de-inhoud-opentofu-de-vorm).
+
+### Waarom de hostkey via Proxmox gelezen wordt
+
+Een nieuwe container heeft een hostkey die niemand kent, en Ansible kan die
+niet zomaar accepteren. `new-guest.yml` leest de sleutel via `pct exec`
+rechtstreeks van de schijf van de container. Zo vertrouw je de echte machine,
+en niet wat er toevallig op dat adres antwoordt.
+
+### Docker in een container: `keyctl`
+
+Een nieuwe container met `keyctl = true` lukt niet via OpenTofu: Proxmox laat
+elke flag behalve `nesting` alleen `root@pam` zetten, ook bij het aanmaken, en
+OpenTofu werkt met een token. Maak hem dus met `keyctl = false`, zet de flag
+als root op pve01 (`pct set <id> --features nesting=1,keyctl=1`), en zet
+daarna `true` in `containers.tf` tot het plan leeg is.
+
+### Een oud nummer hergebruiken
+
+Een nieuwe guest met een nummer dat nog back-ups in PBS heeft, komt in
+dezelfde back-upgroep, en de opruimregels gooien dan de oude back-ups weg.

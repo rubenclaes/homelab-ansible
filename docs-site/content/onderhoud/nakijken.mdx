@@ -6,8 +6,8 @@ import { Steps } from 'nextra/components'
 
 # Nakijken
 
-Is alles gezond, en klopt elke host nog met wat de repo zegt? Kijken, niets
-veranderen. Alle commando's draai je vanuit de root van de repo.
+Is alles gezond, en klopt elke host nog met wat de repo zegt? Alles op deze
+pagina kijkt alleen en verandert niets.
 
 ## Gezondheidsrapport
 
@@ -19,7 +19,7 @@ Semaphore draait hem ook elke zondag ([schema](/semaphore/#wat-draait-er-vanzelf
 #### Draai het rapport
 
 ```bash filename="laptop"
-ansible-playbook playbooks/report.yml   # leest alleen, verandert niets
+ansible-playbook playbooks/report.yml
 ```
 
 Draai hem **zonder** `--limit`, of neem `localhost` erin mee
@@ -34,15 +34,10 @@ Per host: openstaande updates, herstart nodig, schijfgebruik. Daarnaast de
 PBS-back-ups, de vervaldatum van het wildcard-certificaat en de vergelijkingen
 hieronder.
 
-Wil je zien welke updates klaarliggen? Open het tabblad **Updates**. Per host
-één regel per pakket: de versie die er nu staat en de versie die klaarligt.
-Security-updates staan bovenaan bij hun host. Daar staat ook welke hosts een
-**herstart nodig** hebben. Bijwerken zelf: zie
-[Updates](/proxmox/onderhoud/).
-
-Bij de Macs toont het rapport ook **macOS-updates** (uit `softwareupdate`).
-Die doet `update.yml` níét: het playbook werkt alleen Homebrew bij. macOS zelf
-update je met de hand op de Mac.
+Het tabblad **Updates** toont per host één regel per pakket: de versie die er
+nu staat en de versie die klaarligt, security-updates bovenaan, en welke hosts
+een **herstart nodig** hebben. Bij de Macs staan ook de macOS-updates.
+Bijwerken zelf: [Bijwerken](/onderhoud/bijwerken/).
 
 #### Lees de vergelijkingen
 
@@ -54,8 +49,8 @@ update je met de hand op de Mac.
 | `wait_for_mounts` → `nfs_mounts` | een herbouwde host blijft bij het opstarten hangen op een mount die nooit komt |
 | back-upgroep → bestaande guest | een back-up van een guest die niet meer bestaat; kost ruimte |
 
-Een poort zonder route is meestal een dienst die je vergeten bent af te maken:
-volg dan [Dienst toevoegen](/docker/toevoegen/).
+Een poort zonder route is meestal een dienst die je niet hebt afgemaakt: volg
+dan [Dienst toevoegen](/docker/toevoegen/).
 
 #### Zet een uitzondering voor wat bewust zo is
 
@@ -85,9 +80,6 @@ git add inventory && git commit -m 'Rapport: uitzondering voor poort 21115' && g
 ```
 
 </Steps>
-
-Over welke hosts de vergelijkingen lopen, en waarom het rapport niet publiek
-is: [Goed om te weten](#goed-om-te-weten).
 
 ## Drift zoeken
 

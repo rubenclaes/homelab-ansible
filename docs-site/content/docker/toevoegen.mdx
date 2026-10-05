@@ -7,18 +7,16 @@ import { Steps, FileTree } from 'nextra/components'
 # Dienst toevoegen
 
 Een nieuwe app die als Docker-image bestaat, zoals Memos of Jellyfin. Hij komt
-op de bestaande machine `docker`, dus je hebt geen nieuwe machine nodig.
-
-Het ding draait al en je wil er alleen een adres voor? Zie
-[Een adres toevoegen](/netwerk/caddy/#alleen-een-adres).
+op de bestaande machine `docker`, dus je hebt geen nieuwe machine nodig. Draait
+hij al en wil je alleen een adres? Zie [Alleen een adres](/netwerk/caddy/#alleen-een-adres).
 
 ## Een nieuwe Docker-app
 
-**Moet je eerst zelf een `docker-compose.yml` schrijven? Nee.** Het playbook
-`new-service.yml` schrijft hem voor je. Jij geeft alleen de naam, het image en
-de poort op. Daarna kijk je hem na en vul je aan wat de app extra nodig heeft.
+Een `docker-compose.yml` schrijf je niet zelf: `new-service.yml` maakt hem uit
+de naam, het image en de poort. Daarna kijk je hem na en vul je aan wat de app
+extra nodig heeft.
 
-We gebruiken Memos als voorbeeld.
+Voorbeeld: Memos.
 
 <Steps>
 
@@ -33,9 +31,9 @@ altijd een voorbeeld-`docker-compose.yml` waar je dit uit haalt:
 | **Poort** | `5230` | de regel `ports:`, het getal rechts van de `:` |
 | **Datamap in de container** | `/var/opt/memos` | de regel `volumes:`, het pad rechts van de `:` |
 
-Kies ook een **poort die nog vrij is** op `docker`. Kijk in
-`inventory/host_vars/caddy/main.yml` welke al gebruikt worden. Het playbook
-weigert trouwens als je een bezette kiest.
+Kies ook een **poort die nog vrij is** op `docker`: kijk in
+`inventory/host_vars/caddy/main.yml` welke al gebruikt worden. Een bezette
+weigert het playbook.
 
 #### Laat het playbook alles aanmaken
 
@@ -122,8 +120,8 @@ git commit -m 'Add memos stack'
 git push
 ```
 
-Dit moet **vóór** de volgende stap. De server haalt de compose-file uit git,
-niet van je laptop. Wat niet gepusht is, bestaat voor de server niet.
+Dit moet **vóór** de volgende stap: de server haalt de compose-file uit git,
+niet van je laptop.
 
 #### Commit en push ook deze repo
 
@@ -134,8 +132,7 @@ git commit -m 'Memos toegevoegd'
 git push
 ```
 
-Semaphore draait elke nacht vanuit git. Push je dit niet, dan kent Semaphore
-je nieuwe dienst niet.
+Semaphore draait vanuit git: zonder push kent hij je nieuwe dienst niet.
 
 #### Zet hem live
 
@@ -166,10 +163,9 @@ De dienst krijgt een pagina onder [Diensten](/homelab/diensten/), met zijn
 adres, host en stack uit `caddy_sites`. Sla je dit over, dan werkt de dienst
 wel maar staat hij hier niet.
 
-Moet er meer over hem gezegd worden - hoe je zijn login instelt, hoe je hem
-terugzet - dan schrijf je dat op diezelfde pagina, onder het feitenblok.
-`docs.yml` laat alles buiten dat blok staan; zie
-[Deze docs](/ansible/docs/#wat-waar-vandaan-komt).
+Meer uitleg over de dienst (hoe je zijn login instelt, hoe je hem terugzet)
+schrijf je op diezelfde pagina, onder het feitenblok: zie
+[Wat waar vandaan komt](/ansible/docs/#wat-waar-vandaan-komt).
 
 </Steps>
 

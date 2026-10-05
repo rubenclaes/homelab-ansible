@@ -28,8 +28,9 @@ vault-wachtwoorden), je GitHub-login en je Cloudflare-login.
 
 #### Bouw pve01 en PBS opnieuw
 
-Volg [pve01 opnieuw opbouwen](/proxmox/pve01/) en [de back-ups](/proxmox/pve01-backups/) tot en met *Installeer PBS in de VM*. PBS
-begint leeg.
+Volg [pve01 opnieuw: de host](/backups/pve01/) en
+[pve01 opnieuw: back-ups](/backups/pve01-backups/) tot en met *Installeer PBS
+in de VM*. PBS begint leeg.
 
 #### Koppel R2 opnieuw, zonder iets te wissen
 
@@ -88,7 +89,7 @@ Proxmox → Datacenter → Storage → Add → **Proxmox Backup Server**:
 Home Assistant, adguard, tailscale en ntfy: Proxmox → `offsite` → Backups →
 kies de nieuwste → **Restore**, met hun eigen nummer (101, 107, 108, 109).
 Eerst deze, pas dan `bin/tofu proxmox plan`
-([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
+([waarom](/backups/terugzetten/#eerst-terugzetten-dan-pas-plan)).
 
 #### Maak de back-upgebruiker van `docker` opnieuw
 
@@ -113,7 +114,7 @@ Zet het secret in `inventory/group_vars/all/vault.yml`
 
 #### Bouw `docker` opnieuw, zonder de stacks te starten
 
-Zie [pve01 opnieuw: machines](/proxmox/pve01-machines/). Start de stacks nog
+Zie [pve01 opnieuw: machines](/backups/pve01-machines/). Start de stacks nog
 **niet**. Zet dan token en sleutel klaar:
 
 ```bash filename="laptop"
@@ -163,52 +164,6 @@ Start daarna de stacks.
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id pve@pbs --delete'
 ssh pbs 'sudo proxmox-backup-manager acl update /datastore/offsite DatastoreReader --auth-id "docker-data@pbs!backup" --delete'
 ```
-
-</Steps>
-
-## De R2-sync weer aanzetten
-
-Je kreeg de melding **"R2-sync gestopt"** (of elke nacht "R2-sync staat nog
-stil"). `r2-guard` start de kopie naar R2 niet meer, zodat het nooit geld
-kost. Er gaat niets naar R2 tot jij hem weer aanzet.
-
-<Steps>
-
-#### Lees waarom
-
-```bash filename="laptop"
-ssh pbs 'sudo cat /var/lib/r2-guard/stopped'
-```
-
-| Reden | Wat doen |
-| --- | --- |
-| "r2-guard faalde" of "Cloudflare gaf fouten" | het Cloudflare-token werkt niet (verlopen, ingetrokken), of Cloudflare had een storing. Nieuw token nodig? Account Analytics: Read, in `inventory/host_vars/pbs/vault.yml` als `vault_cf_analytics_token`, dan `ansible-playbook playbooks/pbs.yml --tags offsite` |
-| boven 8 GB | er staat te veel in R2, meestal door de foto's. Zie hieronder |
-| te veel operaties | ongewoon: kijk in Cloudflare → R2 → Metrics wat er zo vaak gebeurde |
-
-#### Te vol: minder versies bewaren
-
-De jobs staan al in PBS; `keep_last` in de inventory aanpassen verandert ze
-niet. Doe het met de hand, en pas daarna de inventory aan:
-
-```bash filename="laptop"
-ssh pbs 'sudo proxmox-backup-manager prune-job update offsite-prune --keep-last 2'
-ssh pbs 'sudo proxmox-backup-manager sync-job update offsite-r2 --transfer-last 2'
-```
-
-R2 wordt pas kleiner na de prune (dagelijks) **en** de garbage collection
-(dagelijks) daarna. Zet de sync pas weer aan als de volgende stap onder
-de drempel meet.
-
-#### Meet, dan pas weer aan
-
-```bash filename="laptop"
-ssh pbs 'sudo rm /var/lib/r2-guard/stopped && sudo /usr/local/sbin/r2-guard --dry-run'
-```
-
-Je ziet `R2: … GB …` en `(dry-run, geen sync)`, geen STOP. De sync loopt
-vannacht om 04:00 weer. Staat er toch STOP, dan is hij al opnieuw gestopt:
-terug naar de eerste stap.
 
 </Steps>
 

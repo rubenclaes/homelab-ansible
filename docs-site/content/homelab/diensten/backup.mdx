@@ -20,3 +20,35 @@ Proxmox Backup Server — de back-ups en hun verificatie
 
 <small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
 {/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Proxmox Backup Server (VM 100) bewaart de dagelijkse back-ups van alle guests.
+Hoe de back-ups lopen en hoe je terugzet: [Back-ups](/backups/overzicht/).
+
+## Inloggen
+
+Op [backup.neodata.be](https://backup.neodata.be) kies je bij **Realm**
+"Pocket ID (id.neodata.be)". Pocket ID laat alleen de groep `admin` door en
+vraagt elke keer je passkey. `root@pam` blijft de noodtoegang.
+
+## Iemand admin maken op PBS
+
+PBS leest geen groepen uit Pocket ID: wie admin is, staat bij naam in
+`pbs_oidc.admins`. Wie er niet op staat, krijgt geen account.
+
+```bash filename="laptop"
+$EDITOR inventory/host_vars/pbs/main.yml   # naam onder pbs_oidc.admins
+ansible-playbook playbooks/pbs.yml --tags oidc
+```
+
+Iemand weghalen doet de rol niet (hij voegt alleen toe): draai
+`proxmox-backup-manager user remove <naam>@pocketid` op `pbs`, en haal de naam
+uit de lijst.
+
+## Goed om te weten
+
+### Een nieuw client-secret
+
+PBS geeft het secret van de realm nooit terug, dus de rol stuurt het alleen
+bij het aanmaken. Vervang je de client in Pocket ID, zet het nieuwe secret dan
+in de vault (`vault_pbs_oidc_client_secret`) én met de hand in PBS:
+`proxmox-backup-manager openid update pocketid --client-key <secret>`.

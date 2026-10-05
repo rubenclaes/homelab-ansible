@@ -1,0 +1,78 @@
+---
+title: Opruimen
+---
+
+import { Steps } from 'nextra/components'
+
+# Opruimen
+
+Een schijf loopt vol. `cleanup.yml` ruimt caches, oude images en verweesde
+pakketten op, op alle hosts. Zonder flag rapporteert hij alleen; Semaphore
+ruimt elke week echt op ([schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)).
+
+<Steps>
+
+#### Kijk eerst wat er weg kan
+
+```bash filename="laptop"
+ansible-playbook playbooks/cleanup.yml                 # alle hosts
+ansible-playbook playbooks/cleanup.yml --limit macs    # alleen de Macs (brew-cache)
+```
+
+Je krijgt de **namen** van wat weg zou gaan, niet alleen een aantal.
+
+#### Lees het lijstje
+
+Let vooral op pve01: daar duiken oude `proxmox-kernel-*`-pakketten op. Dat
+lijstje zien vóór je opruimt, is het punt van deze stap.
+
+#### Ruim echt op
+
+```bash filename="laptop"
+ansible-playbook playbooks/cleanup.yml -e cleanup_apply=true
+```
+
+</Steps>
+
+Een pakket of app weghalen die je niet meer wil, is geen opruimen: dat gaat
+via de `*_absent`-lijsten en `site.yml`
+([welke van de drie](/onderhoud/bijwerken/#welke-van-de-drie-playbooks)).
+
+## Wat hij nooit aanraakt
+
+| Blijft staan | Waarom |
+| --- | --- |
+| Docker-volumes | daar staat de data van de stacks; weggooien is een restore, geen cleanup |
+| containers, ook gestopte | een gestopte container houdt zijn image buiten de prune, dus een `down`-stack overleeft dit |
+| gepinde pakketten | `autoremove` respecteert dpkg-holds, dus de eigen Caddy-build blijft |
+| de geïnstalleerde Homebrew-versie | alleen oude versies en oude downloads gaan |
+
+## De instellingen
+
+In `inventory/group_vars/all/cleanup.yml`:
+
+| Var | Standaard | Doet |
+| --- | --- | --- |
+| `cleanup_journal_keep` | `14d` | hoeveel journal-geschiedenis blijft |
+| `cleanup_docker_until` | `720h` | ongebruikte images jonger dan dit blijven staan |
+| `cleanup_brew_prune` | `30` | brew-downloads ouder dan zoveel dagen gaan weg |
+
+## Goed om te weten
+
+### `cleanup_apply` nooit in de inventory
+
+Die flag verandert een rapport in een verwijdering. Een default in
+`group_vars` maakt elke run destructief.
+
+### Waarom `brew cleanup` niet in `update.yml` zit
+
+Op de MacBook komt `ansible` zelf uit Homebrew en is de verbinding `local`. Een
+update vervangt de interpreter die de playbook draait; `brew cleanup` zou
+daarna de map weggooien waar dat proces nog uit leest. Daarom zet `update.yml`
+`HOMEBREW_NO_INSTALL_CLEANUP=1`, en zit de opruiming hier, in een playbook dat
+niets upgradet.
+
+### Images wel een leeftijdsgrens, build cache niet
+
+Een image dat toch nodig blijkt, moet opnieuw over het netwerk. Build cache
+wordt gewoon opnieuw gebouwd.

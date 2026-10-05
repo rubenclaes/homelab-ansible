@@ -4,46 +4,57 @@ title: Woorden
 
 # Woorden
 
-**AdGuard**: de DNS-server van het huis, in container 107 (`192.168.0.29`). Zoekt adressen op en filtert reclame en malware.
+De woorden die je op deze site tegenkomt, kort uitgelegd.
+
+**AdGuard**: de DNS-server van het huis, in container 107 (`192.168.0.29`).
+Zoekt adressen op en filtert reclame en malware.
 
 **Ad-hoc-commando**: één commando op een host via `ansible`, zonder playbook.
 
-**API-token**: de login waarmee Ansible aan Proxmox vraagt welke machines er zijn.
+**API-token**: de login waarmee Ansible aan Proxmox vraagt welke machines er
+zijn.
+
+**Appliance**: een guest zonder SSH die Ansible niet kan inloggen, zoals een
+OCI-container. Samen de groep `appliances`.
 
 **Baseline**: het minimum dat elke Linux-machine krijgt: tijdzone,
 basispakketten, automatische beveiligingsupdates, inloggen met wachtwoord uit.
 
-**Bootstrap**: de eerste keer inloggen als root en de gebruiker `ansible` aanmaken.
+**Bootstrap**: de eerste keer inloggen als root en de gebruiker `ansible`
+aanmaken.
 
-**Bridge**: de virtuele netwerkkaart van pve01 (`vmbr0`, `vmbr1`) waar de
-guests en de node zelf aan hangen.
+**Bridge**: de virtuele netwerkkaart van pve01 (`vmbr0`, `vmbr1`) waar de guests
+en de node zelf aan hangen.
 
-**Caddy**: de voordeur voor alle diensten, in container 106. Stuurt `naam.neodata.be` door naar de juiste machine en regelt het https-certificaat.
+**Caddy**: de voordeur voor alle diensten, in container 106. Stuurt
+`naam.neodata.be` door naar de juiste machine en regelt het https-certificaat.
 
-**Cask**: een Homebrew-*app* op een Mac, iets met een venster zoals Spotify of VLC.
+**Cask**: een Homebrew-*app* op een Mac, iets met een venster zoals Spotify of
+VLC.
 
 **Converge**: `site.yml` draaien, zodat elke host weer gelijk is aan de repo.
-
-**Dry run**: een playbook draaien met `--check --diff`. Ansible toont wat het
-zou veranderen, maar verandert niets.
 
 **Dotfiles**: je persoonlijke configbestanden (`~/.zshrc`, `~/.ssh/config`,
 `~/.gitconfig`). Het playbook `dotfiles.yml` schrijft ze voor je.
 
 **Drift**: een host die niet meer overeenkomt met wat de repo beschrijft.
 
-**Dynamische inventory**: `inventory/homelab.proxmox.yml`. Haalt de lijst
-guests live uit Proxmox, via het API-token.
+**Dry run**: een playbook draaien met `--check --diff`. Ansible toont wat het
+zou veranderen, maar verandert niets.
 
-**Forward-auth** of **oauth2-proxy**: de login die Caddy vóór een app zet
-die zelf geen login heeft. oauth2-proxy draait naast Caddy en vraagt Pocket ID
-wie je bent. Zie [Pocket ID](/mensen/pocket-id/#een-login-voor-apps-zonder-eigen-login).
+**Dynamische inventory**: `inventory/homelab.proxmox.yml`. Haalt de lijst guests
+live uit Proxmox, via het API-token.
 
 **Fixed IP**: een vast adres in UniFi, zodat een toestel na een herstart
 hetzelfde adres houdt.
 
 **Formula**: een Homebrew-*pakket* op een Mac, commandoregel-gereedschap zoals
 `jq` of `ffmpeg`.
+
+**Forward-auth** of **oauth2-proxy**: de login die Caddy vóór een app zet die
+zelf geen login heeft. oauth2-proxy draait naast Caddy en vraagt Pocket ID wie
+je bent. Zie [Pocket
+ID](/mensen/pocket-id/#een-login-voor-apps-zonder-eigen-login).
 
 **Guest**: een container (LXC, commando's `pct`) of virtuele machine (VM,
 commando's `qm`) op pve01. Elke guest heeft een nummer, de *vmid*. Samen de
@@ -54,24 +65,31 @@ Proxmox erop. Gaat die uit, dan gaat alles uit.
 
 **Inventory**: de lijst van alle machines en hun instellingen, in `inventory/`.
 
-**LXC** of **container**: een lichte machine op pve01 die de kernel van pve01 deelt. Start in een seconde, kost weinig geheugen. Commando's: `pct`.
+**LXC** of **container**: een lichte machine op pve01 die de kernel van pve01
+deelt. Start in een seconde, kost weinig geheugen. Commando's: `pct`.
 
-**MagicDNS**: de DNS van Tailscale zelf (`100.100.100.100`). Geeft toestellen op de tailnet een naam.
+**MagicDNS**: de DNS van Tailscale zelf (`100.100.100.100`). Geeft toestellen op
+de tailnet een naam.
 
 **NeoGate**: je eigen app op [neogate.neodata.be](https://neogate.neodata.be).
 Hier geef je mensen toegang: NeoGate zet ze in Pocket ID, deelt Plex en nodigt
-uit voor Tailscale en Vaultwarden, en sluit dat alles weer af. Zie
-[Toegang geven](/mensen/toegang/).
+uit voor Tailscale en Vaultwarden, en sluit dat alles weer af. Zie [Toegang
+geven](/mensen/toegang/).
 
-**OCI-container**: een container op pve01 gemaakt uit een Docker-image, zonder Docker erin. Hier `ntfy` en `lancache`.
+**NFS-share**: een map op de Mac mini die `docker` over het netwerk gebruikt,
+zoals `/mnt/media01`. Zie [Mac mini](/mac-mini/).
 
-**OIDC**: de standaard waarmee een app het inloggen aan Pocket ID overlaat.
-Elke app heeft daarvoor een *client* in `tofu/pocketid/clients.tf`.
+**OCI-container**: een container op pve01 gemaakt uit een Docker-image, zonder
+Docker erin. Hier `ntfy` en `lancache`. Zie [OCI-container](/proxmox/oci/).
 
-**OpenTofu**: maakt en beschrijft de machines op pve01 (`tofu/proxmox/`) en
-de Tailscale-regels (`tofu/tailscale/`). Je draait het via `bin/tofu`. Eerst
-`plan` (tonen wat er zou veranderen), dan `apply` (het doen). De containers
-staan in `containers.tf`, de VM's in `vms.tf`.
+**OIDC**: de standaard waarmee een app het inloggen aan Pocket ID overlaat. Elke
+app heeft daarvoor een *client* in `tofu/pocketid/clients.tf`.
+
+**OpenTofu**: beschrijft wat er *bestaat*: de machines op pve01
+(`tofu/proxmox/`), de Tailscale-regels (`tofu/tailscale/`) en de apps die via
+Pocket ID inloggen (`tofu/pocketid/`). Je draait het via `bin/tofu`: eerst
+`plan` (tonen wat er zou veranderen), dan `apply` (het doen). Zie
+[OpenTofu](/opentofu/).
 
 **Passkey**: inloggen zonder wachtwoord, met je telefoon of Mac. Zo log je in
 bij Pocket ID.
@@ -80,15 +98,19 @@ bij Pocket ID.
 versleuteld, op de schijf `vm-hdd` van pve01.
 
 **Pocket ID**: de login van het homelab, op `id.neodata.be`. Eén passkey voor
-bijna alle apps; de groep (`admin`, `gezin`, `familie`) bepaalt waar je in
-mag. Zie [Pocket ID](/mensen/pocket-id/).
+bijna alle apps; de groep (`admin`, `gezin`, `familie`) bepaalt waar je in mag.
+Zie [Pocket ID](/mensen/pocket-id/).
 
 **Prune**: opruimen van wat niet meer gebruikt wordt, zoals oude Docker-images.
 
-**R2**: opslag van Cloudflare, buiten het huis. Daar staat een kopie van de back-ups en de state van OpenTofu.
+**R2**: opslag van Cloudflare, buiten het huis. Daar staat een kopie van de
+back-ups en de state van OpenTofu.
 
 **Resolver**: de DNS-server die een toestel vraagt "welk adres hoort bij deze
 naam?". Hier is dat AdGuard in ct 107 (`192.168.0.29`).
+
+**Rewrite**: een regel in AdGuard die op een naam een vast adres antwoordt,
+zoals `*.neodata.be` → Caddy.
 
 **Rol**: een installatierecept in `roles/` dat software direct op een machine
 zet, zoals je met de hand `apt install` zou doen. Geen Docker.
@@ -96,17 +118,22 @@ zet, zoals je met de hand `apt install` zou doen. Geen Docker.
 **Route**: één regel in `caddy_sites` die zegt: "stuur `naam.neodata.be` door
 naar deze machine op deze poort".
 
-**SSD Nas**: de externe schijf aan de Mac mini (`/Volumes/SSD Nas`, op
-`docker` gemount als `/mnt/ssdnas`). Ondanks de naam een harde schijf, geen
-SSD: ongeveer 85 MB/s lezen en 60 MB/s schrijven. Goed voor ROMs, boeken en
-muziek; niet voor iets dat snel moet.
+**Smoketest**: `smoketest.yml`. Vraagt elk adres en elke DNS-naam echt op, en
+faalt als er één stuk is. Verandert niets.
+
+**SSD Nas**: de externe schijf aan de Mac mini (`/Volumes/SSD Nas`, op `docker`
+gemount als `/mnt/ssdnas`). Ondanks de naam een harde schijf, geen SSD: ongeveer
+85 MB/s lezen en 60 MB/s schrijven. Goed voor ROMs, boeken en muziek; niet voor
+iets dat snel moet.
 
 **Stack**: één Docker-app: een map in de `containers`-repo met een
 `docker-compose.yml` en een `.env`.
 
-**State**: wat OpenTofu onthoudt over wat hij beheert. Staat versleuteld in R2, zodat hij er na een ramp nog is.
+**State**: wat OpenTofu onthoudt over wat hij beheert. Staat versleuteld in R2,
+zodat hij er na een ramp nog is.
 
-**Subnet route**: Tailscale-toestel (hier ct 108) dat zegt: via mij kom je bij `192.168.0.x`. Zo bereik je het thuisnetwerk via Tailscale.
+**Subnet route**: Tailscale-toestel (hier ct 108) dat zegt: via mij kom je bij
+`192.168.0.x`. Zo bereik je het thuisnetwerk via Tailscale.
 
 **Tailnet**: alle toestellen die via Tailscale met elkaar verbonden zijn. Wie
 erop zit, komt aan je diensten.
@@ -117,18 +144,21 @@ schema (cron).
 **Tweede kopie**: de wekelijkse back-up naar de Mac mini (`macmini-backup`).
 Niet versleuteld.
 
-**Uitzondering**: een regel in de host_vars die een melding in het rapport bewust
-stilzet, mét reden.
+**Uitzondering**: een regel in de host_vars die een melding in het rapport
+bewust stilzet, mét reden.
+
+**Upstream**: waar een dienst verder vraagt. Voor AdGuard de DNS-server op
+internet (Quad9), voor Caddy de machine en poort achter een adres.
 
 **Vault-wachtwoord**: ontgrendelt de versleutelde bestanden in de repo. Er zijn
 er twee: `infra` en `stacks`.
 
-**VM** of **virtuele machine**: een volledige machine op pve01, met een eigen kernel en besturingssysteem. Zwaarder dan een container. Commando's: `qm`.
+**VM** of **virtuele machine**: een volledige machine op pve01, met een eigen
+kernel en besturingssysteem. Zwaarder dan een container. Commando's: `qm`.
 
-**vm-hdd**: de ZFS-pool op pve01 waar de VM's en containers op staan.
-Ondanks de naam geen harde schijf maar een NVMe-SSD (Corsair MP600 Core,
-1,8 TB): meer dan 1 GB/s. Hier staan ook de cache van LANCache en de gedeelde
-map van copyparty.
+**vm-hdd**: de ZFS-pool op pve01 waar de VM's en containers op staan. Ondanks de
+naam geen harde schijf maar een NVMe-SSD (Corsair MP600 Core, 1,8 TB): meer dan
+1 GB/s. Hier staan ook de cache van LANCache en de gedeelde map van copyparty.
 
 **vmid**: het unieke nummer van een guest in Proxmox (bv. `107` is `adguard`).
 

@@ -2,6 +2,8 @@
 title: ntfy
 ---
 
+import { Steps } from 'nextra/components'
+
 # ntfy
 
 {/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
@@ -20,3 +22,107 @@ ntfy — meldingen van de homelab naar je telefoon
 
 <small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
 {/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Meldingen van de homelab naar je telefoon, op het topic `homelab`. Proxmox,
+PBS, UniFi, Vaultwarden en NeoGate sturen er hun fouten heen. ntfy draait als
+OCI-container op pve01, los van `docker`: wie meldt dat `docker` stuk is, mag
+er niet zelf op draaien. Bijwerken: [OCI-container](/proxmox/oci/#een-oci-container-bijwerken).
+
+## Meldingen op je iPhone
+
+<Steps>
+
+#### Installeer de app ntfy
+
+Instellingen → Standaardserver: `https://ntfy.neodata.be`, gebruiker `ruben`.
+Het wachtwoord:
+
+```bash filename="laptop"
+ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_password
+```
+
+#### Abonneer op het topic `homelab`
+
+Je krijgt waarschuwingen en fouten, zoals een mislukte back-up. Een geslaagde
+back-up meldt zich niet ([waarom](#waarom-geen-melding-bij-succes)).
+
+</Steps>
+
+| Je ziet | Betekent |
+| --- | --- |
+| "You received a file: attachment.txt" | de log was groter dan 4 KB; de titel zegt wat er misging, de bijlage is de log |
+| wel een seintje, maar geen inhoud | je bent buitenshuis zonder VPN: `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar |
+
+Een job in Semaphore meldt zich níét als hij faalt: kijk af en toe zelf in de
+taaklijst. Staat op `TODO.md`.
+
+## Een app laten melden
+
+Elke app krijgt een eigen token op het account `proxmox` (mag schrijven op
+`homelab`). Zo trek je er één in zonder de rest.
+
+<Steps>
+
+#### Maak het token en versleutel het
+
+```bash filename="laptop"
+TOKEN=tk_$(LC_ALL=C tr -dc a-z0-9 </dev/urandom | head -c 29)
+printf %s "$TOKEN" | ansible-vault encrypt_string --encrypt-vault-id infra \
+  --stdin-name vault_ntfy_<app>_token
+```
+
+Zet de output in `inventory/group_vars/all/vault.yml` (`ansible-vault edit`),
+of als los bestand ernaast, zoals `ntfy_neogate.yml`. `printf` en
+`--encrypt-vault-id`: zie [Goed om te weten](#het-token-maken-printf-en-infra).
+
+#### Zet het in de lijst
+
+Voeg `'proxmox:' ~ vault_ntfy_<app>_token ~ ':<app>'` toe aan
+`NTFY_AUTH_TOKENS` in `inventory/group_vars/proxmox/lxcs.yml`, dan:
+
+```bash filename="laptop"
+ansible-playbook playbooks/proxmox-oci.yml --check   # "env would be set"
+ansible-playbook playbooks/proxmox-oci.yml           # ntfy herstart even
+```
+
+#### Test
+
+```bash filename="laptop"
+curl -H "Authorization: Bearer $TOKEN" -d test https://ntfy.neodata.be/homelab
+```
+
+Geeft `200`. Geef de app daarna `https://ntfy.neodata.be/homelab` en het token.
+
+#### Commit en push
+
+```bash filename="laptop"
+git add inventory && git commit -m 'ntfy: token voor <app>' && git push
+```
+
+</Steps>
+
+## Goed om te weten
+
+### Waarom geen melding bij succes
+
+Wie elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
+
+### Waarom niet via Caddy
+
+Proxmox en PBS sturen rechtstreeks naar `192.168.0.32`: een melding over een
+storing mag niet afhangen van Caddy of AdGuard. Grote logs komen als bijlage
+dankzij `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n
+bericht en krijg je niets.
+
+### Het token maken: `printf` en `infra`
+
+`printf %s`, niet `echo`: een newline op het einde komt mee in het token, en
+Proxmox weigert dan de hele env met `400 Parameter verification failed`. De
+oude tokens blijven werken, het nieuwe niet. `--encrypt-vault-id infra` is
+verplicht: er zijn twee vault-id's en `encrypt_string` kiest niet zelf.
+
+### Wat een herbouw kost
+
+Gebruikers, rechten en tokens staan in `env`, en komen na een herbouw meteen
+terug. Je verliest alleen de berichten van de laatste uren
+([waarom](/proxmox/oci/#updaten-is-opnieuw-bouwen)).

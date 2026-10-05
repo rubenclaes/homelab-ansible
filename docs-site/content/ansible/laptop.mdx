@@ -6,8 +6,9 @@ import { Steps, Callout } from 'nextra/components'
 
 # Laptop klaarzetten
 
-Eén keer doen op een nieuwe laptop. Daarna werken `ssh caddy`, `ap` en elk
-playbook. Alleen `~/.zshrc` of `~/.ssh/config` kwijt? Begin bij stap 6.
+Eén keer doen op een nieuwe laptop. Daarna werken `ssh caddy`, `ap`, elk
+playbook en `bin/tofu`. Alleen `~/.zshrc` of `~/.ssh/config` kwijt? Doe alleen
+de laatste stap.
 
 ## Wat je nodig hebt
 
@@ -21,24 +22,24 @@ playbook. Alleen `~/.zshrc` of `~/.ssh/config` kwijt? Begin bij stap 6.
 
 <Steps>
 
-#### 1. Haal de repo binnen
+#### Haal de repo binnen
 
 ```bash filename="laptop"
 git clone https://github.com/rubenclaes/homelab-ansible.git ~/Development/homelab-ansible
 cd ~/Development/homelab-ansible
 ```
 
-#### 2. Installeer Ansible
+#### Installeer Ansible en OpenTofu
 
 ```bash filename="laptop"
-brew install ansible ansible-lint
+brew install ansible ansible-lint opentofu
 ansible-galaxy collection install -r collections/requirements.yml
 ```
 
 Zonder `proxmoxer` (zit in de brew-versie) ziet Ansible alleen `pve01` en de
 Macs, zonder foutmelding. Met pipx: `pipx inject ansible-core proxmoxer requests`.
 
-#### 3. Zet de ansible-sleutel neer
+#### Zet de ansible-sleutel neer
 
 ```bash filename="laptop"
 scp <oude-mac>:'~/.ssh/ansible_ed25519*' ~/.ssh/
@@ -47,10 +48,10 @@ chmod 600 ~/.ssh/ansible_ed25519
 
 <Callout type="error">
 Maak deze sleutel **nooit** opnieuw aan: elke host kent de bestaande. Echt
-kwijt? Zie [De ansible-sleutel is kwijt](/ansible/sleutel/).
+kwijt? Zie [Ansible-sleutel kwijt](/ansible/sleutel/).
 </Callout>
 
-#### 4. Zet de vault-wachtwoorden neer
+#### Zet de vault-wachtwoorden neer
 
 ```bash filename="laptop"
 mkdir -p ~/.ansible
@@ -62,14 +63,23 @@ $EDITOR ~/.ansible/vault_pass_stacks    # plak het stacks-wachtwoord
 
 Geen spatie of lege regel erachter, anders klopt het wachtwoord niet.
 
-#### 5. Zet de pre-commit hook aan en test
+#### Koppel OpenTofu
+
+```bash filename="laptop"
+bin/tofu proxmox init && bin/tofu tailscale init && bin/tofu pocketid init
+```
+
+Haalt de providers op en koppelt de state in R2. `bin/tofu` leest zijn secrets
+uit `tofu/secrets.env`, dus dit werkt pas na de vault-wachtwoorden.
+
+#### Zet de pre-commit hook aan en test
 
 ```bash filename="laptop"
 git config core.hooksPath .githooks   # blokkeert een commit met een geheim erin
 bin/check-vaulted && ansible-lint && ansible all -m ping
 ```
 
-#### 6. Schrijf je ssh-config en shell
+#### Schrijf je ssh-config en shell
 
 ```bash filename="laptop"
 ansible-playbook playbooks/dotfiles.yml

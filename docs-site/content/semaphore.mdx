@@ -17,17 +17,17 @@ Tijden zijn lokale tijd (Europe/Brussels).
 
 | Template | Wanneer | Waarom dan |
 | --- | --- | --- |
+| UniFi watch | elk kwartier | meldt een toestel dat niet in `unifi_known_macs` staat |
+| Stacks | dagelijks 05:30 | ná de converge van zondag, vóór Drift check |
+| Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
+| UniFi routes | dagelijks 06:15 | wijst elke route naar een toestel met een Fixed IP, en deelt UniFi de juiste DNS uit? |
+| Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
+| Docs | dagelijks 07:00 | de site volgt de repo |
 | Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
 | Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
 | Site converge | zondag 05:00 | wekelijks gelijktrekken; drift repareert zichzelf |
-| Stacks | dagelijks 05:30 | ná de converge van zondag, vóór Drift check |
-| Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
-| Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
-| Docs | dagelijks 07:00 | de site volgt de repo |
 | Homelab Report | zondag 08:00 | traag, dus wekelijks |
 | Restore drill | 1e van de maand, 04:00 | maakt en sloopt een echte guest; niet elke nacht |
-| UniFi routes | dagelijks 06:15 | wijst elke route naar een toestel met een Fixed IP, en deelt UniFi de juiste DNS uit? |
-| UniFi watch | elk kwartier | meldt een toestel dat niet in `unifi_known_macs` staat |
 
 ### In Semaphore, zonder schema (klik ze zelf)
 
@@ -37,21 +37,18 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Caddy | `caddy.yml` |
 | Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
 
-Daarmee staan alle veertien templates van het project in git. Maak je er een in
-de UI, zet hem dan ook in `semaphore_templates_list`, anders is dat bestand
-weer een deellijst en geloof je hem ten onrechte. Hoe:
-[Schema in Semaphore](#een-schema-in-semaphore-aanpassen).
+Daarmee staan alle veertien templates in git. Maak je er een in de UI, zet hem
+dan ook in `semaphore_templates_list`, anders klopt die lijst niet meer en
+geloof je hem ten onrechte. Hoe:
+[Een schema in Semaphore aanpassen](#een-schema-in-semaphore-aanpassen).
 
-### Op pve01, niet in Semaphore
+### Niet in Semaphore
 
-De back-ups draaien op de cron van Proxmox, niet in Semaphore: dagelijks om
-02:30 naar PBS, en zondag om 01:00 een tweede kopie naar de Mac mini. Wat, waar
-en waarom: [Back-ups](/proxmox/backups/).
+De back-ups draaien op de cron van Proxmox: zie
+[Back-ups](/backups/overzicht/#waar-de-back-ups-staan).
 
-Wat meldt zich als het faalt? Proxmox en PBS wel: een mislukte back-up
-komt op je telefoon, zie [Meldingen op je iPhone](#meldingen-op-je-iphone).
-Een job in Semaphore níét: kijk af en toe zelf in de taaklijst. Staat op
-`TODO.md`.
+Een job die faalt, meldt zich niet: kijk af en toe zelf in de taaklijst.
+Proxmox en PBS melden wel, via [ntfy](/homelab/diensten/ntfy/).
 
 ## Een schema in Semaphore aanpassen
 
@@ -109,7 +106,7 @@ git add inventory && git commit -m 'Semaphore: schema Drift check' && git push
 
 #### Werk de lijst op de docs-site bij
 
-Pas de tabel in [Wat draait er vanzelf?](#wat-draait-er-vanzelf-en-wanneer)
+Pas de tabel in [Wat draait er vanzelf, en wanneer?](#wat-draait-er-vanzelf-en-wanneer)
 aan: die is met de hand geschreven.
 
 </Steps>
@@ -133,24 +130,6 @@ een melding. Hoe je het aanmaakt, staat bovenaan `main.yml` in die map.
 over; zie
 [Een schema herschrijft zichzelf niet](#een-schema-herschrijft-zichzelf-niet).
 
-## Meldingen op je iPhone
-
-Installeer de app **ntfy**. Onder Instellingen → Standaardserver:
-`https://ntfy.neodata.be`, gebruiker `ruben`. Het wachtwoord staat in de vault:
-
-```bash filename="laptop"
-ansible-vault view inventory/group_vars/proxmox/vault.yml | grep ntfy_ruben_password
-```
-
-Abonneer op het topic `homelab`. Proxmox en PBS sturen daar hun
-waarschuwingen en fouten heen, zoals een mislukte back-up. Geslaagde back-ups
-niet ([waarom](#waarom-geen-melding-bij-succes)).
-
-| Je ziet | Betekent |
-| --- | --- |
-| "You received a file: attachment.txt" | de log was groter dan 4 KB; de titel zegt wat er misging, de bijlage is de log |
-| wel een seintje, maar geen inhoud | je bent buitenshuis zonder VPN: `ntfy.neodata.be` is alleen thuis of via de VPN bereikbaar |
-
 ## Inloggen
 
 Via [Pocket ID](https://id.neodata.be): knop **Pocket ID** op de loginpagina,
@@ -164,8 +143,7 @@ ook als je er al ingelogd bent: Semaphore kan alles op elke machine.
 
 Een nieuwe beheerder logt eerst in via Pocket ID; daarna maak je hem admin:
 
-```bash
-ssh semaphore
+```bash filename="semaphore"
 sudo -u semaphore semaphore user change-by-login \
   --config /etc/semaphore/config.json --login <naam> --admin
 ```
@@ -183,14 +161,6 @@ uit. En het koppelt op mailadres, maar weigert een login als er een
 Daarom heeft de lokale `admin` het adres `admin@semaphore.local`, en niet dat
 van een persoon. Rollen leest Semaphore niet uit de groepen: admin maken gaat
 met de hand, zoals hierboven.
-
-### Waarom geen melding bij succes
-
-Wie elke nacht een "OK" krijgt, leest de ene "failed" niet meer. Proxmox en
-PBS sturen rechtstreeks naar `192.168.0.32`, niet via Caddy: een melding over
-een storing mag niet afhangen van Caddy of AdGuard. Grote logs komen als
-bijlage dankzij `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy
-zo'n bericht en krijg je niets.
 
 ### De limits in de templates
 

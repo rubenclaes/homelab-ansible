@@ -7,8 +7,8 @@ import { Steps } from 'nextra/components'
 # Afwerken
 
 Je [container](/proxmox/container/) of [VM](/proxmox/vm/) staat er en heeft
-de baseline. Nu komt de rest: de dienst erop, een adres, de back-up, commit en
-de docs. Voorbeeld: `vaultwarden`.
+de baseline. Nu de rest: de dienst erop, een adres, de back-up en de docs.
+Voorbeeld: `vaultwarden`.
 
 <Steps>
 
@@ -31,7 +31,7 @@ ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/smoketest.yml --tags caddy
 ```
 
-Alle velden van een route: zie [Dienst toevoegen → Alleen een adres](/netwerk/caddy/#alle-velden-van-een-route).
+Alle velden van een route: zie [Alle velden van een route](/netwerk/caddy/#alle-velden-van-een-route).
 
 #### Zet hem in de wekelijkse back-up
 
@@ -51,9 +51,8 @@ git commit -m "vaultwarden erbij"
 git push
 ```
 
-Sla dit niet over: Semaphore draait zijn geplande runs vanuit git, niet vanaf
-je laptop. Een route of rol die niet gepusht is, bestaat voor Semaphore niet
-en kan bij de volgende run weer verdwijnen.
+Semaphore draait vanuit git: een route of rol die niet gepusht is, bestaat
+voor Semaphore niet.
 
 #### Controleer
 
@@ -61,8 +60,7 @@ en kan bij de volgende run weer verdwijnen.
 ansible-playbook playbooks/site.yml --check --diff --limit vaultwarden
 ```
 
-Verandert niets, toont alleen wat er nog zou veranderen. Staat er niets open,
-dan klopt alles.
+Een dry run: staat er niets open, dan klopt alles.
 
 #### Werk de docs bij
 
@@ -70,8 +68,8 @@ dan klopt alles.
 ansible-playbook playbooks/docs.yml
 ```
 
-De pagina's met hosts en containers op deze site worden uit de inventory
-gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
+[Machines](/homelab/machines/) wordt uit de inventory gemaakt: zonder deze
+stap staat je nieuwe machine er niet op.
 
 </Steps>
 
@@ -84,8 +82,8 @@ gemaakt. Zonder deze stap staat je nieuwe machine er niet op.
 | `bin/tofu proxmox plan` wil iets terugzetten dat je in het Proxmox-scherm veranderde | Het `.tf`-bestand wint. Zet de waarde daar, zie [Machine aanpassen](/proxmox/beheren/#een-machine-aanpassen) |
 | Het blijft hangen bij "Wait for SSH" (3 minuten) | De container start niet, of het adres klopt niet. Kijk in het Proxmox-scherm of hij draait en welk adres hij heeft |
 | Een fout over een hostkey | Er stond al een andere machine op dat adres. `ssh-keygen -R <adres>` en opnieuw |
-| Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet. Zie de README |
-| Een VM staat niet in de inventory | De guest agent draait niet. Zie [Virtuele machine](/proxmox/vm/#controleer-dat-ansible-hem-ziet) |
+| Een fout over het vault-wachtwoord | `~/.ansible/vault_pass_infra` ontbreekt of klopt niet, zie [Laptop klaarzetten](/ansible/laptop/) |
+| Een VM staat niet in de inventory | De guest agent draait niet. Zie [Nieuwe VM](/proxmox/vm/#controleer-dat-ansible-hem-ziet) |
 | Een OCI-container staat meteen weer op `stopped` | Meestal een ontbrekend `entrypoint`-argument of een map die niet bestaat. Zet `lxc.console.logfile: /tmp/ct.log` onderaan `/etc/pve/lxc/<vmid>.conf`, start hem, en lees dat bestand. Haal de regel daarna weer weg |
 
 Een half klaargezette container is niet erg: `new-guest.yml` mag altijd

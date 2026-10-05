@@ -6,9 +6,10 @@ import { Steps, Callout, FileTree } from 'nextra/components'
 
 # OpenTofu
 
-OpenTofu beheert de dingen die geen Ansible zijn: de **machines op pve01**
-(welke er zijn en hoe groot), de **Tailscale-regels** (wie mag waar, de DNS
-en de tags van de tailnet) en de **apps die via Pocket ID inloggen**. De bestanden staan in `tofu/`, één map per
+OpenTofu beslist wat er *bestaat*, Ansible wat er *in* een machine draait.
+OpenTofu beheert de **machines op pve01** (welke er zijn en hoe groot), de
+**Tailscale-regels** (wie mag waar, de DNS en de tags van de tailnet) en de
+**apps die via Pocket ID inloggen**. De bestanden staan in `tofu/`, één map per
 systeem, en je draait alles via `bin/tofu`.
 
 Elke keer dezelfde twee stappen: `plan` toont wat er zou veranderen, `apply`
@@ -47,7 +48,49 @@ doet het, pas na `yes`.
 
 `backend.tf`, `providers.tf` en `versions.tf` zeggen waar de state staat en
 waarmee OpenTofu praat; daar kom je zelden aan. `secrets.env` is versleuteld
-(vault `infra`).
+(vault `infra`). Klaarzetten op een nieuwe laptop:
+[Laptop klaarzetten](/ansible/laptop/).
+
+## De machines op pve01
+
+`tofu/proxmox/` beschrijft de guests op pve01 en de Proxmox-gebruiker van
+Ansible. Wat hier staat, verander je hier, niet in het Proxmox-scherm: het
+volgende plan zou je wijziging daar weer terugzetten.
+
+| Bestand | Wat erin staat |
+| --- | --- |
+| `vms.tf` | de VM's 100 `pbs`, 101 `haos`, 102 `docker-grafana-stack`, 103 `docker`: één blok per VM |
+| `containers.tf` | de Debian-containers 104 `semaphore`, 106 `caddy`, 107 `adguard`, 108 `tailscale`: één regel per container in `local.containers`, plus het template en de Ansible-sleutel voor nieuwe containers |
+| `access.tf` | de gebruiker `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten |
+| `oidc.tf` | inloggen via Pocket ID: de realm `pocketid`, de groep `admin-pocketid` en zijn rechten (Administrator) |
+
+```bash filename="laptop"
+bin/tofu proxmox plan    # wat zou er veranderen?
+bin/tofu proxmox apply   # doe het (typ yes)
+```
+
+Wat je ermee doet: [een container maken](/proxmox/container/),
+[een VM maken](/proxmox/vm/), [een guest aanpassen of weghalen](/proxmox/beheren/).
+
+<Callout type="error">
+Zegt een plan **`must be replaced`**, doe dan nooit `apply`. Vervangen
+betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
+`prevent_destroy`, dus OpenTofu weigert het ook zelf, maar zoek de oorzaak.
+</Callout>
+
+**Bewust niet in OpenTofu:**
+
+| Wat | Waar dan |
+| --- | --- |
+| `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 opnieuw: de host](/backups/pve01/#maak-de-gebruiker-van-opentofu) |
+| `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen. `root@pam` is ook de noodtoegang als Pocket ID plat ligt |
+| wie er via Pocket ID binnenkomt (`rubenclaes@pocketid`) | Proxmox maakt die bij de eerste login; de groep komt uit Pocket ID |
+| de OCI-containers `ntfy` (109) en `lancache` (110) | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/) |
+| opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
+| `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |
+
+Na een ramp: eerst alles terugzetten uit PBS, pas dan `plan`
+([waarom](/backups/terugzetten/#eerst-terugzetten-dan-pas-plan)).
 
 ## Tailscale-regels aanpassen
 
@@ -56,17 +99,6 @@ OpenTofu zet dat bestand in Tailscale. In de console kan je de regels niet
 meer aanpassen: git is de enige weg.
 
 <Steps>
-
-#### Eenmalig op een nieuwe computer
-
-OpenTofu installeren en de vault-wachtwoorden neerzetten zoals in de README,
-dan:
-
-```bash filename="laptop"
-brew install opentofu
-bin/tofu tailscale init
-bin/tofu proxmox init
-```
 
 #### Pas het bestand aan
 
@@ -94,8 +126,11 @@ Er is dan niets veranderd.
 
 #### Commit en push
 
-`policy.hujson` is de bron. Een wijziging die niet in git staat, bestaat
-niet.
+```bash filename="laptop"
+git add files/tailscale/policy.hujson && git commit -m 'tailscale: <wat>' && git push
+```
+
+`policy.hujson` is de bron: een wijziging die niet in git staat, bestaat niet.
 
 </Steps>
 
@@ -146,47 +181,6 @@ Daardoor bestaat er geen sleutel die eerst iemand in de UI moet aanmaken.
 Zegt een plan dat een client `must be replaced`, dan krijgt die app een nieuw
 secret. Zet dat na de apply meteen in zijn `.env`, anders kan niemand meer
 inloggen.
-
-## De machines op pve01
-
-`tofu/proxmox/` beschrijft de guests op pve01 en de Proxmox-gebruiker van
-Ansible. Wat hier staat, verander je hier, niet in het Proxmox-scherm: het
-volgende plan zou je wijziging daar weer terugzetten.
-
-| Bestand | Wat erin staat |
-| --- | --- |
-| `vms.tf` | de VM's 100 `pbs`, 101 `haos`, 102 `docker-grafana-stack`, 103 `docker`: één blok per VM |
-| `containers.tf` | de Debian-containers 104 `semaphore`, 106 `caddy`, 107 `adguard`, 108 `tailscale`: één regel per container in `local.containers`, plus het template en de Ansible-sleutel voor nieuwe containers |
-| `access.tf` | de gebruiker `ansible@pve`, zijn rol `AnsibleAutomation` en zijn rechten |
-| `oidc.tf` | inloggen via Pocket ID: de realm `pocketid`, de groep `admin-pocketid` en zijn rechten (Administrator) |
-
-```bash filename="laptop"
-bin/tofu proxmox plan    # wat zou er veranderen?
-bin/tofu proxmox apply   # doe het (typ yes)
-```
-
-Wat je ermee doet: [een container maken](/proxmox/container/),
-[een VM maken](/proxmox/vm/), [een guest aanpassen of weghalen](/proxmox/beheren/).
-
-<Callout type="error">
-Zegt een plan **`must be replaced`**, doe dan nooit `apply`. Vervangen
-betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
-`prevent_destroy`, dus OpenTofu weigert het ook zelf, maar zoek de oorzaak.
-</Callout>
-
-**Bewust niet in OpenTofu:**
-
-| Wat | Waar dan |
-| --- | --- |
-| `tofu@pve` zelf, de gebruiker van OpenTofu | met de hand, zie [pve01 opnieuw opbouwen](/proxmox/pve01/#maak-de-gebruiker-van-opentofu) |
-| `root@pam` en `rubenclaes@pam` | met de hand; wie Proxmox beheert, hoort niet van een tool af te hangen. `root@pam` is ook de noodtoegang als Pocket ID plat ligt |
-| wie er via Pocket ID binnenkomt (`rubenclaes@pocketid`) | Proxmox maakt die bij de eerste login; de groep komt uit Pocket ID |
-| `ntfy` (ct 109), de OCI-container | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/) |
-| opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
-| `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |
-
-Na een ramp: eerst alles terugzetten uit PBS, pas dan `plan`
-([waarom](/proxmox/herstellen/#eerst-terugzetten-dan-pas-plan)).
 
 ## Goed om te weten
 

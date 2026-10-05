@@ -6,19 +6,14 @@ import { Steps } from 'nextra/components'
 
 # Nieuwe VM
 
-Een virtuele machine: alleen als het echt niet anders kan, bijvoorbeeld een
-eigen besturingssysteem zoals Home Assistant OS. Anders: een
-[container](/proxmox/container/).
+Een virtuele machine: alleen als het echt niet anders kan, bijvoorbeeld voor
+een eigen besturingssysteem zoals Home Assistant OS. Anders een
+[container](/proxmox/container/). Een vervanger voor een bestaande VM maak je
+niet zo: zie [Een guest terugzetten](/backups/terugzetten/).
 
-OpenTofu maakt de lege VM, uit een blok in `tofu/proxmox/vms.tf`. Debian
-installeren doe je **met de hand** in de console
-([waarom](#waarom-vms-niet-automatisch)). Daarna neemt Ansible het over, net
-als bij een container.
-
-Voorbeeld: een VM `nieuwehost` met Debian.
-
-Een **vervanger** voor een bestaande VM (bv. `docker`) maak je niet zo: zet
-een back-up terug, zie [Herstellen](/proxmox/herstellen/).
+Voorbeeld: een VM `nieuwehost` met Debian. OpenTofu maakt de lege VM, Debian
+installeer je met de hand ([waarom](#waarom-vms-niet-automatisch)), daarna
+neemt Ansible het over.
 
 <Steps>
 
@@ -152,7 +147,7 @@ en blijven routes in Caddy kloppen.
 
 #### Controleer dat Ansible hem ziet
 
-Terug op je werkstation:
+Terug op je laptop:
 
 ```bash filename="laptop"
 ansible-inventory --host nieuwehost | grep ansible_host
@@ -160,7 +155,7 @@ ansible-inventory --host nieuwehost | grep ansible_host
 
 Zie je `"ansible_host": "192.168.0.99"`, dan is het goed. Niets? Kijk in het
 Proxmox-scherm bij de VM → **Summary**: staat bij IPs "Guest Agent not
-running", dan is stap 4 of het vinkje **Qemu Agent** niet gelukt (dat vinkje
+running", dan is *Zet de guest agent aan* of het vinkje **Qemu Agent** niet gelukt (dat vinkje
 vraagt een volledige stop en start van de VM, geen reboot van binnenuit).
 
 #### Zet de Ansible-sleutel op je gebruiker
@@ -199,7 +194,7 @@ git push
 Aan dat MAC hangt zijn vaste adres in UniFi. Staat het vast, dan krijgt een
 herbouw hetzelfde adres.
 
-#### Werk de VM af
+#### Werk hem af
 
 Ga verder met [Afwerken](/proxmox/afwerken/).
 
@@ -233,13 +228,6 @@ Aanpassen doe je in `tofu/proxmox/vms.tf`, zie
 ssh pve01 sudo qm pending <vmid>   # toont wat er nog wacht
 ssh pve01 sudo qm reboot <vmid>    # herstart hem netjes, alle diensten erop gaan even plat
 ```
-
-### Waarom de hostkey via Proxmox gelezen wordt
-
-Een nieuwe container heeft een hostkey die niemand kent, en Ansible kan die
-niet zomaar accepteren. `new-guest.yml` leest de sleutel via `pct exec`
-rechtstreeks van de schijf van de container. Zo vertrouw je de echte machine,
-en niet wat er toevallig op dat adres antwoordt.
 
 ### Waarom VM's niet automatisch
 
