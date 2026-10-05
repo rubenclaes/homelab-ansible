@@ -93,7 +93,7 @@
 
 # De uri-taken hieronder slaan over onder --check. Dit is dus de enige plek
 # waar een dry run laat zien wat er zou gebeuren - zelfde reden als de
-# rapportagetaak in roles/adguard/tasks/rewrites.yml.
+# report-taak in roles/adguard/tasks/rewrites.yml.
 - name: Report the templates that will change
   ansible.builtin.debug:
     msg:

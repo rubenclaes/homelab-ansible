@@ -23,7 +23,7 @@ pbs_client_source: ""
 pbs_client_excludes: []
 # Extra mappen als eigen archief in dezelfde snapshot: [{name, path, excludes}].
 pbs_client_extra_archives: []
-# Dumps vóór de back-up: [{name, command}]. De uitvoer van command gaat
+# Dumps vóór de back-up: [{name, command}]. De output van command gaat
 # gzipped naar <source>/_dumps/<name>.sql.gz. Faalt er één, of is hij leeg,
 # dan stopt het script en komt er geen snapshot.
 pbs_client_dumps: []

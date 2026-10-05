@@ -57,7 +57,7 @@ update je met de hand op de Mac.
 Een poort zonder route is meestal een dienst die je vergeten bent af te maken:
 volg dan [Dienst toevoegen](/docker/toevoegen/).
 
-#### Demp wat bewust zo is
+#### Zet een uitzondering voor wat bewust zo is
 
 Is een melding gewild? Zet ze in de host_vars van die host, bijvoorbeeld
 `inventory/host_vars/docker/main.yml`:
@@ -75,13 +75,13 @@ docker_routes_without_container:
 | `docker_ports_without_route` | een gepubliceerde poort die bewust geen route heeft |
 | `docker_routes_without_container` | een route waarvan de backend géén containerpoort is (qbittorrent met `network_mode: host`, Plex als macOS-app) |
 
-Zet er altijd een `why:` bij: een gedempte melding zonder reden is over
+Zet er altijd een `why:` bij: een uitzondering zonder reden is over
 een half jaar niet te onderscheiden van een vergissing.
 
-#### Commit en push de demper
+#### Commit en push de uitzondering
 
 ```bash filename="laptop"
-git add inventory && git commit -m 'Rapport: poort 21115 gedempt' && git push
+git add inventory && git commit -m 'Rapport: uitzondering voor poort 21115' && git push
 ```
 
 </Steps>

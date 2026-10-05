@@ -41,7 +41,7 @@ want die onthoudt het oude adres.
 ansible-playbook playbooks/lancache.yml -e lancache=off
 ```
 
-Eerst gaat de omleiding in AdGuard weg, dan stopt de container. Downloads gaan
+Eerst gaat de rewrite in AdGuard weg, dan stopt de container. Downloads gaan
 weer gewoon via internet. De cache blijft staan voor de volgende party.
 
 Staat Steam nog open, start het dan opnieuw: Steam kijkt alleen bij het
@@ -71,7 +71,7 @@ ssh pve01 'sudo pct exec 110 -- tail -f /data/logs/access.log'
 Staat LANCache aan en ligt hij plat, dan stuurt AdGuard elke game-download
 naar een adres waar niets antwoordt, en kan niemand in huis nog iets
 downloaden. Daarom staat hij uit tenzij je hem nodig hebt, en start hij ook
-niet vanzelf als pve01 herstart. `lancache.yml` zet de omleiding pas als de
+niet vanzelf als pve01 herstart. `lancache.yml` zet de rewrite pas als de
 cache antwoordt.
 
 ### pve01 herstart tijdens een party

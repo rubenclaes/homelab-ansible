@@ -5,7 +5,7 @@
 #   ansible-playbook playbooks/lancache.yml -e lancache=off
 #
 # Aan: eerst de container (ct 110 op pve01), en pas als die antwoordt de
-# omleiding in AdGuard. Uit: eerst de omleiding weg, dan de container. In die
+# rewrite in AdGuard. Uit: eerst de rewrite weg, dan de container. In die
 # volgorde wijst DNS nooit naar een cache die er niet is: dan zou niemand in
 # huis nog een game kunnen downloaden.
 #

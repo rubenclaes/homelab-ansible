@@ -39,7 +39,7 @@ fi
 #    gestaged is. Zonder backend (-backend=false), dus zonder R2 of secrets;
 #    de passphrase is een dummy, want validate leest geen state.
 #
-#    Op een kopie van wat gestaged is, niet op de werkmap: die twee kunnen
+#    Op een kopie van wat gestaged is, niet op de working tree: die twee kunnen
 #    verschillen. De hele index, want tofu/proxmox leest ook
 #    inventory/group_vars/proxmox/guest_network.yml. -lockfile=readonly: een
 #    lock die niet bij de providers past faalt hier, in plaats van dat init

@@ -23,7 +23,7 @@ semaphore_api_password: "{{ vault_semaphore_api_password }}"
 #
 # LET OP bij de eerste run. `name` is de sleutel waarop gezocht wordt, en die
 # moet letterlijk overeenkomen met wat er nu in Semaphore staat. Draai daarom
-# eerst een dry run en lees de rapportageregel: staat een template die je
+# eerst een dry run en lees de output van "Report the templates that will change": staat een template die je
 # dacht bij te werken onder `create`, dan wijkt de naam af en zou je een
 # tweede maken. Hernoem er dan één van voor je het echt draait.
 #

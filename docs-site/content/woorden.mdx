@@ -24,9 +24,6 @@ guests en de node zelf aan hangen.
 
 **Converge**: `site.yml` draaien, zodat elke host weer gelijk is aan de repo.
 
-**Demper**: een regel in de host_vars die een melding in het rapport bewust
-stilzet, mét reden.
-
 **Dry run**: een playbook draaien met `--check --diff`. Ansible toont wat het
 zou veranderen, maar verandert niets.
 
@@ -114,6 +111,9 @@ schema (cron).
 
 **Tweede kopie**: de wekelijkse back-up naar de Mac mini (`macmini-backup`).
 Niet versleuteld.
+
+**Uitzondering**: een regel in de host_vars die een melding in het rapport bewust
+stilzet, mét reden.
 
 **Vault-wachtwoord**: ontgrendelt de versleutelde bestanden in de repo. Er zijn
 er twee: `infra` en `stacks`.

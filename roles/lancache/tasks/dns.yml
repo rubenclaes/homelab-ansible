@@ -27,7 +27,7 @@
   ansible.builtin.assert:
     that: lancache_dns_heartbeat.status | default(0) == 204
     fail_msg: >-
-      lancache ({{ lancache_ip }}) antwoordt niet. De omleiding in AdGuard is
+      lancache ({{ lancache_ip }}) antwoordt niet. De rewrite in AdGuard is
       niet gezet. Draai het hele playbook, niet alleen --tags dns:
       ansible-playbook playbooks/lancache.yml -e lancache=on
     quiet: true

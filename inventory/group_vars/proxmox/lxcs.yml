@@ -83,7 +83,7 @@ pve_oci_lxcs:
 
   # LANCache voor LAN parties: houdt game-downloads bij, zodat de tweede
   # download uit huis komt. Staat uit; playbooks/lancache.yml zet hem aan en
-  # uit, samen met de omleiding in AdGuard. Niet in de back-ups
+  # uit, samen met de rewrite in AdGuard. Niet in de back-ups
   # (group_vars/proxmox/backup.yml): de cache is weggooibaar.
   - vmid: 110
     hostname: lancache

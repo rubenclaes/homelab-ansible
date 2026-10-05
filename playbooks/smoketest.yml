@@ -126,7 +126,7 @@
       become: false
 
     # Per naam vergelijken kan niet in één selectattr - die kent maar één kant
-    # van het paar. Een lus die de kapotte gevallen opschrijft leest beter dan
+    # van het paar. Een loop die de kapotte gevallen opschrijft leest beter dan
     # de Jinja waarmee dat wél in één uitdrukking zou passen.
     #
     # Een host met een naam als ansible_host (work-wsl) krijgt een CNAME, en

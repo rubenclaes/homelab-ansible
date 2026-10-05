@@ -109,7 +109,7 @@
         # Eén aanroep, hieronder twee keer gelezen. Dit is het trage deel van
         # de play (~45s per Mac) en softwareupdate heeft geen snelle route,
         # dus hij mag niet één keer per veld draaien. Voortgang gaat naar
-        # stderr, vandaar de omleiding.
+        # stderr, vandaar de redirect.
         - name: List pending macOS updates
           ansible.builtin.shell: softwareupdate --list 2>&1
           register: report_swu
