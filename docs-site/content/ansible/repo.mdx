@@ -38,6 +38,24 @@ houdt het overzichtelijk: OpenTofu beslist wat er *bestaat*, Ansible wat er
 | een app in Docker | [Dienst toevoegen](/docker/toevoegen/) |
 | software rechtstreeks op een machine | [Eigen rol](/ansible/rol/) |
 
+## Controle bij elke push
+
+Bij elke push naar `master` en elke pull request draait GitHub
+`.github/workflows/lint.yml`:
+
+| Stap | Vangt |
+| --- | --- |
+| `bin/check-vaulted` | een geheim dat onversleuteld in git staat |
+| `ansible-lint` (profiel `production`) | fouten en slordigheid in rollen, playbooks en inventory |
+| `ansible-playbook --syntax-check` | elk playbook dat niet eens zou starten |
+| `tofu fmt` en `tofu validate` | opmaak en fouten in `tofu/` |
+
+Hetzelfde lokaal, vóór je pusht: `bin/check-vaulted && ansible-lint`.
+
+Een rode run zie je alleen als GitHub het je laat weten. Zet dat aan op
+github.com → Settings → Notifications → **Actions**: "Only notify for failed
+workflows", en kies e-mail of de GitHub-app.
+
 ## Goed om te weten
 
 ### Waarom elke host een map heeft
