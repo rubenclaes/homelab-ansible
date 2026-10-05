@@ -96,6 +96,11 @@
 # {args[0]}, comma-separated (`auth:` on a site: one group, or a list).
 # Not signed in: off to auth.{{ caddy_domain }}, and back here afterwards.
 # Signed in but in the wrong group: oauth2-proxy answers 403, and so does this.
+#
+# Only a page load (or a client without Sec-Fetch-Mode, like curl) goes to the
+# login. A script, stylesheet, icon or fetch gets a plain 401: an open Sonarr
+# tab whose cookie had expired otherwise started a login per file, those
+# overwrote each other, and you landed on a 500 or on some .js file.
 (auth) {
 	forward_auth {{ caddy_forward_auth_upstream }} {
 		uri /oauth2/auth?allowed_groups={args[0]}
@@ -103,7 +108,9 @@
 		copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
 		@unauthorized status 401
 		handle_response @unauthorized {
-			redir https://auth.{{ caddy_domain }}/oauth2/start?rd={scheme}://{host}{uri} 302
+			@page expression `{http.request.header.Sec-Fetch-Mode} in ['', 'navigate']`
+			redir @page https://auth.{{ caddy_domain }}/oauth2/start?rd={scheme}://{host}{uri} 302
+			respond 401
 		}
 	}
 }
@@ -199,6 +206,16 @@ auth.{{ caddy_domain }} {
 {% endif %}
 {{ site.name }}.{{ caddy_domain }} {
 	import proxy_defaults
+{% if site.drop_nav_referer | default(false) %}
+	# A page load arriving from another site (the login, Homepage) carries
+	# that site in Referer, and the app refuses it as cross-site. Only for page
+	# loads: its CSRF check on API calls stays.
+	@nav_referer {
+		method GET
+		header Sec-Fetch-Mode navigate
+	}
+	request_header @nav_referer -Referer
+{% endif %}
 {% if site.auth is defined and caddy_forward_auth | default(false) %}
 {# Paths in auth_skip bypass the login: an app's own API with its own key,
    used by other apps (NeoGate talks to Sonarr and Radarr this way). #}

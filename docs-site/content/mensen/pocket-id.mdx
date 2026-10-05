@@ -65,7 +65,8 @@ niets van.
 
 qBittorrent draait met host-netwerk, en die regel raakt hem niet. Hij houdt
 zijn eigen login; Caddy staat op zijn whitelist, zodat je via
-`torrent.neodata.be` maar één keer inlogt.
+`torrent.neodata.be` maar één keer inlogt. Zijn route heeft
+`drop_nav_referer: true`, zie [hieronder](#na-het-aanmelden-nog-eens-vernieuwen).
 
 ### Ligt Pocket ID of oauth2-proxy plat?
 
@@ -105,6 +106,24 @@ dan `431 Request Header Fields Too Large`. Zo gaf NeoGate "geen verbinding" in
 elke tegel, tot het 16 KB aanvaardde. Zie je ergens een 431 in de
 Caddy-logs, dan is dit de eerste verdachte. Snel verhelpen: de
 `_oauth2_proxy`-cookies van `neodata.be` wissen in je browser.
+
+### Na het aanmelden nog eens vernieuwen
+
+Moest je na het aanmelden nog eens vernieuwen, dan zat dat in de login zelf.
+Er waren drie oorzaken:
+
+- **qBittorrent toont "Unauthorized".** Zijn CSRF-beveiliging weigert een
+  pagina die van een andere site komt: van de login, of van een tegel op
+  Homepage. Vernieuwen stuurt geen `Referer` mee, en dan lukt het wel.
+  Daarom laat Caddy de `Referer` weg bij het openen van een pagina op
+  `torrent.neodata.be` (`drop_nav_referer`). API-calls houden hun controle.
+- **Sonarr eindigt op een 500 of op een `.js`-bestand.** Een open tab met een
+  verlopen cookie haalt nog scripts en iconen op. Elk van die requests
+  startte een eigen login. Nu gaat alleen het openen van een pagina naar de
+  login; de rest krijgt een gewone 401.
+- **"Unable to find initial PKCE data" bij twee logins tegelijk.** Twee
+  logins tegelijk overschreven elkaars CSRF-cookie. Nu krijgt elke login zijn
+  eigen (`cookie_csrf_per_request`).
 
 ### oauth2-proxy en "email isn't verified"
 

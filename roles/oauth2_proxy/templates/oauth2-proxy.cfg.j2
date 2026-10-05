@@ -28,6 +28,11 @@ cookie_domains = [".{{ oauth2_proxy_domain }}"]
 cookie_secret = "{{ oauth2_proxy_cookie_secret }}"
 cookie_secure = true
 cookie_expire = "{{ oauth2_proxy_cookie_expire }}"
+# One CSRF cookie per login attempt instead of one shared: two tabs signing in
+# at once (a browser restoring Sonarr and Radarr) no longer overwrite each
+# other's, which ended in a 500 "Unable to find initial PKCE data".
+cookie_csrf_per_request = true
+cookie_csrf_expire = "5m"
 
 # Only /oauth2/auth is used: Caddy proxies to the app itself.
 upstreams = ["static://202"]
