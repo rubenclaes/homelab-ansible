@@ -207,6 +207,28 @@ output "pbs_client_secret" {
   sensitive = true
 }
 
+# Arcane: OIDC_* in de compose van de containers-repo (stacks/arcane), het
+# secret in arcane.env als ARCANE_OIDC_CLIENT_SECRET. Arcane stuurt PKCE mee;
+# de groep `admin` wordt admin in Arcane via OIDC_ROLE_MAPPINGS.
+resource "pocketid_client" "arcane" {
+  name       = "Arcane"
+  client_id  = "arcane"
+  launch_url = "https://arcane.neodata.be"
+
+  callback_urls = ["https://arcane.neodata.be/auth/oidc/callback"]
+
+  is_public                 = false
+  pkce_enabled              = true
+  requires_reauthentication = true
+
+  allowed_user_groups = [pocketid_group.admin.id]
+}
+
+output "arcane_client_secret" {
+  value     = pocketid_client.arcane.client_secret
+  sensitive = true
+}
+
 # --- Forward-auth ---
 
 # oauth2-proxy op de Caddy-container: de login voor apps zonder eigen OIDC.

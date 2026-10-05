@@ -35,6 +35,13 @@ docker_stacks_list:
       - { path: /opt/containers/data/files/hist, owner: 1000 }
       - { path: /srv/files/share, owner: 1000 }
       - { path: /srv/files/share/installers, owner: 1000 }
+  # Arcane: containerbeheer in de browser. Draait als uid 1000 na de start.
+  - name: arcane
+    path: arcane
+    desc: "Arcane — de containers van deze host beheren in de browser"
+    dirs:
+      - { path: /opt/containers/data/arcane/data, owner: 1000 }
+      - { path: /opt/containers/data/arcane/projects, owner: 1000 }
 
 # Alle drie de shares van de Mac mini, niet alleen faststore. Ze stonden op
 # 22-09 alle drie in /etc/fstab van deze host maar maar één stond hier, dus
@@ -187,6 +194,7 @@ homepage_tiles:
   proxmox: { title: Proxmox, group: Infrastructuur, icon: proxmox.png }
   backup: { title: Back-ups (PBS), group: Infrastructuur, icon: proxmox-backup-server.png }
   semaphore: { title: Semaphore, group: Infrastructuur, icon: semaphore.png }
+  arcane: { title: Arcane, group: Infrastructuur, icon: arcane.png }
   code: { title: code-server, group: Infrastructuur, icon: code-server.png }
   id: { title: Pocket ID, group: Infrastructuur, icon: pocket-id.png }
   dns: { title: AdGuard, group: Netwerk, icon: adguard-home.png }

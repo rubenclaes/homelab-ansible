@@ -20,3 +20,83 @@ Metrics-store die Grafana scrapet
 
 <small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
 {/* END feiten uit de inventory — geschreven door docs.yml */}
+
+Prometheus haalt elke 15 seconden de metrics op van elke Linux-host, en
+Alertmanager stuurt een alarm naar [ntfy](/homelab/diensten/ntfy/) (topic
+`homelab`). Beide draaien in de stack `monitoring`
+([monitoring-stack](https://github.com/rubenclaes/monitoring-stack)). Hun
+config komt uit `homelab-ansible`: `roles/prometheus_config`.
+
+## Wat er gemeten wordt
+
+Elke host in de groep `linux` draait node_exporter (`roles/node_exporter`, het
+Debian-pakket) op poort `9100`. Een host erbij in de inventory is meteen een
+host erbij in Prometheus: de doelen volgen uit die groep, net als de upstreams
+van Caddy.
+
+Op pve01 komt daar SMART van de twee echte schijven bij: een timer leest elk
+kwartier `smartctl` en `nvme` uit (`node_exporter_smart: true` in
+`group_vars/proxmox/monitoring.yml`).
+
+## De alarmen
+
+| Alarm | Wanneer | Ernst |
+| --- | --- | --- |
+| `HostDown` | node_exporter 5 minuten onbereikbaar | critical |
+| `DiskAlmostFull` | minder dan 10% vrij, 15 minuten lang | warning |
+| `MemoryLow` | minder dan 5% geheugen beschikbaar, 15 minuten lang | warning |
+| `ZfsPoolUnhealthy` | een pool is niet `ONLINE` | critical |
+| `SmartFailing` | `smartctl -H` zegt FAILED | critical |
+| `SsdWearing` | minder dan 20% levensduur over | warning |
+| `SmartCollectorStale` | de SMART-gegevens zijn ouder dan een uur | warning |
+
+Ze staan in `roles/prometheus_config/files/homelab.rules.yml`. Elk alarm wordt
+een melding op je telefoon, en een tweede als het opgelost is. Zolang het niet
+opgelost is, hoor je het elke 12 uur opnieuw.
+
+Ligt een host plat, dan hoor je alleen `HostDown`, niet ook zijn
+waarschuwingen. Drie volle schijven tegelijk is één bericht.
+
+## Een alarm toevoegen of wijzigen
+
+Pas `homelab.rules.yml` aan, en dan:
+
+```bash filename="laptop"
+ansible-playbook playbooks/monitoring.yml --tags prometheus
+```
+
+`promtool` controleert het bestand eerst. Een fout komt niet op de host, en de
+draaiende regels blijven staan.
+
+## Een alarm even stilzetten
+
+Voor gepland werk, zoals pve01 herstarten:
+
+```bash filename="docker-grafana-stack"
+docker exec monitoring-alertmanager amtool --alertmanager.url=http://localhost:9093 \
+  silence add alertname=HostDown -d 2h -c "pve01 herstart"
+```
+
+## Naslag
+
+| Wat | Waar |
+| --- | --- |
+| Scrape-config, alarmen, Alertmanager | `homelab-ansible`, `roles/prometheus_config` |
+| Containers | `monitoring-stack`, `stacks/monitoring/docker-compose.yml` |
+| Op de host | `/opt/containers/data/monitoring/{prometheus,alertmanager}/config` |
+| ntfy-token | `vault_ntfy_alertmanager_token` in `inventory/group_vars/all/vault.yml` |
+| Wat er nu afgaat | [prometheus.neodata.be/alerts](https://prometheus.neodata.be/alerts) |
+
+## Goed om te weten
+
+### Een alarm op een metric die er niet is, gaat nooit af
+
+Valt de SMART-timer stil, dan verdwijnen de metrics, en `SmartFailing` blijft
+dan voor altijd stil. Daarom bestaat `SmartCollectorStale`.
+
+### Wat dit níét ziet
+
+Ligt ntfy of de monitoring-VM zelf plat, dan hoor je niets. Een melding van
+buitenaf als het stil wordt (een "dead man's switch") staat op `TODO.md`. Ook
+nog niet gemeten: de Mac mini, Home Assistant, en of de sites zelf
+antwoorden.

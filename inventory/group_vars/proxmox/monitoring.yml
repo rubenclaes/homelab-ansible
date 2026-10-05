@@ -1,0 +1,5 @@
+---
+# pve01 is het enige ijzer met echte schijven: de opstart-SSD en de NVMe van
+# vm-hdd. Hun SMART komt in Prometheus, met alarmen op falen en slijtage
+# (roles/prometheus_config/files/homelab.rules.yml).
+node_exporter_smart: true

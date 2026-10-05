@@ -1,0 +1,72 @@
+# Beheerd door Ansible: roles/prometheus_config/files/homelab.rules.yml in
+# homelab-ansible.
+#
+# Alleen alarmen waar je iets mee moet. Elk alarm hier wordt een melding op je
+# telefoon; wat je toch zou negeren, hoort hier niet.
+groups:
+  - name: hosts
+    rules:
+      - alert: HostDown
+        expr: up{job="node"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }} antwoordt niet"
+          description: "node_exporter op {{ $labels.instance }} is al 5 minuten onbereikbaar: de host ligt plat, of de exporter."
+
+      - alert: DiskAlmostFull
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|ramfs|overlay|squashfs|nsfs|fuse.*"}
+            / node_filesystem_size_bytes < 0.10
+          and node_filesystem_readonly == 0
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: {{ $labels.mountpoint }} bijna vol"
+          description: "Nog {{ $value | humanizePercentage }} vrij op {{ $labels.mountpoint }}."
+
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.05
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: bijna geen geheugen meer"
+          description: "Nog {{ $value | humanizePercentage }} beschikbaar."
+
+  - name: disks
+    rules:
+      - alert: ZfsPoolUnhealthy
+        expr: node_zfs_zpool_state{state!="online"} > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}: ZFS-pool {{ $labels.zpool }} is {{ $labels.state }}"
+          description: "zpool status {{ $labels.zpool }} op {{ $labels.instance }}."
+
+      - alert: SmartFailing
+        expr: smartmon_device_smart_healthy == 0
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}: schijf {{ $labels.disk }} faalt SMART"
+          description: "smartctl -H {{ $labels.disk }} geeft FAILED. Vervangen."
+
+      # SATA: Percent_Lifetime_Remain (Crucial, attribuut 202), genormaliseerd
+      # 100 -> 0. NVMe: percentage_used, als ratio 0 -> 1 (en kan erboven).
+      - alert: SsdWearing
+        expr: |
+          smartmon_percent_lifetime_remain_value < 20
+          or nvme_percentage_used_ratio > 0.8
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: SSD {{ $labels.disk }}{{ $labels.device }} raakt versleten"
+          description: "Minder dan 20% levensduur over. Plan een vervanging."
+
+      # Zonder dit merk je niet dat de SMART-timer stil ligt: dan verdwijnen
+      # de metrics, en een alarm op een metric die er niet is gaat nooit af.
+      - alert: SmartCollectorStale
+        expr: time() - node_textfile_mtime_seconds{file=~".*(smartmon|nvme)\\.prom"} > 3600
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: SMART-gegevens zijn ouder dan een uur"
+          description: "systemctl status prometheus-node-exporter-smartmon.timer (of -nvme)."

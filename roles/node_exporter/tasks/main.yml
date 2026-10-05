@@ -1,0 +1,44 @@
+---
+- name: Install node_exporter
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+    install_recommends: false
+  register: node_exporter_pkg
+
+# Zonder install_recommends: anders komen ook de collectors mee, en die zetten
+# op elke host timers neer voor dingen die hier niet bestaan (ipmitool,
+# mellanox).
+- name: Install the SMART collectors
+  when: node_exporter_smart | bool
+  ansible.builtin.apt:
+    name:
+      - prometheus-node-exporter-collectors
+      - smartmontools
+      - nvme-cli
+      # sponge, waarmee de timers hun .prom-bestand in één keer wegschrijven.
+      - moreutils
+    state: present
+    install_recommends: false
+  register: node_exporter_collectors_pkg
+
+# In check mode is een pakket dat nog moet komen er niet, en zijn units dus
+# ook niet: dan valt er nog niets aan te zetten.
+- name: Enable the SMART timers
+  when:
+    - node_exporter_smart | bool
+    - not (ansible_check_mode and node_exporter_collectors_pkg is changed)
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - prometheus-node-exporter-smartmon.timer
+    - prometheus-node-exporter-nvme.timer
+
+- name: Enable and start node_exporter
+  when: not (ansible_check_mode and node_exporter_pkg is changed)
+  ansible.builtin.systemd_service:
+    name: prometheus-node-exporter
+    enabled: true
+    state: started

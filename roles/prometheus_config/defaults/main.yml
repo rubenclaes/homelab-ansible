@@ -1,0 +1,30 @@
+---
+# De config van de monitoring-stack op docker-grafana-stack: wat Prometheus
+# ophaalt, wanneer iets een alarm is, en waar dat alarm heen gaat (ntfy).
+#
+# De containers zelf staan in github.com/rubenclaes/monitoring-stack; hun
+# config-mappen zijn bind mounts uit de data-map, en die vult deze rol. Zo
+# volgen de scrape-doelen uit de inventory, net als de upstreams van Caddy:
+# een host erbij in `linux` is een host erbij in Prometheus.
+
+# ${DATA_PATH} uit de .env van de stack, en het pad van de checkout (zie
+# roles/docker_stacks/defaults).
+prometheus_config_data_dir: /opt/containers/data/monitoring
+prometheus_config_stack_dir: /opt/containers/stacks/monitoring
+
+# Elke host in deze groep draait node_exporter (roles/node_exporter) op 9100.
+prometheus_config_node_group: linux
+prometheus_config_node_port: 9100
+
+# Naar ntfy op het IP, niet ntfy.neodata.be: een alarm mag niet afhangen van
+# Caddy en AdGuard, net als de meldingen van Proxmox
+# (group_vars/proxmox/notifications.yml). `template=alertmanager` laat ntfy
+# zelf van de JSON van Alertmanager een leesbaar bericht maken.
+prometheus_config_ntfy_url: >-
+  http://{{ (hostvars['pve01'].pve_oci_lxcs | selectattr('hostname', 'eq', 'ntfy') | first).ip
+  | split('/') | first }}/homelab?template=alertmanager
+prometheus_config_ntfy_token: "{{ vault_ntfy_alertmanager_token }}"
+
+# Hoe lang een alarm moet duren voor het een melding wordt, en om de hoeveel
+# tijd je het opnieuw hoort zolang het niet opgelost is.
+prometheus_config_repeat_interval: 12h

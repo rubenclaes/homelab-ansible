@@ -1,0 +1,13 @@
+---
+# node_exporter: de metrics van een host (cpu, geheugen, schijven, ZFS) voor
+# de Prometheus in de monitoring-stack. Het Debian-pakket, geen eigen binary:
+# het komt met een systemd-unit, een gebruiker en de textfile-map
+# (/var/lib/prometheus/node-exporter), en update mee met apt.
+#
+# Luistert op :9100 op alle adressen. Prometheus haalt het daar op; welke hosts
+# staat niet hier maar volgt uit de groep `linux` (roles/prometheus_config).
+
+# SMART van de fysieke schijven, via de collectors van Debian: een timer leest
+# elke kwartier smartctl en nvme uit en zet het in de textfile-map. Alleen
+# zinvol op ijzer (pve01); een VM of container ziet geen echte schijf.
+node_exporter_smart: false

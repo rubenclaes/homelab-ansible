@@ -1,0 +1,24 @@
+---
+# Metrics en alarmen: node_exporter op elke Linux-host, en de config van
+# Prometheus en Alertmanager in de monitoring-stack. Een alarm komt als
+# melding binnen via ntfy (topic homelab).
+#
+#   ansible-playbook playbooks/monitoring.yml
+#
+# De containers zelf (Prometheus, Alertmanager, ...) zet stacks.yml neer, uit
+# github.com/rubenclaes/monitoring-stack. Deze play schrijft alleen hun config.
+#
+# In site.yml: ja, vóór stacks.yml: zo vindt een nieuwe Alertmanager zijn
+# config al klaar.
+
+- name: Host metrics
+  hosts: linux
+  roles:
+    - node_exporter
+  tags: [node_exporter, monitoring]
+
+- name: Prometheus and Alertmanager config
+  hosts: docker-grafana-stack
+  roles:
+    - prometheus_config
+  tags: [prometheus, monitoring]

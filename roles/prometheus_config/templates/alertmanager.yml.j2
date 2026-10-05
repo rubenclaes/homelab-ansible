@@ -1,0 +1,25 @@
+# {{ ansible_managed }}
+# Bron: roles/prometheus_config in homelab-ansible.
+route:
+  receiver: ntfy
+  # Eén melding per soort alarm: drie volle schijven tegelijk is één bericht.
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: {{ prometheus_config_repeat_interval }}
+
+receivers:
+  - name: ntfy
+    webhook_configs:
+      - url: "{{ prometheus_config_ntfy_url }}"
+        send_resolved: true
+        http_config:
+          authorization:
+            credentials: "{{ prometheus_config_ntfy_token }}"
+
+# Ligt een host plat, dan zijn zijn waarschuwingen ruis: je hoort alleen
+# HostDown.
+inhibit_rules:
+  - source_matchers: [alertname = HostDown]
+    target_matchers: [severity = warning]
+    equal: [instance]

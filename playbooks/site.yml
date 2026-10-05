@@ -55,6 +55,10 @@
 - name: Proxmox API token check
   ansible.builtin.import_playbook: proxmox-access.yml
 
+# Vóór stacks.yml: een nieuwe Alertmanager vindt zijn config dan al klaar.
+- name: Metrics and alerts
+  ansible.builtin.import_playbook: monitoring.yml
+
 - name: Docker stacks
   ansible.builtin.import_playbook: stacks.yml
 

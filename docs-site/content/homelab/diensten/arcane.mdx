@@ -1,0 +1,69 @@
+---
+title: arcane
+---
+
+# arcane
+
+{/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
+Arcane — containers op docker beheren
+
+| Eigenschap | Waarde |
+| --- | --- |
+| URL | [arcane.neodata.be](https://arcane.neodata.be) |
+| Login | door de app zelf |
+| Upstream | `192.168.0.15:3552` |
+| Host | [docker](/homelab/machines/#docker) |
+| Poort | `3552` |
+| Stack | [arcane](/homelab/machines/#docker) |
+| Groepen | docker_hosts, guests, linux |
+| Eigenschappen | — |
+
+<small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
+{/* END feiten uit de inventory — geschreven door docs.yml */}
+
+De containers van `docker` in de browser: logs lezen, herstarten, zien welke
+images een update hebben, een shell openen. Inloggen gaat via
+[Pocket ID](https://id.neodata.be), alleen voor de groep `admin`.
+
+## Een stack aanpassen
+
+Niet in Arcane. De stacks komen uit de
+[containers-repo](https://github.com/rubenclaes/containers) en Ansible zet ze
+gelijk: wat je in Arcane aan een compose verandert, zet de volgende
+`stacks.yml` terug. Pas de compose aan in de repo, push, en draai
+`ansible-playbook playbooks/stacks.yml`.
+
+Herstarten, logs lezen en een container stoppen mag wel in Arcane: dat raakt
+de compose niet.
+
+## Goed om te weten
+
+### Arcane is root op docker
+
+Arcane heeft de Docker-socket. Wie in Arcane zit, kan een container starten
+met de hele schijf van de host erin. Daarom mag alleen `admin` erin, en vraagt
+Pocket ID bij elke login opnieuw je passkey.
+
+### Eerste keer: de lokale admin
+
+Bij de eerste start bestaat er een lokale gebruiker `arcane` met wachtwoord
+`arcane-admin`; Arcane vraagt meteen een nieuw. Dat is de noodtoegang als
+Pocket ID plat ligt: wachtwoord in Vaultwarden. Gewoon inloggen doe je met de
+knop **Pocket ID**.
+
+### Waar wat staat
+
+| Wat | Waar | Back-up |
+| --- | --- | --- |
+| instellingen en gebruikers | `/opt/containers/data/arcane/data` | ja, elke nacht naar PBS en R2 |
+| eigen projecten (proefjes) | `/opt/containers/data/arcane/projects` | ja, zelfde weg |
+| de sleutel voor opgeslagen geheimen | `ARCANE_ENCRYPTION_KEY` in `files/env/arcane.env` | in de vault |
+
+Raak je de sleutel kwijt, dan kan Arcane zijn opgeslagen geheimen (zoals
+registry-wachtwoorden) niet meer lezen.
+
+### Updates van images
+
+Arcane toont welke images een nieuwere versie hebben. Bijwerken doe je in de
+compose in de containers-repo (tag en digest), niet met de knop in Arcane:
+anders loopt de host voor op git.

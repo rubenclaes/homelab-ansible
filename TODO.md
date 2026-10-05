@@ -12,10 +12,19 @@ de volgende stap.
         met dezelfde `roles/adguard`-instellingen, rewrites en blocklists.
   - [ ] In UniFi als DNS 2, en in `unifi_expected_dns`.
 
-- [ ] **Een Alertmanager** naast Prometheus, Grafana, Loki en Alloy op VM 102,
-      naar ntfy. Dekt in één keer de schijven, de hosts en de certificaten.
-      Proxmox en PBS melden al zelf aan ntfy (sinds 23-09). Eén grens: ligt ntfy
-      zelf plat, dan hoor je niets; een Alertmanager die ook mailt vangt dat af.
+- [ ] **Alertmanager uitrollen.** De code staat er (05-10): node_exporter op
+      elke Linux-host, SMART op pve01, zeven alarmen naar ntfy
+      (`playbooks/monitoring.yml`, Alertmanager in monitoring-stack).
+  - [ ] monitoring-stack committen en pushen.
+  - [ ] `proxmox-oci.yml` (nieuw ntfy-token), `monitoring.yml`, dan
+        `stacks.yml --limit docker-grafana-stack`.
+  - [ ] Op prometheus.neodata.be/targets: alle `node`-doelen UP. Op pve01
+        bestaan `smartmon_percent_lifetime_remain_value` en
+        `nvme_percentage_used_ratio` (de namen in de alarmen).
+  - [ ] Eén testmelding komt aan op je telefoon (`amtool alert add`).
+  - [ ] Daarna: een dead man's switch (een altijd-afgaand alarm naar een
+        dienst buiten huis, die mailt als het stil wordt), en meten wat nu
+        ontbreekt: de Mac mini, de sites zelf (blackbox), de certificaten.
 
 ---
 

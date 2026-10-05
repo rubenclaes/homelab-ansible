@@ -1,0 +1,18 @@
+---
+# SIGHUP laat beide hun config opnieuw lezen, zonder herstart en zonder de
+# lifecycle-API open te zetten. Een container die (nog) niet draait - de
+# eerste keer, voor stacks.yml Alertmanager heeft gestart - leest zijn config
+# bij het starten toch al.
+- name: Reload Prometheus
+  ansible.builtin.shell: |
+    if [ -n "$(docker compose ps -q prometheus)" ]; then docker compose kill -s HUP prometheus; fi
+  args:
+    chdir: "{{ prometheus_config_stack_dir }}"
+  changed_when: true
+
+- name: Reload Alertmanager
+  ansible.builtin.shell: |
+    if [ -n "$(docker compose ps -q alertmanager)" ]; then docker compose kill -s HUP alertmanager; fi
+  args:
+    chdir: "{{ prometheus_config_stack_dir }}"
+  changed_when: true
