@@ -125,7 +125,8 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
     - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
       Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools, RomM.
     - `familie`: Immich, Audiobookshelf, Grimmory, Outline, RomM.
-    - `gast` (op bezoek): RomM. Sinds 05-10 in `tofu/pocketid/groups.tf`.
+    - `gast` (op bezoek): RomM, PairDrop, BentoPDF, IT-Tools. Sinds 05-10 in
+      `tofu/pocketid/groups.tf`.
   - [ ] Rollen volgen uit de groep (groups-claim), nooit met de hand per app.
   - [ ] Eerst de mailadressen per persoon gelijkzetten in de apps, anders
         komt er een tweede account naast het bestaande.

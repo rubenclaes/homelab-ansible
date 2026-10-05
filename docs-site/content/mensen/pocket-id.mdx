@@ -23,7 +23,7 @@ Iemand toevoegen gaat via NeoGate: [Toegang geven](/mensen/toegang/).
 | Semaphore | `admin` | mailadres | de lokale `admin` | [Semaphore](/semaphore/#inloggen) |
 | Proxmox VE | `admin` | — | `root@pam` | [OpenTofu](/opentofu/#de-machines-op-pve01) |
 | PBS | `admin`, en bij naam in `pbs_oidc.admins` | — | `root@pam` | [Back-ups](/proxmox/backups/#inloggen-op-pbs) |
-| apps zonder eigen login | per app `admin` of `gezin` | — | zie [hieronder](#ligt-pocket-id-of-oauth2-proxy-plat) | [hieronder](#een-login-voor-apps-zonder-eigen-login) |
+| apps zonder eigen login | per app `admin`, `gezin` of `gast` | — | zie [hieronder](#ligt-pocket-id-of-oauth2-proxy-plat) | [hieronder](#een-login-voor-apps-zonder-eigen-login) |
 
 Iemand kan in meer dan één groep; jij zit in `admin` én `gezin`. Welke groep
 waar mag, staat per app in `tofu/pocketid/clients.tf`. Een nieuwe app erbij:
@@ -40,9 +40,11 @@ daarna terug. Eén keer aanmelden geldt voor al die apps.
 | --- | --- |
 | `admin` | code-server, Sonarr, Radarr, Prowlarr, Bazarr, Prometheus, qBittorrent |
 | `gezin` | IT-Tools, MeTube, BentoPDF, PairDrop, OpenBooks |
+| `gast` | IT-Tools, BentoPDF, PairDrop |
 
 Een app zo beschermen: zet `auth:` bij zijn route in `caddy_sites`, en draai
-`ansible-playbook playbooks/caddy.yml`.
+`ansible-playbook playbooks/caddy.yml`. Eén groep, of een lijst als er meer
+mogen: `auth: [gezin, gast]`.
 
 ```yaml filename="inventory/host_vars/caddy/main.yml"
   - { name: code, auth: admin, host: docker, port: 8443, ... }

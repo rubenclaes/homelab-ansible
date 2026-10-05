@@ -51,11 +51,11 @@ caddy_sites:
 
   # --- docker ---
   - { name: home, host: docker, port: 8085, stack: homepage, desc: "Homepage — startpagina met alle diensten" }
-  - { name: pairdrop, auth: gezin, host: docker, port: 3000, stack: utils, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }
+  - { name: pairdrop, auth: [gezin, gast], host: docker, port: 3000, stack: utils, desc: "Bestanden tussen toestellen in huis, zoals AirDrop" }
   - { name: code, auth: admin, host: docker, port: 8443, stack: utils, desc: "code-server — VS Code in de browser" }
-  - { name: tools, auth: gezin, host: docker, port: 8082, stack: utils, desc: "IT-Tools — ontwikkelaarsgereedschap, offline" }
+  - { name: tools, auth: [gezin, gast], host: docker, port: 8082, stack: utils, desc: "IT-Tools — ontwikkelaarsgereedschap, offline" }
   - { name: metube, auth: gezin, host: docker, port: 8081, stack: utils, desc: "MeTube — webinterface voor yt-dlp" }
-  - { name: pdf, auth: gezin, host: docker, port: 8084, stack: utils, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
+  - { name: pdf, auth: [gezin, gast], host: docker, port: 8084, stack: utils, desc: "BentoPDF — PDF's samenvoegen, splitsen en omzetten" }
   - { name: torrent, auth: admin, host: docker, port: 8089, stack: media, desc: "qBittorrent — schrijft naar de NFS-share van de Mac mini" }
   - { name: openbooks, auth: gezin, host: docker, port: 8080, stack: media, desc: "OpenBooks — zoekt e-books via IRC en legt ze in de bookdrop van Grimmory" }
   - { name: neogate, host: docker, port: 4000, stack: neogate, desc: "NeoGate — toegangsbeheer voor het homelab (eigen app)" }

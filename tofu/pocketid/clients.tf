@@ -226,6 +226,7 @@ resource "pocketid_client" "oauth2_proxy" {
   allowed_user_groups = [
     pocketid_group.admin.id,
     pocketid_group.gezin.id,
+    pocketid_group.gast.id,
   ]
 }
 
