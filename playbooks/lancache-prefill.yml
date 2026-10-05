@@ -1,0 +1,93 @@
+---
+# Vult LANCache vooraf met de Steam-games die je gekozen hebt, zodat op de
+# party ook de eerste vriend een game aan LAN-snelheid krijgt.
+#
+#   ansible-playbook playbooks/lancache-prefill.yml
+#   ansible-playbook playbooks/lancache-prefill.yml -e lancache_after=on   # laat hem aan
+#
+# LANCache aan, SteamPrefill haalt elke gekozen game één keer door de cache,
+# LANCache weer uit (of aan, met lancache_after=on). Faalt de prefill, dan
+# blijft LANCache aan: DNS wijst dan naar een cache die werkt, niet naar niets.
+#
+# Eén keer vooraf, met de hand, want Steam Guard kan Ansible niet invullen:
+# inloggen en games kiezen met `select-apps`, zie docs-site netwerk/lancache.
+# De login (een token, geen wachtwoord) en de keuze staan daarna in
+# prefill_config op docker.
+#
+# SteamPrefill draait op docker en niet op je laptop: docker hangt met een
+# kabel aan de 2,5 Gbit van pve01. Met --dns naar AdGuard, want docker heeft
+# 1.1.1.1 als tweede nameserver, en een antwoord van daar laat SteamPrefill
+# naast de cache downloaden.
+#
+# In site.yml: nee. Het zet LANCache aan, en dat is een keuze van het moment.
+
+- name: Check the request and that SteamPrefill is set up
+  hosts: docker
+  gather_facts: false
+  vars:
+    prefill_config: /opt/containers/data/steamprefill
+  tasks:
+    - name: Require lancache_after to be on or off
+      ansible.builtin.assert:
+        that: lancache_after | default('off') in ['on', 'off']
+        fail_msg: "lancache_after is on of off. Er is niets veranderd."
+        quiet: true
+      delegate_to: localhost
+      become: false
+
+    - name: Look for the Steam login and the chosen games
+      ansible.builtin.stat:
+        path: "{{ prefill_config }}/{{ item }}"
+      loop: [account.config, selectedAppsToPrefill.json]
+      register: prefill_files
+
+    - name: Require the one-time setup
+      ansible.builtin.assert:
+        that: prefill_files.results | selectattr('stat.exists') | list | length == 2
+        fail_msg: >-
+          SteamPrefill is nog niet ingesteld: geen Steam-login of geen gekozen
+          games in {{ prefill_config }}. Doe eerst één keer `select-apps`, zie
+          de docs-site, pagina LANCache, "Vooraf vullen". Er is niets veranderd.
+        quiet: true
+
+- name: Turn LANCache on
+  ansible.builtin.import_playbook: lancache.yml
+  vars:
+    lancache: "on"
+
+- name: Prefill the chosen Steam games
+  hosts: docker
+  gather_facts: false
+  vars:
+    prefill_config: /opt/containers/data/steamprefill
+    prefill_image: tpill90/steam-lancache-prefill:v3.7.2@sha256:4c940d040ef422abec322a7b5afabe4adcf052f62d39eca5c2d336ffab0eaccc
+    prefill_dns: "{{ hostvars['adguard']['ansible_host'] }}"
+  tasks:
+    # async: honderden GB duren uren, en een SSH-sessie die zo lang een
+    # commando vasthoudt, breekt vroeg of laat.
+    - name: Run SteamPrefill
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --dns
+          - "{{ prefill_dns }}"
+          - --volume
+          - "{{ prefill_config }}:/Config"
+          - "{{ prefill_image }}"
+          - prefill
+          - --no-ansi
+      register: prefill_run
+      async: 43200
+      poll: 30
+      changed_when: true
+
+    - name: Show how it went
+      ansible.builtin.debug:
+        msg: "{{ prefill_run.stdout_lines[-15:] }}"
+
+- name: Turn LANCache back off, unless asked to keep it on
+  ansible.builtin.import_playbook: lancache.yml
+  vars:
+    lancache: "{{ lancache_after | default('off') }}"

@@ -35,6 +35,35 @@ want die onthoudt het oude adres.
 
 </Steps>
 
+## Vooraf vullen
+
+De avond voor de party: zet de Steam-games die jullie spelen al in de cache.
+Dan krijgt ook de eerste vriend ze aan LAN-snelheid. Reken op 30 à 45 minuten
+per 100 GB.
+
+<Steps>
+
+#### Eén keer: log in en kies de games
+
+```bash filename="laptop"
+ssh -t docker 'sudo mkdir -p /opt/containers/data/steamprefill && sudo docker run -it --rm --dns 192.168.0.29 -v /opt/containers/data/steamprefill:/Config tpill90/steam-lancache-prefill:v3.7.2 select-apps'
+```
+
+Log in met je Steam-account (wachtwoord en de code van Steam Guard), en vink
+de games aan. Je keuze aanpassen: hetzelfde commando opnieuw.
+
+#### Vul de cache
+
+```bash filename="laptop"
+ansible-playbook playbooks/lancache-prefill.yml
+```
+
+Zet LANCache aan, haalt elke gekozen game één keer door de cache, en zet hem
+weer uit. Met `-e lancache_after=on` blijft hij aan, voor als de party meteen
+begint. Een game die al in de cache zit en niet veranderd is, slaat hij over.
+
+</Steps>
+
 ## Uitzetten
 
 ```bash filename="laptop"
@@ -101,6 +130,14 @@ De OCI-import van Proxmox voert de verwijderingen uit latere lagen van een
 image niet uit. Bij LANCache bleef zo een standaard-nginx-site staan die op
 alles een 404 gaf. `remove_paths` bij zijn entry in `pve_oci_lxcs` haalt die
 bestanden weg na het aanmaken, ook bij een herbouw.
+
+### Vooraf vullen draait op docker, niet op je laptop
+
+`docker` hangt met een kabel aan de 2,5 Gbit van pve01; je laptop zit vaak op
+wifi. De container krijgt `--dns 192.168.0.29`: `docker` heeft `1.1.1.1` als
+tweede nameserver, en een antwoord van daar laat SteamPrefill naast de cache
+downloaden. De login is een token, geen wachtwoord; hij staat in
+`/opt/containers/data/steamprefill` en gaat versleuteld mee in de back-up.
 
 ### Alleen HTTP
 
