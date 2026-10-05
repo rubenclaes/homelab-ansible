@@ -44,6 +44,11 @@ ansible-playbook playbooks/lancache.yml -e lancache=off
 Eerst gaat de omleiding in AdGuard weg, dan stopt de container. Downloads gaan
 weer gewoon via internet. De cache blijft staan voor de volgende party.
 
+Staat Steam nog open, start het dan opnieuw: Steam kijkt alleen bij het
+opstarten of er een LANCache is, en blijft er anders naartoe sturen. Andere
+launchers volgen de DNS van de computer; gaat het daar niet meteen, wacht een
+minuut of doe `ipconfig /flushdns` op Windows.
+
 ## Nakijken wat er uit de cache komt
 
 ```bash filename="laptop"
