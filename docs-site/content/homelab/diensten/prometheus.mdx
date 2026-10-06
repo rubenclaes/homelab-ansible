@@ -44,9 +44,17 @@ met de media en de Time Machine-back-ups, onder `DiskAlmostFull`. De
 docker-host ziet die schijven ook via NFS, maar daar slaat node_exporter NFS
 over, en terecht: een NFS-mount die hangt, legt hem mee stil.
 
-Op pve01 komt daar SMART van de twee echte schijven bij: een timer leest elk
-kwartier `smartctl` en `nvme` uit (`node_exporter_smart: true` in
-`group_vars/proxmox/monitoring.yml`).
+Op pve01 en de Mac mini komt daar SMART van de echte schijven bij, elk
+kwartier gelezen. Je ziet het in Grafana in de tabel **Schijven: gezondheid**
+onderaan het dashboard: per schijf gezond of niet, temperatuur, draaitijd,
+slijtage (SSD's) en slechte sectoren (HDD's).
+
+| Host | Hoe | Aan in |
+| --- | --- | --- |
+| pve01 | een systemd-timer met de Debian-collectors `smartmon` en `nvme` | `node_exporter_smart: true` in `group_vars/proxmox/monitoring.yml` |
+| Mac mini | een launchd-job met een eigen script, dezelfde metric-namen | `macos_smart: true` in `host_vars/macmini/main.yml` |
+
+Omdat de namen dezelfde zijn, gelden de SMART-alarmen hieronder voor allebei.
 
 ## De alarmen
 
@@ -115,3 +123,15 @@ nog niet gemeten: Home Assistant, en of de sites zelf antwoorden.
 Op de Mac mini delen `media01`, `NetworkTM` en `LocalTM` dezelfde APFS-schijf
 van 8 TB, en dus dezelfde vrije ruimte. Raakt die op, dan gaat
 `DiskAlmostFull` af voor alle drie, in één bericht.
+
+### SMART op de Mac mini
+
+`smartctl` leest daar alle vijf de schijven zonder root, ook de externe: ze
+hangen als SATA of NVMe aan de Mini, niet via een USB-brug die SMART
+tegenhoudt. Het script draait daarom als gewone launchd-job van de gebruiker,
+met de Python van macOS zelf (`/usr/bin/python3`), die Homebrew nooit
+bijwerkt. In de tabel staan de volumes erbij, want de schijfnummers (`disk6`)
+zeggen niets en kunnen na een herstart verschuiven.
+
+Iets mis? `launchctl list be.neodata.smartmon` op de Mini, en de log in
+`/opt/homebrew/var/log/smartmon.log`.

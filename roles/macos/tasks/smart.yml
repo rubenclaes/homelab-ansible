@@ -1,0 +1,34 @@
+---
+- name: Create the node_exporter textfile directory
+  ansible.builtin.file:
+    path: "{{ macos_smart_textfile_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Install the SMART collector
+  ansible.builtin.template:
+    src: smartmon.py.j2
+    dest: "{{ macos_smart_textfile_dir | dirname }}/smartmon.py"
+    mode: "0755"
+
+# De brew-service start node_exporter met wat in dit bestand staat.
+- name: Point node_exporter at the textfile directory
+  ansible.builtin.copy:
+    content: "--collector.textfile.directory={{ macos_smart_textfile_dir }}\n"
+    dest: "{{ macos_brew_path | dirname }}/etc/node_exporter.args"
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Install the launchd job that runs it every 15 minutes
+  ansible.builtin.template:
+    src: smartmon.plist.j2
+    dest: ~/Library/LaunchAgents/be.neodata.smartmon.plist
+    mode: "0644"
+  register: macos_smart_plist
+
+# In check mode bestaat een plist die nog moet komen er niet.
+- name: Load the launchd job
+  when: not (ansible_check_mode and macos_smart_plist is changed)
+  community.general.launchd:
+    name: be.neodata.smartmon
+    state: "{{ 'reloaded' if macos_smart_plist is changed else 'started' }}"

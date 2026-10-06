@@ -1195,6 +1195,362 @@
         "type": "prometheus",
         "uid": "bffp6ddhc3oqoc"
       }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Schijven: gezondheid",
+      "description": "SMART per fysieke schijf, elk kwartier gelezen. Slijtage: alleen SSD's (100% = op). Slechte sectoren: alleen HDD's, verplaatst plus wachtend; alles boven 0 is een teken.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bffp6ddhc3oqoc"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 24,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "expr": "max by (instance, disk, volumes, device_model) (smartmon_device_info{instance=~\"$instance\"})",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "expr": "max by (instance, disk) (smartmon_device_smart_healthy{instance=~\"$instance\"})",
+          "legendFormat": "",
+          "refId": "B",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "expr": "max by (instance, disk) (smartmon_temperature_celsius_raw_value{instance=~\"$instance\"}) or max by (instance, disk) (label_replace(label_replace(nvme_temperature_celsius{instance=~\"$instance\"}, \"disk\", \"$1\", \"device\", \"(.*)\"), \"disk\", \"/dev/$1\", \"device\", \"(nvme[0-9]+)n[0-9]+\"))",
+          "legendFormat": "",
+          "refId": "C",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "expr": "max by (instance, disk) (smartmon_power_on_hours_raw_value{instance=~\"$instance\"}) or max by (instance, disk) (label_replace(label_replace(nvme_power_on_hours_total{instance=~\"$instance\"}, \"disk\", \"$1\", \"device\", \"(.*)\"), \"disk\", \"/dev/$1\", \"device\", \"(nvme[0-9]+)n[0-9]+\"))",
+          "legendFormat": "",
+          "refId": "D",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "expr": "max by (instance, disk) (label_replace(label_replace(100 * nvme_percentage_used_ratio{instance=~\"$instance\"}, \"disk\", \"$1\", \"device\", \"(.*)\"), \"disk\", \"/dev/$1\", \"device\", \"(nvme[0-9]+)n[0-9]+\")) or max by (instance, disk) (100 - smartmon_percent_lifetime_remain_value{instance=~\"$instance\"})",
+          "legendFormat": "",
+          "refId": "E",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "expr": "max by (instance, disk) (smartmon_reallocated_sector_ct_raw_value{instance=~\"$instance\"}) + max by (instance, disk) (smartmon_current_pending_sector_raw_value{instance=~\"$instance\"})",
+          "legendFormat": "",
+          "refId": "F",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value #A": true
+            },
+            "indexByName": {
+              "instance": 0,
+              "volumes": 1,
+              "device_model": 2,
+              "disk": 3,
+              "Value #B": 4,
+              "Value #C": 5,
+              "Value #D": 6,
+              "Value #E": 7,
+              "Value #F": 8
+            },
+            "renameByName": {
+              "instance": "Host",
+              "volumes": "Volumes",
+              "device_model": "Model",
+              "disk": "Schijf",
+              "Value #B": "Gezond",
+              "Value #C": "Temperatuur",
+              "Value #D": "Draaitijd",
+              "Value #E": "Slijtage",
+              "Value #F": "Slechte sectoren"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Host"
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Host"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Schijf"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gezond"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "goed",
+                        "color": "green"
+                      },
+                      "0": {
+                        "text": "FAALT",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Temperatuur"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 50
+                    },
+                    {
+                      "color": "red",
+                      "value": 60
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Draaitijd"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Slijtage"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 60
+                    },
+                    {
+                      "color": "red",
+                      "value": 80
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Slechte sectoren"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 140
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

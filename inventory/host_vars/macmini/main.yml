@@ -20,6 +20,7 @@ macos_brew_packages_extra:
   - pass
   - ripgrep
   - node_exporter
+  - smartmontools   # voor macos_smart, onderaan
   - ssh-copy-id
   - tailscale
   - tldr
@@ -56,6 +57,10 @@ macos_brew_packages_extra:
 # NFS daar over, en terecht: een NFS-mount die hangt, legt hem mee stil.
 macos_brew_services:
   - node_exporter
+
+# De gezondheid van de vijf schijven in Grafana ("Schijven Mac mini") en in
+# de SMART-alarmen. smartctl leest ze hier zonder root, ook de externe.
+macos_smart: true
 
 macos_casks:
   - chromium

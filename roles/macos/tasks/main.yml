@@ -67,3 +67,7 @@
   loop_control:
     label: "{{ item.domain }} {{ item.key }}"
   notify: Restart Finder
+
+- name: SMART of the disks for Prometheus
+  ansible.builtin.import_tasks: smart.yml
+  when: macos_smart | bool

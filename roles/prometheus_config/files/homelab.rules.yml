@@ -69,4 +69,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: "{{ $labels.instance }}: SMART-gegevens zijn ouder dan een uur"
-          description: "systemctl status prometheus-node-exporter-smartmon.timer (of -nvme)."
+          description: >-
+            Linux: systemctl status prometheus-node-exporter-smartmon.timer (of -nvme).
+            Mac: launchctl list be.neodata.smartmon, en de log in
+            /opt/homebrew/var/log/smartmon.log.

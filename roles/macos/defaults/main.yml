@@ -23,3 +23,10 @@ macos_casks_absent: []
 macos_defaults:
   - { domain: NSGlobalDomain, key: AppleShowAllExtensions, type: bool, value: true }
   - { domain: com.apple.desktopservices, key: DSDontWriteNetworkStores, type: bool, value: true }
+
+# SMART van de schijven naar Prometheus, via de textfile-collector van de
+# brew-service node_exporter. Zelfde metric-namen als de Debian-collectors op
+# pve01, dus de SMART-alarmen gelden hier ook. Vraagt smartmontools en
+# node_exporter in de brew-lijst en node_exporter in macos_brew_services.
+macos_smart: false
+macos_smart_textfile_dir: "{{ macos_brew_path | dirname }}/var/node_exporter/textfile"

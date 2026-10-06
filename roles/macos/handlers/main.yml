@@ -8,3 +8,9 @@
   # Finder is not running on a Mac with nobody logged in; that is not a
   # failure, there is simply nothing to restart.
   failed_when: false
+
+- name: Restart node_exporter
+  community.general.homebrew_services:
+    name: node_exporter
+    state: restarted
+    path: "{{ macos_brew_path }}"

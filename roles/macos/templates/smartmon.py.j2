@@ -1,0 +1,151 @@
+#!/usr/bin/python3
+# {{ ansible_managed }}
+"""SMART of every physical disk, for node_exporter's textfile collector.
+
+Same metric names as the Debian collectors on pve01 (smartmon and nvme from
+prometheus-node-exporter-collectors), so the alerts in
+roles/prometheus_config/files/homelab.rules.yml cover this Mac without a
+change. launchd runs it as the logged-in user every 15 minutes: on macOS
+smartctl reads SMART without root.
+
+/usr/bin/python3, standard library only: Homebrew never upgrades it.
+"""
+import json
+import os
+import plistlib
+import re
+import subprocess
+import tempfile
+import time
+
+SMARTCTL = "{{ macos_brew_path }}/smartctl"
+OUT = "{{ macos_smart_textfile_dir }}/smartmon.prom"
+
+# Volumes that are plumbing, not something you would recognise a disk by.
+SKIP_ROLES = {"Preboot", "Recovery", "VM", "Update", "xART", "Hardware", "Data"}
+SKIP_NAMES = {"EFI", "Recovery", "NO NAME"}
+
+
+def run(*args):
+    return subprocess.run(args, capture_output=True, check=False).stdout
+
+
+def physical_disks():
+    """Each physical disk, with the names of the volumes on it."""
+    listing = plistlib.loads(run("diskutil", "list", "-plist", "physical"))
+    disks = {}
+    for disk in listing["AllDisksAndPartitions"]:
+        disks[disk["DeviceIdentifier"]] = [
+            p["VolumeName"]
+            for p in disk.get("Partitions", [])
+            if p.get("VolumeName") and p["VolumeName"] not in SKIP_NAMES
+        ]
+    # APFS volumes sit on a synthesized disk. Follow each container back to
+    # the physical disk it is stored on.
+    apfs = plistlib.loads(run("diskutil", "apfs", "list", "-plist"))
+    for container in apfs.get("Containers", []):
+        names = [
+            v["Name"]
+            for v in container.get("Volumes", [])
+            if not SKIP_ROLES & set(v.get("Roles", []))
+        ]
+        for store in container.get("PhysicalStores", []):
+            parent = re.sub(r"s\d+$", "", store["DeviceIdentifier"])
+            if parent in disks:
+                disks[parent] += names
+    return disks
+
+
+def labels(**kv):
+    def esc(v):
+        return str(v).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+    return "{" + ",".join(f'{k}="{esc(v)}"' for k, v in kv.items()) + "}"
+
+
+def raw_number(raw):
+    # "26 (Min/Max 24/30)" is 26; the packed raw.value would not be.
+    first = str(raw.get("string", "")).split(" ")[0]
+    return int(first) if first.isdigit() else raw.get("value", 0)
+
+
+def disk_metrics(disk, volumes):
+    data = json.loads(run(SMARTCTL, "--json", "-a", disk) or b"{}")
+    kind = data.get("device", {}).get("type", "unknown")
+    common = dict(disk=disk, type=kind)
+    out = [
+        ("smartmon_device_active", labels(**common), 1),
+        (
+            "smartmon_device_info",
+            labels(
+                **common,
+                model_family=data.get("model_family", ""),
+                device_model=data.get("model_name", ""),
+                serial_number=data.get("serial_number", ""),
+                firmware_version=data.get("firmware_version", ""),
+                volumes=", ".join(volumes),
+            ),
+            1,
+        ),
+        ("smartmon_smartctl_run", labels(**common), int(time.time())),
+    ]
+    status = data.get("smart_status")
+    out.append(("smartmon_device_smart_available", labels(**common), int(status is not None)))
+    if status is not None:
+        out.append(("smartmon_device_smart_healthy", labels(**common), int(status.get("passed", False))))
+
+    for attr in data.get("ata_smart_attributes", {}).get("table", []):
+        name = re.sub(r"[^a-z0-9]+", "_", attr["name"].lower()).strip("_")
+        lab = labels(**common, smart_id=attr["id"])
+        out += [
+            (f"smartmon_{name}_value", lab, attr["value"]),
+            (f"smartmon_{name}_worst", lab, attr["worst"]),
+            (f"smartmon_{name}_threshold", lab, attr["thresh"]),
+            (f"smartmon_{name}_raw_value", lab, raw_number(attr["raw"])),
+        ]
+
+    nvme = data.get("nvme_smart_health_information_log")
+    if nvme:
+        lab = labels(device=disk)
+        out += [
+            (
+                "nvme_device_info",
+                labels(device=disk, model=data.get("model_name", ""),
+                       serial=data.get("serial_number", ""),
+                       firmware=data.get("firmware_version", "")),
+                1,
+            ),
+            ("nvme_percentage_used_ratio", lab, nvme.get("percentage_used", 0) / 100),
+            ("nvme_available_spare_ratio", lab, nvme.get("available_spare", 0) / 100),
+            ("nvme_available_spare_threshold_ratio", lab, nvme.get("available_spare_threshold", 0) / 100),
+            ("nvme_critical_warning", lab, nvme.get("critical_warning", 0)),
+            ("nvme_media_errors_total", lab, nvme.get("media_errors", 0)),
+            ("nvme_temperature_celsius", lab, nvme.get("temperature", 0)),
+            ("nvme_power_on_hours_total", lab, nvme.get("power_on_hours", 0)),
+            ("nvme_power_cycles_total", lab, nvme.get("power_cycles", 0)),
+            ("nvme_unsafe_shutdowns_total", lab, nvme.get("unsafe_shutdowns", 0)),
+            ("nvme_data_units_read_total", lab, nvme.get("data_units_read", 0)),
+            ("nvme_data_units_written_total", lab, nvme.get("data_units_written", 0)),
+        ]
+    return out
+
+
+def main():
+    samples = []
+    for disk, volumes in sorted(physical_disks().items()):
+        samples += disk_metrics(disk, volumes)
+    # One metric family per block: sort on the name, keep disk order within.
+    samples.sort(key=lambda s: s[0])
+    text = "".join(f"{name}{lab} {value}\n" for name, lab, value in samples)
+
+    # Write next to the target and rename: node_exporter must never read a
+    # half-written file.
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(OUT), prefix=".smartmon.")
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, OUT)
+
+
+if __name__ == "__main__":
+    main()
