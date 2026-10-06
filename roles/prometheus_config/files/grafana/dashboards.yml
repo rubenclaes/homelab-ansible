@@ -1,0 +1,13 @@
+# Beheerd door Ansible: roles/prometheus_config in homelab-ansible.
+# Elk JSON-bestand in json/ wordt een dashboard in de map Homelab. Een
+# wijziging in de UI kan niet worden opgeslagen: pas het bestand aan.
+apiVersion: 1
+providers:
+  - name: homelab
+    folder: Homelab
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

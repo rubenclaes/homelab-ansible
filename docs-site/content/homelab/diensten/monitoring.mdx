@@ -28,6 +28,28 @@ repo [monitoring-stack](https://github.com/rubenclaes/monitoring-stack), niet in
 Inloggen gaat via [Pocket ID](https://id.neodata.be) (**Sign in with Pocket
 ID**), en alleen voor de groep `admin`.
 
+## Het dashboard "Homelab — hosts"
+
+In de map **Homelab**. Bovenaan zie je in één oogopslag of alles goed is:
+hoeveel hosts er antwoorden, of er een alarm afgaat, de slijtage van de
+schijven in pve01, en de ZFS-pool. Daaronder:
+
+| Paneel | Waar je het voor gebruikt |
+| --- | --- |
+| Hosts | per host: aan of uit, CPU, geheugen, hoe lang hij al draait |
+| Schijven: hoe vol | de volste schijf bovenaan |
+| Wanneer vol | over hoeveel dagen een schijf vol is, aan het tempo van de laatste 12 uur |
+| CPU, Geheugen | het verloop per machine, zonder de kleine LXC-containers |
+| Vrije ruimte | het verloop op de schijven groter dan 250 GB |
+
+Met **Host** bovenaan kies je één of meer hosts.
+
+Het dashboard en de databronnen staan in git (`roles/prometheus_config`,
+`files/grafana/` en `templates/grafana-datasources.yml.j2`) en komen mee met
+`playbooks/monitoring.yml`. In Grafana zelf kun je ze niet opslaan: pas het
+JSON-bestand aan. Een gewijzigd dashboard ziet Grafana binnen de minuut; een
+gewijzigde databron pas na een herstart, en die doet de rol zelf.
+
 ## Wie welke rol krijgt
 
 De rol volgt bij elke login uit de groepen in Pocket ID:
@@ -46,6 +68,7 @@ Pas een rol dus niet in Grafana aan: de volgende login zet hem terug.
 | Instellingen | `monitoring-stack`, `stacks/monitoring/docker-compose.yml`, de `GF_AUTH_GENERIC_OAUTH_*`-regels |
 | Client-secret | `GRAFANA_OIDC_CLIENT_SECRET` in `files/env/monitoring.env` (vault `stacks`) |
 | OIDC-client | `tofu/pocketid/clients.tf` |
+| Dashboards en databronnen | `homelab-ansible`, `roles/prometheus_config` |
 | Noodtoegang | de lokale `admin`, wachtwoord `GRAFANA_PASSWORD` in `monitoring.env` |
 
 ## Goed om te weten
@@ -54,3 +77,10 @@ Pas een rol dus niet in Grafana aan: de volgende login zet hem terug.
 
 Zonder die regel bouwt Grafana zijn redirect op `localhost:3000`, en Pocket ID
 weigert die. Hij moet het adres zijn waarop je Grafana opent.
+
+### "Wanneer vol" is een schatting
+
+Het rekent met het tempo van de laatste 12 uur. Een schijf die zich vult tot
+een vaste grens lijkt daardoor sneller vol dan hij wordt. De opstartschijf
+van pbs bijvoorbeeld: daar groeit de cache van de off-site kopie naar R2,
+maar die stopt rond 8 GB (r2-guard), en er is 18 GB vrij.

@@ -3,8 +3,9 @@ galaxy_info:
   role_name: prometheus_config
   author: rubenclaes
   description: >-
-    Writes the Prometheus scrape config, the alert rules and the Alertmanager
-    config (to ntfy) for the monitoring stack.
+    Writes the Prometheus scrape config, the alert rules, the Alertmanager
+    config (to ntfy) and the Grafana datasources and dashboards for the
+    monitoring stack.
   license: MIT
   min_ansible_version: "2.17"
   platforms:

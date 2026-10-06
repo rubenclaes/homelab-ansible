@@ -1,6 +1,7 @@
 ---
 # De config van de monitoring-stack op docker-grafana-stack: wat Prometheus
-# ophaalt, wanneer iets een alarm is, en waar dat alarm heen gaat (ntfy).
+# ophaalt, wanneer iets een alarm is, waar dat alarm heen gaat (ntfy), en de
+# databronnen en dashboards van Grafana.
 #
 # De containers zelf staan in github.com/rubenclaes/monitoring-stack; hun
 # config-mappen zijn bind mounts uit de data-map, en die vult deze rol. Zo
@@ -32,3 +33,11 @@ prometheus_config_ntfy_token: "{{ vault_ntfy_alertmanager_token }}"
 # Hoe lang een alarm moet duren voor het een melding wordt, en om de hoeveel
 # tijd je het opnieuw hoort zolang het niet opgelost is.
 prometheus_config_repeat_interval: 12h
+
+# --- Grafana ---------------------------------------------------------------
+# De databronnen en dashboards, als provisioning: Grafana leest ze bij het
+# starten uit ${DATA_PATH}/grafana-provisioning. De uids zijn die van de
+# databronnen die eerst met de hand gemaakt waren (gelezen op 06-10); zo
+# blijven ze dezelfde, en verwijzen de dashboards naar iets vasts.
+prometheus_config_grafana_prometheus_uid: bffp6ddhc3oqoc
+prometheus_config_grafana_loki_uid: effp6gq275czka

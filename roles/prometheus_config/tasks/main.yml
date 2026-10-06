@@ -19,6 +19,15 @@
     - { path: prometheus/config/rules, owner: root }
     - { path: alertmanager/config, owner: root }
     - { path: alertmanager/data, owner: "65534" }
+    # Grafana's provisioning. De lege mappen ook: anders mist Grafana ze in
+    # zijn log, want de mount vervangt wat er in het image stond.
+    - { path: grafana-provisioning, owner: root }
+    - { path: grafana-provisioning/datasources, owner: root }
+    - { path: grafana-provisioning/dashboards, owner: root }
+    - { path: grafana-provisioning/dashboards/json, owner: root }
+    - { path: grafana-provisioning/alerting, owner: root }
+    - { path: grafana-provisioning/plugins, owner: root }
+    - { path: grafana-provisioning/access-control, owner: root }
 
 # Elk bestand wordt eerst gecontroleerd met de tool uit het image zelf
 # (validate). Een fout komt dan niet op de host, en de draaiende config blijft.
@@ -59,3 +68,33 @@
       prom/alertmanager:latest check-config /alertmanager.yml
   notify: Reload Alertmanager
   no_log: true
+
+- name: Write the Grafana datasources
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ prometheus_config_data_dir }}/grafana-provisioning/datasources/homelab.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Grafana
+
+- name: Write the Grafana dashboard provider
+  ansible.builtin.copy:
+    src: grafana/dashboards.yml
+    dest: "{{ prometheus_config_data_dir }}/grafana-provisioning/dashboards/homelab.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Grafana
+
+# Een dashboard dat wijzigt, ziet Grafana binnen de minuut zelf
+# (updateIntervalSeconds); daar hoeft hij niet voor te herstarten.
+- name: Write the Grafana dashboards
+  ansible.builtin.copy:
+    src: "grafana/{{ item }}"
+    dest: "{{ prometheus_config_data_dir }}/grafana-provisioning/dashboards/json/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - homelab-hosts.json

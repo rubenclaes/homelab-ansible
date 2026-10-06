@@ -23,10 +23,17 @@ scrape_configs:
       - targets: ['alertmanager:9093']
 
   # `instance` is de inventory-naam, niet IP:poort: zo staat er "pve01" in een
-  # melding, en niet 192.168.0.10:9100.
+  # melding, en niet 192.168.0.10:9100. `kind` komt uit de inventory-groepen:
+  # host, vm, lxc of mac. Het dashboard laat er de kleine containers mee weg
+  # uit de grafieken.
   - job_name: node
     static_configs:
 {% for host in (groups[prometheus_config_node_group] + prometheus_config_node_extra_hosts) | sort %}
+{%   set kind = 'host' if host in groups.get('proxmox', [])
+          else 'lxc' if host in groups.get('proxmox_all_lxc', [])
+          else 'vm' if host in groups.get('proxmox_all_qemu', [])
+          else 'mac' if host in groups.get('macs', [])
+          else 'other' %}
       - targets: ['{{ hostvars[host].ansible_host }}:{{ prometheus_config_node_port }}']
-        labels: { instance: {{ host }} }
+        labels: { instance: {{ host }}, kind: {{ kind }} }
 {% endfor %}

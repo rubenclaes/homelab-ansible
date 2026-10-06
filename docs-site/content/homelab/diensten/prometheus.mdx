@@ -29,6 +29,9 @@ config komt uit `homelab-ansible`: `roles/prometheus_config`.
 
 ## Wat er gemeten wordt
 
+Elke host krijgt in Prometheus twee labels: `instance` (de inventory-naam) en
+`kind` (`host`, `vm`, `lxc` of `mac`, uit de inventory-groepen).
+
 Elke host in de groep `linux` draait node_exporter (`roles/node_exporter`, het
 Debian-pakket) op poort `9100`. Een host erbij in de inventory is meteen een
 host erbij in Prometheus: de doelen volgen uit die groep, net als de upstreams

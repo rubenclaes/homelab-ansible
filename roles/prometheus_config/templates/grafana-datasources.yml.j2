@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# Bron: roles/prometheus_config in homelab-ansible. Dezelfde naam en uid als
+# de databronnen die eerst met de hand in Grafana stonden: Grafana neemt ze
+# zo over in plaats van er een tweede naast te zetten, en het dashboard
+# verwijst naar die uid.
+apiVersion: 1
+datasources:
+  - name: prometheus
+    uid: {{ prometheus_config_grafana_prometheus_uid }}
+    type: prometheus
+    access: proxy
+    url: http://monitoring-prometheus:9090
+    isDefault: false
+    editable: false
+  - name: loki
+    uid: {{ prometheus_config_grafana_loki_uid }}
+    type: loki
+    access: proxy
+    url: http://monitoring-loki:3100
+    isDefault: true
+    editable: false

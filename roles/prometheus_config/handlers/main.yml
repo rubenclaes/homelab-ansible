@@ -16,3 +16,11 @@
   args:
     chdir: "{{ prometheus_config_stack_dir }}"
   changed_when: true
+
+# Databronnen leest Grafana alleen bij het starten.
+- name: Restart Grafana
+  ansible.builtin.shell: |
+    if [ -n "$(docker compose ps -q grafana)" ]; then docker compose restart grafana; fi
+  args:
+    chdir: "{{ prometheus_config_stack_dir }}"
+  changed_when: true
