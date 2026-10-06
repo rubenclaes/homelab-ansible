@@ -17,3 +17,7 @@
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Throwaway containers for hl sandbox
+  ansible.builtin.import_tasks: sandbox.yml
+  tags: [sandbox]

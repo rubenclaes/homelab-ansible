@@ -9,6 +9,8 @@
 #   hl yt [audio] [link]  send a video to MeTube; no link = the clipboard
 #   hl vault [naam]    edit a vaulted file
 #   hl check           what CI checks, before you push
+#   hl sandbox [--keep]  a throwaway Debian on pve01; gone when you exit
+#   hl sandbox ls | rm <id>
 #   ap                 pick a playbook;  ap playbooks/x.yml ...  run one
 #
 # Every menu takes an optional filter; with exactly one match it skips the menu.
@@ -149,7 +151,8 @@ hl() {
     yt)   _hl_yt "$@" ;;
     vault) _hl_vault "$@" ;;
     check) _hl_check ;;
-    *)    print "hl [go|ssh|logs|yt|vault|check]  -  zie ~/.config/homelab/homelab.zsh" >&2
+    sandbox) _hl_sandbox "$@" ;;
+    *)    print "hl [go|ssh|logs|yt|vault|check|sandbox]  -  zie ~/.config/homelab/homelab.zsh" >&2
           return 1 ;;
   esac
 }
@@ -252,4 +255,31 @@ _hl_check() {  # the checks of .github/workflows/lint.yml, before you push
     fi
     exit $rc
   )
+}
+
+_hl_sandbox() {  # a throwaway container on pve01, gone again when you exit
+  local keep=0 out id ip
+  case $1 in
+    ls) command ssh -o BatchMode=yes pve01 sudo -n sandbox ls; return ;;
+    rm) command ssh -o BatchMode=yes pve01 sudo -n sandbox rm "$2"; return ;;
+    --keep) keep=1 ;;
+    "") ;;
+    *) print "hl sandbox [--keep | ls | rm <id>]" >&2; return 1 ;;
+  esac
+  print "Sandbox maken op pve01..."
+  out=$(command ssh -o BatchMode=yes pve01 sudo -n sandbox new) || return 1
+  read -r id ip <<< $out
+  # Every sandbox is a new host key, often on an address an earlier one had:
+  # known_hosts would only get in the way.
+  print "sandbox $id op $ip. Over ssh, vanuit een ander venster:"
+  print "  ssh -i ~/.ssh/ansible_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$ip"
+  print "Je zit erin als root. exit = $( (( keep )) && print 'stoppen, hij blijft staan' || print 'weg ermee')."
+  _homelab_tab sandbox-$id
+  command ssh -t pve01 sudo -n pct enter $id
+  _homelab_tab reset
+  if (( keep )); then
+    print "sandbox $id blijft staan, tot de opruimjob hem na een dag weghaalt. Nu al weg: hl sandbox rm $id"
+  else
+    command ssh -o BatchMode=yes pve01 sudo -n sandbox rm $id
+  fi
 }

@@ -27,6 +27,8 @@ vanuit elke map.
 | `hl vault` | menu met alle versleutelde bestanden, Enter opent hem in je editor |
 | `hl vault caddy` | meteen `inventory/host_vars/caddy/vault.yml` |
 | `hl check` | wat CI controleert, vóór je pusht: versleuteld, lint, syntax, tofu-opmaak |
+| `hl sandbox` | wegwerp-Debian op pve01, je zit erin als root; `exit` gooit hem weg. Zie [Sandboxen](/proxmox/host/#sandboxen) |
+| `hl sandbox --keep` | blijft staan na `exit` (hooguit een dag); `hl sandbox ls` en `hl sandbox rm <id>` |
 
 In elk menu: typ een paar letters om te filteren, pijltjes en Enter om te
 kiezen, `Esc` om te stoppen.

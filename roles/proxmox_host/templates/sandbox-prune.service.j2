@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Remove hl sandbox containers older than {{ proxmox_host_sandbox_max_age_hours }} hours
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/sandbox prune

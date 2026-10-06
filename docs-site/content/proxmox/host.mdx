@@ -27,10 +27,30 @@ Hoeveel watt dat scheelt, is niet gemeten: daar is een verbruiksmeter voor
 nodig. Volle snelheid terug: `proxmox_host_cpu_governor: performance` in
 `inventory/group_vars/proxmox/`, en het playbook opnieuw draaien.
 
+## Sandboxen
+
+Een wegwerp-Debian om iets te proberen: een rol, een compose-bestand, een
+script dat je niet vertrouwt. Vanaf je laptop:
+
+```bash filename="laptop"
+hl sandbox          # maken, je zit erin als root; exit = weg
+hl sandbox --keep   # blijft staan na exit
+hl sandbox ls       # welke er zijn
+hl sandbox rm 900   # weg ermee
+```
+
+Op pve01 zelf is het `sudo sandbox new | ls | rm <id> | prune`. Een nieuwe
+staat er in zo'n tien seconden: Debian 13, 2 cores, 1 GB RAM, 8 GB schijf,
+met internet via DHCP. De `ansible`-sleutel staat erin, dus `ssh root@<ip>`
+met `~/.ssh/ansible_ed25519` werkt ook.
+
+Een vergeten sandbox is na een dag weg: de timer `sandbox-prune` kijkt elk uur.
+
 ## Naslag
 
 | Wat | Hoe |
 | --- | --- |
+| Sandboxen | nummers 900-999, label `sandbox`; `systemctl list-timers sandbox-prune` |
 | Huidige governor | `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor` |
 | Huidige voorkeur | `cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference` |
 | De unit die ze zet | `systemctl status cpu-power` |
@@ -59,3 +79,17 @@ proces vult het journal en vertekent de meting zelf.
 Zolang de governor `performance` is, weigert de kernel een andere
 energievoorkeur. Daarom zet één systemd-unit ze in die volgorde, en geen
 `tmpfiles.d`: die schrijft in een volgorde die je niet kiest.
+
+### Waarom een sandbox nergens opduikt
+
+Het label `sandbox` filtert hem uit de dynamische inventory
+(`filters` in `inventory/homelab.proxmox.yml`). Zonder dat filter zat hij in
+`linux` en `guests`, en probeerde de geplande converge in Semaphore hem in te
+richten. Nu ziet geen playbook, rapport of docs-pagina hem.
+
+`sandbox rm` en de opruimjob gooien alleen iets weg met een nummer uit 900-999
+**én** dat label. Een tikfout als `rm 104` raakt dus nooit een echte guest.
+
+De nachtelijke PBS-back-up neemt `all`, dus een `--keep`-sandbox die om 02:30
+nog bestaat, gaat één keer mee. Dat is onschuldig: hij is klein, en de back-up
+verdwijnt vanzelf met de gewone retentie.
