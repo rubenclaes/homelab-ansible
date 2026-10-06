@@ -7,8 +7,6 @@ docs_machine_role: Je MacBook, de werkplek waarvan je Ansible en OpenTofu draait
 
 # `brew leaves`: alleen wat ik zelf gevraagd heb, niet de afhankelijkheden.
 macos_brew_packages_extra:
-  - ansible
-  - ansible-lint
   - caddy
   - ffmpeg
   - fzf              # het menu van `ap`
@@ -35,6 +33,14 @@ macos_brew_packages_extra:
   - zellij
   - zplug
   - zsh
+
+# Ansible en ansible-lint komen niet uit brew: brew geeft de nieuwste versie,
+# CI die uit requirements.txt. Ze komen uit `uv tool install` met dat bestand,
+# zie de README. Hier als absent, zodat de brew-versie niet terugkomt en de
+# uv-versie verdringt: /opt/homebrew/bin staat eerder in PATH.
+macos_brew_packages_absent:
+  - ansible
+  - ansible-lint
 
 # Docker Desktop staat hier bewust niet meer bij: op deze laptop draait
 # OrbStack, net als op de Mini. OrbStack zelf is met de hand geinstalleerd en

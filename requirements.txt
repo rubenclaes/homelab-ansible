@@ -1,17 +1,18 @@
 # Control-node toolchain. Pinned so a workstation cannot drift away from CI
 # without noticing: .github/workflows/lint.yml installs these same versions.
 #
-#   pip install -r requirements.txt   # in a venv
+# The single source for these versions; README and docs-site install from
+# this file instead of repeating them:
 #
-# With pipx, see README: the libraries below must be injected into the
-# ansible-core venv, which `pipx install -r` does not do.
+#   uv tool install --with-requirements requirements.txt \
+#     --with-executables-from ansible-lint ansible-core
 #
-# Bump deliberately, together with collections/requirements.yml and the
-# the lint workflow, which installs from this file.
-ansible-core==2.21.4
-ansible-lint==26.8.0
+# Bump deliberately, together with collections/requirements.yml, then rerun
+# the command above with --force.
+ansible-core==2.21.5
+ansible-lint==26.9.0
 
 # Needed by community.proxmox for the API modules and the dynamic inventory.
-proxmoxer>=2.3
-requests>=2.31
+proxmoxer>=2.3.0
+requests>=2.34.2
 netaddr>=1.3

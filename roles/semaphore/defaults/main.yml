@@ -18,10 +18,14 @@ semaphore_apt_packages:
   - nodejs
   - npm
 
-semaphore_pip_packages:
-  - ansible
-  - "proxmoxer>=2.3"
-  - requests
+# Ansible itself comes from the same two files the laptop and CI install
+# from, so a scheduled run here uses exactly the versions lint passed on.
+semaphore_requirements: "{{ playbook_dir }}/../requirements.txt"
+semaphore_collections_requirements: "{{ playbook_dir }}/../collections/requirements.yml"
+semaphore_requirements_dir: /opt/ansible-requirements
+# In Ansible's default collections path, so every job finds them without an
+# ansible.cfg setting.
+semaphore_collections_path: /usr/share/ansible/collections
 
 # Semaphore re-clones the repository into a fresh directory on every run, so
 # node_modules never survives between builds and `npm ci` would re-download

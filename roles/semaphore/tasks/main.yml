@@ -12,11 +12,45 @@
     create_home: true
     shell: /usr/sbin/nologin
 
-- name: Create an Ansible virtualenv for Semaphore
+- name: Create the directory for the pinned Ansible versions
+  ansible.builtin.file:
+    path: "{{ semaphore_requirements_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy the pinned Ansible versions
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ semaphore_requirements_dir }}/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { src: "{{ semaphore_requirements }}", dest: requirements.txt }
+    - { src: "{{ semaphore_collections_requirements }}", dest: collections.yml }
+  loop_control:
+    label: "{{ item.dest }}"
+
+- name: Install Ansible into Semaphore's virtualenv
   ansible.builtin.pip:
-    name: "{{ semaphore_pip_packages }}"
+    requirements: "{{ semaphore_requirements_dir }}/requirements.txt"
     virtualenv: "{{ semaphore_venv }}"
     virtualenv_command: python3 -m venv
+
+- name: Install the Ansible collections
+  ansible.builtin.command:
+    argv:
+      - "{{ semaphore_venv }}/bin/ansible-galaxy"
+      - collection
+      - install
+      - -r
+      - "{{ semaphore_requirements_dir }}/collections.yml"
+      - -p
+      - "{{ semaphore_collections_path }}"
+  register: semaphore_collections
+  changed_when: "'was installed successfully' in semaphore_collections.stdout"
 
 - name: Install Semaphore
   ansible.builtin.apt:

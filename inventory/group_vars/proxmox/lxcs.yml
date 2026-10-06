@@ -57,6 +57,11 @@ pve_oci_lxcs:
       NTFY_LISTEN_HTTP: ":80"
       NTFY_BEHIND_PROXY: "true"
       NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      # Hoe lang een bericht te halen blijft. Buitenshuis zonder VPN krijgt
+      # de iPhone alleen een leeg seintje; de tekst haalt de app pas op als
+      # hij ntfy weer bereikt. De standaard is 12 uur, te kort voor een
+      # weekend weg.
+      NTFY_CACHE_DURATION: 72h
       NTFY_AUTH_FILE: /var/lib/ntfy/user.db
       NTFY_AUTH_DEFAULT_ACCESS: deny-all
       # Een mislukte vzdump stuurt de hele log van elke guest mee, al snel

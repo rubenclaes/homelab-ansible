@@ -143,6 +143,40 @@ ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew upgrade --cask <naam>'   
 
 Waarom `-K` niet helpt: [Casks die root nodig hebben](#casks-die-root-nodig-hebben).
 
+## Ansible zelf
+
+Ansible, ansible-lint en de collections draaien op drie plekken: je laptop,
+CI en Semaphore. Alle drie installeren uit dezelfde twee bestanden, dus je
+werkt de versie op één plek bij.
+
+<Steps>
+
+#### Zet de nieuwe versies in de repo
+
+| Wat | Bestand | Waar vind je de nieuwste |
+| --- | --- | --- |
+| `ansible-core`, `ansible-lint` | `requirements.txt` (`==`) | [pypi.org](https://pypi.org/project/ansible-core/) |
+| collections | `collections/requirements.yml` (de ondergrens, `>=`) | [galaxy.ansible.com](https://galaxy.ansible.com) |
+
+#### Werk je laptop bij
+
+```bash filename="laptop"
+uv tool install --force --with-requirements requirements.txt \
+  --with-executables-from ansible-lint ansible-core
+ansible-galaxy collection install -r collections/requirements.yml
+ansible-lint
+```
+
+#### Push, en werk Semaphore bij
+
+CI pakt de nieuwe versies vanzelf op. Semaphore niet:
+
+```bash filename="laptop"
+ansible-playbook playbooks/semaphore.yml
+```
+
+</Steps>
+
 ## Alle flags
 
 Allemaal standaard **uit**. Zonder flags wordt er gepatcht en verder niets.
@@ -172,8 +206,8 @@ is dus `site.yml --tags macos`, niet `cleanup.yml`.
 `update.yml` heeft drie plays, elk met `serial: 1`: één host is klaar voor de
 volgende begint, dus een mislukte upgrade sloopt één machine, niet alles.
 Guests gaan vóór pve01, anders kan pve01 herstarten terwijl zijn guests nog
-bezig zijn. De Macs komen laatst: op de MacBook komt `ansible` zelf uit
-Homebrew, en een upgrade vervangt het programma dat op dat moment draait.
+bezig zijn. De Macs komen laatst: op de MacBook draait `ansible` op de Python
+van Homebrew, en een upgrade vervangt het programma dat op dat moment draait.
 
 `allow_hypervisor_reboot` alleen doet niets. Zo kan een gewone run nooit per
 ongeluk pve01 meenemen.

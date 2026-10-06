@@ -177,7 +177,7 @@
 # gigabyte.
 #
 # Dit staat hier en NIET als taak aan het eind van update.yml, waar het lijkt
-# thuis te horen. Op de mbp komt `ansible` zelf uit Homebrew en is
+# thuis te horen. Op de mbp draait `ansible` op de Python van Homebrew en is
 # ansible_connection lokaal, dus een update-run kan net de interpreter hebben
 # vervangen die de play uitvoert; `brew cleanup` zou dan de Cellar-map
 # weggooien waar dat draaiende proces nog uit leest. update.yml zet

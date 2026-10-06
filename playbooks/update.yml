@@ -65,9 +65,10 @@
 
 # De Macs zitten niet in `linux`, dus geen van de plays hierboven raakt ze
 # aan; apt is hun pakketbeheerder niet. Ze komen met opzet als laatste:
-# Homebrew op de mbp is eigenaar van de `ansible` die dit bestand uitvoert
-# (ansible_connection is lokaal), en hem upgraden vervangt de interpreter
-# midden in de run. Als laatste is dat venster zo klein mogelijk, en
+# Homebrew op de mbp is eigenaar van de Python waarop de `ansible` draait die
+# dit bestand uitvoert (ansible_connection is lokaal; Ansible zelf komt uit
+# `uv tool`, maar die venv wijst naar brews python@3.x), en die upgraden
+# vervangt de interpreter midden in de run. Als laatste is dat venster zo klein mogelijk, en
 # HOMEBREW_NO_INSTALL_CLEANUP houdt brew ervan af de Cellar-map te wissen
 # waar dat draaiende proces nog uit leest.
 #

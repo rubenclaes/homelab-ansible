@@ -32,12 +32,19 @@ cd ~/Development/homelab-ansible
 #### Installeer Ansible en OpenTofu
 
 ```bash filename="laptop"
-brew install ansible ansible-lint opentofu
+brew install uv opentofu
+uv tool install --with-requirements requirements.txt \
+  --with-executables-from ansible-lint ansible-core
 ansible-galaxy collection install -r collections/requirements.yml
 ```
 
-Zonder `proxmoxer` (zit in de brew-versie) ziet Ansible alleen `pve01` en de
-Macs, zonder foutmelding. Met pipx: `pipx inject ansible-core proxmoxer requests`.
+De versies komen uit `requirements.txt`, dezelfde die CI gebruikt. Met
+`brew install ansible` krijg je altijd de nieuwste versie, en dan kan lint
+lokaal groen zijn en in CI rood. Na een versie-bump: hetzelfde
+`uv tool install`-commando met `--force`.
+
+Zonder `proxmoxer` ziet Ansible alleen `pve01` en de Macs, en geeft het geen
+foutmelding. Het uv-commando installeert `proxmoxer` mee.
 
 #### Zet de ansible-sleutel neer
 

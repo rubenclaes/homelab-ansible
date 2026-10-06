@@ -9,13 +9,15 @@ Uitleg per taak staat op [docs.neodata.be](https://docs.neodata.be).
 
 ## Eenmalig: je computer klaarzetten
 
-1. Ansible installeren:
+1. Ansible installeren, met de versies uit `requirements.txt` (dezelfde als CI):
 
    ```bash
-   pipx install "ansible-core==2.21.4" "ansible-lint==26.8.0"
-   pipx inject ansible-core proxmoxer requests netaddr
+   uv tool install --with-requirements requirements.txt \
+     --with-executables-from ansible-lint ansible-core
    ansible-galaxy collection install -r collections/requirements.yml
    ```
+
+   Na een versie-bump in `requirements.txt`: hetzelfde commando met `--force`.
 
 2. De SSH-sleutel kopiëren van de mbp. Maak geen nieuwe: de servers kennen
    alleen deze.

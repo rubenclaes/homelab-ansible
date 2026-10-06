@@ -66,7 +66,8 @@ Die flag verandert een rapport in een verwijdering. Een default in
 
 ### Waarom `brew cleanup` niet in `update.yml` zit
 
-Op de MacBook komt `ansible` zelf uit Homebrew en is de verbinding `local`. Een
+Op de MacBook draait `ansible` op de Python van Homebrew en is de verbinding
+`local`. Een
 update vervangt de interpreter die de playbook draait; `brew cleanup` zou
 daarna de map weggooien waar dat proces nog uit leest. Daarom zet `update.yml`
 `HOMEBREW_NO_INSTALL_CLEANUP=1`, en zit de opruiming hier, in een playbook dat
