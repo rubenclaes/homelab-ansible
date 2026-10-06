@@ -1,5 +1,6 @@
 ---
-# Datacenter-instellingen van pve01: de storages en de back-upjobs.
+# Datacenter-instellingen van pve01: de storages en de back-upjobs. En het
+# besturingssysteem van pve01 zelf (roles/proxmox_host): de CPU-stroom.
 #
 #   ansible-playbook playbooks/proxmox-datacenter.yml
 #
@@ -17,4 +18,5 @@
   roles:
     - proxmox_datacenter
     - proxmox_tun
+    - proxmox_host
   tags: [proxmox, datacenter]

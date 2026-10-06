@@ -1,0 +1,15 @@
+---
+# Het besturingssysteem van pve01 zelf. Wat Proxmox als datacenter doet
+# (storages, back-ups, meldingen) staat in roles/proxmox_datacenter.
+#
+# De driver is amd-pstate-epp. Op `performance` blijven de kernen hoog
+# geklokt, ook als er niets te doen is, en dat is hier bijna altijd (load
+# onder 1 op 12 threads). Op `powersave` met deze voorkeur boost hij nog
+# altijd zodra er werk is; hij zakt alleen terug als het stil is.
+# `power` bespaart nog iets meer, `performance` zet het oude gedrag terug.
+#
+# Bewust niet hier (gemeten op 05-10, zie docs-site proxmox/host): de
+# HA-diensten uitzetten, swappiness en ZFS atime. Veelgehoorde tips, maar hier
+# zonder meetbaar effect.
+proxmox_host_cpu_governor: powersave
+proxmox_host_cpu_epp: balance_performance

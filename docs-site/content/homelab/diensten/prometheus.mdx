@@ -34,6 +34,13 @@ Debian-pakket) op poort `9100`. Een host erbij in de inventory is meteen een
 host erbij in Prometheus: de doelen volgen uit die groep, net als de upstreams
 van Caddy.
 
+De Mac mini draait node_exporter via Homebrew, als dienst
+(`macos_brew_services` in zijn host_vars). Hij zit niet in `linux`, dus hij
+staat apart in `prometheus_config_node_extra_hosts`. Zo vallen zijn schijven,
+met de media en de Time Machine-back-ups, onder `DiskAlmostFull`. De
+docker-host ziet die schijven ook via NFS, maar daar slaat node_exporter NFS
+over, en terecht: een NFS-mount die hangt, legt hem mee stil.
+
 Op pve01 komt daar SMART van de twee echte schijven bij: een timer leest elk
 kwartier `smartctl` en `nvme` uit (`node_exporter_smart: true` in
 `group_vars/proxmox/monitoring.yml`).
@@ -98,5 +105,10 @@ dan voor altijd stil. Daarom bestaat `SmartCollectorStale`.
 
 Ligt ntfy of de monitoring-VM zelf plat, dan hoor je niets. Een melding van
 buitenaf als het stil wordt (een "dead man's switch") staat op `TODO.md`. Ook
-nog niet gemeten: de Mac mini, Home Assistant, en of de sites zelf
-antwoorden.
+nog niet gemeten: Home Assistant, en of de sites zelf antwoorden.
+
+### Drie schijven, één alarm
+
+Op de Mac mini delen `media01`, `NetworkTM` en `LocalTM` dezelfde APFS-schijf
+van 8 TB, en dus dezelfde vrije ruimte. Raakt die op, dan gaat
+`DiskAlmostFull` af voor alle drie, in één bericht.

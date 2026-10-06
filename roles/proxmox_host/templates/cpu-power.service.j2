@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Bron: roles/proxmox_host. Eerst de governor, dan de voorkeur: zolang de
+# governor `performance` is, weigert de kernel een andere voorkeur.
+[Unit]
+Description=CPU governor {{ proxmox_host_cpu_governor }}, energievoorkeur {{ proxmox_host_cpu_epp }}
+# Alleen met amd-pstate-epp. Valt die weg (BIOS-reset zet CPPC uit, andere
+# kernel), dan neemt acpi-cpufreq het over, en daar zet `powersave` elke kern
+# vast op de laagste klok: alle VM's traag, zonder alarm. Dan liever niets.
+ConditionPathExists=/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/bin/sh -c 'for c in /sys/devices/system/cpu/cpu*/cpufreq; do echo {{ proxmox_host_cpu_governor }} > $c/scaling_governor && echo {{ proxmox_host_cpu_epp }} > $c/energy_performance_preference; done'
+
+[Install]
+WantedBy=multi-user.target

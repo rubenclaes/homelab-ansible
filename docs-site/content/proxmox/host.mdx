@@ -1,0 +1,61 @@
+---
+title: pve01 zelf
+---
+
+# pve01 zelf
+
+Instellingen van het besturingssysteem van pve01. Ze staan in
+`roles/proxmox_host` en komen mee met:
+
+```bash filename="laptop"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+## De CPU
+
+De governor staat op `powersave`, met energievoorkeur `balance_performance`.
+Op `performance` bleven de kernen hoog geklokt terwijl pve01 bijna niets doet
+(load onder 1 op 12 threads). Nu boost hij nog altijd zodra er werk is, en
+zakt hij alleen terug als het stil is.
+
+Alleen met de driver `amd-pstate-epp`. Valt die weg, bijvoorbeeld na een
+BIOS-reset, dan neemt `acpi-cpufreq` het over, en daar zou `powersave` elke kern
+op de laagste klok vastzetten. De unit slaat zichzelf dan over
+(`ConditionPathExists`), en de CPU blijft op de standaard van de kernel.
+
+Hoeveel watt dat scheelt, is niet gemeten: daar is een verbruiksmeter voor
+nodig. Volle snelheid terug: `proxmox_host_cpu_governor: performance` in
+`inventory/group_vars/proxmox/`, en het playbook opnieuw draaien.
+
+## Naslag
+
+| Wat | Hoe |
+| --- | --- |
+| Huidige governor | `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor` |
+| Huidige voorkeur | `cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference` |
+| De unit die ze zet | `systemctl status cpu-power` |
+| Schrijven naar de opstart-SSD | `awk '$3=="sda"{print $10*512/1048576 " MB"}' /proc/diskstats`, twee keer met een minuut ertussen |
+
+## Goed om te weten
+
+### Wat bewust niet is aangepast
+
+Drie veelgehoorde tips om een opstart-SSD te sparen, op 05-10 gemeten en
+afgewezen:
+
+| Tip | Gemeten | Waarom niet |
+| --- | --- | --- |
+| HA-diensten uitzetten (`pve-ha-lrm`, `pve-ha-crm`) | 2 KB in drie minuten | verwaarloosbaar |
+| `vm.swappiness` omlaag | swap in gebruik: 0 bytes | verandert niets |
+| ZFS `atime=off` | schrijft naar de NVMe, niet naar de oude SSD | die NVMe is pas 2% versleten |
+
+De opstart-SSD krijgt ongeveer 4 GB per dag, vooral van `pmxcfs` (de
+config-database van Proxmox). Met 41% levensduur over gaat ze aan dat tempo
+nog jaren mee. Meet eerst, met één `sudo` voor het hele script: een `sudo` per
+proces vult het journal en vertekent de meting zelf.
+
+### Eerst de governor, dan de voorkeur
+
+Zolang de governor `performance` is, weigert de kernel een andere
+energievoorkeur. Daarom zet één systemd-unit ze in die volgorde, en geen
+`tmpfiles.d`: die schrijft in een volgorde die je niet kiest.

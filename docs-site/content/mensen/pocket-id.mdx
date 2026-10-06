@@ -123,7 +123,8 @@ Er waren drie oorzaken:
   login; de rest krijgt een gewone 401.
 - **"Unable to find initial PKCE data" bij twee logins tegelijk.** Twee
   logins tegelijk overschreven elkaars CSRF-cookie. Nu krijgt elke login zijn
-  eigen (`cookie_csrf_per_request`).
+  eigen (`cookie_csrf_per_request`), met maximaal 5 tegelijk: die cookies gaan
+  naar elke app, en te veel ervan geeft een 431.
 
 ### oauth2-proxy en "email isn't verified"
 

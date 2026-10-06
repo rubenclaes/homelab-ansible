@@ -19,6 +19,7 @@ macos_brew_packages_extra:
   - node
   - pass
   - ripgrep
+  - node_exporter
   - ssh-copy-id
   - tailscale
   - tldr
@@ -50,6 +51,12 @@ macos_brew_packages_extra:
 # /Applications/Plex Media Server.app, buiten Homebrew om. Zet je hem hier
 # als `plex-media-server`, dan gaat brew over een bestaande installatie heen
 # die hij niet geplaatst heeft. Eerst met de hand overzetten, dan pas hier.
+# De metrics van de Mini voor Prometheus (roles/prometheus_config): vooral
+# zijn schijven. De docker-host ziet ze ook via NFS, maar node_exporter slaat
+# NFS daar over, en terecht: een NFS-mount die hangt, legt hem mee stil.
+macos_brew_services:
+  - node_exporter
+
 macos_casks:
   - chromium
   - iterm2

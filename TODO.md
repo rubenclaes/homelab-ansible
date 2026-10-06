@@ -17,8 +17,11 @@ de volgende stap.
   - [ ] Een dead man's switch: een altijd-afgaand alarm naar een dienst buiten
         huis, die mailt als het stil wordt. Nu hoor je niets als ntfy of de
         monitoring-VM zelf plat ligt.
-  - [ ] Meten wat nu ontbreekt: de Mac mini, de sites zelf (blackbox), de
-        certificaten.
+  - [ ] Meten wat nu ontbreekt: de sites zelf (blackbox), de certificaten.
+- [ ] **De 8 TB-schijf van de Mac mini zit op 94,5%** (06-10). media01 en de
+      Time Machine-back-ups delen die ruimte; de netwerk-shares hebben geen
+      limiet. Een limiet per Time Machine-share, en de back-up van de oude
+      Intel-MacBook (131 GB, laatst 28-11-2025) weg als die Mac weg is.
 
 ---
 

@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: proxmox_host
+  author: rubenclaes
+  description: >-
+    Sets the CPU governor and energy preference of the Proxmox host.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - proxmox
+
+dependencies: []

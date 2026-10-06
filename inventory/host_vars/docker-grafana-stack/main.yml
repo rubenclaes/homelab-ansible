@@ -37,3 +37,8 @@ docker_ports_without_route:
 # grafana, prometheus, loki en alloy. Dat is te overleven - hun data staat in
 # ${DATA_PATH} en niet in de container - maar het is een korte onderbreking
 # van je monitoring, en je wil hem plannen in plaats van hem tegenkomen.
+
+# De Mini draait node_exporter via Homebrew (macos_brew_services in zijn
+# host_vars) en zit niet in de groep `linux`.
+prometheus_config_node_extra_hosts:
+  - macmini

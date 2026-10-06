@@ -8,6 +8,12 @@ macos_brew_packages:
 macos_brew_packages_extra: []
 macos_casks: []
 
+# Formulae die als dienst draaien (`brew services`). Als gebruikersdienst, dus
+# ze starten bij het inloggen van die gebruiker: op een Mac die automatisch
+# inlogt (de Mini) is dat bij het opstarten. De formula zelf hoort ook in een
+# van de lijsten hierboven.
+macos_brew_services: []
+
 # Explicitly unwanted, as opposed to merely undeclared. Dropping a name from
 # the lists above only stops it being reinstalled; what is already on the disk
 # stays. A machine is only described once what it should NOT have is written

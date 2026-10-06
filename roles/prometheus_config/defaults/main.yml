@@ -14,6 +14,10 @@ prometheus_config_stack_dir: /opt/containers/stacks/monitoring
 
 # Elke host in deze groep draait node_exporter (roles/node_exporter) op 9100.
 prometheus_config_node_group: linux
+# Hosts buiten die groep die node_exporter ook draaien, bv. een Mac via
+# macos_brew_services. Geen hele groep `macs`: de MacBook is vaak uit, en
+# dat zou elke keer HostDown geven.
+prometheus_config_node_extra_hosts: []
 prometheus_config_node_port: 9100
 
 # Naar ntfy op het IP, niet ntfy.neodata.be: een alarm mag niet afhangen van

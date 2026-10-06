@@ -20,6 +20,7 @@
     name: "{{ macos_brew_packages + macos_brew_packages_extra }}"
     state: present
     path: "{{ macos_brew_path }}"
+  register: macos_brew_install
 
 - name: Install Homebrew casks
   community.general.homebrew_cask:
@@ -45,6 +46,16 @@
     state: absent
     path: "{{ macos_brew_path }}"
   when: macos_casks_absent | length > 0
+
+# In check mode is een formula die nog moet komen er niet, en kan brew zijn
+# dienst niet opvragen: dan valt er nog niets te starten.
+- name: Start Homebrew services
+  when: not (ansible_check_mode and macos_brew_install is changed)
+  community.general.homebrew_services:
+    name: "{{ item }}"
+    state: present
+    path: "{{ macos_brew_path }}"
+  loop: "{{ macos_brew_services }}"
 
 - name: Apply macOS defaults
   community.general.osx_defaults:
