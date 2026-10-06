@@ -67,7 +67,7 @@ ansible-playbook playbooks/site.yml --limit docker
 ansible-playbook playbooks/update.yml
 ```
 
-Voor je commit: `bin/check-vaulted && ansible-lint`
+Voor je pusht: `hl check`, dezelfde controles als CI (zonder dotfiles: `bin/check-vaulted && ansible-lint`)
 
 ---
 

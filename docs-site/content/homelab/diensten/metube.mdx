@@ -20,3 +20,24 @@ MeTube — webinterface voor yt-dlp
 
 <small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
 {/* END feiten uit de inventory — geschreven door docs.yml */}
+
+## Vanuit de terminal
+
+```bash filename="laptop"
+hl yt https://youtu.be/...         # video, beste kwaliteit
+hl yt audio https://youtu.be/...   # alleen geluid, mp3
+hl yt                              # de link op je klembord
+```
+
+Uitleg: [Handige commando's](/ansible/commandos/#waarom-hl-yt-via-ssh-gaat).
+
+## Waar de video's komen
+
+Op de Mac mini, in `/Volumes/media01/YouTube`, zodat Plex ze ziet in de
+bibliotheek **YouTube**. MeTube zelf draait op `docker` en schrijft over NFS
+(`/mnt/media01/YouTube`). Zijn wachtrij en geschiedenis blijven op `docker`, in
+`/opt/containers/data/utils/metube/state`: een kleine database over NFS geeft
+lock-problemen.
+
+Die bibliotheek maak je één keer met de hand in Plex: **Bibliotheek toevoegen**,
+type **Andere video's**, map `/Volumes/media01/YouTube`.

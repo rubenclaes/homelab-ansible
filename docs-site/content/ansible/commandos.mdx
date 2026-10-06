@@ -22,6 +22,11 @@ vanuit elke map.
 | `hl ssh pve` | meteen `ssh pve01` |
 | `hl logs` | menu met alle containers, Enter volgt de logs live (`Ctrl-C` stopt) |
 | `hl logs sonarr` | meteen de logs van sonarr, op welke host hij ook staat |
+| `hl yt <link>` | de video naar [MeTube](/homelab/diensten/metube/). Zonder link: de link op je klembord |
+| `hl yt audio <link>` | alleen het geluid, als mp3 |
+| `hl vault` | menu met alle versleutelde bestanden, Enter opent hem in je editor |
+| `hl vault caddy` | meteen `inventory/host_vars/caddy/vault.yml` |
+| `hl check` | wat CI controleert, vóór je pusht: versleuteld, lint, syntax, tofu-opmaak |
 
 In elk menu: typ een paar letters om te filteren, pijltjes en Enter om te
 kiezen, `Esc` om te stoppen.
@@ -102,6 +107,20 @@ kies jij de flags.
 schrijft. Een nieuwe dienst of host staat er pas in na
 `ap playbooks/dotfiles.yml`. `hl logs` vraagt het live, en is altijd bij. Een
 host die niet binnen 5 seconden antwoordt, valt uit die lijst.
+
+### Waarom `hl yt` via ssh gaat
+
+MeTube zit achter de login van Pocket ID, en zijn poort antwoordt alleen aan
+Caddy. Een terminal kan die login niet doen. Daarom stuurt `hl yt` de link
+over ssh naar `docker`, en die geeft hem op de host zelf aan MeTube. Er gaat
+geen poort open.
+
+### Welke sleutel `hl vault` gebruikt
+
+Elk bestand zegt in zijn eerste regel of het `infra` of `stacks` is; het menu
+toont dat ernaast. `ansible-vault edit` leest dat zelf en versleutelt met
+dezelfde sleutel terug. Sluit je zonder iets te wijzigen, dan blijft het
+bestand onaangeroerd.
 
 ### De kleuren aanpassen
 

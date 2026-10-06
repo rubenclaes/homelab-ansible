@@ -6,6 +6,9 @@
 #   hl go [naam]       open a service in the browser
 #   hl ssh [naam]      ssh to a host
 #   hl logs [naam]     follow the logs of a container
+#   hl yt [audio] [link]  send a video to MeTube; no link = the clipboard
+#   hl vault [naam]    edit a vaulted file
+#   hl check           what CI checks, before you push
 #   ap                 pick a playbook;  ap playbooks/x.yml ...  run one
 #
 # Every menu takes an optional filter; with exactly one match it skips the menu.
@@ -41,6 +44,11 @@ HOMELAB_ROUTES=(
   '{{ s.name }}	{{ s.host }}	https://{{ s.name }}.{{ hostvars['caddy'].caddy_domain }}	{{ s.desc | default('') | replace("'", "'\\''") }}'
 {% endfor %}
 )
+{% set metube = hostvars['caddy'].caddy_sites | default([]) | selectattr('name', 'equalto', 'metube') | list %}
+{% if metube %}
+# MeTube for `hl yt`: host, address of its port, public url
+HOMELAB_METUBE=({{ metube[0].host }} {{ hostvars[metube[0].host].ansible_host }}:{{ metube[0].port }} https://metube.{{ hostvars['caddy'].caddy_domain }})
+{% endif %}
 
 # --- Colors -------------------------------------------------------------------
 # The color says how much breaks if you type in the wrong window:
@@ -138,7 +146,10 @@ hl() {
     go)   _hl_go "$@" ;;
     ssh)  _hl_ssh "$@" ;;
     logs) _hl_logs "$@" ;;
-    *)    print "hl [go|ssh|logs] [naam]  -  zie ~/.config/homelab/homelab.zsh" >&2
+    yt)   _hl_yt "$@" ;;
+    vault) _hl_vault "$@" ;;
+    check) _hl_check ;;
+    *)    print "hl [go|ssh|logs|yt|vault|check]  -  zie ~/.config/homelab/homelab.zsh" >&2
           return 1 ;;
   esac
 }
@@ -183,4 +194,62 @@ _hl_logs() {  # pick a container on any Docker host, follow its logs
   fields=("${(@ps:\t:)pick}")
   print "Logs van $fields[1] op $fields[4] - Ctrl-C om te stoppen"
   ssh -t $fields[4] "$fields[5] logs -f --tail 200 $fields[1]"
+}
+
+_hl_yt() {  # send a link to MeTube; without one, use the clipboard
+  local type=video format=any url reply
+  if [[ $1 == audio ]]; then type=audio format=mp3; shift; fi
+  url=${1:-$(pbpaste 2>/dev/null)}
+  if [[ $url != http*://* ]]; then
+    print "hl yt [audio] <link>  -  of kopieer eerst een link" >&2
+    return 1
+  fi
+  (( $+HOMELAB_METUBE )) || { print "MeTube staat niet in caddy_sites" >&2; return 1; }
+  # Via ssh, not via https: MeTube's port only answers Caddy, and Caddy wants
+  # a browser login. On the host itself neither applies.
+  reply=$(jq -nc --arg url $url --arg type $type --arg format $format \
+      '{url: $url, download_type: $type, format: $format, quality: "best"}' \
+    | command ssh -o BatchMode=yes -o ConnectTimeout=5 $HOMELAB_METUBE[1] \
+      "curl -s -m 30 -H 'Content-Type: application/json' --data-binary @- http://$HOMELAB_METUBE[2]/add") \
+    || { print "MeTube niet bereikbaar via $HOMELAB_METUBE[1]" >&2; return 1; }
+  if [[ $(jq -r .status <<< $reply 2>/dev/null) == ok ]]; then
+    print "In de wachtrij ($type). Volg op $HOMELAB_METUBE[3]"
+  else
+    print "MeTube weigert: $reply" >&2
+    return 1
+  fi
+}
+
+_hl_vault() {  # pick a vaulted file and edit it; ansible-vault keeps its vault id
+  local f pick
+  pick=$(cd "$HOMELAB_REPO" && git grep -l -e '^\$ANSIBLE_VAULT' | while read -r f; do
+      printf '%s\t\e[2m%s\e[0m\n' $f "$(head -1 $f | cut -d';' -f4)"
+    done | _homelab_fzf --prompt='vault> ' --query="$*") || return
+  (cd "$HOMELAB_REPO" && ansible-vault edit "${pick%%$'\t'*}")
+}
+
+_hl_step() {  # _hl_step <label> <command...>: ok, or FOUT plus the end of the output
+  local label=$1 out; shift
+  printf '%-14s' $label
+  if out=$("$@" 2>&1); then
+    print '\e[32mok\e[0m'
+  else
+    print '\e[31mFOUT\e[0m'
+    print -r -- $out | tail -n 25 | sed 's/^/    /'
+    return 1
+  fi
+}
+
+_hl_check() {  # the checks of .github/workflows/lint.yml, before you push
+  (
+    cd "$HOMELAB_REPO" || exit 1
+    local rc=0
+    _hl_step versleuteld bin/check-vaulted || rc=1
+    _hl_step ansible-lint ansible-lint || rc=1
+    _hl_step syntax ansible-playbook --syntax-check playbooks/*.yml || rc=1
+    if (( $+commands[tofu] )); then
+      _hl_step 'tofu fmt' tofu fmt -check -recursive tofu || rc=1
+    fi
+    exit $rc
+  )
 }
