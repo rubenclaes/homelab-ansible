@@ -34,7 +34,6 @@ docker_stacks_list:
     dirs:
       - { path: /opt/containers/data/files/hist, owner: 1000 }
       - { path: /srv/files/share, owner: 1000 }
-      - { path: /srv/files/share/installers, owner: 1000 }
   # Arcane: containerbeheer in de browser. Draait als uid 1000 na de start.
   - name: arcane
     path: arcane

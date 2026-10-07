@@ -30,26 +30,34 @@ en `gast`. Iedereen ziet hetzelfde.
 | Map | `gast` | `gezin` | `admin` |
 | --- | --- | --- | --- |
 | alles (`/`) | lezen, uploaden | ook wissen en verplaatsen | alles |
-| `installers/` | lezen | lezen | alles |
+| `lan/` | lezen | lezen | lezen |
 
-Een gast kan dus niets van een ander weggooien of overschrijven. Zet
-installers, mods en maps die iedereen nodig heeft in `installers/`.
+Een gast kan dus niets van een ander weggooien of overschrijven.
 
-## Een bestand van je laptop erin
+## Games en mods klaarzetten voor een LAN party
 
-In de browser slepen. Of vanaf de terminal, rechtstreeks op de schijf:
+Zet ze op de Mac mini in **`SSD Nas/LAN`** (Finder, of een share op je
+laptop). Ze staan meteen op [files.neodata.be/lan](https://files.neodata.be/lan/):
+niets kopiëren, niets uitrollen. De map is alleen-lezen in copyparty, ook voor
+jou: opruimen doe je ook in Finder.
 
-```bash filename="laptop"
-scp mod.zip docker:/srv/files/share/installers/
-```
+Vrienden hebben een account in de groep `gast` nodig. Stuur de uitnodiging
+via NeoGate vóór de avond, niet tijdens het gamen.
 
 ## Goed om te weten
 
 | Wat | Waar |
 | --- | --- |
 | de bestanden | `/srv/files/share` op `docker`: een eigen schijf van 300 GB op de NVMe van pve01, geen back-up |
+| `lan/` | `SSD Nas/LAN` op de Mac mini, via NFS (`/mnt/ssdnas/LAN` op `docker`), alleen-lezen |
 | de index (zoeken) | `/opt/containers/data/files/hist` op `docker` |
 | de rechten | `copyparty.conf` in `containers/stacks/files/` |
+
+### Waarom `lan/` op de NAS staat
+
+Even snel als de eigen schijf: pve01 en de Mac mini hangen allebei aan
+2,5 Gbit, en de rem is het netwerk (of de wifi) van wie downloadt. En je zet
+er iets in met Finder, zonder scp.
 
 ### Waarom copyparty geen eigen login heeft
 
