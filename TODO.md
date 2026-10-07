@@ -22,24 +22,13 @@ docs. Per punt: wat, en de volgende stap.
 - [ ] **`work-wsl`**: op de werk-pc SSH aan (alleen sleutels, WSL in
       nat-modus), de `ansible@neodata`-sleutel erop, dan `ansible work-wsl -m
       ping`, `adguard.yml` en `smoketest.yml`.
-- [ ] **Plex voor de familie via Tailscale.** Custom server access URL
-      `http://mac-mini.brill-atlas.ts.net:32400` (eerst op één box testen;
-      anders zijn 100.x-adres), Relay uit. Per box Tailscale + Plex, kwaliteit
-      Original. Klaar als het Dashboard Direct Play toont.
+- [ ] **Plex voor de familie via Tailscale.** De Mac mini staat klaar
+      (custom server access URL `http://100.74.124.12:32400`, Relay uit). Nog:
+      per tv-box Tailscale + Plex, kwaliteit Original. Klaar als het Dashboard
+      Direct Play toont.
 - [ ] **Tailscale-regels testen** met een familie-account: Plex en Caddy
       werken, `:22` en Proxmox niet.
-- [ ] **Tailscale-toestellen**: `pixel-10-pro` is van de tailnet (sleutel
-      verlopen 02-10): opnieuw aanmelden of weghalen.
-- [ ] **UniFi**: iPhones van het gezin op een vast wifi-adres (Private Wi-Fi
-      Address → Fixed). De WireGuard-VPN geeft nog DNS `.26`; na een
-      UniFi-update opnieuw proberen, tot dan `.29` met de hand in de app.
 
-## Pocket ID afwerken
-
-Wie waar mag, staat in [Pocket ID](docs-site/content/mensen/pocket-id.mdx).
-
-- [ ] Grimmory: **Settings → OIDC → Local Login** uit (met de hand; Immich
-      en Audiobookshelf staan al op alleen Pocket ID).
 
 ## Later
 
