@@ -52,3 +52,17 @@ Daarna pushen en de stack opnieuw uitrollen (`stacks.yml`).
 Wie in `admin` zit, krijgt bij de **eerste** login meteen de rol admin (de
 claim `immich_role` van die groep). Een bestaand account houdt zijn rol:
 Immich leest de claim alleen bij het aanmaken.
+
+### De database is VectorChord
+
+Sinds 07-10 draait `immich-postgres` op `ghcr.io/immich-app/postgres` met
+VectorChord, niet meer op `tensorchord/pgvecto-rs`: Immich v3 kan niet met
+pgvecto.rs. Immich zette de database bij het opstarten zelf om. Daarna nooit
+meer terug naar een Immich onder v1.133.0.
+
+### Een nieuwe major van Immich
+
+Renovate maakt er een PR van, ook als het alleen een nieuwe digest van de tag
+`release` is: die tag springt mee naar een nieuwe major. Lees eerst de
+breaking changes in de release notes, en leg ze naast de stack in
+`containers` (database, env-variabelen, `configs.immich`).

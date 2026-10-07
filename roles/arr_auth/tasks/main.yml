@@ -1,0 +1,9 @@
+---
+# De app schrijft config.xml zelf; aanpassen terwijl hij draait, kan hij bij
+# het stoppen overschrijven. Daarom: lezen, en alleen bij een verschil
+# stoppen, aanpassen en starten.
+- name: Set the login of each app to External
+  ansible.builtin.include_tasks: app.yml
+  loop: "{{ arr_auth_apps }}"
+  loop_control:
+    loop_var: arr_auth_app

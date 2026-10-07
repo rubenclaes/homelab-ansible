@@ -1,0 +1,25 @@
+---
+- name: Read the config, for {{ arr_auth_app }}
+  ansible.builtin.slurp:
+    path: "{{ arr_auth_data_dir }}/{{ arr_auth_app }}/config/config.xml"
+  register: arr_auth_config
+  check_mode: false
+
+- name: Switch to External, for {{ arr_auth_app }}
+  when: "'<AuthenticationMethod>External</AuthenticationMethod>' not in (arr_auth_config.content | b64decode)"
+  block:
+    - name: Stop {{ arr_auth_app }}
+      ansible.builtin.command: docker stop {{ arr_auth_app }}
+      changed_when: true
+
+    - name: Set AuthenticationMethod in {{ arr_auth_app }}
+      ansible.builtin.replace:
+        path: "{{ arr_auth_data_dir }}/{{ arr_auth_app }}/config/config.xml"
+        regexp: "<AuthenticationMethod>[^<]*</AuthenticationMethod>"
+        replace: "<AuthenticationMethod>External</AuthenticationMethod>"
+
+  always:
+    # Ook als het aanpassen faalde: een gestopte app is erger dan een login.
+    - name: Start {{ arr_auth_app }}
+      ansible.builtin.command: docker start {{ arr_auth_app }}
+      changed_when: true

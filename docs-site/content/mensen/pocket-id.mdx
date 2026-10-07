@@ -63,6 +63,13 @@ rechtstreeks binnen. Zo staan Sonarr, Radarr, Prowlarr, Bazarr en
 code-server. De apps onderling praten via het Docker-netwerk en merken er
 niets van.
 
+Sonarr, Radarr en Prowlarr staan op `AuthenticationMethod: External`: de
+login is die van Caddy (`roles/arr_auth`, in `stacks.yml`). "Geen login van
+een LAN-adres" werkt daar niet meer sinds de versies van 07-10: met een
+`X-Forwarded-For` vragen ze altijd een login, ook voor een LAN-adres. Het
+kan alleen omdat de firewall hierboven hun poort voor iedereen behalve Caddy
+dicht houdt; hun API vraagt nog altijd zijn sleutel.
+
 qBittorrent draait met host-netwerk, en die regel raakt hem niet. Hij houdt
 zijn eigen login; Caddy staat op zijn whitelist, zodat je via
 `torrent.neodata.be` maar één keer inlogt. Zijn route heeft

@@ -50,6 +50,15 @@
       when: "'media' in docker_stacks_list | default([]) | map(attribute='name')"
   tags: [docker, audiobookshelf]
 
+# Na de stacks, want de containers moeten bestaan. Sonarr, Radarr en Prowlarr
+# laten de login aan Caddy over; zie roles/arr_auth voor waarom.
+- name: Arr apps leave the login to Caddy
+  hosts: docker_hosts
+  roles:
+    - role: arr_auth
+      when: "'media' in docker_stacks_list | default([]) | map(attribute='name')"
+  tags: [docker, arr_auth]
+
 # Na de stacks, want RomM leest config.yml bij het opstarten en wordt zo nodig
 # herstart. Alleen netplay staat hier; de rest van dat bestand schrijft RomM.
 - name: RomM settings

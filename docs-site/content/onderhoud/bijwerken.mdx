@@ -127,6 +127,21 @@ ssh -t rubenclaes@192.168.0.26 '/opt/homebrew/bin/brew upgrade --cask <naam>'   
 
 Waarom `-K` niet helpt: [Casks die root nodig hebben](#casks-die-root-nodig-hebben).
 
+## De containers (Renovate)
+
+Renovate kijkt elke maandag om 04:00 de images in de `containers`-repo na
+(`renovate.json`, GitHub Action). Je hoeft niet elke branch na te lopen:
+
+| Soort update | Wat er gebeurt | Jij |
+| --- | --- | --- |
+| patch, minor, digest | na 3 dagen vanzelf naar `master`, zonder PR. Semaphore rolt het om 05:30 uit, de Smoketest kijkt om 06:30 na | niets, tenzij de Smoketest rood is |
+| major van een app | een PR | release notes lezen, mergen |
+| Immich (server en ML samen) | een PR, ook voor een digest | release notes lezen, mergen |
+| major van een database (postgres, mariadb, redis) | niets, tot je hem aanvinkt in het **Dependency Dashboard** (een issue in de repo) | dump, aanvinken, mergen, restore |
+
+Zo staan er alleen PR's open die echt een beslissing vragen. Gaat een update
+mis: `git revert` van die commit in `containers`, en `stacks.yml`.
+
 ## Ansible zelf
 
 Ansible, ansible-lint en de collections draaien op drie plekken: je laptop,
@@ -174,6 +189,12 @@ en herstart een guest die het nodig heeft; pve01 en de Macs nooit.
 | `macos_brew_upgrade` | `host_vars/<mac>/main.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
 
 ## Goed om te weten
+
+### Waarom 3 dagen wachten
+
+Een kapotte release wordt meestal binnen een dag of twee teruggetrokken of
+hersteld. Een update zonder datum (een digest) wacht niet: anders bleef hij
+eeuwig hangen (`minimumReleaseAgeBehaviour: timestamp-optional`).
 
 ### Welke van de drie playbooks?
 

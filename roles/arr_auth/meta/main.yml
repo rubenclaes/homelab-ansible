@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: arr_auth
+  author: rubenclaes
+  description: >-
+    Leaves the login of Sonarr, Radarr and Prowlarr to the reverse proxy
+    (AuthenticationMethod External). Every other setting stays owned by the
+    web UI.
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+  galaxy_tags:
+    - auth
+
+dependencies: []

@@ -1,0 +1,11 @@
+---
+# Sonarr, Radarr en Prowlarr laten de login over aan de proxy: Caddy laat
+# alleen de groep `admin` door (forward-auth via Pocket ID), en DOCKER-USER
+# laat hun poorten alleen van Caddy toe.
+#
+# `DisabledForLocalAddresses` werkte tot 07-10. Sindsdien vraagt elke versie
+# een login zodra er een X-Forwarded-For meekomt, ook met een LAN-adres: een
+# veiligheidsfix, want die header kan iedereen zelf meesturen. `External` is
+# de instelling voor "de proxy regelt het"; de API vraagt nog altijd zijn sleutel.
+arr_auth_apps: [sonarr, radarr, prowlarr]
+arr_auth_data_dir: /opt/containers/data
