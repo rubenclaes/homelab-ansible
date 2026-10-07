@@ -30,7 +30,10 @@ foto's naar PBS (`docker-data-backup.timer`); die gaat mee naar R2. Bron:
 in `inventory/host_vars/pbs/main.yml`.
 
 Een mislukte back-up meldt zich via ntfy, een geslaagde niet
-([Meldingen](/homelab/diensten/ntfy/#meldingen-op-je-iphone)).
+([Meldingen](/homelab/diensten/ntfy/#meldingen-op-je-iphone)). Een back-up
+die helemaal niet draait, meldt zich ook: elke ochtend om 07:15 kijkt
+**Backup check** in [Semaphore](/semaphore/) of elke guest een PBS-back-up
+heeft van de afgelopen nacht en een kopie op de Mac mini van de afgelopen week.
 
 ## Vooraf: doe dit nu
 

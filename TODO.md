@@ -12,30 +12,12 @@ de volgende stap.
         met dezelfde `roles/adguard`-instellingen, rewrites en blocklists.
   - [ ] In UniFi als DNS 2, en in `unifi_expected_dns`.
 
-- [ ] **Een rode job in Semaphore hoor je niet.** Drift check, OpenTofu drift,
-      Smoketest, UniFi routes en Restore drill zijn controles: hun hele nut is
-      rood worden, en dat zie je alleen als je de taaklijst opent. Semaphore
-      kent geen ntfy (wel Gotify, Telegram, mail).
-  - [ ] Bij falen zelf naar ntfy sturen, zoals `unifi-watch.yml` al doet:
-        een eigen token `semaphore`, en een `rescue` die titel en host meldt.
-
-- [ ] **Een back-up die niet draait, hoor je niet.** Proxmox en PBS melden een
-      mislukte job, geen job die wegvalt (schema weg, storage offline). De
-      leeftijd van de laatste back-up staat alleen in het weekrapport.
-  - [ ] Een dagelijkse controle met dezelfde PBS-query als `report.yml`: rood
-        als een guest uit de dagelijkse job (02:30) ouder is dan 30 uur, of
-        uit de wekelijkse ouder dan 8 dagen.
-
 - [ ] **Alarmen: wat nog ontbreekt.** Alertmanager meldt sinds 05-10 aan
-      ntfy (node_exporter op elke Linux-host, SMART op pve01, tien alarmen).
+      ntfy (node_exporter op elke Linux-host, SMART op pve01, twaalf alarmen).
   - [ ] Een dead man's switch: een altijd-afgaand alarm naar een dienst buiten
         huis, die mailt als het stil wordt. Nu hoor je niets als ntfy of de
         monitoring-VM zelf plat ligt.
   - [ ] Meten wat nu ontbreekt: de sites zelf (blackbox), de certificaten.
-  - [ ] Herstart nodig: unattended-upgrades zet nieuwe kernels en libs neer,
-        maar niets herstart. Staat alleen in het weekrapport. De apt-collector
-        van `prometheus-node-exporter-collectors` (`node_reboot_required`)
-        op elke host, en een alarm na 7 dagen.
 - [ ] **De 8 TB-schijf van de Mac mini zit op 94,5%** (06-10). media01 en de
       Time Machine-back-ups delen die ruimte; de netwerk-shares hebben geen
       limiet. Een limiet per Time Machine-share, en de back-up van de oude
@@ -115,6 +97,26 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
+- [ ] **Meldingen bij een rode job, back-up check, herstart-alarm** (07-10).
+      In deze volgorde:
+  - [ ] `ansible-playbook playbooks/proxmox-oci.yml`: ntfy kent het token
+        `semaphore` (ntfy herstart even).
+  - [ ] `ansible-playbook playbooks/semaphore.yml`: token en env voor
+        `ntfy_on_failure` (Semaphore herstart).
+  - [ ] `ansible-playbook playbooks/semaphore-templates.yml`: Backup check
+        (07:15) en Update pve01 (zonder schema).
+  - [ ] `ansible-playbook playbooks/monitoring.yml`: de reboot-check op elke
+        host, en `RebootNeeded` en `UpdatesPending`.
+  - [ ] `ansible-playbook playbooks/proxmox-datacenter.yml`: `tmpdir` voor
+        de wekelijkse job. ct 108 kwam sinds september nooit op de Mac mini
+        (chown geweigerd op NFS). Zondag nakijken, of nu met de hand:
+        `vzdump 108 --storage macmini-backup --tmpdir /var/tmp` op pve01.
+  - [ ] Test: Backup check in Semaphore starten zolang 108 nog mist. Hij
+        wordt rood en je krijgt "Semaphore: backup-check.yml faalde".
+- [ ] **PBS draait een oude kernel** (7.0.14-17, 7.0.14-20 staat er sinds
+      04-10). `update.yml --limit pbs -e allow_reboot=true` op een moment
+      zonder back-up. Anders meldt `RebootNeeded` het op 11-10.
+
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in
       `host_vars/macmini/main.yml`.
@@ -185,11 +187,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Klein, wanneer het uitkomt
 
-- [ ] **pve01 zelf wordt nooit bijgewerkt op schema.** "Update guests" slaat
-      hem over (met reden: herstart onder zijn guests), en unattended-upgrades
-      neemt alleen Debian-security mee, niet de Proxmox-repo (kernel, QEMU).
-      Een maandelijkse herinnering of een template zonder schema
-      `update.yml --limit pve01`, en `pveversion` in het weekrapport.
 - [ ] **Sleutel-toestellen krijgen `tag:homelab`, net als de servers.**
       `tailscale-key.yml` (de pc van de ouders) en `roles/tailscale` delen
       één tag, dus wie later `tag:homelab` meer rechten geeft, geeft ze ook

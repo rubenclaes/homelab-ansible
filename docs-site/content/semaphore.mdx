@@ -23,6 +23,7 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | UniFi routes | dagelijks 06:15 | wijst elke route naar een toestel met een Fixed IP, en deelt UniFi de juiste DNS uit? |
 | Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
 | OpenTofu drift | dagelijks 06:45 | `plan` voor `tofu/tailscale`, `tofu/proxmox` en `tofu/pocketid`; rood als iets afwijkt van git |
+| Backup check | dagelijks 07:15 | na de back-ups van 02:00 en 02:30; rood als een guest een nacht mist, of een week op de Mac mini |
 | Docs | dagelijks 07:00 | de site volgt de repo |
 | Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
 | Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
@@ -35,10 +36,11 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Template | Doet |
 | --- | --- |
 | Baseline (dry run) | `baseline.yml --check --diff`: verandert niets |
+| Update pve01 | `update.yml --limit pve01`: pakketten op de hypervisor, zonder herstart. Als `UpdatesPending` afgaat |
 | Caddy | `caddy.yml` |
 | Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
 
-Daarmee staan alle vijftien templates in git. Maak je er een in de UI, zet hem
+Daarmee staan alle zeventien templates in git. Maak je er een in de UI, zet hem
 dan ook in `semaphore_templates_list`, anders klopt die lijst niet meer en
 geloof je hem ten onrechte. Hoe:
 [Een schema in Semaphore aanpassen](#een-schema-in-semaphore-aanpassen).
@@ -48,7 +50,9 @@ geloof je hem ten onrechte. Hoe:
 De back-ups draaien op de cron van Proxmox: zie
 [Back-ups](/backups/overzicht/#waar-de-back-ups-staan).
 
-Een job die faalt, meldt zich niet: kijk af en toe zelf in de taaklijst.
+Een job die faalt of een host niet bereikt, stuurt een melding naar
+[ntfy](/homelab/diensten/ntfy/): "Semaphore: `<playbook>` faalde", met de host
+en de taak. Een dry run (`--check`) meldt niets.
 Proxmox en PBS melden wel, via [ntfy](/homelab/diensten/ntfy/).
 
 ## Een schema in Semaphore aanpassen

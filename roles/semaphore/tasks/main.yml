@@ -110,6 +110,16 @@
     label: "{{ item.item }}"
   no_log: true
 
+- name: Give Semaphore the ntfy token
+  ansible.builtin.copy:
+    content: "{{ semaphore_ntfy_token }}\n"
+    dest: "{{ semaphore_home }}/.ntfy-token"
+    owner: "{{ semaphore_user }}"
+    group: "{{ semaphore_user }}"
+    mode: "0600"
+  no_log: true
+  when: semaphore_ntfy_url | length > 0
+
 - name: Install systemd unit
   ansible.builtin.copy:
     dest: /etc/systemd/system/semaphore.service
@@ -126,6 +136,10 @@
       Environment=PATH={{ semaphore_venv }}/bin:/usr/local/bin:/usr/bin:/bin
       Environment=npm_config_cache={{ semaphore_npm_cache }}
       Environment=SEMAPHORE_SCHEDULE_TIMEZONE={{ semaphore_schedule_timezone }}
+      {% if semaphore_ntfy_url | length > 0 %}
+      Environment=HOMELAB_NTFY_URL={{ semaphore_ntfy_url }}
+      Environment=HOMELAB_NTFY_TOKEN_FILE={{ semaphore_home }}/.ntfy-token
+      {% endif %}
       ExecStart=/usr/bin/semaphore server --config {{ semaphore_config_dir }}/config.json
       Restart=on-failure
 

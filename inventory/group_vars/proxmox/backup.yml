@@ -44,6 +44,9 @@ pve_backup_jobs:
       vmid: "101,102,103,104,106,107,108"
       mode: snapshot
       compress: zstd
+      # ct 108 staat op een basevol zonder snapshots; vzdump kopieert hem dan
+      # via een tmpdir, standaard op de NFS-share, en die weigert chown.
+      tmpdir: /var/tmp
       enabled: 1
       # {{guestname}} is a Proxmox template, not a Jinja one. Without the raw
       # block Ansible tries to resolve it and fails with an undefined variable.

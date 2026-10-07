@@ -63,6 +63,8 @@ Omdat de namen dezelfde zijn, gelden de SMART-alarmen hieronder voor allebei.
 | `HostDown` | node_exporter 5 minuten onbereikbaar | critical |
 | `DiskAlmostFull` | minder dan 10% vrij, 15 minuten lang | warning |
 | `MemoryLow` | minder dan 5% geheugen beschikbaar, 15 minuten lang | warning |
+| `RebootNeeded` | de nieuwste kernel is al 7 dagen geïnstalleerd maar draait niet | warning |
+| `UpdatesPending` | al 14 dagen updates open (alleen pve01: die krijgt ze niet op schema) | warning |
 | `ZfsPoolUnhealthy` | een pool is niet `ONLINE` | critical |
 | `SmartFailing` | `smartctl -H` zegt FAILED | critical |
 | `SsdWearing` | minder dan 20% levensduur over | warning |

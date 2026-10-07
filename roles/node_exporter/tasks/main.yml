@@ -42,3 +42,69 @@
     name: prometheus-node-exporter
     enabled: true
     state: started
+
+# Dezelfde regel als roles/baseline/tasks/reboot_check.yml (en dus het
+# weekrapport): de nieuwste kernel in /boot is niet de draaiende. Een LXC
+# heeft geen kernels in /boot en meldt altijd 0. ctime en geen mtime: dpkg
+# zet de mtime op de bouwdatum van het pakket.
+- name: Install the reboot check
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    content: "{{ item.content }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0644') }}"
+  loop:
+    - dest: /usr/local/sbin/homelab-reboot-check
+      mode: "0755"
+      content: |
+        #!/bin/sh
+        set -eu
+        f=/var/lib/prometheus/node-exporter/reboot.prom
+        k=$(ls -1 /boot/vmlinuz-* 2>/dev/null | sort -V | tail -n1 || true)
+        n=0
+        s=0
+        if [ -n "$k" ] && [ "${k#/boot/vmlinuz-}" != "$(uname -r)" ]; then
+          n=1
+          s=$(stat -c %Z "$k")
+        fi
+        cat > "$f.tmp" <<EOF
+        # HELP homelab_reboot_needed 1 if the newest kernel in /boot is not the running one.
+        # TYPE homelab_reboot_needed gauge
+        homelab_reboot_needed $n
+        # HELP homelab_reboot_needed_since_seconds When that newest kernel was installed (0 if no reboot is needed).
+        # TYPE homelab_reboot_needed_since_seconds gauge
+        homelab_reboot_needed_since_seconds $s
+        EOF
+        mv "$f.tmp" "$f"
+    - dest: /etc/systemd/system/homelab-reboot-check.service
+      content: |
+        [Unit]
+        Description=Write whether a reboot is needed, for node_exporter
+        ConditionPathIsDirectory=/var/lib/prometheus/node-exporter
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/homelab-reboot-check
+    - dest: /etc/systemd/system/homelab-reboot-check.timer
+      content: |
+        [Unit]
+        Description=Check hourly whether a reboot is needed
+
+        [Timer]
+        OnBootSec=2min
+        OnUnitActiveSec=1h
+
+        [Install]
+        WantedBy=timers.target
+  loop_control:
+    label: "{{ item.dest }}"
+  register: node_exporter_reboot_units
+
+- name: Enable the reboot check
+  when: not (ansible_check_mode and node_exporter_reboot_units is changed)
+  ansible.builtin.systemd_service:
+    name: homelab-reboot-check.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ node_exporter_reboot_units is changed }}"

@@ -76,16 +76,17 @@ pve_oci_lxcs:
       NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
       NTFY_AUTH_USERS: "ruben:{{ vault_ntfy_ruben_hash }}:admin,proxmox:{{ vault_ntfy_proxmox_hash }}:user"
       NTFY_AUTH_ACCESS: "proxmox:homelab:wo"
-      # Zes tokens voor hetzelfde schrijf-account: Proxmox, PBS,
-      # unifi-watch.yml, de Vaultwarden-back-up, NeoGate en Alertmanager. Zo
-      # trek je het ene in zonder de andere.
+      # Zeven tokens voor hetzelfde schrijf-account: Proxmox, PBS,
+      # unifi-watch.yml, de Vaultwarden-back-up, NeoGate, Alertmanager en
+      # Semaphore. Zo trek je het ene in zonder de andere.
       NTFY_AUTH_TOKENS: >-
         {{ ['proxmox:' ~ vault_ntfy_proxmox_token ~ ':proxmox',
             'proxmox:' ~ vault_ntfy_pbs_token ~ ':pbs',
             'proxmox:' ~ vault_ntfy_unifi_token ~ ':unifi',
             'proxmox:' ~ vault_ntfy_vaultwarden_token ~ ':vaultwarden',
             'proxmox:' ~ vault_ntfy_neogate_token ~ ':neogate',
-            'proxmox:' ~ vault_ntfy_alertmanager_token ~ ':alertmanager'] | join(',') }}
+            'proxmox:' ~ vault_ntfy_alertmanager_token ~ ':alertmanager',
+            'proxmox:' ~ vault_ntfy_semaphore_token ~ ':semaphore'] | join(',') }}
 
   # LANCache voor LAN parties: houdt game-downloads bij, zodat de tweede
   # download uit huis komt. Staat uit; playbooks/lancache.yml zet hem aan en

@@ -17,6 +17,11 @@
 semaphore_api_user: "{{ vault_semaphore_api_user }}"
 semaphore_api_password: "{{ vault_semaphore_api_password }}"
 
+# Een rode job wordt een melding (plugins/callback/ntfy_on_failure.py). Het
+# IP en niet ntfy.neodata.be: een melding mag niet van Caddy afhangen.
+semaphore_ntfy_url: http://192.168.0.32/homelab
+semaphore_ntfy_token: "{{ vault_ntfy_semaphore_token }}"
+
 # --- Templates ------------------------------------------------------------
 # Welk playbook wanneer draait. Dit was tot nu toe klikwerk in de UI, en dus
 # het enige deel van deze estate dat nergens opgeschreven stond.
@@ -71,6 +76,12 @@ semaphore_templates_list:
     description: "Zou `bin/tofu <systeem> apply` iets veranderen? Faalt als het antwoord niet 'niets' is."
     arguments: ["-e", "tofu_drift_fail=true"]
     schedule: "45 6 * * *"
+
+  # Na de nachtelijke back-ups (02:00 en 02:30), en na Docs.
+  - name: "Backup check"
+    playbook: playbooks/backup-check.yml
+    description: "Is elke back-up recent? Rood als een guest of host een nacht (of een week, Mac mini) mist."
+    schedule: "15 7 * * *"
 
   # Vraagt elke route bij Caddy op, en elke <host>.home.arpa bij AdGuard.
   # Dit is precies het soort ding dat je niet wil ontdekken op het moment dat
@@ -130,6 +141,14 @@ semaphore_templates_list:
     description: "Pakketupdates op de guests. Niet op Semaphore zelf - zie de limit."
     arguments: ["--limit", "guests:!semaphore"]
     schedule: "0 4 * * 0"
+
+  # Zonder schema: pve01 bijwerken is een keuze, geen routine. Herstart niet;
+  # daarvoor met de hand -e allow_reboot=true -e allow_hypervisor_reboot=true.
+  # Het alarm UpdatesPending zegt wanneer het tijd is.
+  - name: "Update pve01"
+    playbook: playbooks/update.yml
+    description: "Pakketupdates op de hypervisor, zonder herstart."
+    arguments: ["--limit", "pve01"]
 
   # --- De losse playbooks, zonder schema tenzij vermeld ------------------
   # Overgenomen uit de UI op 23-09, precies zoals ze daar stonden: allemaal

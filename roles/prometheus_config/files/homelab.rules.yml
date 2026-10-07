@@ -33,6 +33,29 @@ groups:
           summary: "{{ $labels.instance }}: bijna geen geheugen meer"
           description: "Nog {{ $value | humanizePercentage }} beschikbaar."
 
+      # unattended-upgrades zet kernels neer, maar niets herstart. Uit
+      # roles/node_exporter (homelab-reboot-check).
+      - alert: RebootNeeded
+        expr: |
+          homelab_reboot_needed == 1
+          and time() - homelab_reboot_needed_since_seconds > 7 * 86400
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }} draait al een week een oude kernel"
+          description: >-
+            ansible-playbook playbooks/update.yml --limit {{ $labels.instance }} -e allow_reboot=true
+            (pve01: ook -e allow_hypervisor_reboot=true).
+
+      # Alleen waar de apt-collector draait (pve01): die krijgt geen updates
+      # op schema, zie de template "Update pve01" in Semaphore.
+      - alert: UpdatesPending
+        expr: sum by (instance) (apt_upgrades_pending) > 0
+        for: 14d
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: al twee weken {{ $value }} updates open"
+          description: "Semaphore → Update pve01, of ansible-playbook playbooks/update.yml --limit {{ $labels.instance }}."
+
   - name: disks
     rules:
       - alert: ZfsPoolUnhealthy

@@ -76,6 +76,10 @@ semaphore_vault_ids:
   - infra
   - stacks
 
+# Where plugins/callback/ntfy_on_failure.py reports a failed job. Empty: no
+# reports. The token comes from semaphore_ntfy_token (host_vars).
+semaphore_ntfy_url: ""
+
 # Hosts whose SSH host key Semaphore must trust before it can reach them.
 # Each one needs gathered facts (ssh_host_key_ed25519_public); the first play
 # in playbooks/semaphore.yml collects them. See the assert in tasks/main.yml.
