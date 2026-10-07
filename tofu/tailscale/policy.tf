@@ -5,26 +5,20 @@
 # Commentaar telt mee: de provider bewaart HuJSON zoals het is, dus een
 # gewijzigd commentaar is ook een (onschuldige) wijziging in het plan.
 locals {
-  policy = file("${path.module}/../../files/tailscale/policy.hujson")
-
-  # De policy noemt deze nodes bij hun 100.x-adres. Meldt er een zich opnieuw
-  # aan, dan krijgt hij een ander adres en wijzen de regels in het niets.
-  policy_pinned_nodes = {
-    "mac-mini" = data.tailscale_device.mac_mini
-    "adguard"  = data.tailscale_device.adguard
+  # De policy en dns.tf noemen deze nodes bij hun 100.x-adres. Dat komt van
+  # het toestel zelf en staat nergens met de hand: meldt er een zich opnieuw
+  # aan, dan toont het volgende plan (en dus tofu-drift.yml) het nieuwe adres
+  # in de policy en de DNS, en zet apply het recht.
+  tailnet_ipv4 = {
+    for name, d in {
+      mac_mini = data.tailscale_device.mac_mini
+      adguard  = data.tailscale_device.adguard
+    } : name => one([for a in d.addresses : a if strcontains(a, ".")])
   }
+
+  policy = templatefile("${path.module}/../../files/tailscale/policy.hujson", local.tailnet_ipv4)
 }
 
 resource "tailscale_acl" "this" {
   acl = local.policy
-
-  lifecycle {
-    precondition {
-      condition = alltrue([
-        for d in values(local.policy_pinned_nodes) :
-        strcontains(local.policy, one([for a in d.addresses : a if strcontains(a, ".")]))
-      ])
-      error_message = "Een node heeft een ander 100.x-adres dan in policy.hujson staat: ${join(", ", [for n, d in local.policy_pinned_nodes : "${n} = ${one([for a in d.addresses : a if strcontains(a, ".")])}"])}. Pas policy.hujson (hosts en tests), dns.tf en de docs aan."
-    }
-  }
 }

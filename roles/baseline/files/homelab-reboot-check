@@ -1,0 +1,37 @@
+#!/bin/sh
+# Moet deze host herstarten? Ja als de nieuwste kernel in /boot niet de
+# draaiende is. Een LXC heeft geen kernels in /boot, en dus nooit.
+#
+#   homelab-reboot-check            drukt "<0|1> <sinds> <nieuwste kernel>" af
+#   homelab-reboot-check <bestand>  schrijft het ook als .prom voor node_exporter
+#
+# De enige plek waar die regel staat. roles/baseline draait dit met
+# ansible.builtin.script (update.yml, het weekrapport); roles/node_exporter
+# zet het met een timer neer voor het alarm RebootNeeded. Zo zeggen ze nooit
+# iets anders over dezelfde host.
+#
+# ctime en geen mtime: dpkg zet de mtime op de bouwdatum van het pakket.
+set -eu
+
+k=$(ls -1 /boot/vmlinuz-* 2>/dev/null | sort -V | tail -n1 || true)
+v=${k#/boot/vmlinuz-}
+n=0
+s=0
+if [ -n "$k" ] && [ "$v" != "$(uname -r)" ]; then
+	n=1
+	s=$(stat -c %Z "$k")
+fi
+
+echo "$n $s ${v:--}"
+
+[ $# -eq 0 ] && exit 0
+
+cat > "$1.tmp" <<EOF
+# HELP homelab_reboot_needed 1 if the newest kernel in /boot is not the running one.
+# TYPE homelab_reboot_needed gauge
+homelab_reboot_needed $n
+# HELP homelab_reboot_needed_since_seconds When that newest kernel was installed (0 if no reboot is needed).
+# TYPE homelab_reboot_needed_since_seconds gauge
+homelab_reboot_needed_since_seconds $s
+EOF
+mv "$1.tmp" "$1"

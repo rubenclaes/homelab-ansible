@@ -64,14 +64,15 @@ Omdat de namen dezelfde zijn, gelden de SMART-alarmen hieronder voor allebei.
 | `DiskAlmostFull` | minder dan 10% vrij, 15 minuten lang | warning |
 | `MemoryLow` | minder dan 5% geheugen beschikbaar, 15 minuten lang | warning |
 | `RebootNeeded` | de nieuwste kernel is al 7 dagen geïnstalleerd maar draait niet | warning |
-| `UpdatesPending` | al 14 dagen updates open (alleen pve01: die krijgt ze niet op schema) | warning |
+| `RebootCheckStale` | de reboot-check schrijft al 3 uur niets, of nog nooit (Linux-hosts) | warning |
+| `UpdatesPending` | twee weken lang nooit nul updates open (alleen pve01: die krijgt ze niet op schema) | warning |
 | `ZfsPoolUnhealthy` | een pool is niet `ONLINE` | critical |
 | `SmartFailing` | `smartctl -H` zegt FAILED | critical |
 | `SsdWearing` | minder dan 20% levensduur over | warning |
 | `SmartCollectorStale` | de SMART-gegevens zijn ouder dan een uur | warning |
 | `TailscaleRouteNotApproved` | een node biedt een route aan die niet goedgekeurd is (ct 108 na een herbouw), 10 minuten lang | critical |
 | `TailscaleUnhealthy` | `tailscale status` toont een waarschuwing, 30 minuten lang | warning |
-| `TailscaleMetricsStale` | de Tailscale-metrics zijn ouder dan 10 minuten | warning |
+| `TailscaleMetricsStale` | de Tailscale-metrics zijn ouder dan 10 minuten, of er nooit geweest (hosts in de groep `tailnet`) | warning |
 
 Ze staan in `roles/prometheus_config/files/homelab.rules.yml`. Elk alarm wordt
 een melding op je telefoon, en een tweede als het opgelost is. Zolang het niet
@@ -115,7 +116,26 @@ docker exec monitoring-alertmanager amtool --alertmanager.url=http://localhost:9
 ### Een alarm op een metric die er niet is, gaat nooit af
 
 Valt de SMART-timer stil, dan verdwijnen de metrics, en `SmartFailing` blijft
-dan voor altijd stil. Daarom bestaat `SmartCollectorStale`.
+dan voor altijd stil. Daarom bestaat `SmartCollectorStale`, en om dezelfde
+reden `RebootCheckStale` en `TailscaleMetricsStale`.
+
+Die laatste twee kijken ook of het bestand er óóit was: een timer die vanaf
+dag één faalt, laat geen oud bestand achter om op te alarmeren. Prometheus
+weet welke hosts het moeten hebben: elke Linux-host de reboot-check, en de
+hosts uit de groep `tailnet` krijgen het label `tailnet="true"` mee.
+
+### Waarom UpdatesPending niet `for: 14d` gebruikt
+
+Die teller begint opnieuw na elke herstart van Prometheus of elk gat in de
+reeks, en dan gaat het alarm nooit af. Het kijkt daarom terug: twee weken lang
+nooit nul. Prometheus moet daarvoor minstens 14 dagen bewaren (de standaard
+is 15).
+
+### Eén regel voor "herstart nodig"
+
+`RebootNeeded`, `update.yml` en het weekrapport gebruiken hetzelfde script,
+`roles/baseline/files/homelab-reboot-check`. Ze kunnen dus niet van mening
+verschillen over dezelfde host.
 
 ### Wat dit níét ziet
 

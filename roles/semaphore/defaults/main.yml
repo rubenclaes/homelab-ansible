@@ -39,6 +39,11 @@ semaphore_collections_path: /usr/share/ansible/collections
 # Ansible virtualenv - and so docs.yml stays portable to a workstation.
 semaphore_npm_cache: "{{ semaphore_home }}/.npm"
 
+# Hetzelfde voor OpenTofu: zonder cache haalt elke run van tofu-drift.yml alle
+# providers opnieuw uit de registry (tientallen MB), en faalt hij als die even
+# onbereikbaar is. tofu maakt de map niet zelf, dus de role doet dat.
+semaphore_tofu_plugin_cache: "{{ semaphore_home }}/.tofu-plugin-cache"
+
 # De tijdzone waarin Semaphore zijn cron-schema's leest. Zonder deze regel is
 # dat UTC: de Go-code doet `time.LoadLocation(Config.Schedule.Timezone)` en de
 # default van dat veld is "UTC", ongeacht de tijdzone van de container zelf.

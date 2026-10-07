@@ -14,6 +14,12 @@
 // iedereen die je via NeoGate op de tailnet zet, dus ook pve01, Proxmox, SSH en
 // de Mac mini. Nu mag jij alles, en de anderen alleen wat ze nodig hebben: de
 // diensten, die allemaal via Caddy lopen, en DNS om hun namen op te lossen.
+//
+// De Mac mini en adguard staan hieronder als plaatshouder, niet als adres.
+// OpenTofu vult hun 100.x-adres in uit de toestellen zelf
+// (tofu/tailscale/policy.tf): meldt een van beide zich opnieuw aan, dan volgt
+// de policy bij de volgende apply vanzelf. Daarom is dit bestand op zichzelf
+// geen geldige HuJSON; plak het niet zo in de console.
 {
 	"tagOwners": {
 		"tag:ci":      [],
@@ -24,7 +30,7 @@
 	// Namen voor adressen, zodat de regels leesbaar blijven.
 	"hosts": {
 		"caddy":    "192.168.0.25",
-		"mac-mini": "100.74.124.12",
+		"mac-mini": "${mac_mini}",
 	},
 
 	// Een poort zonder protocol ("443") is TCP én UDP: UDP 443 is HTTP/3 bij Caddy.
@@ -71,23 +77,23 @@
 	"tests": [
 		{
 			"src":  "tag:work",
-			"deny": ["192.168.0.10:8006", "192.168.0.10:22", "100.84.46.18:53"],
+			"deny": ["192.168.0.10:8006", "192.168.0.10:22", "${adguard}:53"],
 		},
 		{
 			"src":    "rubes.claes@gmail.com",
-			"accept": ["192.168.0.10:8006", "192.168.0.25:443", "100.84.46.18:53", "tag:work:22"],
+			"accept": ["192.168.0.10:8006", "192.168.0.25:443", "${adguard}:53", "tag:work:22"],
 		},
 		{
 			"src":    "maarten.claes95@gmail.com",
-			"accept": ["100.74.124.12:32400", "192.168.0.25:443", "100.84.46.18:53"],
+			"accept": ["${mac_mini}:32400", "192.168.0.25:443", "${adguard}:53"],
 			// SSH op Caddy, de UniFi-gateway, de AdGuard-UI op het LAN, SSH op de servers.
-			"deny":   ["100.74.124.12:22", "192.168.0.10:8006", "192.168.0.25:22", "192.168.0.1:443", "192.168.0.29:80", "tag:homelab:22"],
+			"deny":   ["${mac_mini}:22", "192.168.0.10:8006", "192.168.0.25:22", "192.168.0.1:443", "192.168.0.29:80", "tag:homelab:22"],
 		},
 		// ct 108 en de sleutel-toestellen: DNS, en verder niets.
 		{
 			"src":    "tag:homelab",
-			"accept": ["100.84.46.18:53"],
-			"deny":   ["192.168.0.10:8006", "192.168.0.25:443", "100.74.124.12:32400", "rubes.claes@gmail.com:22"],
+			"accept": ["${adguard}:53"],
+			"deny":   ["192.168.0.10:8006", "192.168.0.25:443", "${mac_mini}:32400", "rubes.claes@gmail.com:22"],
 		},
 	],
 }

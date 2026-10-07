@@ -34,6 +34,9 @@ Een mislukte back-up meldt zich via ntfy, een geslaagde niet
 die helemaal niet draait, meldt zich ook: elke ochtend om 07:15 kijkt
 **Backup check** in [Semaphore](/semaphore/) of elke guest een PBS-back-up
 heeft van de afgelopen nacht en een kopie op de Mac mini van de afgelopen week.
+Niet meegeteld: wat in `exclude` van de job staat, een
+[sandbox](/proxmox/host/) (die is na een dag weg), en een guest die nog nooit
+een back-up had en minder dan een dag draait: die is ná de nacht gemaakt.
 
 ## Vooraf: doe dit nu
 

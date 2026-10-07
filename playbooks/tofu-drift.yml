@@ -23,39 +23,67 @@
   tasks:
     # chdir naar de repo-root: bin/tofu opent tofu/secrets.env met
     # ansible-vault, en ansible.cfg vindt de vault-wachtwoorden alleen vanaf daar.
+    #
+    # Een fout hier stopt de play niet: faalt de init van één systeem (registry,
+    # R2 of de provider onbereikbaar), dan wil je de drift in de andere nog
+    # zien. Fouten worden pas aan het eind een rode run.
     - name: Init
       ansible.builtin.command:
         argv: [bin/tofu, "{{ item }}", init, -input=false, -lockfile=readonly, -no-color]
         chdir: "{{ tofu_drift_root }}"
       loop: "{{ tofu_drift_systems }}"
+      register: tofu_drift_inits
       changed_when: false
+      failed_when: false
       check_mode: false
 
     # -detailed-exitcode: 0 is gelijk, 2 is drift, 1 is een fout.
     - name: Plan
+      when: item.rc == 0
       ansible.builtin.command:
-        argv: [bin/tofu, "{{ item }}", plan, -input=false, -lock=false, -detailed-exitcode, -no-color]
+        argv: [bin/tofu, "{{ item.item }}", plan, -input=false, -lock=false, -detailed-exitcode, -no-color]
         chdir: "{{ tofu_drift_root }}"
-      loop: "{{ tofu_drift_systems }}"
+      loop: "{{ tofu_drift_inits.results }}"
+      loop_control:
+        label: "{{ item.item }}"
       register: tofu_drift_plans
       changed_when: false
-      failed_when: tofu_drift_plans.rc not in [0, 2]
+      failed_when: false
       check_mode: false
 
     - name: Samenvatting
       ansible.builtin.debug:
         msg: >-
-          {{ [item.item ~ ': ' ~ ('gelijk aan git' if item.rc == 0 else 'zou wijzigen')]
+          {%- if item is skipped -%}
+          {{ [item.item.item ~ ': init faalde'] + item.item.stderr_lines[-5:] }}
+          {%- elif item.rc == 1 -%}
+          {{ [item.item.item ~ ': plan faalde'] + item.stderr_lines[-5:] }}
+          {%- else -%}
+          {{ [item.item.item ~ ': ' ~ ('gelijk aan git' if item.rc == 0 else 'zou wijzigen')]
              + (item.stdout_lines | select('search', '^\s+# \S+ (will|must) be|^Plan: ') | list) }}
+          {%- endif -%}
       loop: "{{ tofu_drift_plans.results }}"
       loop_control:
-        label: "{{ item.item }}"
+        label: "{{ item.item.item }}"
+
+    - name: Faal bij een fout
+      vars:
+        tofu_drift_broken: >-
+          {{ ((tofu_drift_plans.results | selectattr('skipped', 'defined') | list)
+              + (tofu_drift_plans.results | selectattr('rc', 'defined') | selectattr('rc', 'eq', 1) | list))
+             | map(attribute='item.item') | list }}
+      ansible.builtin.assert:
+        that: tofu_drift_broken | length == 0
+        fail_msg: >-
+          init of plan faalde voor {{ tofu_drift_broken | join(', ') }}: zie de
+          samenvatting hierboven, of draai `bin/tofu <systeem> plan` zelf.
+        quiet: true
 
     - name: Faal bij drift
       when: tofu_drift_fail | bool
       ansible.builtin.assert:
-        that: tofu_drift_plans.results | selectattr('rc', 'eq', 2) | list | length == 0
+        that: tofu_drift_plans.results | selectattr('rc', 'defined') | selectattr('rc', 'eq', 2) | list | length == 0
         fail_msg: >-
-          Drift in {{ tofu_drift_plans.results | selectattr('rc', 'eq', 2) | map(attribute='item') | join(', ') }}.
+          Drift in {{ tofu_drift_plans.results | selectattr('rc', 'defined') | selectattr('rc', 'eq', 2) | map(attribute='item.item') | join(', ') }}.
           Kijk met `bin/tofu <systeem> plan` wat er afwijkt: zet git gelijk, of draai apply.
         quiet: true

@@ -294,13 +294,12 @@
   </div>
 {% endif %}
 
-{% set backup_map = report_backups.json.data | items2dict(key_name='backup-id', value_name='last-backup') %}
   <div class="card">
     <strong>Backups (PBS, datastore store1)</strong>
     <table>
       <tr><th>ID</th><th>Guest</th><th>Type</th><th>Last backup</th><th>Age</th></tr>
 {% for g in report_guests.proxmox_vms | sort(attribute='vmid') %}
-{% set last = backup_map[g.vmid | string] | default(none) %}
+{% set last = pbs_last_backup[('vm' if g.type == 'qemu' else 'ct') ~ '/' ~ g.vmid] | default(none) %}
       <tr>
         <td>{{ g.vmid }}</td>
         <td><strong>{{ g.name }}</strong></td>
@@ -312,7 +311,7 @@
 {% else %}
 {% set age_h = ((now().timestamp() - last) / 3600) | round(0) | int %}
         <td>{{ '%Y-%m-%d %H:%M' | strftime(last) }}</td>
-        <td class="{{ 'bad' if age_h > 48 else 'warn' if age_h > 26 else 'ok' }}">{{ age_h }} h</td>
+        <td class="{{ 'bad' if age_h > 48 else 'warn' if age_h > backup_daily_max_hours else 'ok' }}">{{ age_h }} h</td>
 {% endif %}
       </tr>
 {% endfor %}
@@ -326,8 +325,9 @@
    ruimte, en maken de lijst na een half jaar onleesbaar - je weet dan niet
    meer of 109 er hoorde te zijn. Op 22-09 stonden er twee.
    --------------------------------------------------------------------------- #}
-{% set live_vmids = report_guests.proxmox_vms | map(attribute='vmid') | map('string') | list %}
-{% set orphans = backup_map.keys() | reject('in', live_vmids) | list %}
+{% set live_groups = report_guests.proxmox_vms | map(attribute='vmid') | map('string') | list %}
+{% set orphans = pbs_last_backup.keys() | reject('match', 'host/')
+                 | reject('regex', '^(vm|ct)/(' ~ live_groups | join('|') ~ ')$') | list %}
 {% if orphans %}
   <div class="card">
     <strong>Back-ups zonder guest</strong>
@@ -337,7 +337,7 @@
 {% for o in orphans | sort %}
       <tr>
         <td class="warn"><strong>{{ o }}</strong></td>
-        <td>{{ '%Y-%m-%d %H:%M' | strftime(backup_map[o]) }}</td>
+        <td>{{ '%Y-%m-%d %H:%M' | strftime(pbs_last_backup[o]) }}</td>
         <td>weghalen in de PBS-UI, of zie de netwerk-runbook</td>
       </tr>
 {% endfor %}

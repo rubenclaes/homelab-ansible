@@ -25,7 +25,9 @@ scrape_configs:
   # `instance` is de inventory-naam, niet IP:poort: zo staat er "pve01" in een
   # melding, en niet 192.168.0.10:9100. `kind` komt uit de inventory-groepen:
   # host, vm, lxc of mac. Het dashboard laat er de kleine containers mee weg
-  # uit de grafieken.
+  # uit de grafieken. `tailnet` staat op de hosts uit de inventory-groep
+  # tailnet: daar hoort een tailscaled.prom te zijn, en zonder dat label kan
+  # een alarm niet zien dat hij ontbreekt.
   - job_name: node
     static_configs:
 {% for host in (groups[prometheus_config_node_group] + prometheus_config_node_extra_hosts) | sort %}
@@ -35,5 +37,5 @@ scrape_configs:
           else 'mac' if host in groups.get('macs', [])
           else 'other' %}
       - targets: ['{{ hostvars[host].ansible_host }}:{{ prometheus_config_node_port }}']
-        labels: { instance: {{ host }}, kind: {{ kind }} }
+        labels: { instance: {{ host }}, kind: {{ kind }}{{ ', tailnet: "true"' if host in groups.get('tailnet', []) else '' }} }
 {% endfor %}

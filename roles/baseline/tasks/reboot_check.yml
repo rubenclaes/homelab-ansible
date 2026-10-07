@@ -1,18 +1,19 @@
 ---
-- name: Find newest installed kernel
-  ansible.builtin.shell: set -o pipefail && ls -1 /boot/vmlinuz-* | sort -V | tail -n1 | sed 's|/boot/vmlinuz-||'
-  args:
-    executable: /bin/bash
-  register: baseline_newest_kernel
+# De regel staat in files/homelab-reboot-check, en roles/node_exporter zet
+# hetzelfde script neer voor het alarm RebootNeeded. Hier draait het via
+# `script`: dat zet niets op de host, want report.yml leest alleen.
+- name: Check whether the newest kernel is running
+  ansible.builtin.script: homelab-reboot-check
+  register: baseline_reboot_check
   changed_when: false
   check_mode: false
-  when: ansible_facts['virtualization_type'] != 'lxc'
 
 - name: Decide whether a reboot is needed
   ansible.builtin.set_fact:
-    baseline_reboot_needed: "{{ baseline_newest_kernel.stdout | default(ansible_facts['kernel']) != ansible_facts['kernel'] }}"
+    baseline_reboot_needed: "{{ baseline_reboot_check.stdout.split()[0] == '1' }}"
+    baseline_newest_kernel: "{{ baseline_reboot_check.stdout.split()[2] }}"
 
 - name: Report pending reboot
   ansible.builtin.debug:
-    msg: "REBOOT NEEDED: running {{ ansible_facts['kernel'] }}, newest installed is {{ baseline_newest_kernel.stdout }}"
+    msg: "REBOOT NEEDED: running {{ ansible_facts['kernel'] }}, newest installed is {{ baseline_newest_kernel }}"
   when: baseline_reboot_needed | bool

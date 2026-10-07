@@ -65,21 +65,27 @@ de volgende stap.
 ## Git is de bron — wat nog buiten git leeft
 
 Regel: git beslist, de rest volgt. **OpenTofu** voor wat er *bestaat*
-(`tofu/tailscale/`, `tofu/proxmox/`), **Ansible** voor wat er *in* een
-machine draait, **met de hand maar beschreven** voor wat alleen in een app
-kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
+(`tofu/tailscale/`, `tofu/proxmox/`, `tofu/pocketid/`), **Ansible** voor wat
+er *in* een machine draait, **met de hand maar beschreven** voor wat alleen in
+een app kan (Plex, de Semaphore-UI, Full Disk Access op de Mac). Wijkt iets
+af, dan wordt Drift check of OpenTofu drift de volgende ochtend rood.
 
 - [ ] **Cloudflare in OpenTofu** (`tofu/cloudflare/`, officiële provider
       `cloudflare/cloudflare`). Nu staat alles met de hand in de console,
       ook de mail (MX, SPF) van `neodata.be`: één klik legt die stil, en
       niemand weet dan wat er stond.
-  - [ ] Erin: de DNS-records van `neodata.be` en de R2-bucket van PBS, met
-        zijn opruimregels. Bestaande dingen importeren, niet opnieuw maken.
-  - [ ] Bewust niet: de state-bucket `homelab-tofu-state` (OpenTofu kan zijn
-        eigen fundament niet beheren) en de API-tokens (dan moet OpenTofu
-        een sleutel hebben die alles in het account mag).
-  - [ ] Een token voor OpenTofu met alleen DNS-bewerken op `neodata.be` en
-        R2-bewerken, in `tofu/secrets.env`.
+  - [ ] Eerst (jij): een API-token in Cloudflare met alleen *Zone → DNS →
+        Edit* op `neodata.be` en *Account → Workers R2 Storage → Edit*, als
+        `CLOUDFLARE_API_TOKEN` in `tofu/secrets.env`
+        (`ansible-vault edit tofu/secrets.env`).
+  - [ ] Dan: de DNS-records van `neodata.be` en de R2-bucket van PBS, met
+        zijn opruimregels. Bestaande dingen importeren, niet opnieuw maken:
+        de eerste `plan` moet leeg zijn.
+  - [ ] Erbij in `tofu-drift.yml`, zodat ook Cloudflare elke ochtend
+        nagekeken wordt.
+  - Bewust niet: de state-bucket `homelab-tofu-state` (OpenTofu kan zijn
+    eigen fundament niet beheren) en de API-tokens (dan moet OpenTofu een
+    sleutel hebben die alles in het account mag).
   - Bekeken en afgewezen op 25-09: UniFi (alleen community-providers 0.x,
     UniFi werkt zichzelf bij, een fout legt het hele huis plat), de opslag en
     back-upjobs van Proxmox (de Ansible-rol stuurt al bij; meldingen kent de
@@ -89,12 +95,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
-
-- [ ] **Fixes van 07-10 committen en pushen.** Semaphore draait wat op GitHub
-      staat: tot dan blijft Drift check rood op de Mac mini.
-  - [ ] `ansible-playbook playbooks/adguard.yml`: de update-knop in de web-UI
-        verdwijnt (`--no-check-update`); AdGuard herstart een seconde. Een
-        nieuwe versie zet je voortaan in `adguard_version` + checksum.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in

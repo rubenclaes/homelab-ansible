@@ -1,0 +1,33 @@
+---
+# De laatste back-up per groep in PBS, als pbs_last_backup:
+#
+#   {'ct/101': 1759800000, 'vm/102': ..., 'host/pve01': ...}
+#
+# Gedeeld door backup-check.yml en report.yml, zodat een andere token,
+# datastore of drempel maar op één plek verandert. Op type/id en niet alleen
+# id: een host-back-up (pbs_client) heeft geen vmid, en zou anders als
+# "back-up zonder guest" in het rapport staan.
+- name: List the backup groups in PBS
+  ansible.builtin.uri:
+    url: >-
+      https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/{{ report_pbs_datastore }}/groups
+    headers:
+      Authorization: "PBSAPIToken={{ report_pbs_token_id }}:{{ hostvars['pbs'].report_pbs_token }}"
+    validate_certs: false
+    return_content: true
+  register: pbs_groups
+  delegate_to: localhost
+  become: false
+  no_log: true
+  # Leest alleen, en wie dit gebruikt heeft het resultaat nodig: zonder dit
+  # slaat de taak over onder --check.
+  check_mode: false
+
+- name: Index the backups by group
+  ansible.builtin.set_fact:
+    pbs_last_backup: >-
+      {{ dict(pbs_groups.json.data
+                | map(attribute='backup-type')
+                | zip(pbs_groups.json.data | map(attribute='backup-id'))
+                | map('join', '/')
+                | zip(pbs_groups.json.data | map(attribute='last-backup'))) }}

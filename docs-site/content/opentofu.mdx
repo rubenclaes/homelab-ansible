@@ -140,13 +140,19 @@ de tags van ct 108 en adguard, de sleutel van de Mac mini die niet verloopt
 (`devices.tf`) en de instellingen van de tailnet zelf (`settings.tf`) staan zo
 in `tofu/tailscale/`. Zelfde stappen.
 
-De policy noemt de Mac mini en adguard bij hun `100.x`-adres. Meldt een van
-beide zich opnieuw aan, dan krijgt hij een ander adres en weigert `plan` met
-het nieuwe: pas dan `policy.hujson`, `dns.tf` en deze docs aan.
+De policy en de DNS noemen de Mac mini en adguard bij hun `100.x`-adres, maar
+dat adres staat nergens met de hand: in `policy.hujson` staan `${mac_mini}` en
+`${adguard}`, en OpenTofu vult ze in uit de toestellen zelf. Meldt een van
+beide zich opnieuw aan, dan toont het volgende `plan` het nieuwe adres, en zet
+`apply` het recht. Daarom kan je `policy.hujson` niet zo in de console
+plakken.
 
 Elke ochtend draait Semaphore `plan` voor elk systeem
 ([OpenTofu drift](/semaphore/)): een wijziging in een console die niet in git
-staat, zie je dan als rode job.
+staat, zie je dan als rode job. Faalt één systeem (registry, R2 of de provider
+onbereikbaar), dan zie je de andere toch; de job wordt pas aan het eind rood.
+Semaphore bewaart de providers in `~/.tofu-plugin-cache`, anders haalt elke
+run ze opnieuw uit de registry.
 
 ## Een app via Pocket ID laten inloggen
 

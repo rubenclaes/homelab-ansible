@@ -339,20 +339,8 @@
         validate_certs: false
       register: report_guests
 
-    - name: Backup groups from PBS
-      ansible.builtin.uri:
-        url: >-
-          https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/{{ report_pbs_datastore }}/groups
-        headers:
-          Authorization: "PBSAPIToken={{ report_pbs_token_id }}:{{ hostvars['pbs'].report_pbs_token }}"
-        validate_certs: false
-        return_content: true
-      register: report_backups
-      no_log: true
-      # Leest alleen, en de template heeft het resultaat nodig: zonder dit
-      # slaat de taak over onder --check en loopt het renderen stuk op een
-      # ongedefinieerde variabele.
-      check_mode: false
+    - name: Read the last backup per group from PBS
+      ansible.builtin.include_tasks: tasks/pbs_last_backups.yml
 
     # Het adres van de caddy-host, met de naam er alleen als SNI bij. Niet de
     # naam als `host`, en dat is op 23-09 met schade geleerd: deze play draait

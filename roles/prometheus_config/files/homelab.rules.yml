@@ -46,14 +46,38 @@ groups:
             ansible-playbook playbooks/update.yml --limit {{ $labels.instance }} -e allow_reboot=true
             (pve01: ook -e allow_hypervisor_reboot=true).
 
-      # Alleen waar de apt-collector draait (pve01): die krijgt geen updates
-      # op schema, zie de template "Update pve01" in Semaphore.
-      - alert: UpdatesPending
-        expr: sum by (instance) (apt_upgrades_pending) > 0
-        for: 14d
+      # RebootNeeded kijkt naar reboot.prom. Schrijft de timer niet meer, of
+      # nooit, dan is er geen metric en gaat RebootNeeded nooit af. Elke
+      # Linux-host krijgt de timer (roles/node_exporter); de Macs niet.
+      - alert: RebootCheckStale
+        expr: |
+          time() - node_textfile_mtime_seconds{file=~".*reboot\\.prom"} > 3 * 3600
+          or (up{job="node", kind!="mac"} == 1
+              unless on (instance) node_textfile_mtime_seconds{file=~".*reboot\\.prom"})
+        for: 30m
         labels: { severity: warning }
         annotations:
-          summary: "{{ $labels.instance }}: al twee weken {{ $value }} updates open"
+          summary: "{{ $labels.instance }}: de reboot-check schrijft niets"
+          description: >-
+            systemctl status homelab-reboot-check.timer homelab-reboot-check.service.
+            Ontbreekt de timer: ansible-playbook playbooks/monitoring.yml --limit {{ $labels.instance }}.
+
+      # Alleen waar de apt-collector draait (pve01): die krijgt geen updates
+      # op schema, zie de template "Update pve01" in Semaphore.
+      #
+      # Niet `for: 14d`: die teller begint opnieuw na elke herstart van
+      # Prometheus of elk gat in de reeks, en zo gaat het alarm nooit af. Dit
+      # kijkt terug: twee weken lang nooit nul. De tweede regel wacht tot er
+      # (bijna) twee weken data is, anders gaat het af op een verse Prometheus.
+      # Prometheus moet daarvoor 14 dagen bewaren; de standaard is 15.
+      - alert: UpdatesPending
+        expr: |
+          min_over_time((sum by (instance) (apt_upgrades_pending))[14d:1h]) > 0
+          and on (instance)
+          count_over_time((sum by (instance) (apt_upgrades_pending))[14d:1h]) > 13 * 24
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: al twee weken minstens {{ $value }} updates open"
           description: "Semaphore → Update pve01, of ansible-playbook playbooks/update.yml --limit {{ $labels.instance }}."
 
   - name: disks
@@ -121,9 +145,16 @@ groups:
           summary: "{{ $labels.instance }}: Tailscale meldt een probleem"
           description: "`tailscale status` op de host toont de melding."
 
+      # Ook als het bestand er nooit was: dan zijn er geen tailscaled-metrics,
+      # en zwijgen de twee alarmen hierboven. `tailnet` zet prometheus.yml.j2
+      # op de hosts uit die inventory-groep.
       - alert: TailscaleMetricsStale
-        expr: time() - node_textfile_mtime_seconds{file=~".*tailscaled\\.prom"} > 600
+        expr: |
+          time() - node_textfile_mtime_seconds{file=~".*tailscaled\\.prom"} > 600
+          or (up{job="node", tailnet="true"} == 1
+              unless on (instance) node_textfile_mtime_seconds{file=~".*tailscaled\\.prom"})
+        for: 10m
         labels: { severity: warning }
         annotations:
-          summary: "{{ $labels.instance }}: Tailscale-metrics zijn ouder dan 10 minuten"
+          summary: "{{ $labels.instance }}: Tailscale-metrics zijn oud of ontbreken"
           description: "systemctl status tailscale-metrics.timer tailscale-metrics.service"

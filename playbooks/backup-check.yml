@@ -17,12 +17,9 @@
   hosts: pve01
   gather_facts: false
   vars:
-    # Dagelijks om 02:00 (pbs_client) en 02:30 (PBS): boven 26 uur is er een
-    # nacht gemist.
-    backup_check_daily_max_hours: 26
-    # Zondag 01:00 naar de Mac mini: een week plus twee uur.
+    # Zondag 01:00 naar de Mac mini: een week plus twee uur. De dagelijkse
+    # drempel staat in group_vars/all/report.yml, want het rapport gebruikt hem ook.
     backup_check_weekly_max_hours: 170
-    backup_check_daily_job: "{{ pve_backup_jobs | selectattr('params.storage', 'eq', 'pbs') | first }}"
     backup_check_weekly_job: "{{ pve_backup_jobs | selectattr('params.storage', 'eq', 'macmini-backup') | first }}"
     backup_check_hosts: >-
       {{ groups['all'] | map('extract', hostvars) | selectattr('pbs_client_backup_id', 'defined')
@@ -49,57 +46,52 @@
       changed_when: false
       check_mode: false
 
-    - name: List the backup groups in PBS
-      ansible.builtin.uri:
-        url: >-
-          https://{{ hostvars['pbs'].ansible_host }}:8007/api2/json/admin/datastore/{{ report_pbs_datastore }}/groups
-        headers:
-          Authorization: "PBSAPIToken={{ report_pbs_token_id }}:{{ hostvars['pbs'].report_pbs_token }}"
-        validate_certs: false
-        return_content: true
-      register: backup_check_groups
-      delegate_to: localhost
-      become: false
-      no_log: true
-      check_mode: false
+    - name: Read the last backup per group from PBS
+      ansible.builtin.include_tasks: tasks/pbs_last_backups.yml
+
+    # Eerst wat er moet zijn, elk met zijn laatste back-up en zijn drempel;
+    # dan één vergelijking voor alles.
+    #
+    # Niet verwacht: een sandbox (label `sandbox`, `hl sandbox`), die is na een
+    # dag weg; en een guest die nog nooit een back-up had en minder dan een
+    # dag draait, want die is aangemaakt na de nacht. Is hij morgen nog zonder
+    # back-up, dan meldt dit hem wel.
+    - name: Collect what should be backed up
+      ansible.builtin.set_fact:
+        backup_check_expected: >-
+          {%- set dumps = backup_check_dumps.stdout | from_json | sort(attribute='ctime')
+                          | items2dict(key_name='vmid', value_name='ctime') -%}
+          {%- set out = [] -%}
+          {%- for g in backup_check_guests.stdout | from_json | sort(attribute='vmid')
+                if not g.template | default(0) | bool
+                and g.vmid not in report_backup_exclude
+                and 'sandbox' not in (g.tags | default('')).split(';') -%}
+          {%-   set key = ('vm' if g.type == 'qemu' else 'ct') ~ '/' ~ g.vmid -%}
+          {%-   set new = key not in pbs_last_backup and g.status == 'running'
+                          and g.uptime | default(0) < backup_daily_max_hours * 3600 -%}
+          {%-   if not new -%}
+          {%-     set _ = out.append({'label': 'PBS ' ~ g.vmid ~ ' ' ~ g.name, 'last': pbs_last_backup[key] | default(0),
+                                      'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {%- for id in backup_check_hosts -%}
+          {%-   set _ = out.append({'label': 'PBS host/' ~ id, 'last': pbs_last_backup['host/' ~ id] | default(0),
+                                    'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
+          {%- endfor -%}
+          {%- for vmid in (backup_check_weekly_job.params.vmid | default('')).split(',') | select | map('int') -%}
+          {%-   set _ = out.append({'label': 'Mac mini ' ~ vmid, 'last': dumps[vmid] | default(0),
+                                    'max_hours': backup_check_weekly_max_hours, 'missing': 'geen dump'}) -%}
+          {%- endfor -%}
+          {{- out -}}
 
     # Een regel per back-up die te oud is of ontbreekt; leeg is goed.
     - name: Compare each backup with its schedule
       ansible.builtin.set_fact:
         backup_check_problems: >-
           {%- set now = now().timestamp() | int -%}
-          {%- set pbs = {} -%}
-          {%- for g in backup_check_groups.json.data -%}
-          {%-   set _ = pbs.update({g['backup-type'] ~ '/' ~ g['backup-id']: g['last-backup']}) -%}
-          {%- endfor -%}
-          {%- set dumps = backup_check_dumps.stdout | from_json | sort(attribute='ctime')
-                          | items2dict(key_name='vmid', value_name='ctime') -%}
-          {%- set daily_exclude = (backup_check_daily_job.params.exclude | default('')).split(',')
-                                  | select | map('int') | list -%}
-          {%- set weekly = (backup_check_weekly_job.params.vmid | default('')).split(',')
-                           | select | map('int') | list -%}
           {%- set out = [] -%}
-          {%- for g in backup_check_guests.stdout | from_json | sort(attribute='vmid')
-                if not g.template | default(0) | bool and g.vmid not in daily_exclude -%}
-          {%-   set last = pbs[('vm' if g.type == 'qemu' else 'ct') ~ '/' ~ g.vmid] | default(0) -%}
-          {%-   if now - last > backup_check_daily_max_hours * 3600 -%}
-          {%-     set _ = out.append('PBS ' ~ g.vmid ~ ' ' ~ g.name ~ ': '
-                    ~ (((now - last) // 3600) ~ ' uur oud' if last else 'geen back-up')) -%}
-          {%-   endif -%}
-          {%- endfor -%}
-          {%- for id in backup_check_hosts -%}
-          {%-   set last = pbs['host/' ~ id] | default(0) -%}
-          {%-   if now - last > backup_check_daily_max_hours * 3600 -%}
-          {%-     set _ = out.append('PBS host/' ~ id ~ ': '
-                    ~ (((now - last) // 3600) ~ ' uur oud' if last else 'geen back-up')) -%}
-          {%-   endif -%}
-          {%- endfor -%}
-          {%- for vmid in weekly -%}
-          {%-   set last = dumps[vmid] | default(0) -%}
-          {%-   if now - last > backup_check_weekly_max_hours * 3600 -%}
-          {%-     set _ = out.append('Mac mini ' ~ vmid ~ ': '
-                    ~ (((now - last) // 3600) ~ ' uur oud' if last else 'geen dump')) -%}
-          {%-   endif -%}
+          {%- for b in backup_check_expected if now - b.last > b.max_hours * 3600 -%}
+          {%-   set _ = out.append(b.label ~ ': ' ~ (((now - b.last) // 3600) ~ ' uur oud' if b.last else b.missing)) -%}
           {%- endfor -%}
           {{- out | join('\n') -}}
 
@@ -108,5 +100,5 @@
         that: backup_check_problems | length == 0
         fail_msg: "{{ backup_check_problems }}"
         success_msg: >-
-          Alles recent: PBS binnen {{ backup_check_daily_max_hours }} uur,
+          Alles recent: PBS binnen {{ backup_daily_max_hours }} uur,
           de Mac mini binnen {{ backup_check_weekly_max_hours }} uur.
