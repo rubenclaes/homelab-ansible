@@ -12,8 +12,10 @@
 # Two deliberate departures from a plain transcription:
 #   - vmid 109 was dropped from the weekly job, because that guest no longer
 #     existed. The number was later reused for ntfy, which is back in.
-#   - The orphaned PBS groups ct/109 and vm/110 are NOT touched. No role here
-#     deletes anything; remove them by hand in the PBS UI.
+#   - No role here deletes anything in PBS. Orphaned groups (a guest that is
+#     gone) are removed by hand in the PBS UI; the weekly report lists them
+#     under "Back-ups zonder guest". The old ct/109 and vm/110 are gone, and
+#     109 is now ntfy.
 #
 # On 23-09 the weekly job stopped being a transcription and became a
 # declaration. It had spent months aborting every Sunday on "can't use storage

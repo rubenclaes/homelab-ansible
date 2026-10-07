@@ -13,7 +13,8 @@ de volgende stap.
   - [ ] In UniFi als DNS 2, en in `unifi_expected_dns`.
 
 - [ ] **Alarmen: wat nog ontbreekt.** Alertmanager meldt sinds 05-10 aan
-      ntfy (node_exporter op elke Linux-host, SMART op pve01, twaalf alarmen).
+      ntfy (node_exporter op elke Linux-host, SMART op pve01 en de Mac mini,
+      dertien alarmen).
   - [ ] Home Assistant (VM 101) heeft geen node_exporter: `HostDown` ziet hem
         niet. Alleen de dagelijkse Smoketest merkt dat `haos` niet antwoordt.
 - [ ] **De 8 TB-schijf van de Mac mini zit op 94,5%** (06-10). media01 en de
