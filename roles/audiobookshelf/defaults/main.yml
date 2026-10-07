@@ -17,5 +17,7 @@ audiobookshelf_oidc_button_text: Inloggen met Pocket ID
 # Link an existing account on its username: the accounts made before Pocket
 # ID have no email address. The username in Pocket ID must match.
 audiobookshelf_oidc_match_existing_by: username
-# Keep the password login until everyone has moved over.
-audiobookshelf_auth_methods: [local, openid]
+# Alleen Pocket ID sinds 07-10: iedereen is over. Ligt Pocket ID plat, zet de
+# gewone login tijdelijk terug met
+#   ansible-playbook playbooks/stacks.yml --tags audiobookshelf -e '{"audiobookshelf_auth_methods":["local","openid"]}'
+audiobookshelf_auth_methods: [openid]

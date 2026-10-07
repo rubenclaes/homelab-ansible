@@ -23,8 +23,8 @@ Grimmory — bibliotheek voor e-books, strips en luisterboeken
 <small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
 {/* END feiten uit de inventory — geschreven door docs.yml */}
 
-Inloggen gaat via [Pocket ID](https://id.neodata.be); de gewone login staat nog
-aan tot iedereen over is. Wie erin mag:
+Inloggen gaat via [Pocket ID](https://id.neodata.be); de gewone login staat uit
+sinds iedereen over is. Wie erin mag:
 [Pocket ID → Per app](/mensen/pocket-id/#per-app).
 
 ## De login via Pocket ID instellen
@@ -77,8 +77,9 @@ Blok **OIDC Provider Configuration**:
 
 #### Login-methodes
 
-**Local Login** en **OIDC Login** allebei aan. Bewaren, en test met
-**Test connection**.
+Alleen **OIDC Login** aan, **Local Login** uit. Bewaren, en test met
+**Test connection**. Ligt Pocket ID plat: `books.neodata.be/login?local=true`
+(kijk na het uitzetten één keer of die nog werkt).
 
 </Steps>
 

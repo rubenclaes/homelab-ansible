@@ -38,8 +38,8 @@ docs. Per punt: wat, en de volgende stap.
 
 Wie waar mag, staat in [Pocket ID](docs-site/content/mensen/pocket-id.mdx).
 
-- [ ] Karen logt in bij Immich, Audiobookshelf en Grimmory; dan daar de
-      wachtwoord-login uit.
+- [ ] Grimmory: **Settings → OIDC → Local Login** uit (met de hand; Immich
+      en Audiobookshelf staan al op alleen Pocket ID).
 - [ ] Elke app die via Pocket ID werkt: wachtwoord-login uit. Eerst de
       mailadressen gelijkzetten, anders komt er een tweede account.
 - [ ] Rollen uit de groups-claim, niet met de hand per app.
