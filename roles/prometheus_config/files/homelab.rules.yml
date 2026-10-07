@@ -43,8 +43,8 @@ groups:
         annotations:
           summary: "{{ $labels.instance }} draait al een week een oude kernel"
           description: >-
-            ansible-playbook playbooks/update.yml --limit {{ $labels.instance }} -e allow_reboot=true
-            (pve01: ook -e allow_hypervisor_reboot=true).
+            ansible-playbook playbooks/update.yml --limit {{ $labels.instance }}
+            (pve01: met -e allow_hypervisor_reboot=true).
 
       # RebootNeeded kijkt naar reboot.prom. Schrijft de timer niet meer, of
       # nooit, dan is er geen metric en gaat RebootNeeded nooit af. Elke

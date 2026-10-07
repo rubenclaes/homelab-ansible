@@ -1,12 +1,12 @@
 ---
-# Gecontroleerde systeemupdate: pakketten bijwerken, en herstarten alleen als
-# je daar expliciet om vraagt.
+# Gecontroleerde systeemupdate: pakketten bijwerken, en een guest die het
+# nodig heeft herstarten. pve01 alleen als je daar expliciet om vraagt.
 #
-#   ansible-playbook playbooks/update.yml                        # alleen pakketten
-#   ansible-playbook playbooks/update.yml -e allow_reboot=true   # en herstarten
+#   ansible-playbook playbooks/update.yml                         # pakketten, en herstart wie het nodig heeft
+#   ansible-playbook playbooks/update.yml -e allow_reboot=false   # alleen pakketten
 #
 # De flags:
-#   allow_reboot             herstart guests die dat nodig hebben  (standaard false)
+#   allow_reboot             herstart guests die dat nodig hebben  (standaard true)
 #   allow_hypervisor_reboot  herstart ook pve01                    (standaard false)
 #   allow_cask_upgrade       werk Homebrew-casks op de Macs bij    (standaard false)
 #
@@ -36,7 +36,7 @@
         reboot_timeout: 900
       when:
         - baseline_reboot_needed | bool
-        - allow_reboot | default(false) | bool
+        - allow_reboot | default(true) | bool
 
 - name: Update hypervisors
   hosts: proxmox
@@ -50,18 +50,17 @@
         reboot_timeout: 900
       when:
         - baseline_reboot_needed | bool
-        - allow_reboot | default(false) | bool
+        - allow_reboot | default(true) | bool
         - allow_hypervisor_reboot | default(false) | bool
 
     - name: Warn when the hypervisor needs a reboot but is not allowed one
       ansible.builtin.debug:
         msg: >-
           {{ inventory_hostname }} moet herstarten. Draai opnieuw met
-          -e allow_reboot=true -e allow_hypervisor_reboot=true zodra de guests
-          de downtime aankunnen.
+          -e allow_hypervisor_reboot=true zodra de guests de downtime aankunnen.
       when:
         - baseline_reboot_needed | bool
-        - not (allow_reboot | default(false) | bool and allow_hypervisor_reboot | default(false) | bool)
+        - not (allow_reboot | default(true) | bool and allow_hypervisor_reboot | default(false) | bool)
 
 # De Macs zitten niet in `linux`, dus geen van de plays hierboven raakt ze
 # aan; apt is hun pakketbeheerder niet. Ze komen met opzet als laatste:

@@ -6,8 +6,9 @@ import { Steps, Callout } from 'nextra/components'
 
 # Bijwerken
 
-De guests, pve01 en de Macs bijwerken. Patchen van de guests gebeurt vanzelf,
-herstarten **nooit**: dat moment kies jij. Wat er openstaat, zie je in het
+De guests, pve01 en de Macs bijwerken. Een guest die na het patchen een
+herstart nodig heeft, herstart meteen mee. pve01 **nooit** vanzelf: dat moment
+kies jij. Wat er openstaat, zie je in het
 [Gezondheidsrapport](/onderhoud/nakijken/#gezondheidsrapport), tabblad
 **Updates**.
 
@@ -19,36 +20,20 @@ Caddy en de OCI-containers doen niet mee met `update.yml`: zie
 
 Semaphore patcht de guests elke week ("Update guests",
 [schema](/semaphore/#wat-draait-er-vanzelf-en-wanneer)), behalve `semaphore`
-zelf. Met de hand doe je het als je niet wil wachten, voor `semaphore`, of als
-een guest `REBOOT NEEDED` meldt.
-
-<Steps>
-
-#### Patch de guests
+zelf. Met de hand doe je het als je niet wil wachten, of voor `semaphore`:
 
 ```bash filename="laptop"
 ansible-playbook playbooks/update.yml --limit guests      # alle guests
 ansible-playbook playbooks/update.yml --limit semaphore   # alleen Semaphore
 ```
 
-`apt full-upgrade`, één host na de andere, zonder herstart. Semaphore patch je
-altijd vanaf je laptop ([waarom](/semaphore/#de-limits-in-de-templates)).
+`apt full-upgrade`, één host na de andere. Wie daarna een herstart nodig heeft
+(`REBOOT NEEDED` in de output), herstart meteen; de volgende host wacht tot hij
+terug is. Herstart `docker`, dan liggen alle stacks erop even plat. Liever
+niet herstarten: `-e allow_reboot=false`.
 
-#### Kijk of er een herstart nodig is
-
-Zoek in de output naar `REBOOT NEEDED`. Staat die er niet, dan ben je klaar.
-
-#### Herstart wat het nodig heeft
-
-```bash filename="laptop"
-ansible-playbook playbooks/update.yml --limit docker -e allow_reboot=true   # één guest
-ansible-playbook playbooks/update.yml --limit guests -e allow_reboot=true   # alle guests
-```
-
-Hij patcht eerst, en herstart alleen wie het nodig heeft. Herstart je
-`docker`, dan liggen alle stacks erop even plat.
-
-</Steps>
+Semaphore patch je altijd vanaf je laptop
+([waarom](/semaphore/#de-limits-in-de-templates)).
 
 Alleen de VM's (`docker`, `pbs`, `docker-grafana-stack`) melden ooit een
 herstart. Een LXC gebruikt de kernel van pve01: een nieuwe kernel voor de
@@ -73,11 +58,10 @@ Een herstart van pve01 legt **elke guest** plat, ook DNS (`adguard`) en alle
 #### Patch en herstart
 
 ```bash filename="laptop"
-ansible-playbook playbooks/update.yml --limit linux \
-  -e allow_reboot=true -e allow_hypervisor_reboot=true
+ansible-playbook playbooks/update.yml --limit linux -e allow_hypervisor_reboot=true
 ```
 
-Eerst de guests, dan pas pve01. Je hebt **beide** flags nodig.
+Eerst de guests, dan pas pve01.
 
 #### Controleer of alles terug is
 
@@ -87,7 +71,7 @@ ansible-playbook playbooks/smoketest.yml   # werkt elk adres nog, antwoordt AdGu
 
 </Steps>
 
-Zonder de flags patcht een run pve01 gewoon mee, maar herstart hij niet: je
+Zonder de flag patcht een run pve01 gewoon mee, maar herstart hij niet: je
 krijgt een melding dat hij een herstart nodig heeft.
 
 ## De Macs
@@ -179,12 +163,13 @@ ansible-playbook playbooks/semaphore.yml
 
 ## Alle flags
 
-Allemaal standaard **uit**. Zonder flags wordt er gepatcht en verder niets.
+Alleen `allow_reboot` staat standaard **aan**. Zonder flags wordt er gepatcht,
+en herstart een guest die het nodig heeft; pve01 en de Macs nooit.
 
 | Variabele | Waar | Doet |
 | --- | --- | --- |
-| `allow_reboot` | commandline | herstart guests die het nodig hebben |
-| `allow_hypervisor_reboot` | commandline | ook pve01; werkt alleen samen met `allow_reboot` |
+| `allow_reboot` | commandline | `false`: herstart ook geen guests |
+| `allow_hypervisor_reboot` | commandline | ook pve01; werkt niet met `allow_reboot=false` |
 | `allow_cask_upgrade` | commandline | ook de apps op de Macs |
 | `macos_brew_upgrade` | `host_vars/<mac>/main.yml` | `false`: deze Mac krijgt geen pakket-upgrades |
 
@@ -195,7 +180,7 @@ Allemaal standaard **uit**. Zonder flags wordt er gepatcht en verder niets.
 | Playbook | De vraag | Wat hij doet |
 | --- | --- | --- |
 | `site.yml` | staat alles er zoals beschreven? | installeert wat ontbreekt, haalt weg wat in een `*_absent`-lijst staat. Versies laat hij met rust |
-| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart alleen als je erom vraagt |
+| `update.yml` | zijn de versies actueel? | `apt full-upgrade` op Linux, `brew upgrade` op de Macs. Herstart guests die het nodig hebben, pve01 alleen als je erom vraagt |
 | `cleanup.yml` | valt er schijfruimte terug te winnen? | caches, oude images, verweesde pakketten. Rapporteert standaard alleen, zie [Opruimen](/onderhoud/opruimen/) |
 
 Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)

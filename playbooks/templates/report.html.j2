@@ -357,7 +357,7 @@
     waarvan <span class="{{ 'bad' if update_security else 'ok' }}">{{ update_security | length }} security</span>.
 {% if update_reboot %}
     <div class="note">Herstart nodig: <span class="bad">{{ update_reboot | join(', ') }}</span> -
-      <code>ansible-playbook playbooks/update.yml -e allow_reboot=true</code></div>
+      <code>ansible-playbook playbooks/update.yml</code> (pve01: <code>-e allow_hypervisor_reboot=true</code>)</div>
 {% endif %}
 {% if update_clean %}
     <div class="note">Niets open bij: {{ update_clean | join(', ') }}</div>

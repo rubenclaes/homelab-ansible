@@ -132,7 +132,8 @@ semaphore_templates_list:
 
   # De limit houdt hem van zijn eigen container af; die machine patch je met
   # de hand. Herstart Semaphore halverwege een run, dan is de job dood en weet
-  # je niet of de upgrade af is.
+  # je niet of de upgrade af is. Een andere guest die een herstart nodig heeft,
+  # herstart wel mee (allow_reboot staat standaard aan).
   #
   # Het schema stond al in de UI en staat nu hier, want dat is het hele punt
   # van dit bestand: zondag 04:00, een uur voor de converge.
@@ -143,7 +144,7 @@ semaphore_templates_list:
     schedule: "0 4 * * 0"
 
   # Zonder schema: pve01 bijwerken is een keuze, geen routine. Herstart niet;
-  # daarvoor met de hand -e allow_reboot=true -e allow_hypervisor_reboot=true.
+  # daarvoor met de hand -e allow_hypervisor_reboot=true, vanaf je laptop.
   # Het alarm UpdatesPending zegt wanneer het tijd is.
   - name: "Update pve01"
     playbook: playbooks/update.yml
