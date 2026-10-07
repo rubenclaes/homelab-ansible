@@ -73,3 +73,34 @@ groups:
             Linux: systemctl status prometheus-node-exporter-smartmon.timer (of -nvme).
             Mac: launchctl list be.neodata.smartmon, en de log in
             /opt/homebrew/var/log/smartmon.log.
+
+  # Uit `tailscale metrics write` (roles/tailscale) via de textfile-collector.
+  - name: tailscale
+    rules:
+      # ct 108 is de weg naar het LAN van buitenaf. Een route die niet
+      # goedgekeurd is, merk je pas onderweg.
+      - alert: TailscaleRouteNotApproved
+        expr: tailscaled_advertised_routes > tailscaled_approved_routes
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}: Tailscale-route niet goedgekeurd"
+          description: >-
+            De node biedt routes aan die Tailscale niet doorlaat: via Tailscale
+            kom je niet op het LAN. Herbouwd? `bin/tofu tailscale apply` keurt
+            de route goed (tofu/tailscale/devices.tf).
+
+      - alert: TailscaleUnhealthy
+        expr: tailscaled_health_messages{type="warning"} > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: Tailscale meldt een probleem"
+          description: "`tailscale status` op de host toont de melding."
+
+      - alert: TailscaleMetricsStale
+        expr: time() - node_textfile_mtime_seconds{file=~".*tailscaled\\.prom"} > 600
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: Tailscale-metrics zijn ouder dan 10 minuten"
+          description: "systemctl status tailscale-metrics.timer tailscale-metrics.service"

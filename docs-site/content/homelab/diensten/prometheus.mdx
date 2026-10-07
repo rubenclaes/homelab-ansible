@@ -67,6 +67,9 @@ Omdat de namen dezelfde zijn, gelden de SMART-alarmen hieronder voor allebei.
 | `SmartFailing` | `smartctl -H` zegt FAILED | critical |
 | `SsdWearing` | minder dan 20% levensduur over | warning |
 | `SmartCollectorStale` | de SMART-gegevens zijn ouder dan een uur | warning |
+| `TailscaleRouteNotApproved` | een node biedt een route aan die niet goedgekeurd is (ct 108 na een herbouw), 10 minuten lang | critical |
+| `TailscaleUnhealthy` | `tailscale status` toont een waarschuwing, 30 minuten lang | warning |
+| `TailscaleMetricsStale` | de Tailscale-metrics zijn ouder dan 10 minuten | warning |
 
 Ze staan in `roles/prometheus_config/files/homelab.rules.yml`. Elk alarm wordt
 een melding op je telefoon, en een tweede als het opgelost is. Zolang het niet

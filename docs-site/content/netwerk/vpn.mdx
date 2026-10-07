@@ -138,6 +138,8 @@ wie waar mag komen:
 | iedereen anders | Caddy `192.168.0.25`, poort 80 en 443 | alle diensten (`*.neodata.be`) lopen via Caddy |
 | iedereen anders | `adguard` (tag `homelab`), poort 53 | zonder DNS lost `*.neodata.be` niet op |
 | iedereen anders | de Mac mini `100.74.124.12`, poort 32400 | Plex rechtstreeks, voor de Tailscale-boxen bij de tv's |
+| getagde toestellen (`tag:homelab`: ct 108 en wat met een [sleutel](#tailscale-sleutel-voor-een-apparaat) binnenkomt) | alleen `adguard`, poort 53 | een tag is geen persoon: zonder deze regel hebben ze op de tailnet geen DNS |
+| de werk-pc (`tag:work`) | niets | hij heeft zijn eigen DNS, en je beheert hem vanaf je eigen toestellen |
 
 Zonder deze regels geldt "alles mag alles": dan kon iedereen die via NeoGate
 Tailscale kreeg ook bij pve01, Proxmox, SSH en de Mac mini. Aanpassen:

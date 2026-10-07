@@ -38,6 +38,7 @@ doet het, pas na `yes`.
       <FileTree.File name="policy.tf" />
       <FileTree.File name="dns.tf" />
       <FileTree.File name="devices.tf" />
+      <FileTree.File name="settings.tf" />
       <FileTree.File name="backend.tf" />
       <FileTree.File name="providers.tf" />
       <FileTree.File name="versions.tf" />
@@ -134,8 +135,18 @@ git add files/tailscale/policy.hujson && git commit -m 'tailscale: <wat>' && git
 
 </Steps>
 
-Ook de DNS van de tailnet (adguard als nameserver), de goedgekeurde route van
-ct 108 en de tag van adguard staan zo in `tofu/tailscale/`. Zelfde stappen.
+Ook de DNS van de tailnet (adguard als nameserver), de goedgekeurde route en
+de tags van ct 108 en adguard, de sleutel van de Mac mini die niet verloopt
+(`devices.tf`) en de instellingen van de tailnet zelf (`settings.tf`) staan zo
+in `tofu/tailscale/`. Zelfde stappen.
+
+De policy noemt de Mac mini en adguard bij hun `100.x`-adres. Meldt een van
+beide zich opnieuw aan, dan krijgt hij een ander adres en weigert `plan` met
+het nieuwe: pas dan `policy.hujson`, `dns.tf` en deze docs aan.
+
+Elke ochtend draait Semaphore `plan` voor elk systeem
+([OpenTofu drift](/semaphore/)): een wijziging in een console die niet in git
+staat, zie je dan als rode job.
 
 ## Een app via Pocket ID laten inloggen
 
@@ -216,4 +227,5 @@ zonder is de state onleesbaar.
 
 Zet in de Tailscale-console **Prevent edits in the admin console** even uit,
 pas de regels aan, en zet het daarna terug aan. Thuis: `policy.hujson`
-gelijkzetten tot `bin/tofu tailscale plan` leeg is, en committen.
+gelijkzetten tot `bin/tofu tailscale plan` leeg is, en committen. Vergeet je
+het terugzetten, dan doet de volgende `apply` het (`settings.tf`).

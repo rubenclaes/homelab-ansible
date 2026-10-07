@@ -22,6 +22,7 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
 | UniFi routes | dagelijks 06:15 | wijst elke route naar een toestel met een Fixed IP, en deelt UniFi de juiste DNS uit? |
 | Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
+| OpenTofu drift | dagelijks 06:45 | `plan` voor `tofu/tailscale`, `tofu/proxmox` en `tofu/pocketid`; rood als iets afwijkt van git |
 | Docs | dagelijks 07:00 | de site volgt de repo |
 | Cleanup (Apply) | zaterdag 03:00 | zonder deze ruimt de rapportageversie nooit iets op |
 | Update guests | zondag 04:00 | een uur vóór de converge, zodat die de nasleep opruimt |
@@ -37,7 +38,7 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Caddy | `caddy.yml` |
 | Cleanup (report) | rapporteert wat er vrij kan, verwijdert niets |
 
-Daarmee staan alle veertien templates in git. Maak je er een in de UI, zet hem
+Daarmee staan alle vijftien templates in git. Maak je er een in de UI, zet hem
 dan ook in `semaphore_templates_list`, anders klopt die lijst niet meer en
 geloof je hem ten onrechte. Hoe:
 [Een schema in Semaphore aanpassen](#een-schema-in-semaphore-aanpassen).

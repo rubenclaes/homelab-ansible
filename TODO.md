@@ -37,9 +37,6 @@ de volgende stap.
 
 - [ ] **Tailscale-regels afwerken.** De regels staan in git en OpenTofu zet ze
       (sinds 25-09).
-  - [ ] In de console "Prevent edits in the admin console" aanzetten. De docs
-        zeggen al dat het dicht is; tot dan wist de volgende `apply` een
-        wijziging in de console stil uit.
   - [ ] Test met een echt familie-account: Plex en Caddy werken, `:22` en
         Proxmox niet.
 
@@ -76,11 +73,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
       plaats van alleen toevoegen.
 - [ ] **AdGuard-versie**: nu update je in de web-UI en kopieer je de versie
       naar git. Omdraaien: versie in git, rol installeert.
-- [ ] **Tag op ct 108 (tailscale)?** Staat als mijn toestel op de tailnet,
-      zonder tag. Een tag zetten maakt de tag eigenaar: beslissen, dan in
-      `tofu/tailscale/devices.tf`.
-- [ ] **Een geplande `tofu plan` in Semaphore**, die rood wordt bij drift, zoals
-      de Drift check voor Ansible. Nu draait OpenTofu alleen op de mbp.
 - [ ] **Cloudflare in OpenTofu** (`tofu/cloudflare/`, officiële provider
       `cloudflare/cloudflare`). Nu staat alles met de hand in de console,
       ook de mail (MX, SPF) van `neodata.be`: één klik legt die stil, en
@@ -102,6 +94,17 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
+- [ ] **Tailscale na de apply van 07-10** (tags, grants, settings).
+  - [ ] Op de mbp: Tailscale werkt nog naar `pve01.home.arpa` en
+        `photos.neodata.be`.
+  - [ ] Auto-updates voor nieuwe toestellen? Zet het in de console, of geef
+        de OAuth-client `opentofu` de scope `feature_settings` en zet
+        `devices_auto_updates_on = true` in `tofu/tailscale/settings.tf`.
+- [ ] **Tailscale-metrics en alarmen.** `ansible-playbook playbooks/tailscale.yml`,
+      dan `playbooks/monitoring.yml`.
+- [ ] **OpenTofu drift in Semaphore.** `ansible-playbook playbooks/semaphore.yml`
+      (installeert `tofu`), dan `playbooks/semaphore-templates.yml`. Eerste run
+      met de hand starten en nakijken.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in

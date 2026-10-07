@@ -27,31 +27,34 @@
 		"mac-mini": "100.74.124.12",
 	},
 
-	"acls": [
+	// Een poort zonder protocol ("443") is TCP én UDP: UDP 443 is HTTP/3 bij Caddy.
+	"grants": [
 		// Jij: alles, ook het hele thuisnetwerk via de subnet-route van ct 108.
 		{
-			"action": "accept",
-			"src":    ["rubes.claes@gmail.com"],
-			"dst":    ["*:*"],
+			"src": ["rubes.claes@gmail.com"],
+			"dst": ["*"],
+			"ip":  ["*"],
 		},
 		// Iedereen op de tailnet: de diensten, en die gaan allemaal via Caddy.
 		{
-			"action": "accept",
-			"src":    ["autogroup:member"],
-			"dst":    ["caddy:80,443"],
+			"src": ["autogroup:member"],
+			"dst": ["caddy"],
+			"ip":  ["80", "443"],
 		},
-		// En DNS bij adguard, anders lost *.neodata.be niet op.
+		// En DNS bij adguard, anders lost *.neodata.be niet op. tag:homelab staat
+		// erbij voor ct 108 en wat met tailscale-key.yml binnenkomt: een getagd
+		// toestel is geen member. tag:work niet: die heeft zijn eigen DNS.
 		{
-			"action": "accept",
-			"src":    ["autogroup:member"],
-			"dst":    ["tag:homelab:53"],
+			"src": ["autogroup:member", "tag:homelab"],
+			"dst": ["tag:homelab"],
+			"ip":  ["53"],
 		},
 		// Plex rechtstreeks op de Mac mini, zonder Caddy of subnet-router.
 		// Voor de Tailscale-boxen bij de TV's van de familie.
 		{
-			"action": "accept",
-			"src":    ["autogroup:member"],
-			"dst":    ["mac-mini:32400"],
+			"src": ["autogroup:member"],
+			"dst": ["mac-mini"],
+			"ip":  ["32400"],
 		},
 	],
 
@@ -61,13 +64,6 @@
 			"src":    ["autogroup:member"],
 			"dst":    ["autogroup:self"],
 			"users":  ["autogroup:nonroot", "root"],
-		},
-	],
-
-	"nodeAttrs": [
-		{
-			"target": ["rubes.claes@gmail.com"],
-			"attr":   ["funnel"],
 		},
 	],
 
@@ -83,8 +79,15 @@
 		},
 		{
 			"src":    "maarten.claes95@gmail.com",
-			"accept": ["100.74.124.12:32400", "192.168.0.25:443"],
-			"deny":   ["100.74.124.12:22", "192.168.0.10:8006"],
+			"accept": ["100.74.124.12:32400", "192.168.0.25:443", "100.84.46.18:53"],
+			// SSH op Caddy, de UniFi-gateway, de AdGuard-UI op het LAN, SSH op de servers.
+			"deny":   ["100.74.124.12:22", "192.168.0.10:8006", "192.168.0.25:22", "192.168.0.1:443", "192.168.0.29:80", "tag:homelab:22"],
+		},
+		// ct 108 en de sleutel-toestellen: DNS, en verder niets.
+		{
+			"src":    "tag:homelab",
+			"accept": ["100.84.46.18:53"],
+			"deny":   ["192.168.0.10:8006", "192.168.0.25:443", "100.74.124.12:32400", "rubes.claes@gmail.com:22"],
 		},
 	],
 }

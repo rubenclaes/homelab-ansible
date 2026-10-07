@@ -52,3 +52,10 @@ tailscale_key_expiry_seconds: 600
 # on. A node that already holds such prefs refuses a bare `tailscale up`, so
 # what it advertised before has to be repeated here.
 tailscale_up_extra_args: []
+
+# --- Metrics ----------------------------------------------------------------
+# `tailscale metrics write` every minute into node_exporter's textfile
+# directory, so Prometheus sees whether ct 108's route is still approved
+# (alerts in roles/prometheus_config). The unit skips itself on a host
+# without node_exporter.
+tailscale_metrics_textfile_dir: /var/lib/prometheus/node-exporter

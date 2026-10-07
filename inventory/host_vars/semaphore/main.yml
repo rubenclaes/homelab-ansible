@@ -64,6 +64,14 @@ semaphore_templates_list:
     arguments: ["-e", "drift_fail=true", "-e", "drift_limit=all:!mbp:!semaphore"]
     schedule: "0 6 * * *"
 
+  # Hetzelfde voor OpenTofu: rood als Tailscale, Proxmox of Pocket ID afwijkt
+  # van git. 06:45: tussen Smoketest en Docs.
+  - name: "OpenTofu drift"
+    playbook: playbooks/tofu-drift.yml
+    description: "Zou `bin/tofu <systeem> apply` iets veranderen? Faalt als het antwoord niet 'niets' is."
+    arguments: ["-e", "tofu_drift_fail=true"]
+    schedule: "45 6 * * *"
+
   # Vraagt elke route bij Caddy op, en elke <host>.home.arpa bij AdGuard.
   # Dit is precies het soort ding dat je niet wil ontdekken op het moment dat
   # je het nodig hebt.

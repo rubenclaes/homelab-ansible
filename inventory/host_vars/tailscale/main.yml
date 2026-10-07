@@ -16,7 +16,8 @@ docs_machine_role: >-
 # aan bij de tailnet - zonder de route. Je remote toegang tot 192.168.0.0/24
 # was dan weg, en niets zou het gezegd hebben tot je het nodig had.
 #
-# Let op bij goedkeuren: een opnieuw aangemelde node biedt de route opnieuw
-# aan en die moet je in de admin console weer goedkeuren voor hij werkt.
+# Let op bij herbouwen: een opnieuw aangemelde node biedt de route opnieuw
+# aan; `bin/tofu tailscale apply` keurt hem goed (tofu/tailscale/devices.tf).
+# Tot dan gaat het alarm TailscaleRouteNotApproved af.
 tailscale_up_extra_args:
   - --advertise-routes=192.168.0.0/24

@@ -18,6 +18,10 @@ semaphore_apt_packages:
   - nodejs
   - npm
 
+# For playbooks/tofu-drift.yml. Same version as on the laptop, so the plan
+# here reads the state the laptop wrote.
+semaphore_tofu_version: "1.12.6"
+
 # Ansible itself comes from the same two files the laptop and CI install
 # from, so a scheduled run here uses exactly the versions lint passed on.
 semaphore_requirements: "{{ playbook_dir }}/../requirements.txt"

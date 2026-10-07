@@ -47,6 +47,48 @@
     enabled: true
     state: started
 
+- name: Install the metrics units
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    content: "{{ item.content }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - name: tailscale-metrics.service
+      content: |
+        [Unit]
+        Description=Write Tailscale client metrics for node_exporter
+        After=tailscaled.service
+        ConditionPathIsDirectory={{ tailscale_metrics_textfile_dir }}
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/tailscale metrics write {{ tailscale_metrics_textfile_dir }}/tailscaled.prom
+    - name: tailscale-metrics.timer
+      content: |
+        [Unit]
+        Description=Write Tailscale client metrics every minute
+
+        [Timer]
+        OnBootSec=1min
+        OnUnitActiveSec=1min
+
+        [Install]
+        WantedBy=timers.target
+  loop_control:
+    label: "{{ item.name }}"
+  register: tailscale_metrics_units
+
+# In check mode a unit that is still to be written does not exist yet.
+- name: Enable the metrics timer
+  when: not (ansible_check_mode and tailscale_metrics_units is changed)
+  ansible.builtin.systemd_service:
+    name: tailscale-metrics.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ tailscale_metrics_units is changed }}"
+
 - name: Read the tailnet backend state
   ansible.builtin.command: tailscale status --json
   register: tailscale_status

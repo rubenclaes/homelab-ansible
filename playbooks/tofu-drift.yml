@@ -1,0 +1,61 @@
+---
+# Zou `bin/tofu <systeem> apply` nu iets veranderen? Eén plan per map in tofu/.
+#
+#   ansible-playbook playbooks/tofu-drift.yml
+#   ansible-playbook playbooks/tofu-drift.yml -e tofu_drift_fail=true   # faalt bij drift
+#
+# Wat drift.yml is voor Ansible, is dit voor OpenTofu: iemand die in de
+# Proxmox-UI of de Tailscale-console iets verandert, zie je de volgende
+# ochtend, niet pas bij de volgende apply die het stil terugdraait.
+#
+# Verandert niets: init met -lockfile=readonly, plan met -lock=false (een
+# afgebroken job laat dan geen slot in R2 achter).
+#
+# In site.yml: nee, het controleert en het convergeert niet.
+
+- name: Drift in OpenTofu
+  hosts: localhost
+  gather_facts: false
+  vars:
+    tofu_drift_root: "{{ playbook_dir }}/.."
+    tofu_drift_systems: [tailscale, proxmox, pocketid]
+    tofu_drift_fail: false
+  tasks:
+    # chdir naar de repo-root: bin/tofu opent tofu/secrets.env met
+    # ansible-vault, en ansible.cfg vindt de vault-wachtwoorden alleen vanaf daar.
+    - name: Init
+      ansible.builtin.command:
+        argv: [bin/tofu, "{{ item }}", init, -input=false, -lockfile=readonly, -no-color]
+        chdir: "{{ tofu_drift_root }}"
+      loop: "{{ tofu_drift_systems }}"
+      changed_when: false
+      check_mode: false
+
+    # -detailed-exitcode: 0 is gelijk, 2 is drift, 1 is een fout.
+    - name: Plan
+      ansible.builtin.command:
+        argv: [bin/tofu, "{{ item }}", plan, -input=false, -lock=false, -detailed-exitcode, -no-color]
+        chdir: "{{ tofu_drift_root }}"
+      loop: "{{ tofu_drift_systems }}"
+      register: tofu_drift_plans
+      changed_when: false
+      failed_when: tofu_drift_plans.rc not in [0, 2]
+      check_mode: false
+
+    - name: Samenvatting
+      ansible.builtin.debug:
+        msg: >-
+          {{ [item.item ~ ': ' ~ ('gelijk aan git' if item.rc == 0 else 'zou wijzigen')]
+             + (item.stdout_lines | select('search', '^\s+# \S+ (will|must) be|^Plan: ') | list) }}
+      loop: "{{ tofu_drift_plans.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Faal bij drift
+      when: tofu_drift_fail | bool
+      ansible.builtin.assert:
+        that: tofu_drift_plans.results | selectattr('rc', 'eq', 2) | list | length == 0
+        fail_msg: >-
+          Drift in {{ tofu_drift_plans.results | selectattr('rc', 'eq', 2) | map(attribute='item') | join(', ') }}.
+          Kijk met `bin/tofu <systeem> plan` wat er afwijkt: zet git gelijk, of draai apply.
+        quiet: true

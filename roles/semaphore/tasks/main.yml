@@ -56,6 +56,10 @@
   ansible.builtin.apt:
     deb: "https://github.com/semaphoreui/semaphore/releases/download/v{{ semaphore_version }}/semaphore_{{ semaphore_version }}_linux_amd64.deb"
 
+- name: Install OpenTofu
+  ansible.builtin.apt:
+    deb: "https://github.com/opentofu/opentofu/releases/download/v{{ semaphore_tofu_version }}/tofu_{{ semaphore_tofu_version }}_amd64.deb"
+
 - name: Create config and data directories
   ansible.builtin.file:
     path: "{{ item }}"
