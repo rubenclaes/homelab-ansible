@@ -78,6 +78,23 @@ zijn eigen login; Caddy staat op zijn whitelist, zodat je via
 
 ## Goed om te weten
 
+### Waar de rol uit de groep komt
+
+In Grafana, Immich, Grimmory, Proxmox VE, Arcane en Shelfmark: wie in `admin`
+zit, wordt daar beheerder. In de rest maak je iemand één keer met de hand
+beheerder:
+
+| App | Waarom met de hand |
+| --- | --- |
+| Audiobookshelf | kent alleen de groepen `admin`, `user` en `guest`: zet je het aan, dan komen `gezin` en `familie` er niet meer in |
+| Semaphore, Outline | lezen geen rol uit Pocket ID |
+| PBS | beheerders staan bij naam in `pbs_oidc.admins` |
+| RomM | niet ingesteld: er is één beheerder |
+
+Sessies blijven zo lang als de app ze standaard maakt. Korter betekent elke
+dag opnieuw inloggen op de tv en in de apps; iemand toegang afnemen doe je
+daarom ook in de app zelf, zie [Toegang afnemen](/mensen/afnemen/).
+
 ### Wat niet via Pocket ID gaat
 
 Plex en Overseerr (een Plex-account), UniFi (een Ubiquiti-account), Home
