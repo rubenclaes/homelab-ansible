@@ -3,7 +3,7 @@
 # draaiende is. Een LXC heeft geen kernels in /boot, en dus nooit.
 #
 #   homelab-reboot-check            drukt "<0|1> <sinds> <nieuwste kernel>" af
-#   homelab-reboot-check <bestand>  schrijft het ook als .prom voor node_exporter
+#   homelab-reboot-check <bestand>  schrijft het als .prom voor node_exporter
 #
 # De enige plek waar die regel staat. roles/baseline draait dit met
 # ansible.builtin.script (update.yml, het weekrapport); roles/node_exporter
@@ -22,9 +22,10 @@ if [ -n "$k" ] && [ "$v" != "$(uname -r)" ]; then
 	s=$(stat -c %Z "$k")
 fi
 
-echo "$n $s ${v:--}"
-
-[ $# -eq 0 ] && exit 0
+if [ $# -eq 0 ]; then
+	echo "$n $s ${v:--}"
+	exit 0
+fi
 
 cat > "$1.tmp" <<EOF
 # HELP homelab_reboot_needed 1 if the newest kernel in /boot is not the running one.

@@ -304,7 +304,7 @@
         <td>{{ g.vmid }}</td>
         <td><strong>{{ g.name }}</strong></td>
         <td>{{ g.type }}</td>
-{% if last is none and g.vmid in (report_backup_exclude | default([])) %}
+{% if last is none and g.vmid in report_backup_exclude %}
         <td class="ok" colspan="2">met opzet uitgesloten van de back-up</td>
 {% elif last is none %}
         <td class="bad" colspan="2">never backed up</td>
@@ -326,8 +326,9 @@
    meer of 109 er hoorde te zijn. Op 22-09 stonden er twee.
    --------------------------------------------------------------------------- #}
 {% set live_groups = report_guests.proxmox_vms | map(attribute='vmid') | map('string') | list %}
-{% set orphans = pbs_last_backup.keys() | reject('match', 'host/')
-                 | reject('regex', '^(vm|ct)/(' ~ live_groups | join('|') ~ ')$') | list %}
+{% set orphans = pbs_last_backup.keys()
+                 | reject('regex', '^(vm|ct)/(' ~ live_groups | join('|') ~ ')$')
+                 | reject('regex', '^host/(' ~ backup_pbs_hosts | map('regex_escape') | join('|') ~ ')$') | list %}
 {% if orphans %}
   <div class="card">
     <strong>Back-ups zonder guest</strong>

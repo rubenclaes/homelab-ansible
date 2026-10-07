@@ -191,7 +191,7 @@ de WireGuard-VPN. Behalve:
 | --- | --- | --- |
 | AdGuard zelf | `1.1.1.1` | hij kan zichzelf niet om hulp vragen; zo kan hij ook updaten als hij zelf stuk is |
 | de tailscale-container (108) | `100.100.100.100` | Tailscale regelt dat zelf. **Niet aankomen** |
-| wie via Tailscale binnenkomt | `100.84.46.18` | ook AdGuard, maar zijn Tailscale-adres ([waarom](/netwerk/vpn/#waarom-de-tailnet-een-100x-adres-als-dns-heeft)) |
+| wie via Tailscale binnenkomt | het `100.x`-adres van adguard (`tailscale ip -4 adguard`) | ook AdGuard, maar zijn Tailscale-adres ([waarom](/netwerk/vpn/#waarom-de-tailnet-een-100x-adres-als-dns-heeft)). OpenTofu zet het zelf goed |
 
 ### De instellingen van AdGuard
 

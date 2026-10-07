@@ -10,9 +10,8 @@
 # reports a difference on every run, forever.
 #
 # Two deliberate departures from a plain transcription:
-#   - vmid 109 is dropped from the weekly job. That guest no longer exists,
-#     so it is a stale reference and does not belong in an accurate
-#     transcription.
+#   - vmid 109 was dropped from the weekly job, because that guest no longer
+#     existed. The number was later reused for ntfy, which is back in.
 #   - The orphaned PBS groups ct/109 and vm/110 are NOT touched. No role here
 #     deletes anything; remove them by hand in the PBS UI.
 #
@@ -41,7 +40,7 @@ pve_backup_jobs:
     params:
       schedule: "sun 01:00"
       storage: macmini-backup
-      vmid: "101,102,103,104,106,107,108"
+      vmid: "101,102,103,104,106,107,108,109"
       mode: snapshot
       compress: zstd
       # ct 108 staat op een basevol zonder snapshots; vzdump kopieert hem dan
@@ -58,8 +57,13 @@ pve_backup_jobs:
       schedule: "02:30"
       storage: pbs
       all: 1
-      # 110 is lancache: 600 GB cache die je zo weer vult.
-      exclude: "100,110"
+      # 100 is PBS zelf (zie de weekjob). 110 is lancache: 600 GB cache die je
+      # zo weer vult. 900-999 zijn de sandboxes (sandbox.yml): vzdump kent
+      # geen reeks of label, dus elk nummer apart. Een nummer zonder guest
+      # negeert vzdump.
+      exclude: >-
+        {{ ([100, 110] + range(proxmox_host_sandbox_vmid_first, proxmox_host_sandbox_vmid_last + 1) | list)
+           | join(',') }}
       mode: snapshot
       enabled: 1
       notes-template: "{% raw %}{{guestname}}{% endraw %}"

@@ -1,0 +1,9 @@
+---
+# De nummers van `hl sandbox` (roles/proxmox_host, templates/sandbox.sh.j2):
+# een eigen reeks, ver van de echte guests (100-199).
+#
+# Hier en niet in de defaults van proxmox_host, want de dagelijkse PBS-job in
+# backup.yml sluit dezelfde reeks uit. Een sandbox is na een dag weg; zonder
+# dat bleef zijn back-up van 02:30 als wees in PBS staan.
+proxmox_host_sandbox_vmid_first: 900
+proxmox_host_sandbox_vmid_last: 999

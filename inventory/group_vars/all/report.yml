@@ -29,7 +29,13 @@ backup_daily_max_hours: 26
 # Guests die met opzet niet in de back-up zitten, zodat het rapport ze niet
 # elke run rood meldt: de `exclude` van de dagelijkse PBS-job in
 # group_vars/proxmox/backup.yml, en niet een eigen lijst die daarvan afdrijft.
-# (Die stond hier op [100] terwijl de job ook 110 uitsloot.)
+# (Die stond hier op [100] terwijl de job ook 110 uitsloot.) De sandboxes
+# (900-999) zitten daar ook in.
 report_backup_exclude: >-
-  {{ (hostvars['pve01'].pve_backup_jobs | selectattr('params.storage', 'eq', 'pbs') | first).params.exclude
-     | default('') | split(',') | select | map('int') | list }}
+  {{ hostvars['pve01'].pve_backup_jobs | default([]) | selectattr('params.storage', 'eq', 'pbs')
+     | map(attribute='params.exclude') | first | default('') | split(',') | select | map('int') | list }}
+
+# De hosts die zelf naar PBS schrijven (pbs_client), als `host/<id>` in PBS.
+backup_pbs_hosts: >-
+  {{ groups['all'] | map('extract', hostvars) | selectattr('pbs_client_backup_id', 'defined')
+     | map(attribute='pbs_client_backup_id') | select | list }}

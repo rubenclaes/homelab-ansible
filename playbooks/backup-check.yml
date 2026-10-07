@@ -21,9 +21,6 @@
     # drempel staat in group_vars/all/report.yml, want het rapport gebruikt hem ook.
     backup_check_weekly_max_hours: 170
     backup_check_weekly_job: "{{ pve_backup_jobs | selectattr('params.storage', 'eq', 'macmini-backup') | first }}"
-    backup_check_hosts: >-
-      {{ groups['all'] | map('extract', hostvars) | selectattr('pbs_client_backup_id', 'defined')
-         | map(attribute='pbs_client_backup_id') | select | list }}
   tasks:
     - name: List the guests
       ansible.builtin.command: pvesh get /cluster/resources --type vm --output-format json
@@ -52,10 +49,8 @@
     # Eerst wat er moet zijn, elk met zijn laatste back-up en zijn drempel;
     # dan één vergelijking voor alles.
     #
-    # Niet verwacht: een sandbox (label `sandbox`, `hl sandbox`), die is na een
-    # dag weg; en een guest die nog nooit een back-up had en minder dan een
-    # dag draait, want die is aangemaakt na de nacht. Is hij morgen nog zonder
-    # back-up, dan meldt dit hem wel.
+    # Niet verwacht: wat de job uitsluit (report_backup_exclude), en dus ook
+    # de sandboxes.
     - name: Collect what should be backed up
       ansible.builtin.set_fact:
         backup_check_expected: >-
@@ -64,17 +59,12 @@
           {%- set out = [] -%}
           {%- for g in backup_check_guests.stdout | from_json | sort(attribute='vmid')
                 if not g.template | default(0) | bool
-                and g.vmid not in report_backup_exclude
-                and 'sandbox' not in (g.tags | default('')).split(';') -%}
+                and g.vmid not in report_backup_exclude -%}
           {%-   set key = ('vm' if g.type == 'qemu' else 'ct') ~ '/' ~ g.vmid -%}
-          {%-   set new = key not in pbs_last_backup and g.status == 'running'
-                          and g.uptime | default(0) < backup_daily_max_hours * 3600 -%}
-          {%-   if not new -%}
-          {%-     set _ = out.append({'label': 'PBS ' ~ g.vmid ~ ' ' ~ g.name, 'last': pbs_last_backup[key] | default(0),
-                                      'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
-          {%-   endif -%}
+          {%-   set _ = out.append({'label': 'PBS ' ~ g.vmid ~ ' ' ~ g.name, 'last': pbs_last_backup[key] | default(0),
+                                    'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
           {%- endfor -%}
-          {%- for id in backup_check_hosts -%}
+          {%- for id in backup_pbs_hosts -%}
           {%-   set _ = out.append({'label': 'PBS host/' ~ id, 'last': pbs_last_backup['host/' ~ id] | default(0),
                                     'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
           {%- endfor -%}

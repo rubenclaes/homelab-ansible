@@ -17,7 +17,7 @@ werkt. Iets stuk? Kies links onder **Als het stuk is**.
 | --- | --- | --- | --- |
 | Wanneer | elke nacht 02:30 | zondag 01:00 | elke nacht 04:00 |
 | Waarheen | PBS (`pbs`), op pve01 zelf | de Mac mini (`macmini-backup`) | Cloudflare R2 |
-| Wat | alle guests behalve 100 (PBS) en 110 (LANCache) | 101, 102, 103, 104, 106, 107, 108 | alleen wat git niet kan herbouwen, zie [Terughalen uit R2](/backups/r2/) |
+| Wat | alle guests behalve 100 (PBS), 110 (LANCache) en de sandboxes (900–999) | 101, 102, 103, 104, 106, 107, 108, 109 | alleen wat git niet kan herbouwen, zie [Terughalen uit R2](/backups/r2/) |
 | Hoe | incrementeel, gededupliceerd | volledige `.tar.zst`/`.vma.zst`-dumps | kopie van PBS, door `r2-guard` |
 | Bewaart | 7 | 2 | 3 |
 | Versleuteld | ja | **nee** | ja |
@@ -34,9 +34,10 @@ Een mislukte back-up meldt zich via ntfy, een geslaagde niet
 die helemaal niet draait, meldt zich ook: elke ochtend om 07:15 kijkt
 **Backup check** in [Semaphore](/semaphore/) of elke guest een PBS-back-up
 heeft van de afgelopen nacht en een kopie op de Mac mini van de afgelopen week.
-Niet meegeteld: wat in `exclude` van de job staat, een
-[sandbox](/proxmox/host/) (die is na een dag weg), en een guest die nog nooit
-een back-up had en minder dan een dag draait: die is ná de nacht gemaakt.
+Niet meegeteld: wat in `exclude` van de job staat, en dus ook de
+[sandboxes](/proxmox/host/): die zijn na een dag weg, en hun back-up zou als
+wees in PBS blijven staan. Een guest die je ná
+02:30 maakt, is de volgende ochtend dus even rood.
 
 ## Vooraf: doe dit nu
 

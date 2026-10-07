@@ -14,11 +14,10 @@
 proxmox_host_cpu_governor: powersave
 proxmox_host_cpu_epp: balance_performance
 
-# `hl sandbox`: wegwerp-containers, zie templates/sandbox.sh.j2. Een eigen
-# reeks nummers, ver van de echte guests (100-199). Dezelfde Debian als de
-# LXC's uit tofu/proxmox.
-proxmox_host_sandbox_vmid_first: 900
-proxmox_host_sandbox_vmid_last: 999
+# `hl sandbox`: wegwerp-containers, zie templates/sandbox.sh.j2. De reeks
+# nummers (proxmox_host_sandbox_vmid_first/last) staat in
+# group_vars/proxmox/sandbox.yml, want de back-upjob sluit ze ook uit.
+# Dezelfde Debian als de LXC's uit tofu/proxmox.
 proxmox_host_sandbox_template: local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
 # Een vergeten sandbox is na zoveel uur weg. Draait hij nog, dan ook.
 proxmox_host_sandbox_max_age_hours: 24
