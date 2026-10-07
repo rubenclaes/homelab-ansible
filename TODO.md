@@ -12,12 +12,30 @@ de volgende stap.
         met dezelfde `roles/adguard`-instellingen, rewrites en blocklists.
   - [ ] In UniFi als DNS 2, en in `unifi_expected_dns`.
 
+- [ ] **Een rode job in Semaphore hoor je niet.** Drift check, OpenTofu drift,
+      Smoketest, UniFi routes en Restore drill zijn controles: hun hele nut is
+      rood worden, en dat zie je alleen als je de taaklijst opent. Semaphore
+      kent geen ntfy (wel Gotify, Telegram, mail).
+  - [ ] Bij falen zelf naar ntfy sturen, zoals `unifi-watch.yml` al doet:
+        een eigen token `semaphore`, en een `rescue` die titel en host meldt.
+
+- [ ] **Een back-up die niet draait, hoor je niet.** Proxmox en PBS melden een
+      mislukte job, geen job die wegvalt (schema weg, storage offline). De
+      leeftijd van de laatste back-up staat alleen in het weekrapport.
+  - [ ] Een dagelijkse controle met dezelfde PBS-query als `report.yml`: rood
+        als een guest uit de dagelijkse job (02:30) ouder is dan 30 uur, of
+        uit de wekelijkse ouder dan 8 dagen.
+
 - [ ] **Alarmen: wat nog ontbreekt.** Alertmanager meldt sinds 05-10 aan
-      ntfy (node_exporter op elke Linux-host, SMART op pve01, zeven alarmen).
+      ntfy (node_exporter op elke Linux-host, SMART op pve01, tien alarmen).
   - [ ] Een dead man's switch: een altijd-afgaand alarm naar een dienst buiten
         huis, die mailt als het stil wordt. Nu hoor je niets als ntfy of de
         monitoring-VM zelf plat ligt.
   - [ ] Meten wat nu ontbreekt: de sites zelf (blackbox), de certificaten.
+  - [ ] Herstart nodig: unattended-upgrades zet nieuwe kernels en libs neer,
+        maar niets herstart. Staat alleen in het weekrapport. De apt-collector
+        van `prometheus-node-exporter-collectors` (`node_reboot_required`)
+        op elke host, en een alarm na 7 dagen.
 - [ ] **De 8 TB-schijf van de Mac mini zit op 94,5%** (06-10). media01 en de
       Time Machine-back-ups delen die ruimte; de netwerk-shares hebben geen
       limiet. Een limiet per Time Machine-share, en de back-up van de oude
@@ -59,6 +77,9 @@ de volgende stap.
   - [ ] De iPhone die gewoon "iPhone" heet (was `.171`): van wie? Alias geven
         zodra hij weer online is.
 
+- [ ] **`pixel-10-pro` is van de tailnet gevallen**: sleutel verlopen op
+      02-10. Van wie? Opnieuw inloggen in de Tailscale-app, of weghalen.
+
 ---
 
 ## Git is de bron — wat nog buiten git leeft
@@ -93,18 +114,6 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 ---
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
-
-- [ ] **Tailscale na de apply van 07-10** (tags, grants, settings).
-  - [ ] Op de mbp: Tailscale werkt nog naar `pve01.home.arpa` en
-        `photos.neodata.be`.
-  - [ ] Auto-updates voor nieuwe toestellen? Zet het in de console, of geef
-        de OAuth-client `opentofu` de scope `feature_settings` en zet
-        `devices_auto_updates_on = true` in `tofu/tailscale/settings.tf`.
-- [ ] **Tailscale-metrics en alarmen.** `ansible-playbook playbooks/tailscale.yml`,
-      dan `playbooks/monitoring.yml`.
-- [ ] **OpenTofu drift in Semaphore.** `ansible-playbook playbooks/semaphore.yml`
-      (installeert `tofu`), dan `playbooks/semaphore-templates.yml`. Eerste run
-      met de hand starten en nakijken.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in
@@ -176,6 +185,18 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Klein, wanneer het uitkomt
 
+- [ ] **pve01 zelf wordt nooit bijgewerkt op schema.** "Update guests" slaat
+      hem over (met reden: herstart onder zijn guests), en unattended-upgrades
+      neemt alleen Debian-security mee, niet de Proxmox-repo (kernel, QEMU).
+      Een maandelijkse herinnering of een template zonder schema
+      `update.yml --limit pve01`, en `pveversion` in het weekrapport.
+- [ ] **Sleutel-toestellen krijgen `tag:homelab`, net als de servers.**
+      `tailscale-key.yml` (de pc van de ouders) en `roles/tailscale` delen
+      één tag, dus wie later `tag:homelab` meer rechten geeft, geeft ze ook
+      aan die toestellen. Een eigen `tag:device` met een tweede OAuth-client.
+- [ ] **Tailscale auto-updates voor nieuwe toestellen**: in de console, of de
+      OAuth-client `opentofu` de scope `feature_settings` geven en
+      `devices_auto_updates_on = true` in `tofu/tailscale/settings.tf`.
 - [ ] **Vault-wachtwoorden roteren.** Tijdens het opzetten zijn de eerste
       tekens van beide in een sessielog terechtgekomen.
       `ansible-vault rekey --new-vault-id infra@<bestand>`.

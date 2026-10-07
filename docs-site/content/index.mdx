@@ -3,6 +3,11 @@ title: Start
 ---
 
 import { Cards } from 'nextra/components'
+import {
+  IconApps, IconServer, IconDevices, IconKey, IconCalendarTime, IconDatabase,
+  IconPackage, IconWorld, IconBox, IconRefresh, IconHeartbeat, IconUserPlus,
+  IconRestore, IconWorldOff, IconServerOff
+} from '@tabler/icons-react'
 
 # neodata.homelab
 
@@ -12,31 +17,31 @@ vanuit [homelab-ansible](https://github.com/rubenclaes/homelab-ansible).
 ## Opzoeken
 
 <Cards num={3}>
-  <Cards.Card title="Diensten" href="/homelab/diensten/" arrow />
-  <Cards.Card title="Machines" href="/homelab/machines/" arrow />
-  <Cards.Card title="Toestellen" href="/homelab/toestellen/" arrow />
-  <Cards.Card title="Wie mag waar in" href="/mensen/pocket-id/#per-app" arrow />
-  <Cards.Card title="Wat draait wanneer" href="/semaphore/#wat-draait-er-vanzelf-en-wanneer" arrow />
-  <Cards.Card title="Waar de back-ups staan" href="/backups/overzicht/#waar-de-back-ups-staan" arrow />
+  <Cards.Card icon={<IconApps />} title="Diensten" href="/homelab/diensten/" arrow />
+  <Cards.Card icon={<IconServer />} title="Machines" href="/homelab/machines/" arrow />
+  <Cards.Card icon={<IconDevices />} title="Toestellen" href="/homelab/toestellen/" arrow />
+  <Cards.Card icon={<IconKey />} title="Wie mag waar in" href="/mensen/pocket-id/#per-app" arrow />
+  <Cards.Card icon={<IconCalendarTime />} title="Wat draait wanneer" href="/semaphore/#wat-draait-er-vanzelf-en-wanneer" arrow />
+  <Cards.Card icon={<IconDatabase />} title="Waar de back-ups staan" href="/backups/overzicht/#waar-de-back-ups-staan" arrow />
 </Cards>
 
 ## Iets doen
 
 <Cards num={3}>
-  <Cards.Card title="Nieuwe app draaien" href="/docker/toevoegen/" arrow />
-  <Cards.Card title="Adres voor iets dat al draait" href="/netwerk/caddy/#alleen-een-adres" arrow />
-  <Cards.Card title="Nieuwe container" href="/proxmox/container/" arrow />
-  <Cards.Card title="Alles bijwerken" href="/onderhoud/bijwerken/" arrow />
-  <Cards.Card title="Is alles gezond?" href="/onderhoud/nakijken/#gezondheidsrapport" arrow />
-  <Cards.Card title="Iemand toegang geven" href="/mensen/toegang/" arrow />
+  <Cards.Card icon={<IconPackage />} title="Nieuwe app draaien" href="/docker/toevoegen/" arrow />
+  <Cards.Card icon={<IconWorld />} title="Adres voor iets dat al draait" href="/netwerk/caddy/#alleen-een-adres" arrow />
+  <Cards.Card icon={<IconBox />} title="Nieuwe container" href="/proxmox/container/" arrow />
+  <Cards.Card icon={<IconRefresh />} title="Alles bijwerken" href="/onderhoud/bijwerken/" arrow />
+  <Cards.Card icon={<IconHeartbeat />} title="Is alles gezond?" href="/onderhoud/nakijken/#gezondheidsrapport" arrow />
+  <Cards.Card icon={<IconUserPlus />} title="Iemand toegang geven" href="/mensen/toegang/" arrow />
 </Cards>
 
 ## Er is iets stuk
 
 <Cards num={3}>
-  <Cards.Card title="Een container of VM terug" href="/backups/terugzetten/" arrow />
-  <Cards.Card title="Geen DNS, niets laadt" href="/netwerk/dns/#geen-dns" arrow />
-  <Cards.Card title="pve01 is weg" href="/backups/pve01/" arrow />
+  <Cards.Card icon={<IconRestore />} title="Een container of VM terug" href="/backups/terugzetten/" arrow />
+  <Cards.Card icon={<IconWorldOff />} title="Geen DNS, niets laadt" href="/netwerk/dns/#geen-dns" arrow />
+  <Cards.Card icon={<IconServerOff />} title="pve01 is weg" href="/backups/pve01/" arrow />
 </Cards>
 
 Niet gevonden? Kies links een onderwerp, of zoek bovenaan. Wat een woord
