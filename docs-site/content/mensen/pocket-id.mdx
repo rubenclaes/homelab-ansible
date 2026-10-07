@@ -74,8 +74,15 @@ zijn eigen login; Caddy staat op zijn whitelist, zodat je via
 | --- | --- |
 | Sonarr, Radarr, Prowlarr, Bazarr, code-server | `ssh -L 8989:localhost:8989 docker` en dan `http://localhost:8989` (andere poort, zelfde manier) |
 | qBittorrent, de tools | rechtstreeks op `192.168.0.15:<poort>` |
+| Proxmox, PBS, UniFi | de lokale beheerder (`root@pam` enz.), wachtwoord in Vaultwarden |
 
 ## Goed om te weten
+
+### Wat niet via Pocket ID gaat
+
+Plex en Overseerr (een Plex-account), UniFi (een Ubiquiti-account), Home
+Assistant (kan het alleen via een community-add-on), AdGuard en ntfy. Die
+houden hun eigen login.
 
 ### Wat in git staat en wat niet
 

@@ -229,6 +229,16 @@ weet OpenTofu nog wat er moet staan. De secrets staan in `tofu/secrets.env`
 (vault `infra`); de passphrase van de state staat ook in Vaultwarden, want
 zonder is de state onleesbaar.
 
+### Wat bewust niet in OpenTofu staat
+
+| Wat | Waarom niet |
+| --- | --- |
+| UniFi | alleen community-providers (0.x), UniFi werkt zichzelf bij, en een fout legt het hele huis plat |
+| opslag en back-upjobs van Proxmox | de Ansible-rol stuurt die al bij, en meldingen kent de provider niet |
+| GitHub | vraagt een token met beheerrechten, voor weinig winst |
+| de state-bucket `homelab-tofu-state` | OpenTofu kan zijn eigen fundament niet beheren |
+| API-tokens | dan moet OpenTofu een sleutel hebben die alles mag |
+
 ### Noodgeval zonder laptop
 
 Zet in de Tailscale-console **Prevent edits in the admin console** even uit,

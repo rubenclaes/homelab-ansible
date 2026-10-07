@@ -1,182 +1,65 @@
 # Backlog
 
-Wat af is, staat hier niet meer: dat staat in git. Per punt: wat, waarom, en
-de volgende stap.
+Wat af is, staat hier niet: dat staat in git. Uitleg en keuzes staan in de
+docs. Per punt: wat, en de volgende stap.
 
 ## Nu — hier kan iets misgaan
 
-- [ ] **Tweede AdGuard als DNS 2.** Sinds 25-09 deelt Home alleen
-      `192.168.0.29` uit (`1.1.1.1` eruit: die brak `*.neodata.be`). Staat
-      ct 107 of pve01 stil, dan heeft het hele huis geen DNS.
-  - [ ] Tweede instantie op een andere machine dan pve01 (de Mac mini?),
-        met dezelfde `roles/adguard`-instellingen, rewrites en blocklists.
-  - [ ] In UniFi als DNS 2, en in `unifi_expected_dns`.
+- [ ] **Mac mini-schijf (8 TB) op 94,5%**, `DiskAlmostFull` gaat af. media01
+      en Time Machine delen die ruimte. Een limiet per Time Machine-share, en
+      de back-up van de oude Intel-MacBook (131 GB) weg.
+- [ ] **Tweede AdGuard als DNS 2.** Nu deelt Home alleen `192.168.0.29` uit:
+      ligt ct 107 of pve01 plat, dan heeft het huis geen DNS. Een tweede op de
+      Mac mini met `roles/adguard`, dan in UniFi als DNS 2 en in
+      `unifi_expected_dns`.
+- [ ] **Cleanuparr heeft geen login.** `auth: admin` in `caddy_sites`, zoals
+      de *arr-apps.
+- [ ] **Vault-wachtwoorden roteren**: de eerste tekens kwamen in een
+      sessielog. `ansible-vault rekey --new-vault-id infra@<bestand>`.
 
-- [ ] **Alarmen: wat nog ontbreekt.** Alertmanager meldt sinds 05-10 aan
-      ntfy (node_exporter op elke Linux-host, SMART op pve01 en de Mac mini,
-      dertien alarmen).
-  - [ ] Home Assistant (VM 101) heeft geen node_exporter: `HostDown` ziet hem
-        niet. Alleen de dagelijkse Smoketest merkt dat `haos` niet antwoordt.
-- [ ] **De 8 TB-schijf van de Mac mini zit op 94,5%** (06-10). media01 en de
-      Time Machine-back-ups delen die ruimte; de netwerk-shares hebben geen
-      limiet. Een limiet per Time Machine-share, en de back-up van de oude
-      Intel-MacBook (131 GB, laatst 28-11-2025) weg als die Mac weg is.
+## Lopend
 
----
+- [ ] **`work-wsl`**: op de werk-pc SSH aan (alleen sleutels, WSL in
+      nat-modus), de `ansible@neodata`-sleutel erop, dan `ansible work-wsl -m
+      ping`, `adguard.yml` en `smoketest.yml`.
+- [ ] **Plex voor de familie via Tailscale.** Custom server access URL
+      `http://mac-mini.brill-atlas.ts.net:32400` (eerst op één box testen;
+      anders zijn 100.x-adres), Relay uit. Per box Tailscale + Plex, kwaliteit
+      Original. Klaar als het Dashboard Direct Play toont.
+- [ ] **Tailscale-regels testen** met een familie-account: Plex en Caddy
+      werken, `:22` en Proxmox niet.
+- [ ] **Tailscale-toestellen**: `pixel-10-pro` is van de tailnet (sleutel
+      verlopen 02-10): opnieuw aanmelden of weghalen.
+- [ ] **UniFi**: iPhones van het gezin op een vast wifi-adres (Private Wi-Fi
+      Address → Fixed). De WireGuard-VPN geeft nog DNS `.26`; na een
+      UniFi-update opnieuw proberen, tot dan `.29` met de hand in de app.
 
-## Lopend — thuis afwerken
+## Pocket ID afwerken
 
-- [ ] **Werk-pc `work-wsl` als beheerde host.** Ubuntu in WSL op de werk-pc,
-      beheerd vanaf thuis over de tailnet.
-  - [ ] SSH-server, alleen sleutels (`PasswordAuthentication no`), WSL in nat-modus.
-  - [ ] Publieke `ansible@neodata`-sleutel in `~/.ssh/authorized_keys`.
-  - [ ] Vanaf de mbp: `ansible work-wsl -m ping` → groene pong.
-  - [ ] `adguard.yml` draaien (zet `work-wsl.home.arpa`), dan `smoketest.yml`:
-        die faalt tot dan op die ene naam.
+Wie waar mag, staat in [Pocket ID](docs-site/content/mensen/pocket-id.mdx).
 
-- [ ] **Tailscale-regels afwerken.** De regels staan in git en OpenTofu zet ze
-      (sinds 25-09).
-  - [ ] Test met een echt familie-account: Plex en Caddy werken, `:22` en
-        Proxmox niet.
+- [ ] Karen logt in bij Immich, Audiobookshelf en Grimmory; dan daar de
+      wachtwoord-login uit.
+- [ ] Elke app die via Pocket ID werkt: wachtwoord-login uit. Eerst de
+      mailadressen gelijkzetten, anders komt er een tweede account.
+- [ ] Rollen uit de groups-claim, niet met de hand per app.
+- [ ] Sessies in de apps op een dag: uitschakelen in Pocket ID stopt geen
+      sessie die al open staat.
 
-- [ ] **Plex voor de familie.** Via Tailscale op de boxen (Apple TV /
-      Google TV) aan de tv, geen port forward.
-  - [ ] Plex → Network → Custom server access URLs: `http://100.74.124.12:32400`.
-  - [ ] Plex → Relay uit.
-  - [ ] Per box: Tailscale + Plex, aanmelden met het account van die persoon,
-        kwaliteit op Original.
-  - [ ] Eerste stream: Dashboard toont Direct Play, niet Relay.
+## Later
 
-- [ ] **UniFi als gegevensbron (alleen lezen).** Ansible beheert de toestellen
-      niet; alles leest, niets schrijft naar UniFi.
-  - [ ] Op de iPhones van het gezin: Private Wi-Fi Address → Fixed.
-  - [ ] **WireGuard: UniFi bewaart nog DNS `192.168.0.26`** (de oude AdGuard)
-        voor Neodata VPN. Het veld staat niet in de UI; via de API lukte het
-        niet (24-09). Een nieuw profiel krijgt dus `.26`: zet DNS in de
-        WireGuard-app met de hand op `.29`. Opnieuw proberen na een
-        UniFi-update, en dan de VPN terug in `unifi_expected_dns`.
-  - [ ] De iPhone die gewoon "iPhone" heet (was `.171`): van wie? Alias geven
-        zodra hij weer online is.
-
-- [ ] **`pixel-10-pro` is van de tailnet gevallen**: sleutel verlopen op
-      02-10. Van wie? Opnieuw inloggen in de Tailscale-app, of weghalen.
-
----
-
-## Git is de bron — wat nog buiten git leeft
-
-Regel: git beslist, de rest volgt. **OpenTofu** voor wat er *bestaat*
-(`tofu/tailscale/`, `tofu/proxmox/`, `tofu/pocketid/`), **Ansible** voor wat
-er *in* een machine draait, **met de hand maar beschreven** voor wat alleen in
-een app kan (Plex, de Semaphore-UI, Full Disk Access op de Mac). Wijkt iets
-af, dan wordt Drift check of OpenTofu drift de volgende ochtend rood.
-
-- [ ] **Cloudflare in OpenTofu** (`tofu/cloudflare/`, officiële provider
-      `cloudflare/cloudflare`). Nu staat alles met de hand in de console,
-      ook de mail (MX, SPF) van `neodata.be`: één klik legt die stil, en
-      niemand weet dan wat er stond.
-  - [ ] Eerst (jij): een API-token in Cloudflare met alleen *Zone → DNS →
-        Edit* op `neodata.be` en *Account → Workers R2 Storage → Edit*, als
-        `CLOUDFLARE_API_TOKEN` in `tofu/secrets.env`
-        (`ansible-vault edit tofu/secrets.env`).
-  - [ ] Dan: de DNS-records van `neodata.be` en de R2-bucket van PBS, met
-        zijn opruimregels. Bestaande dingen importeren, niet opnieuw maken:
-        de eerste `plan` moet leeg zijn.
-  - [ ] Erbij in `tofu-drift.yml`, zodat ook Cloudflare elke ochtend
-        nagekeken wordt.
-  - Bewust niet: de state-bucket `homelab-tofu-state` (OpenTofu kan zijn
-    eigen fundament niet beheren) en de API-tokens (dan moet OpenTofu een
-    sleutel hebben die alles in het account mag).
-  - Bekeken en afgewezen op 25-09: UniFi (alleen community-providers 0.x,
-    UniFi werkt zichzelf bij, een fout legt het hele huis plat), de opslag en
-    back-upjobs van Proxmox (de Ansible-rol stuurt al bij; meldingen kent de
-    provider niet), GitHub (vraagt een token met beheerrechten voor weinig
-    winst).
-
----
-
-## Aanzetten — de code staat er, jij moet nog iets doen
-
-- [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
-      overzetten, dan pas beschrijven. Het waarom staat in
-      `host_vars/macmini/main.yml`.
-
----
-
-## Grotere projecten
-
-- [ ] **Alles achter Pocket ID.** Eén passkey voor het hele homelab. Na
-      Outline, want die zet `tofu/pocketid` neer. Elke app maakt bij de eerste
-      login zelf het account aan (auto-provisioning) en koppelt op mailadres.
-  - Wie beslist, één plek per ding, anders overschrijven ze elkaar:
-    - **OpenTofu** (git): groepen, OIDC-clients, welke groep waar mag. De
-      regels: zelden anders, verdienen een review.
-    - **NeoGate**: de mensen (aanmaken, groep kiezen, weghalen), plus Plex
-      delen en Tailscale uitnodigen. Moet zonder terminal kunnen, ook door
-      je partner. OpenTofu raakt geen gebruikers aan.
-  - Groepen staan sinds 26-09 in `tofu/pocketid/groups.tf`; Outline laat
-    alleen `gezin` en `familie` toe, Immich, Audiobookshelf en Grimmory ook
-    (sinds 26-09; Karen logt nog in, dan pas de wachtwoord-login uit).
-    Grafana, Semaphore, Proxmox VE en PBS alleen `admin`,
-    Shelfmark en Vaultwarden `gezin`. Elke nieuwe client krijgt
-    `allowed_user_groups` volgens deze lijst:
-    - `admin`: Proxmox, PBS, Semaphore, Grafana, Prometheus,
-      code-server, de *arr-apps, qBittorrent, RomM, en de onboarding in NeoGate.
-    - `gezin` (woont hier): Immich, Audiobookshelf, Grimmory, Shelfmark,
-      Outline, Vaultwarden, PDF, PairDrop, MeTube, IT-Tools, RomM.
-    - `familie`: Immich, Audiobookshelf, Grimmory, Outline, RomM.
-    - `gast` (op bezoek): RomM, PairDrop, BentoPDF, IT-Tools, copyparty. Sinds 05-10 in
-      `tofu/pocketid/groups.tf`.
-  - [ ] Rollen volgen uit de groep (groups-claim), nooit met de hand per app.
-  - [ ] Eerst de mailadressen per persoon gelijkzetten in de apps, anders
-        komt er een tweede account naast het bestaande.
-  - [ ] Cleanuparr: nakijken of het OIDC kan (de release notes noemen het,
-        de README niet). Zo niet: forward-auth, zoals de *arr-apps.
-  - Forward-auth (oauth2-proxy naast Caddy) staat sinds 27-09 voor
-    code-server, de *arr-apps, Prometheus en qBittorrent (`admin`) en voor
-    IT-Tools, MeTube, BentoPDF, PairDrop en OpenBooks (`gezin`).
-  - Sinds 27-09 laat de docker-host de poorten van Sonarr, Radarr, Prowlarr,
-    Bazarr en code-server alleen nog van Caddy toe (DOCKER-USER). code-server
-    heeft geen eigen wachtwoord meer; qBittorrent laat Caddy door zonder
-    tweede login.
-  - [ ] Werkt een app via Pocket ID: daar registreren en wachtwoord-login
-        uit. Twee deuren is er één te veel.
-  - [ ] Noodtoegang blijft lokaal: `root@pam`, de admin van PBS en UniFi,
-        wachtwoord in Vaultwarden. Ligt Pocket ID plat, dan kom je nog binnen.
-  - [ ] Sessies in de apps kort (een dag): uitschakelen in Pocket ID stopt
-        nieuwe logins, niet een sessie die al open staat.
-  - [ ] Het weekrapport toont wie in welke groep zit: de toegangscontrole
-        zonder moeite.
-  - [ ] **NeoGate** (eigen backlog): een Pocket ID-plugin en één scherm
-        "iemand toevoegen": groepen kiezen uit wat er is (nooit zelf maken),
-        uitnodiging als link of QR die verloopt, Plex en Tailscale mee volgens
-        de groep. Weghalen is één knop overal: Pocket ID uit, Plex
-        intrekken, Tailscale weg. Alleen voor `admin`, met een logboek.
-  - Blijft zoals het is: Plex en Overseerr (Plex-account), UniFi
-    (Ubiquiti-account), Home Assistant (alleen via een community-add-on),
-    AdGuard, ntfy.
-- [ ] **Foto's in Immich groeien.** Bij de melding "R2 bijna vol" kiezen
-      tussen minder versies, foto's apart, of betalen.
-- [ ] **Action1 voor de pc van de ouders**, en voor de Macs.
-- [ ] **Apple MDM.** Komt eraan. Daarna een pagina "Mac of iPhone klaarzetten";
-      tot dan is er geen vaste werkwijze om te beschrijven.
-- [ ] **Een apart gastennetwerk in UniFi.** Nu komt een gast op het gewone
-      wifi, naast pve01, de Macs en alle diensten.
-
----
-
-## Klein, wanneer het uitkomt
-
-- [ ] **Sleutel-toestellen krijgen `tag:homelab`, net als de servers.**
-      `tailscale-key.yml` (de pc van de ouders) en `roles/tailscale` delen
-      één tag, dus wie later `tag:homelab` meer rechten geeft, geeft ze ook
-      aan die toestellen. Een eigen `tag:device` met een tweede OAuth-client.
-- [ ] **Tailscale auto-updates voor nieuwe toestellen**: in de console, of de
-      OAuth-client `opentofu` de scope `feature_settings` geven en
-      `devices_auto_updates_on = true` in `tofu/tailscale/settings.tf`.
-- [ ] **Vault-wachtwoorden roteren.** Tijdens het opzetten zijn de eerste
-      tekens van beide in een sessielog terechtgekomen.
-      `ansible-vault rekey --new-vault-id infra@<bestand>`.
-- [ ] **Mac mini draait macOS 14.6.1** — updaten via Action1. Zolang dat zo is
-      bouwt Homebrew daar alles vanaf broncode (Tier 3), en daarom staat
-      `macos_brew_upgrade` op de Mini uit.
+- [ ] **Cloudflare in OpenTofu** (`tofu/cloudflare/`): DNS van `neodata.be`
+      (ook de mail) en de R2-bucket van PBS staan nu met de hand in de
+      console. Eerst een API-token (*Zone → DNS → Edit*, *R2 → Edit*) in
+      `tofu/secrets.env`; importeren tot de eerste `plan` leeg is; dan in
+      `tofu-drift.yml`.
+- [ ] **Home Assistant in Prometheus** (de prometheus-integratie van HA): nu
+      ziet alleen de Smoketest dat `haos` wegvalt.
+- [ ] **Action1** voor de pc van de ouders en de Macs. Daarmee ook de Mac
+      mini van macOS 14.6.1 af; dan kan `macos_brew_upgrade` daar weer aan.
+- [ ] **Gastennetwerk in UniFi**: nu zit een gast op hetzelfde wifi als pve01
+      en de Macs.
+- [ ] **Plex op de Mac mini in Homebrew**: eerst met de hand overzetten (zie
+      `host_vars/macmini/main.yml`).
+- [ ] **`tag:device`** voor sleutel-toestellen (`tailscale-key.yml`), los van
+      `tag:homelab`, met een tweede OAuth-client.
