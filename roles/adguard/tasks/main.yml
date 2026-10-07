@@ -63,7 +63,8 @@
       [Service]
       StartLimitInterval=5
       StartLimitBurst=10
-      ExecStart={{ adguard_dir }}/AdGuardHome "-s" "run"
+      # Geen update-knop in de web-UI: de versie komt uit adguard_version.
+      ExecStart={{ adguard_dir }}/AdGuardHome "-s" "run" "--no-check-update"
       WorkingDirectory={{ adguard_dir }}
       StandardOutput=file:/var/log/AdGuardHome.out
       StandardError=file:/var/log/AdGuardHome.err
@@ -76,7 +77,9 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Reload systemd for AdGuardHome
+  # Een herstart, geen reload alleen: anders geldt een nieuwe ExecStart pas
+  # na de volgende reboot. Kost een seconde DNS, enkel als de unit verandert.
+  notify: Restart AdGuardHome
 
 - name: Ensure AdGuard Home is enabled and running
   ansible.builtin.systemd_service:

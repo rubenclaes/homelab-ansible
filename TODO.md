@@ -14,10 +14,8 @@ de volgende stap.
 
 - [ ] **Alarmen: wat nog ontbreekt.** Alertmanager meldt sinds 05-10 aan
       ntfy (node_exporter op elke Linux-host, SMART op pve01, twaalf alarmen).
-  - [ ] Een dead man's switch: een altijd-afgaand alarm naar een dienst buiten
-        huis, die mailt als het stil wordt. Nu hoor je niets als ntfy of de
-        monitoring-VM zelf plat ligt.
-  - [ ] Meten wat nu ontbreekt: de sites zelf (blackbox), de certificaten.
+  - [ ] Home Assistant (VM 101) heeft geen node_exporter: `HostDown` ziet hem
+        niet. Alleen de dagelijkse Smoketest merkt dat `haos` niet antwoordt.
 - [ ] **De 8 TB-schijf van de Mac mini zit op 94,5%** (06-10). media01 en de
       Time Machine-back-ups delen die ruimte; de netwerk-shares hebben geen
       limiet. Een limiet per Time Machine-share, en de back-up van de oude
@@ -71,11 +69,6 @@ Regel: git beslist, de rest volgt. **OpenTofu** voor wat er *bestaat*
 machine draait, **met de hand maar beschreven** voor wat alleen in een app
 kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
-- [ ] **PBS**: datastore-, prune- en verify-jobs. Nakijken of daar een
-      bruikbare provider voor is; zo niet, de Ansible-rol laten corrigeren in
-      plaats van alleen toevoegen.
-- [ ] **AdGuard-versie**: nu update je in de web-UI en kopieer je de versie
-      naar git. Omdraaien: versie in git, rol installeert.
 - [ ] **Cloudflare in OpenTofu** (`tofu/cloudflare/`, officiële provider
       `cloudflare/cloudflare`). Nu staat alles met de hand in de console,
       ook de mail (MX, SPF) van `neodata.be`: één klik legt die stil, en
@@ -97,25 +90,11 @@ kan (Plex, de Semaphore-UI, Full Disk Access op de Mac).
 
 ## Aanzetten — de code staat er, jij moet nog iets doen
 
-- [ ] **Meldingen bij een rode job, back-up check, herstart-alarm** (07-10).
-      In deze volgorde:
-  - [ ] `ansible-playbook playbooks/proxmox-oci.yml`: ntfy kent het token
-        `semaphore` (ntfy herstart even).
-  - [ ] `ansible-playbook playbooks/semaphore.yml`: token en env voor
-        `ntfy_on_failure` (Semaphore herstart).
-  - [ ] `ansible-playbook playbooks/semaphore-templates.yml`: Backup check
-        (07:15) en Update pve01 (zonder schema).
-  - [ ] `ansible-playbook playbooks/monitoring.yml`: de reboot-check op elke
-        host, en `RebootNeeded` en `UpdatesPending`.
-  - [ ] `ansible-playbook playbooks/proxmox-datacenter.yml`: `tmpdir` voor
-        de wekelijkse job. ct 108 kwam sinds september nooit op de Mac mini
-        (chown geweigerd op NFS). Zondag nakijken, of nu met de hand:
-        `vzdump 108 --storage macmini-backup --tmpdir /var/tmp` op pve01.
-  - [ ] Test: Backup check in Semaphore starten zolang 108 nog mist. Hij
-        wordt rood en je krijgt "Semaphore: backup-check.yml faalde".
-- [ ] **PBS draait een oude kernel** (7.0.14-17, 7.0.14-20 staat er sinds
-      04-10). `update.yml --limit pbs -e allow_reboot=true` op een moment
-      zonder back-up. Anders meldt `RebootNeeded` het op 11-10.
+- [ ] **Fixes van 07-10 committen en pushen.** Semaphore draait wat op GitHub
+      staat: tot dan blijft Drift check rood op de Mac mini.
+  - [ ] `ansible-playbook playbooks/adguard.yml`: de update-knop in de web-UI
+        verdwijnt (`--no-check-update`); AdGuard herstart een seconde. Een
+        nieuwe versie zet je voortaan in `adguard_version` + checksum.
 
 - [ ] **Plex op de Mac mini staat buiten Homebrew.** Eerst met de hand
       overzetten, dan pas beschrijven. Het waarom staat in

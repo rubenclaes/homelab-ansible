@@ -44,6 +44,23 @@
       delegate_to: localhost
       become: false
 
+    # Op het adres van de caddy-host, met de naam als SNI: zie report.yml voor
+    # waarom niet de naam zelf. hostvars, want onder delegate_to wijst het kale
+    # ansible_host naar localhost.
+    - name: Read every certificate
+      community.crypto.get_certificate:
+        host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+        port: 443
+        server_name: "{{ item.name }}.{{ caddy_domain }}"
+      loop: "{{ caddy_sites }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: smoke_certs
+      failed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+
     - name: Summarise
       ansible.builtin.assert:
         that: broken_sites | length == 0
@@ -53,6 +70,24 @@
         broken_sites: >-
           {{ (smoke.results | selectattr('status', 'ge', 500) | map(attribute='item.name') | list)
              + (smoke.results | selectattr('status', 'lt', 0) | map(attribute='item.name') | list) }}
+
+    # Caddy vernieuwt 30 dagen voor het einde. Minder dan 14 over betekent dat
+    # het al twee weken faalt, en dat over twee weken de site plat ligt.
+    - name: Require two weeks left on every certificate
+      ansible.builtin.assert:
+        that: expiring | length == 0
+        fail_msg: "Certificaat bijna verlopen (dagen over): {{ expiring }}. Kijk in de log van Caddy."
+        success_msg: "Elk certificaat heeft nog minstens {{ smoke_cert_min_days }} dagen"
+        quiet: true
+      vars:
+        smoke_cert_min_days: 14
+        expiring: >-
+          {%- set out = [] -%}
+          {%- for r in smoke_certs.results if r.not_after is defined -%}
+          {%-   set days = (r.not_after | to_datetime('%Y%m%d%H%M%SZ') - now(utc=true)).days -%}
+          {%-   if days < smoke_cert_min_days | int -%}{%- set _ = out.append(r.item.name ~ ' ' ~ days) -%}{%- endif -%}
+          {%- endfor -%}
+          {{- out | join(', ') -}}
 
 - name: Smoke test the DNS rewrites
   hosts: adguard

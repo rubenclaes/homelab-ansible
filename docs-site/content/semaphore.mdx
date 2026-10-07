@@ -21,7 +21,7 @@ Tijden zijn lokale tijd (Europe/Brussels).
 | Stacks | dagelijks 05:30 | ná de converge van zondag, vóór Drift check |
 | Drift check | dagelijks 06:00 | je ziet wat er tussen twee converges afwijkt |
 | UniFi routes | dagelijks 06:15 | wijst elke route naar een toestel met een Fixed IP, en deelt UniFi de juiste DNS uit? |
-| Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller |
+| Smoketest | dagelijks 06:30 | tussen Drift check en Docs; twee jobs op dezelfde minuut vechten om dezelfde controller. Rood ook als een certificaat minder dan 14 dagen heeft |
 | OpenTofu drift | dagelijks 06:45 | `plan` voor `tofu/tailscale`, `tofu/proxmox` en `tofu/pocketid`; rood als iets afwijkt van git |
 | Backup check | dagelijks 07:15 | na de back-ups van 02:00 en 02:30; rood als een guest een nacht mist, of een week op de Mac mini |
 | Docs | dagelijks 07:00 | de site volgt de repo |

@@ -5,7 +5,7 @@
 - name: Report which PBS objects are missing
   ansible.builtin.debug:
     msg: >-
-      {{ 'Every declared datastore and job exists (existing objects are not checked for drift)'
+      {{ 'Every declared datastore and job exists'
          if pbs_missing | length == 0
          else 'Would be created: ' ~ pbs_missing | join(', ') }}
 
@@ -18,8 +18,5 @@
     fail_msg: >-
       Not yet in place: {{ pbs_missing | join(', ') }}.
       Run this playbook without --check to create them.
-    success_msg: >-
-      All declared datastores and jobs exist. This checks presence only - a
-      field changed on an object that already exists (for example keep_last)
-      is not detected and is not reflected here.
+    success_msg: All declared datastores and jobs exist.
   when: pbs_require_clean | default(false) | bool

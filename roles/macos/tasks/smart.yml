@@ -26,9 +26,20 @@
     mode: "0644"
   register: macos_smart_plist
 
+- name: Check whether the launchd job is loaded
+  ansible.builtin.command: launchctl list be.neodata.smartmon
+  register: macos_smart_loaded
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Niet `started`: de job draait om de 15 minuten en staat ertussen stil, dus
+# `started` start hem bij elke run opnieuw en Drift check ziet een wijziging.
 # In check mode bestaat een plist die nog moet komen er niet.
 - name: Load the launchd job
-  when: not (ansible_check_mode and macos_smart_plist is changed)
+  when:
+    - macos_smart_plist is changed or macos_smart_loaded.rc != 0
+    - not (ansible_check_mode and macos_smart_plist is changed)
   community.general.launchd:
     name: be.neodata.smartmon
-    state: "{{ 'reloaded' if macos_smart_plist is changed else 'started' }}"
+    state: reloaded
