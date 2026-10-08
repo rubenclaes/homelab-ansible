@@ -207,6 +207,13 @@ eeuwig hangen (`minimumReleaseAgeBehaviour: timestamp-optional`).
 Iets **weg** van een Mac (`macos_brew_packages_absent`, `macos_casks_absent`)
 is dus `site.yml --tags macos`, niet `cleanup.yml`.
 
+### Waarom ansible-lint zelf geen collections installeert
+
+`offline: true` in `.ansible-lint`. Anders zette ansible-lint bij elke run een
+tweede kopie van de collections in `.ansible/` in de repo, en waarschuwde dan
+dat de twee elkaar overlappen. Na een versie-bump dus eerst `ansible-galaxy
+collection install`, zoals hierboven; anders lint hij tegen de oude versie.
+
 ### Waarom de volgorde: guests, dan pve01, dan de Macs
 
 `update.yml` heeft drie plays, elk met `serial: 1`: één host is klaar voor de

@@ -82,7 +82,7 @@ OpenTofu beslist wat er *bestaat*, Ansible wat er *in* een machine draait.
 | `playbooks/` | wat je uitvoert; `site.yml` zet alles gelijk |
 | `files/` | versleutelde `.env` van de Docker-apps, en de Tailscale-regels |
 | `tofu/` | OpenTofu: de machines op Proxmox, Tailscale en Pocket ID |
-| `bin/` | hulpscripts (`tofu`, vault-wachtwoorden, `check-vaulted`) |
+| `bin/` | hulpscripts (`tofu`, vault-wachtwoorden, `check-vaulted`, `check-inventory-parity`) |
 | `docs-site/` | de documentatie |
 
 Meer uitleg: [Waar staat wat](https://docs.neodata.be/ansible/repo/).

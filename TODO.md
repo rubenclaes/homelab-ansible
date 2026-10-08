@@ -12,8 +12,6 @@ docs. Per punt: wat, en de volgende stap.
       ligt ct 107 of pve01 plat, dan heeft het huis geen DNS. Een tweede op de
       Mac mini met `roles/adguard`, dan in UniFi als DNS 2 en in
       `unifi_expected_dns`.
-- [ ] **Cleanuparr heeft geen login.** `auth: admin` in `caddy_sites`, zoals
-      de *arr-apps.
 - [ ] **Vault-wachtwoorden roteren**: de eerste tekens kwamen in een
       sessielog. `ansible-vault rekey --new-vault-id infra@<bestand>`.
 
@@ -28,7 +26,6 @@ docs. Per punt: wat, en de volgende stap.
       Direct Play toont.
 - [ ] **Tailscale-regels testen** met een familie-account: Plex en Caddy
       werken, `:22` en Proxmox niet.
-
 
 ## Later
 
