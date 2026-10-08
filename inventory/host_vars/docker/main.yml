@@ -94,10 +94,10 @@ docker_stacks_local_disks:
 
 # Poorten die alleen Caddy mag bereiken: hun login is forward-auth in Caddy
 # (`auth:` in caddy_sites), en die mag je niet omzeilen door rechtstreeks naar
-# deze poort te gaan. Sonarr, Radarr en Prowlarr vragen geen login van een
-# LAN-adres, Bazarr helemaal nooit, en code-server heeft zonder deze regel geen
-# wachtwoord meer nodig. De apps onderling praten via het Docker-netwerk en
-# merken hier niets van.
+# deze poort te gaan. Sonarr, Radarr en Prowlarr laten de login aan Caddy over
+# (roles/arr_auth), Bazarr en Cleanuparr hebben er geen, en code-server heeft
+# zonder deze regel geen wachtwoord meer nodig. De apps onderling praten via
+# het Docker-netwerk en merken hier niets van.
 #
 # qBittorrent staat hier niet: die draait met host-netwerk, en DOCKER-USER
 # raakt zo'n poort niet. Hij houdt zijn eigen login; Caddy staat op zijn
@@ -107,6 +107,7 @@ docker_stacks_proxy_only_ports:
   - 7878 # radarr
   - 9696 # prowlarr
   - 6767 # bazarr
+  - 11011 # cleanuparr
   - 8443 # code-server
   # copyparty gelooft de gebruiker en groepen in de headers alleen van Caddy;
   # deze regel zorgt dat niemand anders er rechtstreeks bij kan.

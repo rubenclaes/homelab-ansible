@@ -16,7 +16,7 @@ docs-site/out/
 docs-site/node_modules/
 docs-site/.next/
 
-# Secrets that must never be committed (vaulted files are tracked by name below)
+# Secrets that must never be committed (vaulted files are checked by bin/check-vaulted)
 vault_pass
 .vault_pass
 *.pem

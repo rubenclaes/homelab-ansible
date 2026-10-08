@@ -3,6 +3,11 @@
 # below, and pinning the profile stops it from silently relaxing.
 profile: production
 
+# Collections come from collections/requirements.yml, installed once by hand
+# and by CI. Without this, ansible-lint installs a second copy into .ansible/
+# on every run and warns that the two shadow each other.
+offline: true
+
 exclude_paths:
   # Vault-encrypted dynamic inventory config. ansible-lint applies its
   # inventory JSON schema to anything matching an inventory filename, and an

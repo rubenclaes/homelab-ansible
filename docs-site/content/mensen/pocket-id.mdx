@@ -38,7 +38,7 @@ daarna terug. Eén keer aanmelden geldt voor al die apps.
 
 | Groep | Apps |
 | --- | --- |
-| `admin` | code-server, Sonarr, Radarr, Prowlarr, Bazarr, Prometheus, qBittorrent |
+| `admin` | code-server, Sonarr, Radarr, Prowlarr, Bazarr, Cleanuparr, Prometheus, qBittorrent |
 | `gezin` | IT-Tools, MeTube, BentoPDF, PairDrop, OpenBooks, copyparty |
 | `gast` | IT-Tools, BentoPDF, PairDrop, copyparty |
 
@@ -59,8 +59,8 @@ Vraagt de app zelf geen login van een LAN-adres, zet zijn poort dan ook in
 `docker_stacks_proxy_only_ports` (`inventory/host_vars/docker/main.yml`). Dat
 is een firewallregel in de Docker-keten `DOCKER-USER`: alleen Caddy mag nog
 op die poort. Zonder kon iedereen op de wifi via `192.168.0.15:8989`
-rechtstreeks binnen. Zo staan Sonarr, Radarr, Prowlarr, Bazarr en
-code-server. De apps onderling praten via het Docker-netwerk en merken er
+rechtstreeks binnen. Zo staan Sonarr, Radarr, Prowlarr, Bazarr, Cleanuparr
+en code-server. De apps onderling praten via het Docker-netwerk en merken er
 niets van.
 
 Sonarr, Radarr en Prowlarr staan op `AuthenticationMethod: External`: de
