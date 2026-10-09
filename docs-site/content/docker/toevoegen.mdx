@@ -37,7 +37,13 @@ weigert het playbook.
 
 #### Laat het playbook alles aanmaken
 
-Vanuit de root van deze repo:
+```bash filename="laptop"
+hl new
+```
+
+Dat vraagt de drie dingen hierboven, een omschrijving, de login en de host, en
+draait dan `new-service.yml`. Zonder `hl` gaat het ook, vanuit de root van
+deze repo:
 
 ```bash filename="laptop"
 ansible-playbook playbooks/new-service.yml \
@@ -48,8 +54,9 @@ ansible-playbook playbooks/new-service.yml \
   -e '{"svc_desc": "Memos - snelle notities"}'
 ```
 
-Een waarde met spaties (zoals `svc_desc`) geef je als JSON mee, zoals
-hierboven. Met `-e 'svc_desc=a b c'` houdt Ansible alleen `a` over.
+Een waarde met spaties (zoals `svc_desc`) geef je dan als JSON mee, zoals
+hierboven. Met `-e 'svc_desc=a b c'` houdt Ansible alleen `a` over. `hl new`
+doet dat zelf.
 
 Dit maakt vijf dingen, in twee repo's:
 
@@ -78,13 +85,14 @@ Dit maakt vijf dingen, in twee repo's:
 | `docker-compose.yml` | de app zelf |
 | `.env` | tijdzone, IP, datamap. Alleen een lokale kopie, niet in git |
 | `files/env/memos.env` | dezelfde `.env`, versleuteld. Dít bestand gaat naar de server |
-| `docker.yml` | de stack in de lijst van de machine `docker` |
+| `docker/main.yml` | de stack in de lijst van de machine `docker`; met een login ook de poort in `docker_stacks_proxy_only_ports` |
 | `caddy/main.yml` | de route `memos.neodata.be` |
 
 Extra opties, als je ze nodig hebt:
 
 | Optie | Wanneer |
 | --- | --- |
+| `svc_auth` | de app heeft geen eigen login: `admin`, `gezin` of `gezin,gast` zet die van [Pocket ID](/mensen/pocket-id/#een-login-voor-apps-zonder-eigen-login) ervoor |
 | `svc_container_port` | de app luistert binnen de container op een andere poort dan `svc_port` |
 | `svc_subdomain` | het adres moet anders heten dan de stack (standaard: `svc_name`) |
 | `svc_env` | extra omgevingsvariabelen, bv. `-e '{"svc_env": ["MEMOS_MODE=prod"]}'` |
@@ -212,6 +220,17 @@ dienst er altijd op, en een weggehaalde verdwijnt. Met de hand vergeet je dat.
 De bestanden in `/opt/containers/data/homepage` op `docker` worden bij elke run
 overschreven: pas ze daar dus niet aan. Homepage leest ze bij elk bezoek opnieuw,
 een herstart is niet nodig.
+
+### Waarom `hl new` standaard een login voorstelt
+
+`hl new` vult `admin` in bij de login. Een login te veel kost één klik; een
+vergeten login zet een app open voor iedereen op de wifi. Heeft de app zelf
+een login (of via Pocket ID), maak het veld dan leeg.
+
+Met een login zet het playbook de poort ook in
+`docker_stacks_proxy_only_ports`: anders loopt iemand om de login heen,
+rechtstreeks naar `192.168.0.15:<poort>`. Een host zonder die lijst krijgt
+geen regel, en het playbook zegt dat op het einde.
 
 ### Waarom `new-service.yml` weigert te overschrijven
 

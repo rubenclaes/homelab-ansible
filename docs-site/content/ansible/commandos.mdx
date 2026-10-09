@@ -26,6 +26,8 @@ vanuit elke map.
 | `hl yt audio <link>` | alleen het geluid, als mp3 |
 | `hl vault` | menu met alle versleutelde bestanden, Enter opent hem in je editor |
 | `hl vault caddy` | meteen `inventory/host_vars/caddy/vault.yml` |
+| `hl status` | lopende alarmen, te oude back-ups en de vijf volste schijven, op één scherm |
+| `hl new` | een nieuwe Docker-dienst: vraagt naam, image, poort en login, en draait `new-service.yml`. Zie [Dienst toevoegen](/docker/toevoegen/) |
 | `hl check` | wat CI controleert, vóór je pusht: versleuteld, lint, syntax, tofu-opmaak |
 | `hl sandbox` | wegwerp-Debian op pve01, je zit erin als root; `exit` gooit hem weg. Zie [Sandboxen](/proxmox/host/#sandboxen) |
 | `hl sandbox --keep` | blijft staan na `exit` (hooguit een dag); `hl sandbox ls` en `hl sandbox rm <id>` |
@@ -105,8 +107,9 @@ kies jij de flags.
 
 ### Waar de menu's hun lijst vandaan halen
 
-`hl go` en `hl ssh` lezen een lijst die `dotfiles.yml` uit de inventory
-schrijft. Een nieuwe dienst of host staat er pas in na
+`hl go`, `hl ssh` en de back-ups van `hl status` lezen een lijst die
+`dotfiles.yml` uit de inventory schrijft. Een nieuwe dienst of host staat er
+pas in na
 `ap playbooks/dotfiles.yml`. `hl logs` vraagt het live, en is altijd bij. Een
 host die niet binnen 5 seconden antwoordt, valt uit die lijst.
 
@@ -116,6 +119,19 @@ MeTube zit achter de login van Pocket ID, en zijn poort antwoordt alleen aan
 Caddy. Een terminal kan die login niet doen. Daarom stuurt `hl yt` de link
 over ssh naar `docker`, en die geeft hem op de host zelf aan MeTube. Er gaat
 geen poort open.
+
+### Waar `hl status` zijn cijfers haalt
+
+| Blok | Bron | Waarom zo |
+| --- | --- | --- |
+| Alarmen | Prometheus, op zijn eigen poort (`192.168.0.17:9090`) | de route `prometheus.neodata.be` wil een login in de browser; de poort niet |
+| Back-ups | de mappen van de datastore op `pbs`, over ssh | geen API-token nodig; de lijst van wat er hoort te zijn komt uit de inventory, zonder de guests die de nachtjob bewust overslaat |
+| Schijven | Prometheus | zonder `/System/Volumes/...` en alleen-lezen schijven van de Macs |
+
+Een back-up is te oud na `backup_daily_max_hours` (26 uur), dezelfde grens als
+`backup-check.yml`. Twee volumes op één APFS-schijf delen hun vrije ruimte,
+dus één alarm voor beide. Antwoordt iets niet binnen 5 seconden, dan zegt het
+blok dat, en de rest werkt gewoon.
 
 ### Welke sleutel `hl vault` gebruikt
 

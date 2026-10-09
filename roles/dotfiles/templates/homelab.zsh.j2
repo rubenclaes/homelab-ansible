@@ -8,6 +8,8 @@
 #   hl logs [naam]     follow the logs of a container
 #   hl yt [audio] [link]  send a video to MeTube; no link = the clipboard
 #   hl vault [naam]    edit a vaulted file
+#   hl status          firing alerts, late backups, the fullest disks
+#   hl new             a new Docker service: asks, then runs new-service.yml
 #   hl check           what CI checks, before you push
 #   hl sandbox [--keep]  a throwaway Debian on pve01; gone when you exit
 #   hl sandbox ls | rm <id>
@@ -46,6 +48,31 @@ HOMELAB_ROUTES=(
   '{{ s.name }}	{{ s.host }}	https://{{ s.name }}.{{ hostvars['caddy'].caddy_domain }}	{{ s.desc | default('') | replace("'", "'\\''") }}'
 {% endfor %}
 )
+HOMELAB_DOMAIN={{ hostvars['caddy'].caddy_domain }}
+{% set prom = hostvars['caddy'].caddy_sites | default([]) | selectattr('name', 'equalto', 'prometheus') | list %}
+{% if prom %}
+# Prometheus for `hl status`: its own port on the LAN. The route wants a
+# browser login; the port does not, and only answers reads.
+HOMELAB_PROMETHEUS=http://{{ hostvars[prom[0].host].ansible_host }}:{{ prom[0].port }}
+{% endif %}
+{% set pbs_store = hostvars['pbs'].pbs_datastores | default([]) | selectattr('name', 'equalto', report_pbs_datastore) | list %}
+{% if pbs_store %}
+# PBS for `hl status`: host, datastore folder, hours before a backup is late
+HOMELAB_PBS=(pbs {{ pbs_store[0].path }} {{ backup_daily_max_hours }})
+# What should be in PBS: backup group -> name. Guests the daily job skips on
+# purpose (report_backup_exclude) are left out, as in report.yml.
+typeset -A HOMELAB_BACKUPS
+HOMELAB_BACKUPS=(
+{% for kind, group in [('ct', 'proxmox_all_lxc'), ('vm', 'proxmox_all_qemu')] %}
+{% for h in groups.get(group, []) | sort if hostvars[h].proxmox_vmid is defined and (hostvars[h].proxmox_vmid | int) not in report_backup_exclude %}
+  {{ kind }}/{{ hostvars[h].proxmox_vmid }} {{ h }}
+{% endfor %}
+{% endfor %}
+{% for id in backup_pbs_hosts | sort %}
+  host/{{ id }} {{ id }}
+{% endfor %}
+)
+{% endif %}
 {% set metube = hostvars['caddy'].caddy_sites | default([]) | selectattr('name', 'equalto', 'metube') | list %}
 {% if metube %}
 # MeTube for `hl yt`: host, address of its port, public url
@@ -150,9 +177,11 @@ hl() {
     logs) _hl_logs "$@" ;;
     yt)   _hl_yt "$@" ;;
     vault) _hl_vault "$@" ;;
+    status) _hl_status ;;
+    new)  _hl_new ;;
     check) _hl_check ;;
     sandbox) _hl_sandbox "$@" ;;
-    *)    print "hl [go|ssh|logs|yt|vault|check|sandbox]  -  zie ~/.config/homelab/homelab.zsh" >&2
+    *)    print "hl [go|ssh|logs|yt|vault|status|new|check|sandbox]  -  zie ~/.config/homelab/homelab.zsh" >&2
           return 1 ;;
   esac
 }
@@ -229,6 +258,121 @@ _hl_vault() {  # pick a vaulted file and edit it; ansible-vault keeps its vault 
       printf '%s\t\e[2m%s\e[0m\n' $f "$(head -1 $f | cut -d';' -f4)"
     done | _homelab_fzf --prompt='vault> ' --query="$*") || return
   (cd "$HOMELAB_REPO" && ansible-vault edit "${pick%%$'\t'*}")
+}
+
+_hl_status() {  # firing alerts, late backups and the fullest disks, on one screen
+  local tmp sev what age i m p g h late=()
+  local -A seen
+  tmp=$(mktemp -d)
+  # All three at once; whatever does not answer within 5s says so below.
+  if (( $+HOMELAB_PROMETHEUS )); then
+    curl -sf -m 5 $HOMELAB_PROMETHEUS/api/v1/alerts > $tmp/alerts &
+    curl -sf -m 5 -G $HOMELAB_PROMETHEUS/api/v1/query --data-urlencode \
+      'query=topk(10, 100 * (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|ramfs|overlay|squashfs|nsfs|fuse.*", mountpoint!~"/System/Volumes/.*"} / node_filesystem_size_bytes) unless node_filesystem_readonly == 1)' \
+      > $tmp/disks &
+  fi
+  # Straight from the datastore folder: <type>/<id>/<time of each backup>.
+  # Reads no API, so it needs no token; the age is counted on PBS itself.
+  if (( $+HOMELAB_PBS )); then
+    command ssh -o BatchMode=yes -o ConnectTimeout=5 $HOMELAB_PBS[1] \
+      sudo -n sh -s $HOMELAB_PBS[2] > $tmp/pbs 2>/dev/null <<'EOF' &
+cd "$1" || exit 1
+now=$(date +%s)
+for g in ct/* vm/* host/*; do
+  s=$(ls -1 "$g" 2>/dev/null | grep '^[0-9]' | tail -n 1)
+  [ -n "$s" ] && echo "$g $(( (now - $(date -d "$s" +%s)) / 3600 ))"
+done
+EOF
+  fi
+  wait
+
+  print '\e[1mAlarmen\e[0m'
+  if [[ ! -s $tmp/alerts ]]; then
+    print "  \e[33mPrometheus antwoordt niet ($HOMELAB_PROMETHEUS)\e[0m"
+  else
+    # One line per problem: two volumes of one APFS container share their
+    # free space, so their disk alarms have the same alert, host and value. Critical first, then the oldest.
+    jq -r '[.data.alerts[] | select(.state == "firing")
+        | {sev: .labels.severity, key: [.labels.alertname, .labels.instance, .value], what: (.annotations.summary // .labels.alertname),
+           h: ((now - (.activeAt | sub("\\.[0-9]+"; "") | fromdateiso8601)) / 3600 | floor)}]
+      | unique_by(.key) | sort_by((.sev != "critical"), -.h) | .[]
+      | [.sev, .what, (if .h < 48 then "\(.h)u" else "\(.h / 24 | floor)d" end)] | @tsv' \
+      $tmp/alerts > $tmp/alerts.tsv
+    if [[ ! -s $tmp/alerts.tsv ]]; then
+      print '  \e[32m✓ geen\e[0m'
+    fi
+    while IFS=$'\t' read -r sev what age; do
+      if [[ $sev == critical ]]; then
+        printf '  \e[31m✗ %s\e[0m \e[2msinds %s\e[0m\n' "$what" $age
+      else
+        printf '  \e[33m! %s\e[0m \e[2msinds %s\e[0m\n' "$what" $age
+      fi
+    done < $tmp/alerts.tsv
+  fi
+
+  print '\n\e[1mBack-ups\e[0m'
+  if [[ ! -s $tmp/pbs ]]; then
+    print "  \e[33mPBS antwoordt niet ($HOMELAB_PBS[1])\e[0m"
+  else
+    while read -r g h; do seen[$g]=$h; done < $tmp/pbs
+    for g in ${(ko)HOMELAB_BACKUPS}; do
+      if (( ! $+seen[$g] )); then
+        late+=("$HOMELAB_BACKUPS[$g] ($g): geen back-up")
+      elif (( $seen[$g] > $HOMELAB_PBS[3] )); then
+        late+=("$HOMELAB_BACKUPS[$g] ($g): $seen[$g]u geleden")
+      fi
+    done
+    if (( $#late )); then
+      printf '  \e[31m✗ %s\e[0m\n' $late
+    else
+      print "  \e[32m✓ alle $#HOMELAB_BACKUPS jonger dan $HOMELAB_PBS[3]u\e[0m"
+    fi
+  fi
+
+  print '\n\e[1mVolste schijven\e[0m'
+  if [[ ! -s $tmp/disks ]]; then
+    print "  \e[33mPrometheus antwoordt niet\e[0m"
+  else
+    jq -r '[.data.result[] | {i: .metric.instance, m: .metric.mountpoint, p: (.value[1] | tonumber | floor)}]
+      | unique_by([.i, .p]) | sort_by(-.p) | .[:5][] | [.i, .m, .p] | @tsv' $tmp/disks \
+    | while IFS=$'\t' read -r i m p; do
+        printf '  %s %-28s ' "$(_homelab_fg $i "$(printf '%-22s' $i)")" $m
+        if (( p >= 90 )); then printf '\e[31m%3s%%\e[0m\n' $p
+        elif (( p >= 80 )); then printf '\e[33m%3s%%\e[0m\n' $p
+        else printf '%3s%%\n' $p
+        fi
+      done
+  fi
+  rm -rf $tmp
+}
+
+_hl_new() {  # a new Docker service: asks the values, then runs new-service.yml
+  local name image port volume=/data desc auth=admin host=docker ok json
+  print "Nieuwe Docker-dienst. Enter neemt wat er al staat."
+  vared -p 'naam, ook het adres: ' name || return
+  [[ $name =~ '^[a-z0-9-]+$' ]] || { print "alleen kleine letters, cijfers en -" >&2; return 1; }
+  vared -p 'image met versie: ' image || return
+  # No tag means latest, and latest updates behind Renovate's back.
+  if [[ ${image##*/} != *[:@]* || $image == *:latest ]]; then
+    print "neem een vaste versie, bv. ghcr.io/usememos/memos:0.24.4" >&2; return 1
+  fi
+  vared -p 'poort: ' port || return
+  [[ $port =~ '^[0-9]+$' ]] || { print "de poort is een getal" >&2; return 1; }
+  vared -p 'datamap in de container: ' volume || return
+  vared -p 'omschrijving: ' desc || return
+  vared -p 'login via Pocket ID (admin, gezin, gezin,gast; leeg = de app doet het zelf): ' auth || return
+  vared -p "host (${(ko)HOMELAB_DOCKER_CLI}): " host || return
+  (( $+HOMELAB_DOCKER_CLI[$host] )) || { print "$host draait geen stacks" >&2; return 1; }
+
+  print "\nhttps://$name.$HOMELAB_DOMAIN -> $host:$port, $image, login: ${auth:-van de app}"
+  read -k1 "ok?Aanmaken? [j/N] "; print
+  [[ $ok == [jJyY] ]] || return 1
+  # As JSON: -e key=value cuts a value at its first space (see new-service.yml).
+  json=$(jq -nc --arg n $name --arg i $image --arg p $port --arg v $volume \
+      --arg d "$desc" --arg a "$auth" --arg h $host \
+    '{svc_name: $n, svc_image: $i, svc_port: ($p | tonumber), svc_volume: $v,
+      svc_desc: $d, svc_auth: $a, svc_host: $h} | if $d == "" then del(.svc_desc) else . end')
+  ap playbooks/new-service.yml -e "$json"
 }
 
 _hl_step() {  # _hl_step <label> <command...>: ok, or FOUT plus the end of the output
