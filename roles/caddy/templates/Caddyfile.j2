@@ -183,10 +183,11 @@ auth.{{ caddy_domain }} {
 {{ t }}	import https_upstream_insecure
 {% endif %}
 {{ t }}	header_up Host {host}
+{# X-Forwarded-For en -Proto zet Caddy zelf, uit het verbindingsadres. Ze
+   hier overschrijven met {remote_host} gaf over HTTP/3 af en toe een lege
+   X-Forwarded-For, en Home Assistant weigert dan met een 400 (09-10-2026). #}
 {% if site.forwarded | default(false) %}
 {{ t }}	header_up X-Real-IP {remote_host}
-{{ t }}	header_up X-Forwarded-For {remote_host}
-{{ t }}	header_up X-Forwarded-Proto {scheme}
 {% endif %}
 {{ t }}}
 {%- else -%}

@@ -65,7 +65,7 @@ git add inventory && git commit -m 'Route voor plex' && git push
 | `upstream` | alternatief voor `host` + `port`, voor iets dat niet in de inventory staat |
 | `https` | de dienst praat zelf HTTPS (met een zelfgemaakt certificaat) |
 | `host_header` | stuur de oorspronkelijke `Host`-header door |
-| `forwarded` | zet `X-Real-IP` en `X-Forwarded-*` erbij (Home Assistant wil dit) |
+| `forwarded` | zet `X-Real-IP` erbij. `X-Forwarded-For` en `-Proto` zet Caddy altijd zelf; die overschrijven gaf over HTTP/3 soms een lege header, en Home Assistant weigert dan met een 400 |
 | `auth` | login via Pocket ID ervoor, alleen voor die groep: `admin` of `gezin`. Zie [Pocket ID](/mensen/pocket-id/#een-login-voor-apps-zonder-eigen-login) |
 | `auth_skip` | paden zonder die login, bv. `['/api/*']` voor een API met een eigen sleutel |
 
