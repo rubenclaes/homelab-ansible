@@ -124,8 +124,10 @@ resource "proxmox_virtual_environment_vm" "haos" {
 
   lifecycle {
     prevent_destroy = true
-    # De HTML-kaart van de community-scripts. Niets leest hem.
-    ignore_changes = [description]
+    # description: de HTML-kaart van de community-scripts. Niets leest hem.
+    # usb: de Zigbee-stick. Die zet Ansible (roles/proxmox_usb), want een
+    # USB-toestel doorgeven mag alleen root@pam en dit token is dat niet.
+    ignore_changes = [description, usb]
   }
 }
 

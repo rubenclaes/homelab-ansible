@@ -89,6 +89,7 @@ betekent: de machine weggooien en leeg opnieuw maken. Elke guest heeft
 | de OCI-containers `ntfy` (109) en `lancache` (110) | `pve_oci_lxcs` en `roles/proxmox_oci`, zie [OCI-container](/proxmox/oci/) |
 | opslag, back-upjobs, meldingen, netwerk van pve01 | Ansible (`proxmox-datacenter.yml`) |
 | `/dev/net/tun` voor 107 en 108 | Ansible als root (`roles/proxmox_tun`): een API-token mag dat niet |
+| de Zigbee-stick van `haos` (USB) | Ansible als root (`roles/proxmox_usb`): zelfde reden; `vms.tf` negeert `usb` |
 
 Na een ramp: eerst alles terugzetten uit PBS, pas dan `plan`
 ([waarom](/backups/terugzetten/#eerst-terugzetten-dan-pas-plan)).

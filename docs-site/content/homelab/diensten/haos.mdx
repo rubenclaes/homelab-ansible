@@ -2,6 +2,8 @@
 title: haos
 ---
 
+import { Steps } from 'nextra/components'
+
 # haos
 
 {/* BEGIN feiten uit de inventory — geschreven door docs.yml */}
@@ -20,3 +22,85 @@ Home Assistant — domotica
 
 <small>Alles in dit blok komt uit de inventory; `docs.yml` schrijft het. Iets fout? Pas de route aan in `inventory/host_vars/caddy/main.yml`.</small>
 {/* END feiten uit de inventory — geschreven door docs.yml */}
+
+## De config in git
+
+De YAML van Home Assistant (`configuration.yaml`, automations, scripts,
+packages) staat in
+[rubenclaes/home-assistant-config](https://github.com/rubenclaes/home-assistant-config).
+Push naar `main`; de add-on **Git pull** in Home Assistant haalt hem binnen 5
+minuten op, controleert de config en herstart. Hoe je daar een wijziging
+maakt, staat in de README van die repo.
+
+| Wat | Waar |
+| --- | --- |
+| YAML | de repo, en `/config` op `haos` is er een clone van |
+| `secrets.yaml`, `.storage/`, database, `zigbee.db` | alleen op `haos`, in de PBS-back-up van VM 101 |
+| Git pull | Instellingen → Add-ons, met een deploy key die alleen mag lezen (GitHub → repo → Settings → Deploy keys) |
+| SSH | add-on *Terminal & SSH*, poort 22, alleen met de sleutel van `laptop` |
+
+## De Zigbee-stick
+
+In pve01 steekt een **Home Assistant Connect ZBT-1**. Ansible geeft hem door
+aan de VM, op USB-ID, dus elke USB-poort van pve01 werkt.
+
+<Steps>
+
+#### Geef hem aan de VM
+
+```bash filename="laptop"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
+Op een draaiende VM steekt Proxmox hem er meteen in; een herstart van `haos`
+hoeft niet.
+
+#### Controleer of de VM hem ziet
+
+```bash filename="laptop"
+ssh pve01 'echo "info usb" | sudo qm monitor 101'   # moet "Home Assistant Connect ZBT-1" tonen
+```
+
+#### Stel hem in in Home Assistant
+
+| Waar | Wat |
+| --- | --- |
+| Instellingen → Apparaten en diensten → Ontdekt | *Home Assistant Connect ZBT-1* → *Configureren* → Zigbee (ZHA) |
+
+</Steps>
+
+| Wat | Waarde |
+| --- | --- |
+| USB-ID | `10c4:ea60` |
+| Op pve01 | `/dev/serial/by-id/usb-Nabu_Casa_Home_Assistant_Connect_ZBT-1_…` |
+| In de VM | `usb0` |
+| Bron | `proxmox_usb_devices` in `inventory/group_vars/proxmox/usb.yml` |
+
+## Goed om te weten
+
+### Waarom de stick via Ansible gaat
+
+Waarom Ansible en niet OpenTofu: een USB-toestel doorgeven mag van Proxmox
+alleen `root@pam`, en het token van OpenTofu is dat niet. Daarom negeert
+`tofu/proxmox/vms.tf` het veld `usb`. Zelfde reden als `/dev/net/tun`
+([OpenTofu](/opentofu/)).
+
+`10c4:ea60` is de ID van de chip in de stick, niet van de stick zelf: meer
+toestellen gebruiken hem. Steek je er een tweede bij met dezelfde ID, dan
+geef je ze elk een vaste poort (`host=<bus>-<poort>`).
+
+### Waarom de config een eigen repo heeft
+
+Home Assistant OS is een appliance: geen gewone SSH, geen Python voor
+Ansible. Hij haalt zijn config dus zelf, met Git pull, en die config verandert
+in een ander ritme dan pve01. Deze repo zorgt voor de VM en de stick, de
+andere voor wat erin draait.
+
+### Waarom `/config` met de hand een clone werd
+
+Git pull op een `/config` die nog geen git-repo is, kan hem leegmaken
+om te clonen, en dan zijn `.storage` en `zigbee.db` weg. Daarom is `/config`
+op 09-10-2026 over SSH een repo gemaakt met `git init`, `git fetch` en
+`git reset origin/main` (zonder `--hard`: dat raakt alleen de index, niet de
+bestanden). De add-on vond daarna een bestaande repo en hoefde alleen te
+pullen. Na een volledig nieuwe VM: eerst dat, dan de add-on.

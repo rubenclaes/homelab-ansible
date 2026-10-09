@@ -1,0 +1,9 @@
+---
+# USB-toestellen die een VM krijgt. De lijst staat in
+# inventory/group_vars/proxmox/usb.yml.
+#
+#   - { vmid: 101, slot: usb0, host: "10c4:ea60" }
+#
+# `host` is vendor:product (lsusb op pve01). Zo volgt de VM het toestel naar
+# elke poort; een busnummer (1-2) breekt als je hem in een andere poort steekt.
+proxmox_usb_devices: []

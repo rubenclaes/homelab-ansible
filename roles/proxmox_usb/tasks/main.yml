@@ -1,0 +1,60 @@
+---
+# Een USB-toestel van pve01 doorgeven aan een VM, voor de Zigbee-stick van
+# haos.
+#
+# Waarom hier en niet in OpenTofu: een rauw USB-toestel doorgeven mag van
+# Proxmox alleen root@pam, en een API-token telt niet als root (zelfde reden
+# als roles/proxmox_tun). Ansible is hier root via SSH. tofu/proxmox/vms.tf
+# negeert `usb` daarom in ignore_changes.
+#
+# Met `qm set`: op een draaiende VM steekt Proxmox het toestel er meteen in
+# (usb staat in de standaard hotplug-lijst). Geen herstart nodig.
+
+# Een VM die (nog) niet bestaat slaat hij over, zoals proxmox_tun.
+- name: Find which of these VMs exist
+  ansible.builtin.stat:
+    path: /etc/pve/qemu-server/{{ item.vmid }}.conf
+  register: proxmox_usb_conf
+  loop: "{{ proxmox_usb_devices }}"
+  loop_control:
+    label: "{{ item.vmid }} {{ item.slot }}"
+
+- name: Read the USB slot of each VM
+  ansible.builtin.command: qm config {{ item.item.vmid }} --current
+  register: proxmox_usb_config
+  changed_when: false
+  check_mode: false
+  when: item.stat.exists
+  loop: "{{ proxmox_usb_conf.results }}"
+  loop_control:
+    label: "{{ item.item.vmid }} {{ item.item.slot }}"
+
+# Een slot dat al iets anders draagt, overschrijft hij niet: dan zit er iets
+# in dat niet uit deze lijst komt. Kijk eerst wat het is.
+- name: Refuse a slot that holds another device
+  ansible.builtin.assert:
+    that: proxmox_usb_current | reject('equalto', proxmox_usb_wanted) | list | length == 0
+    fail_msg: >-
+      VM {{ proxmox_usb_dev.vmid }} heeft al iets anders op {{ proxmox_usb_dev.slot }}:
+      {{ proxmox_usb_current | join(', ') }}. Kies een ander slot.
+    quiet: true
+  vars: &proxmox_usb_vars
+    proxmox_usb_dev: "{{ item.item.item }}"
+    proxmox_usb_current: "{{ item.stdout_lines | select('match', proxmox_usb_dev.slot ~ ': ') | list }}"
+    proxmox_usb_wanted: "{{ proxmox_usb_dev.slot }}: host={{ proxmox_usb_dev.host }}"
+  when: item is not skipped
+  loop: "{{ proxmox_usb_config.results }}"
+  loop_control:
+    label: "{{ item.item.item.vmid }} {{ item.item.item.slot }}"
+
+- name: Pass the USB device through
+  ansible.builtin.command: >-
+    qm set {{ proxmox_usb_dev.vmid }} -{{ proxmox_usb_dev.slot }} host={{ proxmox_usb_dev.host }}
+  vars: *proxmox_usb_vars
+  when:
+    - item is not skipped
+    - proxmox_usb_wanted not in item.stdout_lines
+  loop: "{{ proxmox_usb_config.results }}"
+  loop_control:
+    label: "{{ item.item.item.vmid }} {{ item.item.item.slot }}"
+  changed_when: true

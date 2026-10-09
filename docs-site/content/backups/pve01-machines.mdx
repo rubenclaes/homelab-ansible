@@ -70,6 +70,8 @@ ansible-playbook playbooks/proxmox-datacenter.yml
 De rol `proxmox_tun` zet de twee `lxc.`-regels als root in hun config, en
 herstart een container alleen als hij ze net kreeg. Zonder start
 `tailscaled` niet.
+Dezelfde run geeft `haos` zijn Zigbee-stick terug (`roles/proxmox_usb`), als
+die er na een terugzetting niet meer in zat.
 
 #### Bouw `ntfy`
 

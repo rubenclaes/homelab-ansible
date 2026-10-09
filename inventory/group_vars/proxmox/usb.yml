@@ -1,0 +1,9 @@
+---
+# USB-toestellen in pve01 die naar een VM gaan. Zie roles/proxmox_usb.
+#
+# 10c4:ea60 is de Home Assistant Connect ZBT-1, de Zigbee-stick (09-10-2026,
+# lsusb op pve01). Die ID is die van de Silicon Labs-chip erin, en meer
+# toestellen gebruiken die chip. Steek je er een tweede bij met dezelfde ID,
+# dan kiest Proxmox er één: geef ze dan elk een vaste poort (host=<bus>-<poort>).
+proxmox_usb_devices:
+  - { vmid: 101, slot: usb0, host: "10c4:ea60" }

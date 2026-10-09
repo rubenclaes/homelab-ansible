@@ -1,6 +1,8 @@
 ---
 # Datacenter-instellingen van pve01: de storages en de back-upjobs. En het
-# besturingssysteem van pve01 zelf (roles/proxmox_host): de CPU-stroom.
+# besturingssysteem van pve01 zelf (roles/proxmox_host): de CPU-stroom. En
+# de toestellen die guests van pve01 krijgen: /dev/net/tun (proxmox_tun) en
+# USB (proxmox_usb), omdat OpenTofu dat als niet-root niet mag.
 #
 #   ansible-playbook playbooks/proxmox-datacenter.yml
 #
@@ -18,5 +20,6 @@
   roles:
     - proxmox_datacenter
     - proxmox_tun
+    - proxmox_usb
     - proxmox_host
   tags: [proxmox, datacenter]
