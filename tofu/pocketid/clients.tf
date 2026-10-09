@@ -108,6 +108,28 @@ resource "pocketid_client" "grimmory" {
   ]
 }
 
+# Home Assistant kan zelf geen OIDC: de integratie auth_oidc (HACS,
+# github.com/christiaangoossens/hass-oidc-auth) doet het. Een public client
+# met PKCE, dus geen secret. De config staat in de repo
+# home-assistant-config, onder auth_oidc in configuration.yaml. `admin` wordt
+# admin in Home Assistant, `gezin` gewone gebruiker. Een bestaand account
+# koppelt hij op gebruikersnaam.
+resource "pocketid_client" "homeassistant" {
+  name       = "Home Assistant"
+  client_id  = "homeassistant"
+  launch_url = "https://haos.neodata.be"
+
+  callback_urls = ["https://haos.neodata.be/auth/oidc/callback"]
+
+  is_public    = true
+  pkce_enabled = true
+
+  allowed_user_groups = [
+    pocketid_group.admin.id,
+    pocketid_group.gezin.id,
+  ]
+}
+
 # --- Beheer: alleen `admin` ---
 
 # Grafana: de instellingen staan als GF_*-variabelen in de compose van de

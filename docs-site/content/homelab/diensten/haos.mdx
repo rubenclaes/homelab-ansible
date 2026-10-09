@@ -39,6 +39,21 @@ maakt, staat in de README van die repo.
 | Git pull | Instellingen → Add-ons, met een deploy key die alleen mag lezen (GitHub → repo → Settings → Deploy keys) |
 | SSH | add-on *Terminal & SSH*, poort 22, alleen met de sleutel van `laptop` |
 
+## Inloggen met Pocket ID
+
+Home Assistant kan zelf geen OIDC. De integratie **OpenID Connect**
+(`auth_oidc`, via HACS) zet een knop *Pocket ID* op het welkomscherm. De
+gewone login blijft ernaast staan: dat is de noodtoegang als Pocket ID plat
+ligt.
+
+| Wat | Waar |
+| --- | --- |
+| de client | `pocketid_client.homeassistant` in `tofu/pocketid/clients.tf`: public, PKCE, geen secret |
+| de config | `auth_oidc` in `configuration.yaml` van de repo home-assistant-config |
+| `admin` | wordt admin in Home Assistant |
+| `gezin` | gewone gebruiker |
+| een bestaand account | koppelt op gebruikersnaam (`rubenclaes`) |
+
 ## De Zigbee-stick
 
 In pve01 steekt een **Home Assistant Connect ZBT-1**. Ansible geeft hem door
@@ -52,14 +67,17 @@ aan de VM, op USB-ID, dus elke USB-poort van pve01 werkt.
 ansible-playbook playbooks/proxmox-datacenter.yml
 ```
 
-Op een draaiende VM steekt Proxmox hem er meteen in; een herstart van `haos`
-hoeft niet.
+Krijgt `haos` hem net, dan herstart de VM (een halve minuut). Proxmox steekt
+hem er live in, maar Home Assistant OS zag hem pas na een herstart.
 
 #### Controleer of de VM hem ziet
 
 ```bash filename="laptop"
-ssh pve01 'echo "info usb" | sudo qm monitor 101'   # moet "Home Assistant Connect ZBT-1" tonen
+ssh root@192.168.0.31 'ha hardware info' | grep ZBT-1   # via de add-on Terminal & SSH
 ```
+
+Niets? Dan ziet de VM hem niet. `echo "info usb" | sudo qm monitor 101` op
+pve01 toont of QEMU hem wel heeft.
 
 #### Stel hem in in Home Assistant
 

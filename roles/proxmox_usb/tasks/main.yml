@@ -7,8 +7,8 @@
 # als roles/proxmox_tun). Ansible is hier root via SSH. tofu/proxmox/vms.tf
 # negeert `usb` daarom in ignore_changes.
 #
-# Met `qm set`: op een draaiende VM steekt Proxmox het toestel er meteen in
-# (usb staat in de standaard hotplug-lijst). Geen herstart nodig.
+# Met `qm set`. Een VM die het toestel net kreeg, herstart (zie handlers):
+# Proxmox steekt het er live in, maar de guest ziet het pas na een start.
 
 # Een VM die (nog) niet bestaat slaat hij over, zoals proxmox_tun.
 - name: Find which of these VMs exist
@@ -58,3 +58,4 @@
   loop_control:
     label: "{{ item.item.item.vmid }} {{ item.item.item.slot }}"
   changed_when: true
+  notify: Reboot USB guests

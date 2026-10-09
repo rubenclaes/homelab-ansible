@@ -1,0 +1,14 @@
+---
+# Proxmox steekt het toestel er op een draaiende VM wel in (QEMU ziet het),
+# maar Home Assistant OS pikte het op 09-10-2026 niet op: geen /dev/ttyUSB0
+# tot na een herstart. Dus herstarten, en alleen de VM's die het net kregen.
+# `qm reboot` sluit netjes af via de guest agent.
+- name: Reboot USB guests
+  ansible.builtin.command: qm reboot {{ item.item.item.vmid }}
+  when:
+    - item is not skipped
+    - (item.item.item.slot ~ ': host=' ~ item.item.item.host) not in item.stdout_lines
+  loop: "{{ proxmox_usb_config.results }}"
+  loop_control:
+    label: "{{ item.item.item.vmid }}"
+  changed_when: true
