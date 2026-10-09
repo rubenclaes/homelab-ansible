@@ -17,6 +17,12 @@ docs. Per punt: wat, en de volgende stap.
 
 ## Lopend
 
+- [ ] **Nieuwe Mac mini (M6, 16 GB).** De oude is gewist; volg
+      [Een nieuwe Mac mini](docs-site/content/mac-mini.mdx). Daarna in
+      `host_vars/macmini`: `macos_brew_upgrade: false` weg (nieuwe macOS),
+      OrbStack/Docker/UTM-uitleg weg, Ollama erbij (luisteren op het LAN,
+      `OLLAMA_HOST=0.0.0.0:11434`) voor de Ollama-plugin van NeoGate.
+
 - [ ] **`work-wsl`**: op de werk-pc SSH aan (alleen sleutels, WSL in
       nat-modus), de `ansible@neodata`-sleutel erop, dan `ansible work-wsl -m
       ping`, `adguard.yml` en `smoketest.yml`.
@@ -36,8 +42,7 @@ docs. Per punt: wat, en de volgende stap.
       `tofu-drift.yml`.
 - [ ] **Home Assistant in Prometheus** (de prometheus-integratie van HA): nu
       ziet alleen de Smoketest dat `haos` wegvalt.
-- [ ] **Action1** voor de pc van de ouders en de Macs. Daarmee ook de Mac
-      mini van macOS 14.6.1 af; dan kan `macos_brew_upgrade` daar weer aan.
+- [ ] **Action1** voor de pc van de ouders en de Macs.
 - [ ] **Gastennetwerk in UniFi**: nu zit een gast op hetzelfde wifi als pve01
       en de Macs.
 - [ ] **Plex op de Mac mini in Homebrew**: eerst met de hand overzetten (zie

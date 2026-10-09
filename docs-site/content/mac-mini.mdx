@@ -60,39 +60,89 @@ De "SSD Nas" is ondanks zijn naam een harde schijf ([Woorden](/woorden/)).
 Bron: `nfs_exports_shares` in `inventory/host_vars/macmini/main.yml` en
 `docker_stacks_nfs_mounts` in `inventory/host_vars/docker/main.yml`.
 
-## De Mac mini is weg
+## De oude Mac mini wegdoen
 
-Wat je kwijt bent:
-
-| Weg | Gevolg |
-| --- | --- |
-| de tweede back-upkopie (`macmini-backup`) | alleen PBS nog, en die staat op pve01 zelf |
-| de drie NFS-shares | de media-stack op `docker` valt om |
-| Plex | die draait nergens anders |
-
-pve01, PBS en de guests zijn ongemoeid.
-
-Dit pad is nooit volledig gelopen; `nfs.yml` heeft één keer echt gedraaid.
-Reken op verrassingen, vooral rond
-[Homebrew](/onderhoud/bijwerken/#de-mac-mini-en-homebrew).
+Voor je hem wist of verkoopt. Bijna alles staat op de externe schijven en gaat
+mee; dit is wat níét op een schijf staat. Voorbeeld: de wissel naar de M6 in
+oktober 2026.
 
 <Steps>
 
-#### Installeer macOS en geef hem hetzelfde adres
+#### Kopieer wat alleen op de interne schijf staat
+
+```bash filename="macmini"
+mkdir -p /Volumes/media01/oude-macmini
+cp ~/Library/Preferences/com.plexapp.plexmediaserver.plist /Volumes/media01/oude-macmini/
+cp -Rp ~/Container ~/Pictures ~/Downloads /Volumes/media01/oude-macmini/
+```
+
+De plist is de identiteit van je Plex-server. Desktop en Documents niet:
+die staan in iCloud en komen vanzelf terug.
+
+#### Noteer de gedeelde mappen
+
+Systeeminstellingen → Algemeen → Delen → Bestandsdeling. Welke mappen,
+welke zijn Time Machine-bestemming, met welke limiet. Op de nieuwe Mini zet je
+ze met de hand terug.
+
+#### Stop Plex en koppel de schijven los
+
+Zet in Plex eerst *Prullenbak automatisch legen* uit
+([waarom](#plex-staat-op-faststore)). Wissen raakt alleen de interne schijf,
+maar los is zeker.
+
+#### Wis hem
+
+Systeeminstellingen → Algemeen → Overdragen of herstel → *Wis alle inhoud en
+instellingen*. Dat logt ook je Apple ID uit en zet Zoek mijn uit.
+
+#### Haal hem van de tailnet
+
+In de Tailscale-console: de oude `macmini` → *Remove*. Dan is zijn
+`100.x`-adres vrij voor de nieuwe.
+
+</Steps>
+
+## Een nieuwe Mac mini
+
+Na een wissel, of als de oude kapot is. Zolang hij er niet is, liggen Plex,
+de media-stack op `docker` en de tweede back-upkopie (`macmini-backup`) stil.
+pve01, PBS en de guests zijn ongemoeid.
+
+<Steps>
+
+#### Installeer macOS met de gebruiker `rubenclaes`
+
+Geen Migratie-assistent: die sleept oude rommel mee (OrbStack, dode casks).
+Ansible zet terug wat je nodig hebt.
+
+#### Geef hem hetzelfde adres
 
 Hij moet weer op `192.168.0.26`. Dat adres staat vast in de inventory, in de
 mounts van `docker` en in de opslag `macmini-backup` op pve01.
 
-Geef de schijven **dezelfde namen**: `media01`, `FastStore`, `SSD Nas`.
+| Waar | Wat |
+| --- | --- |
+| UniFi → Client Devices → de nieuwe Mini → Settings | Fixed IP `192.168.0.26`, Local DNS Record `mac-mini` |
+| `inventory/group_vars/all/unifi.yml` | het nieuwe MAC-adres bij `mac-mini` in `unifi_dns_names` |
+
+Haal eerst de reservering van de oude Mini weg, anders is het adres bezet.
+
+#### Sluit de schijven aan
+
+Een volume draagt zijn naam op de schijf zelf: hernoemen hoeft niet. Kijk na
+of alle zeven er zijn ([Schijven](#schijven)).
 
 #### Geef Ansible toegang
 
 Zet op de Mini *Extern inloggen* (SSH) aan. Dan:
 
 ```bash filename="laptop"
+ssh-keygen -R 192.168.0.26
 ssh-copy-id -i ~/.ssh/ansible_ed25519.pub rubenclaes@192.168.0.26
 ```
 
+De nieuwe Mini heeft een nieuwe host key; de eerste regel vergeet de oude.
 Ansible logt op de Mini in als `rubenclaes`, niet als `ansible`.
 
 #### Geef `sshd` Volledige schijftoegang
@@ -115,10 +165,20 @@ ansible-playbook playbooks/nfs.yml -K
 Eerst dit: `docker` wacht erop. Doe daarna de twee laatste stappen van
 [De shares zijn weg](#de-shares-zijn-weg).
 
-#### Installeer Plex met de hand
+#### Zet Plex terug
 
-Plex staat buiten Homebrew en geen playbook zet hem terug. Het waarom staat in
-`inventory/host_vars/macmini/main.yml`.
+Installeer *Plex Media Server* van plex.tv, maar **open hem nog niet**. Eerst:
+
+```bash filename="macmini"
+ln -s "/Volumes/FastStore/plex/metadata/Plex Media Server" ~/Library/Application\ Support/Plex\ Media\ Server
+cp /Volumes/media01/oude-macmini/com.plexapp.plexmediaserver.plist ~/Library/Preferences/
+```
+
+Start dan Plex: bibliotheken, kijkgeschiedenis en vrienden zijn er meteen, en
+het blijft dezelfde server ([waarom](#plex-staat-op-faststore)). Geen plist
+meer (oude Mini kapot)? Dan start hij als nieuwe server: log in, en hij vindt
+zijn bibliotheken toch terug op FastStore. Zet daarna *Prullenbak automatisch
+legen* weer aan.
 
 #### Zet brew en casks terug
 
@@ -126,20 +186,81 @@ Plex staat buiten Homebrew en geen playbook zet hem terug. Het waarom staat in
 ansible-playbook playbooks/site.yml --limit macmini
 ```
 
-#### Maak de back-upmap aan
+#### Zet de gedeelde mappen terug
+
+Systeeminstellingen → Algemeen → Delen → Bestandsdeling:
+
+| Map | Gedeeld als | Waarom |
+| --- | --- | --- |
+| `/Volumes/NetworkTM/MacProM4` | Time Machine-bestemming | back-up van je MacBook |
+| `/Volumes/SSD Nas/Shared_SMB` | gewone map, gasten mogen lezen en schrijven | bestanden delen in huis |
+
+Voor de Mini zelf: Time Machine → `LocalTM`. Vraagt hij de bestaande back-up
+over te nemen, zeg nee: dat is die van de oude Mini.
+
+#### Zet hem op de tailnet
+
+Log in in de Tailscale-app. Geef hem in de Tailscale-console (de Mini → *Edit
+IP address*) weer `100.74.124.12`: dat adres staat als custom server access
+URL in Plex en op de toestellen van de familie.
+
+#### Leer Semaphore de nieuwe host key
+
+```bash filename="laptop"
+ansible-playbook playbooks/semaphore.yml
+```
+
+Semaphore kent elke host bij zijn SSH-sleutel. Zonder dit weigeren zijn
+geplande runs de nieuwe Mini.
+
+#### Kijk de back-upmap na
 
 ```bash filename="laptop"
 ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
 ssh pve01 'sudo pvesm status | grep macmini-backup'    # moet "active" zeggen
 ```
 
-Pas dan komt de tweede kopie terug. De oude dumps zijn weg met de schijf.
 Wacht tot zondag 01:00, of start de job met de hand in het Proxmox-scherm:
 Datacenter → Backup → de job naar `macmini-backup` → *Run now*.
 
+#### Commit en push
+
+Het nieuwe MAC-adres in `unifi.yml`.
+
 </Steps>
 
+## Schijven
+
+Vier externe schijven, zeven volumes. Op 09-10-2026 van de Mini gelezen
+(`diskutil list external`).
+
+| Schijf | Volume | Wat erop staat |
+| --- | --- | --- |
+| 8 TB | `media01` | media, de tweede back-upkopie (`backups/proxmox`) |
+| 8 TB | `NetworkTM` | Time Machine van de MacBooks |
+| 8 TB | `LocalTM` | Time Machine van de Mini zelf (limiet 1 TB) |
+| 1 TB | `SSD Nas` | NFS-share, `Shared_SMB` (+ een oude Windows-partitie `RECOVERY`) |
+| 1 TB | `data01` | leeg |
+| 256 GB | `FastStore` | Plex (database, metadata, transcode), Audiobookshelf-metadata, boeken |
+
+`media01`, `NetworkTM` en `LocalTM` delen dezelfde 8 TB: vult de ene, dan
+krimpt de andere.
+
 ## Goed om te weten
+
+### Plex staat op FastStore
+
+`~/Library/Application Support/Plex Media Server` is een symlink naar
+`/Volumes/FastStore/plex/metadata/`, en de transcode-map staat in
+`/Volumes/FastStore/plex/transcode`. Database en metadata gaan dus mee met de
+schijf, niet met de Mac. Wat op de Mac zelf staat, is de plist in
+`~/Library/Preferences`: de server-ID, de login op plex.tv en de instellingen,
+ook het pad naar de transcode-map. Neem je die mee, dan ziet plex.tv dezelfde
+server en hoeven vrienden niets opnieuw te doen.
+
+Zet bij een wissel eerst *Prullenbak automatisch legen na elke scan* uit (Plex
+→ Instellingen → Bibliotheek). Start Plex zonder schijven, dan vindt hij elk
+bestand "weg" en wist hij het uit je bibliotheek.
 
 ### Waarom er geen Docker meer op de Mini staat
 
@@ -160,7 +281,7 @@ Krijg je `[Errno 1] Operation not permitted` bij het vervangen van
 `/etc/exports`, dan is dat **geen** sudo-probleem. `/etc/exports` draagt het
 macOS-label `com.apple.macl`, en een proces dat onder `sshd` start mag zo'n
 bestand niet aanraken, ook niet als root. De oplossing is `sshd` Volledige
-schijftoegang geven (zie [Mac mini is weg](#de-mac-mini-is-weg)) en daarna
+schijftoegang geven (zie [Een nieuwe Mac mini](#een-nieuwe-mac-mini)) en daarna
 **opnieuw verbinden**. Wat níét werkt, staat in
 `roles/nfs_exports/tasks/main.yml`.
 

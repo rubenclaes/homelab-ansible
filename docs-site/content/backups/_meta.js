@@ -7,5 +7,5 @@ export default {
   'pve01-machines': 'pve01 opnieuw: machines',
   'tweede-kopie': 'Tweede kopie',
   r2: 'Terughalen uit R2',
-  'mac-mini-weg': { title: 'De Mac mini is weg', href: '/mac-mini/#de-mac-mini-is-weg' }
+  'mac-mini-weg': { title: 'Een nieuwe Mac mini', href: '/mac-mini/#een-nieuwe-mac-mini' }
 }
