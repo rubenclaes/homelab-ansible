@@ -112,8 +112,9 @@ Wie elke nacht een "OK" krijgt, leest de ene "failed" niet meer.
 
 ### Waarom niet via Caddy
 
-Proxmox en PBS sturen rechtstreeks naar `192.168.0.32`: een melding over een
-storing mag niet afhangen van Caddy of AdGuard. Grote logs komen als bijlage
+Proxmox, PBS en de rest sturen rechtstreeks naar het IP (`ntfy_ip` in
+`inventory/group_vars/all/ntfy.yml`, de enige plek waar het staat): een
+melding over een storing mag niet afhangen van Caddy of AdGuard. Grote logs komen als bijlage
 dankzij `NTFY_ATTACHMENT_CACHE_DIR` in de env; zonder weigert ntfy zo'n
 bericht en krijg je niets.
 

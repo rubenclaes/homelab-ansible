@@ -26,18 +26,18 @@ Neem de rol die het meest op de jouwe lijkt. `adguard` is een goed
 vertrekpunt: één binary, één config, één dienst.
 
 ```bash filename="laptop"
-cp -r roles/adguard roles/vaultwarden
-cp playbooks/adguard.yml playbooks/vaultwarden.yml
+cp -r roles/adguard roles/<naam>
+cp playbooks/adguard.yml playbooks/<naam>.yml
 ```
 
-Pas in `playbooks/vaultwarden.yml` de naam, `hosts:`, de rol en de tags aan.
-In de rol: hernoem de variabelen (`adguard_*` wordt `vaultwarden_*`) en zet de
+Pas in `playbooks/<naam>.yml` de naam, `hosts:`, de rol en de tags aan.
+In de rol: hernoem de variabelen (`adguard_*` wordt `<naam>_*`) en zet de
 beschrijving in `meta/main.yml` goed.
 
 #### Schrijf de installatiestappen
 
 ```bash filename="laptop"
-$EDITOR roles/vaultwarden/tasks/main.yml
+$EDITOR roles/<naam>/tasks/main.yml
 ```
 
 Houd het vaste patroon aan dat alle rollen hier volgen:
@@ -58,8 +58,8 @@ De volgorde telt: eerst waar je dienst van afhangt, daarna je dienst.
 #### Eerst een dry run, dan echt
 
 ```bash filename="laptop"
-ansible-playbook playbooks/vaultwarden.yml --check --diff   # toont wat er zou veranderen
-ansible-playbook playbooks/vaultwarden.yml                  # doet het echt
+ansible-playbook playbooks/<naam>.yml --check --diff   # toont wat er zou veranderen
+ansible-playbook playbooks/<naam>.yml                  # doet het echt
 ```
 
 #### Geef hem een adres

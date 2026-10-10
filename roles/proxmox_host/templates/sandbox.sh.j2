@@ -42,10 +42,10 @@ cmd_new() {
 		--hostname "sandbox-$id" --tags sandbox \
 		--unprivileged 1 --features nesting=1 \
 		--cores 2 --memory 1024 --swap 512 \
-		--rootfs local-lvm:8 \
+		--rootfs {{ proxmox_host_sandbox_storage }}:{{ proxmox_host_sandbox_disk_gb }} \
 		--net0 name=eth0,bridge={{ pve_guest_network.bridge }},ip=dhcp \
 		--searchdomain {{ pve_guest_network.searchdomain }} \
-		--ssh-public-keys /home/ansible/.ssh/authorized_keys \
+		--ssh-public-keys {{ proxmox_host_sandbox_ssh_keys }} \
 		--start 1 >/dev/null
 
 	# DHCP duurt een paar seconden; zonder adres werkt hij nog, maar zonder net.

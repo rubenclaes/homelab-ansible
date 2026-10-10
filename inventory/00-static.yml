@@ -56,8 +56,19 @@ all:
 
     macs:
       hosts:
-        macmini: { ansible_host: 192.168.0.26, ansible_user: rubenclaes }
         mbp: { ansible_connection: local }
+
+    # Hosts die er tijdelijk niet zijn. Ze blijven in de inventory, zodat alles
+    # wat naar ze verwijst (de Plex-route, de NFS-mounts, de back-upstorage)
+    # blijft kloppen. Maar ze zitten in geen enkele groep waar een playbook op
+    # draait, en Prometheus, de smoketest en Semaphore slaan ze over. Terug:
+    # zet de regel weer onder zijn groep.
+    #
+    # macmini: de oude is op 09-10-2026 gewist, de M6 komt nog. Terug onder
+    # `macs` is een stap in docs-site, Mac mini -> Een nieuwe Mac mini.
+    away:
+      hosts:
+        macmini: { ansible_host: 192.168.0.26, ansible_user: rubenclaes }
 
     # Werkplekken buiten Proxmox. Ze staan vaak uit, dus een nachtelijke run
     # zou hier elke nacht falen.

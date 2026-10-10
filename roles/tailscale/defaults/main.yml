@@ -8,7 +8,7 @@ tailscale_repo_suite: "{{ ansible_facts['distribution_release'] }}"
 
 # --- Joining the tailnet ----------------------------------------------------
 # Optional. When tailscale_oauth_client_id and tailscale_oauth_client_secret
-# are set (inventory/host_vars/tailscale/, from its vault.yml), a node that is
+# are set (inventory/group_vars/tailnet/, from its vault.yml), a node that is
 # not on the tailnet mints itself a single-use, pre-authorised auth key over
 # the API and joins. Nothing about the node's identity is stored in the repo:
 # the key is used once and the OAuth client can only make keys. Without the

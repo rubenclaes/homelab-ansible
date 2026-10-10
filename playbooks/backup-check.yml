@@ -21,6 +21,9 @@
     # drempel staat in group_vars/all/report.yml, want het rapport gebruikt hem ook.
     backup_check_weekly_max_hours: 170
     backup_check_weekly_job: "{{ pve_backup_jobs | selectattr('params.storage', 'eq', 'macmini-backup') | first }}"
+    # Een job met enabled: 0 (geen Mac mini) controleren is elke ochtend rood
+    # voor iets wat met opzet uit staat.
+    backup_check_weekly: "{{ backup_check_weekly_job.params.enabled | default(1) | int == 1 }}"
   tasks:
     - name: List the guests
       ansible.builtin.command: pvesh get /cluster/resources --type vm --output-format json
@@ -42,6 +45,7 @@
       register: backup_check_dumps
       changed_when: false
       check_mode: false
+      when: backup_check_weekly | bool
 
     - name: Read the last backup per group from PBS
       ansible.builtin.include_tasks: tasks/pbs_last_backups.yml
@@ -54,7 +58,7 @@
     - name: Collect what should be backed up
       ansible.builtin.set_fact:
         backup_check_expected: >-
-          {%- set dumps = backup_check_dumps.stdout | from_json | sort(attribute='ctime')
+          {%- set dumps = (backup_check_dumps.stdout | default('[]')) | from_json | sort(attribute='ctime')
                           | items2dict(key_name='vmid', value_name='ctime') -%}
           {%- set out = [] -%}
           {%- for g in backup_check_guests.stdout | from_json | sort(attribute='vmid')
@@ -63,14 +67,14 @@
           {%-   set key = ('vm' if g.type == 'qemu' else 'ct') ~ '/' ~ g.vmid -%}
           {%-   set _ = out.append({'label': 'PBS ' ~ g.vmid ~ ' ' ~ g.name, 'last': pbs_last_backup[key] | default(0),
                                     'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
+          {%-   if backup_check_weekly | bool -%}
+          {%-     set _ = out.append({'label': 'Mac mini ' ~ g.vmid ~ ' ' ~ g.name, 'last': dumps[g.vmid] | default(0),
+                                      'max_hours': backup_check_weekly_max_hours, 'missing': 'geen dump'}) -%}
+          {%-   endif -%}
           {%- endfor -%}
           {%- for id in backup_pbs_hosts -%}
           {%-   set _ = out.append({'label': 'PBS host/' ~ id, 'last': pbs_last_backup['host/' ~ id] | default(0),
                                     'max_hours': backup_daily_max_hours, 'missing': 'geen back-up'}) -%}
-          {%- endfor -%}
-          {%- for vmid in (backup_check_weekly_job.params.vmid | default('')).split(',') | select | map('int') -%}
-          {%-   set _ = out.append({'label': 'Mac mini ' ~ vmid, 'last': dumps[vmid] | default(0),
-                                    'max_hours': backup_check_weekly_max_hours, 'missing': 'geen dump'}) -%}
           {%- endfor -%}
           {{- out -}}
 
@@ -90,5 +94,6 @@
         that: backup_check_problems | length == 0
         fail_msg: "{{ backup_check_problems }}"
         success_msg: >-
-          Alles recent: PBS binnen {{ backup_daily_max_hours }} uur,
-          de Mac mini binnen {{ backup_check_weekly_max_hours }} uur.
+          Alles recent: PBS binnen {{ backup_daily_max_hours }} uur{{
+          ', de Mac mini binnen ' ~ backup_check_weekly_max_hours ~ ' uur' if backup_check_weekly | bool
+          else ' (de weekjob naar de Mac mini staat uit)' }}.

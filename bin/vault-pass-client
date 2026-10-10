@@ -14,9 +14,11 @@
 # Resolution order per identity <id>:
 #   1. $ANSIBLE_VAULT_PASSWORD_<ID>   uppercased - for CI and Semaphore
 #   2. ~/.ansible/vault_pass_<id>     the workstation location
-#   3. ~/.ansible/vault_pass          legacy single password, pre-split
-#   4. placeholder                    so lint and --syntax-check still run in
+#   3. placeholder                    so lint and --syntax-check still run in
 #                                     a clone with no secrets (see README)
+#
+# No fallback to one password for every identity: that was the setup before
+# the split, and a fallback would quietly keep it alive.
 set -euo pipefail
 
 vault_id=""
@@ -41,16 +43,6 @@ if [[ -n "$vault_id" ]]; then
 		cat -- "${HOME}/.ansible/vault_pass_${vault_id}"
 		exit 0
 	fi
-fi
-
-if [[ -n "${ANSIBLE_VAULT_PASSWORD:-}" ]]; then
-	printf '%s\n' "$ANSIBLE_VAULT_PASSWORD"
-	exit 0
-fi
-
-if [[ -r "${HOME}/.ansible/vault_pass" ]]; then
-	cat -- "${HOME}/.ansible/vault_pass"
-	exit 0
 fi
 
 echo "vault-pass-client: no password for vault id '${vault_id:-<none>}'." >&2

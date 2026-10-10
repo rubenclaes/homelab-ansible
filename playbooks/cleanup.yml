@@ -95,7 +95,9 @@
           register: cleanup_disk_after
           changed_when: false
 
+        # Niet onder --check: dan is er niets opgeruimd en niets opnieuw gemeten.
         - name: Report what was reclaimed here
+          when: not ansible_check_mode
           ansible.builtin.debug:
             msg: >-
               {{ inventory_hostname }}: root {{ cleanup_disk_before.stdout | int }}%
@@ -161,7 +163,9 @@
             volumes: false
           register: cleanup_pruned
 
+        # Niet onder --check: dan is er niets opgeruimd en niets opnieuw gemeten.
         - name: Report what was reclaimed here
+          when: not ansible_check_mode
           ansible.builtin.debug:
             msg: >-
               {{ inventory_hostname }}:
@@ -266,7 +270,9 @@
           register: cleanup_brew_after
           changed_when: false
 
+        # Niet onder --check: dan is er niets opgeruimd en niets opnieuw gemeten.
         - name: Report what was reclaimed here
+          when: not ansible_check_mode
           ansible.builtin.debug:
             msg: >-
               {{ inventory_hostname }}: Homebrew cache

@@ -30,7 +30,8 @@ scrape_configs:
   # een alarm niet zien dat hij ontbreekt.
   - job_name: node
     static_configs:
-{% for host in (groups[prometheus_config_node_group] + prometheus_config_node_extra_hosts) | sort %}
+{# Hosts in `away` (00-static.yml) zijn er tijdelijk niet: geen HostDown voor. #}
+{% for host in (groups[prometheus_config_node_group] + prometheus_config_node_extra_hosts) | reject('in', groups.get('away', [])) | sort %}
 {%   set kind = 'host' if host in groups.get('proxmox', [])
           else 'lxc' if host in groups.get('proxmox_all_lxc', [])
           else 'vm' if host in groups.get('proxmox_all_qemu', [])

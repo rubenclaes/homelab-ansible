@@ -1,8 +1,4 @@
 ---
-- name: Reload systemd for AdGuardHome
-  ansible.builtin.systemd_service:
-    daemon_reload: true
-
 - name: Restart AdGuardHome
   ansible.builtin.systemd_service:
     name: AdGuardHome

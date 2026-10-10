@@ -47,6 +47,19 @@
   loop_control:
     label: "{{ item.item.item.vmid }} {{ item.item.item.slot }}"
 
+# What a --check run sees: `qm set` below is skipped there.
+- name: Report the USB devices that will be passed through
+  ansible.builtin.debug:
+    msg: "{{ proxmox_usb_dev.vmid }} {{ proxmox_usb_wanted }}"
+  vars: *proxmox_usb_vars
+  when:
+    - item is not skipped
+    - proxmox_usb_wanted not in item.stdout_lines
+  loop: "{{ proxmox_usb_config.results }}"
+  loop_control:
+    label: "{{ item.item.item.vmid }} {{ item.item.item.slot }}"
+  changed_when: true
+
 - name: Pass the USB device through
   ansible.builtin.command: >-
     qm set {{ proxmox_usb_dev.vmid }} -{{ proxmox_usb_dev.slot }} host={{ proxmox_usb_dev.host }}

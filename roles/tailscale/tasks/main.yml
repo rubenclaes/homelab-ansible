@@ -25,21 +25,12 @@
     enabled: true
   register: tailscale_repo
 
-- name: Remove the superseded one-line repository file
-  ansible.builtin.file:
-    path: /etc/apt/sources.list.d/tailscale.list
-    state: absent
-  register: tailscale_old_repo
-
-- name: Refresh the package list when the repository changed
-  ansible.builtin.apt:
-    update_cache: true
-  when: tailscale_repo is changed or tailscale_old_repo is changed
-
 - name: Install Tailscale
   ansible.builtin.apt:
     name: tailscale
     state: present
+    # Only when the repository is new or changed; otherwise the cache is fine.
+    update_cache: "{{ tailscale_repo is changed }}"
 
 - name: Ensure tailscaled is enabled and running
   ansible.builtin.systemd_service:

@@ -65,11 +65,9 @@
       delegate_to: localhost
       become: false
 
-    # De dynamische inventory werd gelezen voor deze container bestond, dus
-    # hij staat er nog niet in. Hiermee kunnen de plays hieronder hem nu al
-    # bereiken; de volgende run pikt hem gewoon uit Proxmox op, als elke
-    # andere guest.
-    - name: Add it to this run's inventory
+    # Een eigen groep voor deze run, zodat de plays hieronder alleen deze
+    # container raken.
+    - name: Put it in a group of its own
       ansible.builtin.add_host:
         name: "{{ guest }}"
         ansible_host: "{{ new_guest_ip }}"
@@ -77,13 +75,17 @@
 
 # Root met een sleutel, want OpenTofu zet de ansible@neodata-sleutel bij
 # aanmaak al in root (tofu/proxmox/containers.tf, user_account). Een container
-# die die sleutel NIET kreeg heeft `-u root -k` en een wachtwoord nodig; zie
+# die die sleutel NIET kreeg heeft `-k` en een wachtwoord nodig; zie
 # playbooks/bootstrap.yml.
+#
+# ansible_user als play-var en niet als remote_user: de inventory zet
+# ansible_user: ansible voor heel `linux`, en die wint van remote_user.
 - name: Create the ansible service account
   hosts: new_guest
   gather_facts: true
-  remote_user: root
   vars:
+    ansible_user: root
+    ansible_become: false
     svc_user: ansible
     svc_pubkey: "{{ lookup('file', '~/.ssh/ansible_ed25519.pub') }}"
   tasks:

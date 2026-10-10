@@ -61,7 +61,7 @@ nieuwe, lege aan.
 
 ```bash filename="laptop"
 ssh-keygen -R <pbs-adres>
-ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
+ansible-playbook playbooks/bootstrap.yml --limit pbs -k
 ansible-playbook playbooks/pbs.yml
 ```
 

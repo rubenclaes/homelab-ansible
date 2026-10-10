@@ -2,12 +2,17 @@
 # Imported last from main.yml, after every storage and every backup job has
 # been reconciled: reporting and asserting live here, and only here, so one
 # fatal assert can never cut the loop above short and hide what came after.
+#
+# The reports are `changed` when they list something. The pvesh commands that
+# put things right are skipped under --check, so without this a dry run (and
+# with it playbooks/drift.yml) would count zero changes on a node that differs.
 - name: Report which storages differ from what is declared
   ansible.builtin.debug:
     msg: >-
       {{ 'Every declared storage matches the node'
          if proxmox_datacenter_drift | length == 0
          else 'Differs from inventory: ' ~ proxmox_datacenter_drift | join(', ') }}
+  changed_when: proxmox_datacenter_drift | length > 0
 
 - name: Report which backup jobs differ from what is declared
   ansible.builtin.debug:
@@ -15,6 +20,7 @@
       {{ 'Every declared backup job matches the node'
          if proxmox_datacenter_job_drift | length == 0
          else 'Differs from inventory: ' ~ proxmox_datacenter_job_drift | join(', ') }}
+  changed_when: proxmox_datacenter_job_drift | length > 0
 
 - name: Report what would be created
   ansible.builtin.debug:
@@ -30,9 +36,8 @@
 # Skipped when proxmox_datacenter_create is set, because then the missing
 # objects were just created and complaining about them would be reporting a
 # state this run has already left. Without the flag it stays unconditional:
-# a declared storage or backup job that does not exist is a real error
-# regardless of proxmox_datacenter_require_clean, not something a plain
-# converge run should pass over quietly.
+# a declared storage or backup job that does not exist is a real error, not
+# something a plain converge run should pass over quietly.
 - name: Require every declared storage and backup job to exist
   when: not (proxmox_datacenter_create | default(false) | bool)
   ansible.builtin.assert:
@@ -49,20 +54,3 @@
       source of truth - re-run with `-e proxmox_datacenter_create=true` and let the role make
       them from what is declared here.
     success_msg: "Every declared storage and backup job exists"
-
-# The real test for this role: ansible.builtin.command is skipped entirely
-# under --check, so `changed` stays 0 whether the declared values match or
-# not. set_fact and assert DO run in check mode, so the drift lists built
-# above are accurate there and this assertion is meaningful.
-- name: Require the declared storages and backup jobs to match the node
-  ansible.builtin.assert:
-    that:
-      - proxmox_datacenter_drift | length == 0
-      - proxmox_datacenter_job_drift | length == 0
-    fail_msg: >-
-      These differ from what inventory declares - storage(s): [{{ proxmox_datacenter_drift | join(', ') }}],
-      backup job(s): [{{ proxmox_datacenter_job_drift | join(', ') }}].
-    success_msg: >-
-      All {{ pve_storages | default([]) | length }} declared storages and
-      {{ pve_backup_jobs | default([]) | length }} declared backup jobs match
-  when: proxmox_datacenter_require_clean | default(false) | bool

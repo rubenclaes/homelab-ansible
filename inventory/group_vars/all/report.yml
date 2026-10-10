@@ -1,7 +1,7 @@
 ---
-# Settings for playbooks/report.yml. Kept here rather than hardcoded in the
-# playbook so the domain, datastore and publish location are changeable in one
-# place, and overridable per host or with -e.
+# Settings for playbooks/report.yml (and where docs.yml publishes). Kept here
+# rather than hardcoded in the playbook so the domain, datastore and publish
+# locations are changeable in one place, and overridable per host or with -e.
 
 # De naam waarmee het rapport het wildcard-certificaat opvraagt, alleen om de
 # vervaldatum te lezen. Uit de vars van de caddy-host, zodat een domeinwijziging
@@ -17,9 +17,12 @@ report_cert_host: "semaphore.{{ hostvars['caddy']['caddy_domain'] }}"
 report_pbs_datastore: store1
 report_pbs_token_id: "ansible@pbs!report"
 
-# Where the rendered HTML is served from on the caddy host.
-# Must match the `root` in the report.{{ domain }} block of Caddyfile.j2.
+# Where the rendered HTML is served from on the caddy host. Caddyfile.j2 reads
+# the same variable for the `root` of report.{{ domain }}.
 report_publish_dir: /var/www/homelab-report
+
+# The same for docs.{{ domain }}, published by playbooks/docs.yml.
+docs_publish_dir: /var/www/homelab-docs
 
 # De dagelijkse back-up loopt om 02:00 (pbs_client) en 02:30 (PBS): boven 26
 # uur is er een nacht gemist. Voor backup-check.yml (rood) en het rapport
@@ -27,13 +30,9 @@ report_publish_dir: /var/www/homelab-report
 backup_daily_max_hours: 26
 
 # Guests die met opzet niet in de back-up zitten, zodat het rapport ze niet
-# elke run rood meldt: de `exclude` van de dagelijkse PBS-job in
+# elke run rood meldt: dezelfde lijst als de jobs in
 # group_vars/proxmox/backup.yml, en niet een eigen lijst die daarvan afdrijft.
-# (Die stond hier op [100] terwijl de job ook 110 uitsloot.) De sandboxes
-# (900-999) zitten daar ook in.
-report_backup_exclude: >-
-  {{ hostvars['pve01'].pve_backup_jobs | default([]) | selectattr('params.storage', 'eq', 'pbs')
-     | map(attribute='params.exclude') | first | default('') | split(',') | select | map('int') | list }}
+report_backup_exclude: "{{ hostvars['pve01'].pve_backup_exclude | default([]) | map('int') | list }}"
 
 # De hosts die zelf naar PBS schrijven (pbs_client), als `host/<id>` in PBS.
 backup_pbs_hosts: >-

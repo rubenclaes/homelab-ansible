@@ -1,0 +1,20 @@
+---
+# The commands per CLI. __NAME__ is replaced by the endpoint or matcher name:
+# pvesh puts it in the API path, proxmox-backup-manager takes it as argument.
+proxmox_notifications_commands:
+  pve:
+    webhook_list: [pvesh, get, /cluster/notifications/endpoints/webhook, --output-format, json]
+    webhook_create: [pvesh, create, /cluster/notifications/endpoints/webhook, --name, __NAME__]
+    webhook_update: [pvesh, set, /cluster/notifications/endpoints/webhook/__NAME__]
+    matcher_list: [pvesh, get, /cluster/notifications/matchers, --output-format, json]
+    matcher_create: [pvesh, create, /cluster/notifications/matchers, --name, __NAME__]
+    matcher_update: [pvesh, set, /cluster/notifications/matchers/__NAME__]
+  pbs:
+    webhook_list: [proxmox-backup-manager, notification, endpoint, webhook, list, --output-format, json]
+    webhook_create: [proxmox-backup-manager, notification, endpoint, webhook, create, __NAME__]
+    webhook_update: [proxmox-backup-manager, notification, endpoint, webhook, update, __NAME__]
+    matcher_list: [proxmox-backup-manager, notification, matcher, list, --output-format, json]
+    matcher_create: [proxmox-backup-manager, notification, matcher, create, __NAME__]
+    matcher_update: [proxmox-backup-manager, notification, matcher, update, __NAME__]
+
+proxmox_notifications_cmd: "{{ proxmox_notifications_commands[proxmox_notifications_cli] }}"

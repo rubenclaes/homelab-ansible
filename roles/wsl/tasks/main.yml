@@ -103,6 +103,15 @@
       != 'go' ~ wsl_go_version
   become: true
   block:
+    # First, so a failed download or checksum leaves the old Go in place.
+    - name: Download Go
+      ansible.builtin.get_url:
+        url: https://go.dev/dl/go{{ wsl_go_version }}.linux-amd64.tar.gz
+        dest: /tmp/go{{ wsl_go_version }}.linux-amd64.tar.gz
+        checksum: "sha256:{{ wsl_go_sha256 }}"
+        mode: "0644"
+      register: wsl_go_tarball
+
     # Unpacking over an old tree leaves its stale files behind, and Go's own
     # install docs say to remove it first.
     - name: Remove the old Go tree
@@ -112,9 +121,15 @@
 
     - name: Unpack Go
       ansible.builtin.unarchive:
-        src: https://go.dev/dl/go{{ wsl_go_version }}.linux-amd64.tar.gz
+        src: "{{ wsl_go_tarball.dest }}"
         dest: /usr/local
         remote_src: true
+      when: not ansible_check_mode
+
+    - name: Remove the Go tarball
+      ansible.builtin.file:
+        path: "{{ wsl_go_tarball.dest }}"
+        state: absent
 
 # --- Homebrew ----------------------------------------------------------------
 # The "untar anywhere" install: a git clone plus a symlink. The official

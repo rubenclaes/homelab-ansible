@@ -28,11 +28,6 @@
 	abort
 }
 
-:80 {
-	root * /usr/share/caddy
-	file_server
-}
-
 # Read-only window on the admin API for NeoGate's Caddy plugin: it reads the
 # site list (host -> upstream) to give its app tiles their public address.
 # Only GET, only the routes path, only from caddy_neogate_host
@@ -119,14 +114,6 @@
 # -----------------------
 # Special sites
 # -----------------------
-ca.{{ caddy_domain }} {
-	import common_headers
-	root * /var/www/caddy-ca
-	file_server
-	header Content-Disposition "attachment; filename=caddy-local-root.crt"
-	header Content-Type "application/x-x509-ca-cert"
-}
-
 metrics.{{ caddy_domain }} {
 	@lan client_ip private_ranges
 	handle @lan {
@@ -149,13 +136,13 @@ docs.{{ caddy_domain }} {
 	import common_headers
 	@internal client_ip private_ranges 100.64.0.0/10
 	handle @internal {
-		root * /var/www/homelab-docs
+		root * {{ docs_publish_dir }}
 		file_server
 	}
 	respond "Forbidden" 403
 	# file_server geeft zelf een lege 404. Toon die van de site (app/not-found.jsx).
 	handle_errors 404 {
-		root * /var/www/homelab-docs
+		root * {{ docs_publish_dir }}
 		rewrite * /404.html
 		file_server
 	}

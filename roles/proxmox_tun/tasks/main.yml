@@ -54,6 +54,13 @@
   loop_control:
     label: "{{ item.item }}"
 
+# What a --check run sees: the shell below is skipped there.
+- name: Report the containers that will get the tun lines
+  ansible.builtin.debug:
+    msg: "{{ proxmox_tun_present.results | selectattr('stdout', 'eq', '0') | map(attribute='item') | list }}"
+  changed_when: true
+  when: proxmox_tun_present.results | selectattr('stdout', 'eq', '0') | list | length > 0
+
 - name: Add the tun lines
   ansible.builtin.shell: >-
     printf '%s\n' '{{ proxmox_tun_lines[0] }}' '{{ proxmox_tun_lines[1] }}'

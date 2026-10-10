@@ -140,8 +140,7 @@
   </div>
 
 
-{% set container_hosts = ((groups['docker_hosts'] | default([])) + (groups['macs'] | default([])))
-                         | unique | sort | list %}
+{% set container_hosts = groups['docker_hosts'] | default([]) | sort | list %}
 {% for ch in container_hosts %}
   {% if hostvars[ch].report_containers | default([]) %}
   <div class="card">

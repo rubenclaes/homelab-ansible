@@ -25,7 +25,7 @@
 
 - name: Record the realm if it would be created
   ansible.builtin.set_fact:
-    pbs_missing: "{{ pbs_missing | default([]) + ['openid realm ' ~ pbs_oidc.realm] }}"
+    pbs_missing: "{{ pbs_missing + ['openid realm ' ~ pbs_oidc.realm] }}"
   when: pbs_openid_realm | length == 0
 
 - name: Create the OpenID realm
@@ -49,6 +49,20 @@
   changed_when: true
   no_log: true
 
+- name: Compare the realm with what is declared
+  ansible.builtin.set_fact:
+    pbs_openid_realm_differs: >-
+      {{ pbs_openid_realm | length > 0
+         and (pbs_openid_realm['issuer-url'] != pbs_oidc.issuer
+              or pbs_openid_realm['client-id'] != pbs_oidc.client_id
+              or pbs_openid_realm.comment | default('') != pbs_oidc.comment
+              or pbs_openid_realm.autocreate | default(false) | bool) }}
+
+- name: Record the realm if it would be corrected
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing + ['openid realm ' ~ pbs_oidc.realm ~ ' (settings)'] }}"
+  when: pbs_openid_realm_differs | bool
+
 - name: Correct the realm where it differs
   ansible.builtin.command:
     argv:
@@ -64,13 +78,7 @@
       - "{{ pbs_oidc.comment }}"
       - --autocreate
       - "false"
-  when:
-    - pbs_openid_realm | length > 0
-    - >-
-      pbs_openid_realm['issuer-url'] != pbs_oidc.issuer
-      or pbs_openid_realm['client-id'] != pbs_oidc.client_id
-      or pbs_openid_realm.comment | default('') != pbs_oidc.comment
-      or pbs_openid_realm.autocreate | default(false) | bool
+  when: pbs_openid_realm_differs | bool
   changed_when: true
 
 - name: Read the current users
@@ -81,7 +89,7 @@
 
 - name: Record the admins that would be created
   ansible.builtin.set_fact:
-    pbs_missing: "{{ pbs_missing | default([]) + ['user ' ~ item ~ '@' ~ pbs_oidc.realm] }}"
+    pbs_missing: "{{ pbs_missing + ['user ' ~ item ~ '@' ~ pbs_oidc.realm] }}"
   loop: "{{ pbs_oidc.admins }}"
   when: (item ~ '@' ~ pbs_oidc.realm) not in (pbs_users_current.stdout | from_json | map(attribute='userid') | list)
 
@@ -104,6 +112,18 @@
   changed_when: false
   check_mode: false
 
+- name: Find the admins without Admin on /
+  ansible.builtin.set_fact:
+    pbs_oidc_acl_missing: >-
+      {{ pbs_oidc.admins | map('regex_replace', '$', '@' ~ pbs_oidc.realm) | list
+         | difference(pbs_acl_current.stdout | from_json
+                      | selectattr('path', 'eq', '/') | selectattr('roleid', 'eq', 'Admin')
+                      | map(attribute='ugid') | list) }}
+
+- name: Record the ACL entries that would be added
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing + (pbs_oidc_acl_missing | map('regex_replace', '^', 'Admin on / for ') | list) }}"
+
 - name: Give the admins Admin on /
   ansible.builtin.command:
     argv:
@@ -113,12 +133,6 @@
       - /
       - Admin
       - --auth-id
-      - "{{ item }}@{{ pbs_oidc.realm }}"
-  loop: "{{ pbs_oidc.admins }}"
-  when: >-
-    pbs_acl_current.stdout | from_json
-    | selectattr('path', 'eq', '/')
-    | selectattr('roleid', 'eq', 'Admin')
-    | selectattr('ugid', 'eq', item ~ '@' ~ pbs_oidc.realm)
-    | list | length == 0
+      - "{{ item }}"
+  loop: "{{ pbs_oidc_acl_missing }}"
   changed_when: true

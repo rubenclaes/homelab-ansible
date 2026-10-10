@@ -36,21 +36,34 @@
         checksum: "sha256:{{ oauth2_proxy_sha256 }}"
         mode: "0644"
 
-    - name: Unpack the release
-      ansible.builtin.unarchive:
-        src: /tmp/oauth2-proxy.tar.gz
-        dest: /tmp
-        remote_src: true
-
+    # Not under --check: get_url downloads nothing there, so there is no
+    # tarball. The download above already shows up as the change.
     - name: Put the binary in place
-      ansible.builtin.copy:
-        src: "/tmp/oauth2-proxy-v{{ oauth2_proxy_version }}.linux-amd64/oauth2-proxy"
-        dest: /usr/local/bin/oauth2-proxy
-        remote_src: true
-        owner: root
-        group: root
-        mode: "0755"
-      notify: Restart oauth2-proxy
+      when: not ansible_check_mode
+      block:
+        - name: Unpack the release
+          ansible.builtin.unarchive:
+            src: /tmp/oauth2-proxy.tar.gz
+            dest: /tmp
+            remote_src: true
+
+        - name: Copy the binary
+          ansible.builtin.copy:
+            src: "/tmp/oauth2-proxy-v{{ oauth2_proxy_version }}.linux-amd64/oauth2-proxy"
+            dest: /usr/local/bin/oauth2-proxy
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0755"
+          notify: Restart oauth2-proxy
+
+    - name: Remove the download
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/oauth2-proxy.tar.gz
+        - /tmp/oauth2-proxy-v{{ oauth2_proxy_version }}.linux-amd64
 
 - name: Create the config directory
   ansible.builtin.file:

@@ -52,13 +52,32 @@
   register: semaphore_collections
   changed_when: "'was installed successfully' in semaphore_collections.stdout"
 
-- name: Install Semaphore
-  ansible.builtin.apt:
-    deb: "https://github.com/semaphoreui/semaphore/releases/download/v{{ semaphore_version }}/semaphore_{{ semaphore_version }}_linux_amd64.deb"
+# Downloaded with a pinned checksum, then installed from the local file. This
+# host holds both vault passwords; a package that changed under the same
+# version number must not reach it.
+- name: Download Semaphore and OpenTofu
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/var/cache/apt/archives/{{ item.url | basename }}"
+    checksum: "sha256:{{ item.sha256 }}"
+    mode: "0644"
+  loop:
+    - url: "https://github.com/semaphoreui/semaphore/releases/download/v{{ semaphore_version }}/semaphore_{{ semaphore_version }}_linux_amd64.deb"
+      sha256: "{{ semaphore_sha256 }}"
+    - url: "https://github.com/opentofu/opentofu/releases/download/v{{ semaphore_tofu_version }}/tofu_{{ semaphore_tofu_version }}_amd64.deb"
+      sha256: "{{ semaphore_tofu_sha256 }}"
+  loop_control:
+    label: "{{ item.url | basename }}"
+  register: semaphore_debs
 
-- name: Install OpenTofu
+# Not under --check: get_url downloads nothing there, so there is no file.
+- name: Install Semaphore and OpenTofu
   ansible.builtin.apt:
-    deb: "https://github.com/opentofu/opentofu/releases/download/v{{ semaphore_tofu_version }}/tofu_{{ semaphore_tofu_version }}_amd64.deb"
+    deb: "{{ item.dest }}"
+  loop: "{{ semaphore_debs.results }}"
+  loop_control:
+    label: "{{ item.dest | basename }}"
+  when: not ansible_check_mode
 
 - name: Create config and data directories
   ansible.builtin.file:
@@ -141,6 +160,7 @@
       {% if semaphore_ntfy_url | length > 0 %}
       Environment=HOMELAB_NTFY_URL={{ semaphore_ntfy_url }}
       Environment=HOMELAB_NTFY_TOKEN_FILE={{ semaphore_home }}/.ntfy-token
+      Environment=HOMELAB_NTFY_CLICK={{ semaphore_ntfy_click }}
       {% endif %}
       ExecStart=/usr/bin/semaphore server --config {{ semaphore_config_dir }}/config.json
       Restart=on-failure
@@ -186,7 +206,7 @@
       Run the full playbook so facts are collected first:
       `ansible-playbook playbooks/semaphore.yml`.
       Do not use `--limit semaphore`; to restrict the run use
-      `--limit 'linux:macmini'` instead, which keeps the fact-gathering play in scope.
+      `--limit 'linux:macs:!mbp'` instead, which keeps the fact-gathering play in scope.
     success_msg: "Facts present for all {{ semaphore_known_hosts_targets | length }} managed hosts"
 
 - name: Trust managed hosts' SSH keys

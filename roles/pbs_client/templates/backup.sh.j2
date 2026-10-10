@@ -21,14 +21,15 @@ export PBS_REPOSITORY='{{ pbs_client_auth_id }}@{{ pbs_client_server }}:{{ pbs_c
 export PBS_PASSWORD_FILE=/root/.config/proxmox-backup/token
 export PBS_FINGERPRINT='{{ pbs_client_fingerprint }}'
 
+{% set archives = pbs_client_extra_archives | rejectattr('server', 'in', groups.get('away', [])) | list %}
 proxmox-backup-client backup data.pxar:{{ pbs_client_source }} \
-{% for a in pbs_client_extra_archives %}
+{% for a in archives %}
   {{ a.name }}.pxar:{{ a.path }} \
 {% endfor %}
   --backup-type host \
   --backup-id {{ pbs_client_backup_id }} \
   --keyfile /root/.config/proxmox-backup/{{ pbs_client_backup_id }}.key \
-{% for e in pbs_client_excludes + (pbs_client_extra_archives | map(attribute='excludes') | flatten) %}
+{% for e in pbs_client_excludes + (archives | map(attribute='excludes', default=[]) | flatten) %}
   --exclude {{ e }} \
 {% endfor %}
   --skip-lost-and-found

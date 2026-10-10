@@ -16,7 +16,6 @@ exclude_paths:
   # the exclusion has to live here.
   #
   # Nothing is lost: there is no readable content to lint. The file is
-  # validated instead by `ansible-inventory --graph` and by
-  # bin/check-inventory-parity, and bin/check-vaulted proves it stays
-  # encrypted.
+  # validated instead by `ansible-inventory --graph`, and bin/check-vaulted
+  # proves it stays encrypted.
   - inventory/homelab.proxmox.yml

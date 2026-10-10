@@ -4,8 +4,13 @@
 # config.yml: lees wat er is, maak wat ontbreekt, laat bestaande objecten
 # met rust.
 #
-# De sleutels van het endpoint worden wel bijgewerkt als ze in de vault
-# veranderen: een verlopen R2-token zou anders stil blijven hangen.
+# De sleutels van het endpoint worden bijgewerkt als de access key in de vault
+# verandert: een nieuw R2-token heeft altijd een nieuwe access key. De secret
+# key is niet terug te lezen, dus alleen die vervangen bij dezelfde access key
+# valt hier niet op.
+#
+# Alles wat hier aangemaakt of rechtgezet zou worden, komt ook in pbs_missing:
+# onder --check slaat Ansible de commando's over, en verify.yml meldt het dan.
 
 - name: Read the current S3 endpoints
   ansible.builtin.command: proxmox-backup-manager s3 endpoint list --output-format json
@@ -13,13 +18,27 @@
   changed_when: false
   check_mode: false
 
+- name: Work out what the S3 endpoint needs
+  ansible.builtin.set_fact:
+    pbs_offsite_endpoint_action: >-
+      {%- set live = pbs_s3_current.stdout | from_json
+                     | selectattr('id', 'eq', pbs_offsite.endpoint_id) | first | default({}) -%}
+      {{ 'create' if live | length == 0
+         else 'update' if live.get('access-key') != pbs_offsite.access_key
+         else '' }}
+
+- name: Record the S3 endpoint if it would be created or updated
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing + ['s3 endpoint ' ~ pbs_offsite.endpoint_id ~ ' (' ~ pbs_offsite_endpoint_action ~ ')'] }}"
+  when: pbs_offsite_endpoint_action | length > 0
+
 - name: Create or update the S3 endpoint
   ansible.builtin.command:
     argv:
       - proxmox-backup-manager
       - s3
       - endpoint
-      - "{{ 'update' if pbs_offsite.endpoint_id in (pbs_s3_current.stdout | from_json | map(attribute='id') | list) else 'create' }}"
+      - "{{ pbs_offsite_endpoint_action }}"
       - "{{ pbs_offsite.endpoint_id }}"
       - --endpoint
       - "{{ pbs_offsite.endpoint }}"
@@ -31,9 +50,7 @@
       - "{{ pbs_offsite.access_key }}"
       - --secret-key
       - "{{ pbs_offsite.secret_key }}"
-  when: >-
-    pbs_offsite.endpoint_id not in (pbs_s3_current.stdout | from_json | map(attribute='id') | list)
-    or (pbs_s3_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.endpoint_id) | first).get('access-key') != pbs_offsite.access_key
+  when: pbs_offsite_endpoint_action | length > 0
   changed_when: true
   no_log: true
 
@@ -44,7 +61,7 @@
     argv: [proxmox-backup-manager, s3, check, "{{ pbs_offsite.endpoint_id }}", "{{ pbs_offsite.bucket }}"]
   changed_when: false
   check_mode: false
-  when: pbs_offsite.endpoint_id in (pbs_s3_current.stdout | from_json | map(attribute='id') | list) or not ansible_check_mode
+  when: pbs_offsite_endpoint_action != 'create' or not ansible_check_mode
 
 - name: Read the current datastores for the off-site store
   ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
@@ -59,6 +76,11 @@
     owner: backup
     group: backup
     mode: "0750"
+
+- name: Record the off-site datastore if it would be created
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing + ['datastore ' ~ pbs_offsite.datastore] }}"
+  when: pbs_offsite.datastore not in (pbs_offsite_ds_current.stdout | from_json | map(attribute='name') | list)
 
 # counter-reset-schedule monthly en de drempels: PBS telt zelf de S3-
 # requests en meldt (via de bestaande ntfy-matcher) als ze oplopen. Een
@@ -94,6 +116,11 @@
   changed_when: false
   check_mode: false
 
+- name: Record the off-site prune job if it would be created
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing + ['prune job ' ~ pbs_offsite.datastore ~ '-prune'] }}"
+  when: (pbs_offsite.datastore ~ '-prune') not in (pbs_offsite_prune_current.stdout | from_json | map(attribute='id') | list)
+
 - name: Create the prune job of the off-site store
   ansible.builtin.command:
     argv:
@@ -116,6 +143,21 @@
   changed_when: false
   check_mode: false
 
+- name: Work out what the sync job needs
+  ansible.builtin.set_fact:
+    pbs_offsite_sync_action: >-
+      {%- set live = pbs_offsite_sync_current.stdout | from_json
+                     | selectattr('id', 'eq', pbs_offsite.sync_job) | first | default({}) -%}
+      {{ 'create' if live | length == 0
+         else 'unschedule' if (live.get('schedule', '') | length > 0
+                               or live.get('remove-vanished', false) | bool)
+         else '' }}
+
+- name: Record the sync job if it would be created or corrected
+  ansible.builtin.set_fact:
+    pbs_missing: "{{ pbs_missing + ['sync job ' ~ pbs_offsite.sync_job ~ ' (' ~ pbs_offsite_sync_action ~ ')'] }}"
+  when: pbs_offsite_sync_action | length > 0
+
 # Lokaal (geen --remote): van store1 naar de R2-datastore, alleen de
 # gekozen groepen, alleen versleutelde snapshots, laatste N.
 #
@@ -134,7 +176,7 @@
           '--encrypted-only', 'true',
           '--comment', 'Naar Cloudflare R2; alleen r2-guard start hem']
          + (pbs_offsite.groups | map('regex_replace', '^', 'group:') | map('regex_replace', '^', '--group-filter=') | list) }}
-  when: pbs_offsite.sync_job not in (pbs_offsite_sync_current.stdout | from_json | map(attribute='id') | list)
+  when: pbs_offsite_sync_action == 'create'
   changed_when: true
 
 # De twee instellingen die over "nooit wissen" en "nooit zonder check" gaan,
@@ -143,10 +185,7 @@
 - name: Keep the sync job unscheduled and non-destructive
   ansible.builtin.command:
     argv: [proxmox-backup-manager, sync-job, update, "{{ pbs_offsite.sync_job }}", --delete, schedule, --delete, remove-vanished]
-  when: >-
-    (pbs_offsite_sync_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.sync_job) | list | length > 0)
-    and (((pbs_offsite_sync_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.sync_job) | first).get('schedule', '') | length > 0)
-         or ((pbs_offsite_sync_current.stdout | from_json | selectattr('id', 'eq', pbs_offsite.sync_job) | first).get('remove-vanished', false) | bool))
+  when: pbs_offsite_sync_action == 'unschedule'
   changed_when: true
 
 # r2-guard: zie het script. Meet R2 en start dan pas de sync; stopt als R2
@@ -174,7 +213,7 @@
       STOP_CLASS_A={{ pbs_offsite.stop_class_a }}
       STOP_CLASS_B={{ pbs_offsite.stop_class_b }}
       NTFY_URL={{ pbs_notification_webhooks | selectattr('name', 'eq', 'ntfy') | map(attribute='url') | first }}
-      NTFY_TOKEN={{ hostvars['pve01'].vault_ntfy_pbs_token }}
+      NTFY_TOKEN={{ pbs_notification_webhooks | selectattr('name', 'eq', 'ntfy') | map(attribute='secrets.token') | first }}
     dest: /etc/r2-guard/env
     owner: root
     group: root

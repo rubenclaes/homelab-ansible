@@ -12,6 +12,10 @@ caddy_email: ruben.claes@neodata.be
 caddy_domain: neodata.be
 caddy_cloudflare_api_token: "{{ vault_cloudflare_api_token }}"
 
+# De DNS-module voor de DNS-01-challenge van het *.neodata.be-certificaat. Hier
+# en niet in de rol-defaults: playbooks/caddy-upgrade.yml gebruikt hem ook.
+caddy_dns_module: github.com/caddy-dns/cloudflare
+
 # Waar NeoGate draait; die host mag de sitelijst op :2020 altijd lezen.
 caddy_neogate_host: docker
 
@@ -41,7 +45,7 @@ caddy_sites:
   - { name: prometheus, auth: admin, host: docker-grafana-stack, port: 9090, stack: monitoring, desc: "Metrics-store die Grafana scrapet" }
   # upstream vast: een gestopte container heeft geen IP in de inventory, en
   # dan faalt de hele Caddyfile.
-  - { name: ntfy, host: ntfy, port: 80, upstream: "192.168.0.32:80", desc: "ntfy — meldingen van de homelab naar je telefoon" }
+  - { name: ntfy, host: ntfy, port: 80, upstream: "{{ ntfy_ip }}:80", desc: "ntfy — meldingen van de homelab naar je telefoon" }
 
   # --- Beheer ---
   # Caddy draait op pve01: hou https://192.168.0.10:8006 in je bladwijzers.

@@ -1,5 +1,8 @@
 ---
+# Bump the checksum with the version: the line for linux_amd64.deb in
+# semaphore_<version>_checksums.txt on the GitHub release.
 semaphore_version: "2.19.12"
+semaphore_sha256: a5c1bd199a6c756b993567a86aea9e74b5760dd2bfd6e3cc5298921008409b59
 semaphore_user: semaphore
 semaphore_home: /var/lib/semaphore
 semaphore_config_dir: /etc/semaphore
@@ -21,6 +24,8 @@ semaphore_apt_packages:
 # For playbooks/tofu-drift.yml. Same version as on the laptop, so the plan
 # here reads the state the laptop wrote.
 semaphore_tofu_version: "1.12.6"
+# The line for _amd64.deb in tofu_<version>_SHA256SUMS on the GitHub release.
+semaphore_tofu_sha256: 345e556f8902dde941305bf59075cf37b0d108cdb25bcc884439eec9a869c4f7
 
 # Ansible itself comes from the same two files the laptop and CI install
 # from, so a scheduled run here uses exactly the versions lint passed on.
@@ -84,11 +89,18 @@ semaphore_vault_ids:
 # Where plugins/callback/ntfy_on_failure.py reports a failed job. Empty: no
 # reports. The token comes from semaphore_ntfy_token (host_vars).
 semaphore_ntfy_url: ""
+# Where tapping that report goes. Empty: nowhere.
+semaphore_ntfy_click: ""
 
 # Hosts whose SSH host key Semaphore must trust before it can reach them.
 # Each one needs gathered facts (ssh_host_key_ed25519_public); the first play
 # in playbooks/semaphore.yml collects them. See the assert in tasks/main.yml.
-semaphore_known_hosts_targets: "{{ groups['linux'] | default([]) + ['macmini'] }}"
+# The Macs it reaches over SSH: every one except a local-connection host (the
+# mbp is "the machine running the play", from Semaphore its own container).
+semaphore_known_hosts_targets: >-
+  {{ groups['linux'] | default([])
+     + (groups['macs'] | default([]) | map('extract', hostvars)
+        | rejectattr('ansible_connection', 'defined') | map(attribute='inventory_hostname') | list) }}
 
 # GitHub's ed25519 host key, for cloning playbook repos over SSH.
 semaphore_github_host_key: >-

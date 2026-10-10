@@ -1,0 +1,15 @@
+---
+# Het adres van ntfy (ct 109), op één plek: zijn entry in pve_oci_lxcs
+# (group_vars/proxmox/lxcs.yml), de Caddy-route, en elke afzender van een
+# melding (Proxmox, PBS, de back-up van docker, Alertmanager, Semaphore,
+# unifi-watch.yml).
+#
+# Meldingen gaan naar het IP en niet naar ntfy.neodata.be: een melding over
+# een storing mag niet afhangen van Caddy en AdGuard, want dat zijn precies de
+# dingen die stuk kunnen gaan.
+#
+# Hier en niet in de lxcs-entry, om dezelfde reden als lancache_ip: een waarde
+# die via hostvars['pve01'] wordt afgeleid, kan Ansible niet oplossen als een
+# andere host hem opvraagt.
+ntfy_ip: 192.168.0.32
+ntfy_url: "http://{{ ntfy_ip }}/homelab"

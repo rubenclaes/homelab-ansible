@@ -19,12 +19,6 @@
 - name: Upgrade Caddy, keeping its modules
   hosts: caddy
   gather_facts: false
-  vars:
-    # Dit playbook past de caddy-rol niet toe, dus de defaults van die rol
-    # gelden hier niet. Hier genoemd zodat de foutmelding je het exacte
-    # herstelcommando kan geven.
-    caddy_dns_module: github.com/caddy-dns/cloudflare
-
   tasks:
     - name: Record the version and modules in use
       ansible.builtin.command: "caddy {{ item }}"

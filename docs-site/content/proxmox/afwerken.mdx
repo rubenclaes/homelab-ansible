@@ -33,16 +33,6 @@ ansible-playbook playbooks/smoketest.yml --tags caddy
 
 Alle velden van een route: zie [Alle velden van een route](/netwerk/caddy/#alle-velden-van-een-route).
 
-#### Zet hem in de wekelijkse back-up
-
-De dagelijkse back-up naar PBS neemt elke guest vanzelf mee. De wekelijkse
-kopie naar de Mac mini **niet**: die heeft een vaste lijst.
-
-```bash filename="laptop"
-$EDITOR inventory/group_vars/proxmox/backup.yml   # vmid toevoegen aan "101,102,…,108"
-ansible-playbook playbooks/proxmox-datacenter.yml
-```
-
 #### Commit en push
 
 ```bash filename="laptop"

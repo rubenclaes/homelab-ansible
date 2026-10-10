@@ -1,0 +1,12 @@
+---
+# Which CLI to talk to: `pve` (pvesh) or `pbs` (proxmox-backup-manager). Both
+# front the same notification system, so headers, secrets and matchers have
+# the same shape; only the commands differ (vars/main.yml).
+proxmox_notifications_cli: pve
+
+# Shape of a webhook entry:
+#   name, url, method, headers: {}, body, secrets: {}, comment
+# Shape of a matcher entry:
+#   name, params: {}      API field names; target comma-separated, see below
+proxmox_notifications_webhooks: []
+proxmox_notifications_matchers: []

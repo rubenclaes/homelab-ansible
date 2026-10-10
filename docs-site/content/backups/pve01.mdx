@@ -140,11 +140,12 @@ SSH, en met een wachtwoord (`-k`) kan Ansible geen onbekende key accepteren.
 #### Geef Ansible toegang tot pve01
 
 ```bash filename="laptop"
-ansible-playbook playbooks/bootstrap.yml --limit pve01 -u root -k   # vraagt het root-wachtwoord
+ansible-playbook playbooks/bootstrap.yml --limit pve01 -k   # vraagt het root-wachtwoord
 ```
 
 Een verse Proxmox laat root nog met een wachtwoord binnen. Na de baseline niet
-meer: dit is het enige moment waarop `-u root -k` werkt. `-k` heeft het programma
+meer: dit is het enige moment waarop `-k` werkt. Root hoef je niet te zeggen:
+het playbook logt zelf als root in. `-k` heeft het programma
 `sshpass` nodig op je laptop.
 
 #### Controleer het token

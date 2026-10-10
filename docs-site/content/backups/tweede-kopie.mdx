@@ -52,7 +52,7 @@ bin/tofu proxmox apply -target=proxmox_virtual_environment_vm.pbs
 Hang de PBS-ISO eraan (Hardware → Add → CD/DVD), installeer PBS, en dan:
 
 ```bash filename="laptop"
-ansible-playbook playbooks/bootstrap.yml --limit pbs -u root -k
+ansible-playbook playbooks/bootstrap.yml --limit pbs -k
 ansible-playbook playbooks/site.yml --limit pbs     # datastore en jobs
 ```
 

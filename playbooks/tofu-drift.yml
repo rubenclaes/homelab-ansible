@@ -18,9 +18,20 @@
   gather_facts: false
   vars:
     tofu_drift_root: "{{ playbook_dir }}/.."
-    tofu_drift_systems: [tailscale, proxmox, pocketid]
     tofu_drift_fail: false
   tasks:
+    # Elke map in tofu/: een nieuw systeem doet vanzelf mee, net als in
+    # bin/tofu en CI.
+    - name: Find the systems
+      ansible.builtin.find:
+        paths: "{{ tofu_drift_root }}/tofu"
+        file_type: directory
+      register: tofu_drift_dirs
+
+    - name: Remember them
+      ansible.builtin.set_fact:
+        tofu_drift_systems: "{{ tofu_drift_dirs.files | map(attribute='path') | map('basename') | sort }}"
+
     # chdir naar de repo-root: bin/tofu opent tofu/secrets.env met
     # ansible-vault, en ansible.cfg vindt de vault-wachtwoorden alleen vanaf daar.
     #

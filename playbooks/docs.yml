@@ -44,14 +44,9 @@
     # docs.yml en report.yml eerder op stuk.
     caddy_domain: "{{ hostvars['caddy'].caddy_domain }}"
     caddy_sites: "{{ hostvars['caddy'].caddy_sites }}"
-    # Elke host die stacks.yml beheert, niet alleen `docker`. Die regel is
-    # daar `hosts: docker_hosts:macs` met een guard op een niet-lege
-    # docker_stacks_list, en hier staat dezelfde: één hostvars-lookup liet
-    # een tweede docker-host stil uit de pagina vallen, en een lijst die
-    # incompleet is zonder dat te zeggen is erger dan geen lijst.
-    docs_stack_hosts: >-
-      {{ ((groups['docker_hosts'] | default([])) + (groups['macs'] | default([])))
-         | unique | sort }}
+    # Elke host die stacks.yml beheert, niet alleen `docker`: één
+    # hostvars-lookup liet een tweede docker-host stil uit de pagina vallen.
+    docs_stack_hosts: "{{ groups['docker_hosts'] | default([]) | sort }}"
     # Diensten zonder webroute (RustDesk) staan niet in caddy_sites maar in
     # docker_services_without_route van hun eigen host. Hier krijgt elk item
     # zijn host erbij, zodat de templates ze naast caddy_sites kunnen zetten.
@@ -280,7 +275,8 @@
 
     # `npm ci` installeert exact wat package-lock.json vastlegt, en faalt
     # liever dan stilletjes iets nieuwers te pakken. Nextra staat met opzet
-    # vast op 4.5.0: zie docs-site/package.json.
+    # vast op 4.5.0: met 4.6.1 faalt de build op het prerenderen van bijna elke
+    # pagina (getest op 10-10-2026). Eerst dat oplossen, dan pas bijwerken.
     #
     # Altijd, zonder `creates:`-guard op node_modules. Semaphore klont de repo
     # opnieuw voor elke run, dus daar sloeg die guard nooit aan; op een
@@ -314,7 +310,7 @@
   hosts: caddy
   gather_facts: false
   vars:
-    docs_root: /var/www/homelab-docs
+    docs_root: "{{ docs_publish_dir }}"
   tasks:
     # Uitpakken in een verse map en die omwisselen, zodat een pagina die van
     # de site verdwenen is niet op schijf blijft hangen, en een mislukte build
@@ -330,7 +326,9 @@
       ansible.builtin.unarchive:
         src: "{{ playbook_dir }}/../docs-site/out.tar.gz"
         dest: "{{ docs_root }}.new"
-        mode: "0755"
+        # Mappen doorzoekbaar, bestanden niet uitvoerbaar: 0755 op alles
+        # maakte elke HTML-pagina een programma.
+        mode: "u=rwX,go=rX"
 
     - name: Swap the new site in
       ansible.builtin.shell: |

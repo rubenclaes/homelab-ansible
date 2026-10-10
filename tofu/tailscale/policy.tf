@@ -10,10 +10,9 @@ locals {
   # aan, dan toont het volgende plan (en dus tofu-drift.yml) het nieuwe adres
   # in de policy en de DNS, en zet apply het recht.
   tailnet_ipv4 = {
-    for name, d in {
-      mac_mini = data.tailscale_device.mac_mini
-      adguard  = data.tailscale_device.adguard
-    } : name => one([for a in d.addresses : a if strcontains(a, ".")])
+    adguard = one([for a in data.tailscale_device.adguard.addresses : a if strcontains(a, ".")])
+    mac_mini = (local.mac_mini == null ? local.mac_mini_ipv4_reserved
+    : one([for a in local.mac_mini.addresses : a if strcontains(a, ".")]))
   }
 
   policy = templatefile("${path.module}/../../files/tailscale/policy.hujson", local.tailnet_ipv4)

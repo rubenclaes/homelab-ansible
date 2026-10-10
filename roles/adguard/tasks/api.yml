@@ -1,7 +1,7 @@
 ---
-# Finds the web API and proves it can be used. Imported by both rewrites.yml
-# and clients.yml, guarded on adguard_http_port so a role run that does both
-# only pays for it once.
+# Finds the web API and proves it can be used. Imported by rewrites.yml,
+# filters.yml, dns.yml and roles/lancache/tasks/dns.yml, guarded on
+# adguard_http_port so a run that does several only pays for it once.
 - name: Require AdGuard API credentials
   ansible.builtin.assert:
     that:

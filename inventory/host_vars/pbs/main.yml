@@ -36,14 +36,14 @@ pbs_verify_jobs:
 # pve_notification_webhooks in group_vars/proxmox/notifications.yml: rechtstreeks
 # naar het IP van ntfy, niet via Caddy, en alleen waarschuwingen en fouten.
 #
-# pbs zit niet in de groep proxmox, dus het IP en het token komen via
-# hostvars['pve01']. Het token is een eigen token, apart van dat van Proxmox.
+# pbs zit niet in de groep proxmox, dus het token komt via hostvars['pve01'].
+# Het is een eigen token, apart van dat van Proxmox.
 #
 # {{ title }}, {{ message }}, {{ severity }} en {{ secrets.token }} zijn
 # Handlebars van PBS zelf, geen Jinja; vandaar de raw-blokken.
 pbs_notification_webhooks:
   - name: ntfy
-    url: "http://{{ (hostvars['pve01'].pve_oci_lxcs | selectattr('hostname', 'eq', 'ntfy') | first).ip | split('/') | first }}/homelab"
+    url: "{{ ntfy_url }}"
     method: post
     headers:
       Authorization: "Bearer {% raw %}{{ secrets.token }}{% endraw %}"

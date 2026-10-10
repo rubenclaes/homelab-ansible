@@ -33,23 +33,12 @@
     enabled: true
   register: docker_engine_repo
 
-# Removed only after the replacement exists, so there is never a window with
-# no Docker repository configured at all.
-- name: Remove the superseded one-line repository file
-  ansible.builtin.file:
-    path: /etc/apt/sources.list.d/docker.list
-    state: absent
-  register: docker_engine_old_repo
-
-- name: Refresh the package list when the repository changed
-  ansible.builtin.apt:
-    update_cache: true
-  when: docker_engine_repo is changed or docker_engine_old_repo is changed
-
 - name: Install the Docker engine
   ansible.builtin.apt:
     name: "{{ docker_engine_packages }}"
     state: present
+    # Only when the repository is new or changed; otherwise the cache is fine.
+    update_cache: "{{ docker_engine_repo is changed }}"
 
 - name: Ensure Docker is enabled and running
   ansible.builtin.systemd_service:

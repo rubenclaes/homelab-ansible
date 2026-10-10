@@ -48,7 +48,10 @@ Bij elke push naar `master` en elke pull request draait GitHub
 | `bin/check-vaulted` | een geheim dat onversleuteld in git staat |
 | `ansible-lint` (profiel `production`) | fouten en slordigheid in rollen, playbooks en inventory |
 | `ansible-playbook --syntax-check` | elk playbook dat niet eens zou starten |
-| `tofu fmt` en `tofu validate` | opmaak en fouten in `tofu/` |
+| de Semaphore-templates nakijken | een template die naar een playbook wijst dat niet (meer) bestaat |
+| `shellcheck` en `ruff` | fouten in `bin/`, de pre-commit-hook en de ntfy-callback |
+| `npm run build` in `docs-site/` | een MDX- of `_meta.js`-fout, vóór Semaphore de site bouwt |
+| `tofu fmt` en `tofu validate` | opmaak en fouten in `tofu/`, met dezelfde OpenTofu-versie als Semaphore |
 
 Hetzelfde lokaal, vóór je pusht: `hl check` ([Handige commando's](/ansible/commandos/)).
 

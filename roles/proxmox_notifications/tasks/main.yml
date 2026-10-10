@@ -1,0 +1,118 @@
+---
+# Additive: creates or updates what is declared, removes nothing.
+# mail-to-root and the default matcher stay.
+#
+# Secrets cannot be read back (the API returns only their names), so a changed
+# token is not detected. To rotate: delete the endpoint in the GUI and re-run.
+#
+# First a plan (what differs), then a report of it, then the commands. The
+# report is what a --check run sees: Ansible skips the commands there.
+- name: Read the webhook endpoints
+  ansible.builtin.command:
+    argv: "{{ proxmox_notifications_cmd.webhook_list }}"
+  register: proxmox_notifications_webhooks_raw
+  changed_when: false
+  check_mode: false
+
+- name: Read the notification matchers
+  ansible.builtin.command:
+    argv: "{{ proxmox_notifications_cmd.matcher_list }}"
+  register: proxmox_notifications_matchers_raw
+  changed_when: false
+  check_mode: false
+
+# Header and secret values travel base64-encoded, as `name=<n>,value=<b64>`
+# property strings: that is the only form the API takes them in.
+- name: Work out which webhook endpoints differ
+  ansible.builtin.set_fact:
+    proxmox_notifications_webhook_plan: >-
+      {%- set plan = [] -%}
+      {%- set live_all = proxmox_notifications_webhooks_raw.stdout | from_json -%}
+      {%- for hook in proxmox_notifications_webhooks -%}
+      {%-   set live = live_all | selectattr('name', 'eq', hook.name) | first | default({}) -%}
+      {%-   set headers = [] -%}
+      {%-   for k, v in hook.headers.items() -%}
+      {%-     set _ = headers.append('name=' ~ k ~ ',value=' ~ (v | b64encode)) -%}
+      {%-   endfor -%}
+      {%-   set body = hook.body | b64encode -%}
+      {%-   if live | length == 0
+              or live.url | default('') != hook.url
+              or live.method | default('') != hook.method
+              or live.body | default('') != body
+              or (live.header | default([]) | sort) != (headers | sort) -%}
+      {%-     set argv = (proxmox_notifications_cmd['webhook_' ~ ('create' if live | length == 0 else 'update')]
+                          | map('replace', '__NAME__', hook.name) | list)
+                         + ['--url', hook.url, '--method', hook.method, '--body', body,
+                            '--comment', hook.comment | default('')] -%}
+      {%-     for h in headers -%}
+      {%-       set _ = argv.extend(['--header', h]) -%}
+      {%-     endfor -%}
+      {%-     for k, v in hook.secrets.items() -%}
+      {%-       set _ = argv.extend(['--secret', 'name=' ~ k ~ ',value=' ~ (v | b64encode)]) -%}
+      {%-     endfor -%}
+      {%-     set _ = plan.append({'name': hook.name, 'argv': argv}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ plan }}
+  no_log: true
+
+# `target` is written comma-separated in inventory and split here: the CLI
+# wants --target once per target, and several targets means "send to each".
+#
+# match-severity is NOT split, and that matters. Every match-* line is a rule
+# of its own, and with mode `all` every rule must hold. Two lines "warning"
+# and "error" would ask a notification to be both at once, and the matcher
+# would never fire. One rule "warning,error" means either - which is also what
+# the GUI writes.
+- name: Work out which notification matchers differ
+  ansible.builtin.set_fact:
+    proxmox_notifications_matcher_plan: >-
+      {%- set plan = [] -%}
+      {%- set live_all = proxmox_notifications_matchers_raw.stdout | from_json -%}
+      {%- for matcher in proxmox_notifications_matchers -%}
+      {%-   set live = live_all | selectattr('name', 'eq', matcher.name) | first | default({}) -%}
+      {%-   if live | length == 0
+              or ([live.target | default([])] | flatten | join(',')) != matcher.params.target
+              or ([live['match-severity'] | default([])] | flatten | join(',')) != matcher.params['match-severity']
+              or live.mode | default('all') != matcher.params.mode
+              or live.comment | default('') != matcher.params.comment | default('') -%}
+      {%-     set argv = proxmox_notifications_cmd['matcher_' ~ ('create' if live | length == 0 else 'update')]
+                         | map('replace', '__NAME__', matcher.name) | list -%}
+      {%-     for k, v in matcher.params.items() -%}
+      {%-       if k == 'target' -%}
+      {%-         for t in (v | string).split(',') -%}
+      {%-           set _ = argv.extend(['--' ~ k, t]) -%}
+      {%-         endfor -%}
+      {%-       else -%}
+      {%-         set _ = argv.extend(['--' ~ k, v | string]) -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-     set _ = plan.append({'name': matcher.name, 'argv': argv}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ plan }}
+
+- name: Report the notification settings that will be created or updated
+  ansible.builtin.debug:
+    msg: >-
+      {{ (proxmox_notifications_webhook_plan | map(attribute='name') | map('regex_replace', '^', 'webhook ') | list)
+         + (proxmox_notifications_matcher_plan | map(attribute='name') | map('regex_replace', '^', 'matcher ') | list) }}
+  changed_when: true
+  when: (proxmox_notifications_webhook_plan + proxmox_notifications_matcher_plan) | length > 0
+
+- name: Create or update each webhook endpoint
+  ansible.builtin.command:
+    argv: "{{ item.argv }}"
+  loop: "{{ proxmox_notifications_webhook_plan }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+  no_log: true
+
+- name: Create or update each notification matcher
+  ansible.builtin.command:
+    argv: "{{ item.argv }}"
+  loop: "{{ proxmox_notifications_matcher_plan }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true

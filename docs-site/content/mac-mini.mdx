@@ -107,7 +107,9 @@ In de Tailscale-console: de oude `macmini` → *Remove*. Dan is zijn
 
 Na een wissel, of als de oude kapot is. Zolang hij er niet is, liggen Plex,
 de media-stack op `docker` en de tweede back-upkopie (`macmini-backup`) stil.
-pve01, PBS en de guests zijn ongemoeid.
+pve01, PBS en de guests zijn ongemoeid. De Mini staat dan in de groep `away`
+in `inventory/00-static.yml`: geplande runs, Prometheus en de smoketest slaan
+hem over ([waarom](#away-een-host-die-er-tijdelijk-niet-is)).
 
 <Steps>
 
@@ -144,6 +146,18 @@ ssh-copy-id -i ~/.ssh/ansible_ed25519.pub rubenclaes@192.168.0.26
 
 De nieuwe Mini heeft een nieuwe host key; de eerste regel vergeet de oude.
 Ansible logt op de Mini in als `rubenclaes`, niet als `ansible`.
+
+#### Zet hem terug in de inventory
+
+```yaml filename="inventory/00-static.yml"
+    macs:
+      hosts:
+        macmini: { ansible_host: 192.168.0.26, ansible_user: rubenclaes }
+        mbp: { ansible_connection: local }
+```
+
+Verplaats de regel van `macmini` van `away` naar `macs`. Vanaf nu nemen de
+playbooks hem weer mee.
 
 #### Geef `sshd` Volledige schijftoegang
 
@@ -186,6 +200,9 @@ legen* weer aan.
 ansible-playbook playbooks/site.yml --limit macmini
 ```
 
+Ook Ollama en node_exporter, als brew-dienst. Ollama luistert dan alleen op
+de Mini zelf; op het LAN is nog een stap (zie `TODO.md`).
+
 #### Zet de gedeelde mappen terug
 
 Systeeminstellingen → Algemeen → Delen → Bestandsdeling:
@@ -202,7 +219,14 @@ over te nemen, zeg nee: dat is die van de oude Mini.
 
 Log in in de Tailscale-app. Geef hem in de Tailscale-console (de Mini → *Edit
 IP address*) weer `100.74.124.12`: dat adres staat als custom server access
-URL in Plex en op de toestellen van de familie.
+URL in Plex en op de toestellen van de familie. Dan:
+
+```bash filename="laptop"
+bin/tofu tailscale apply
+```
+
+Zet het verlopen van zijn sleutel uit, anders valt Plex voor de familie na
+180 dagen weg.
 
 #### Leer Semaphore de nieuwe host key
 
@@ -233,7 +257,8 @@ Datacenter → Backup → de job naar `macmini-backup` → *Run now*.
 
 #### Commit en push
 
-Het nieuwe MAC-adres in `unifi.yml` en de back-upjob die weer aan staat.
+De Mini terug onder `macs`, het nieuwe MAC-adres in `unifi.yml` en de
+back-upjob die weer aan staat.
 
 </Steps>
 
@@ -272,10 +297,25 @@ bestand "weg" en wist hij het uit je bibliotheek.
 
 ### Waarom er geen Docker meer op de Mini staat
 
-Wat hier draaide, is naar `docker` verhuisd of opgeruimd, en OrbStack kostte
-zo'n 1,4 GB van de 8 GB RAM. OrbStack staat nog geïnstalleerd maar start niet
-mee. Na een herinstallatie hoef je hem dus niet terug te zetten. Waar de oude
-data staat: onderaan `inventory/host_vars/macmini/main.yml`.
+Wat hier draaide, is in september 2026 naar `docker` verhuisd of opgeruimd,
+en OrbStack kostte zo'n 1,4 GB van de 8 GB RAM van de oude Mini. De M6 krijgt
+dus geen Docker: hij is de machine voor Plex en Ollama.
+
+### `away`: een host die er tijdelijk niet is
+
+Een host in de groep `away` (`inventory/00-static.yml`) blijft in de
+inventory, zodat alles wat naar hem verwijst blijft kloppen: de Plex-route,
+de NFS-mounts op `docker`, de opslag `macmini-backup`. Maar geen playbook
+draait erop, Prometheus meldt hem niet als down, de smoketest slaat zijn
+routes over en Semaphore vraagt zijn host key niet. Zonder die groep werden
+elke ochtend vijf geplande jobs rood voor een machine waarvan je weet dat hij
+weg is.
+
+Ook op `docker`: de NFS-shares van een host in `away` mount Ansible niet, en
+de nachtelijke back-up laat de foto's (`/mnt/media01/Photos`) weg. Een
+`hard`-mount naar een server die weg is, laat alles wat de map aanraakt
+eeuwig wachten. Op 10-10-2026 hing zo de back-up van `docker` elf uur en de
+Stacks-job van Semaphore mee.
 
 ### Waarom `nfs.yml` niet in `site.yml` zit
 

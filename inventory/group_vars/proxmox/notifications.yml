@@ -1,10 +1,8 @@
 ---
 # Waar Proxmox zijn meldingen heen stuurt, naast mail-to-root.
 #
-# De URL is het IP van ntfy, niet ntfy.neodata.be: een melding over een
-# storing mag niet afhangen van Caddy en AdGuard, want dat zijn precies de
-# dingen die stuk kunnen gaan. Het IP komt uit pve_oci_lxcs, zodat het op één
-# plek staat.
+# De URL is het IP van ntfy (group_vars/all/ntfy.yml), niet
+# ntfy.neodata.be: zie daar waarom.
 #
 # {{ title }}, {{ message }}, {{ severity }} en {{ secrets.token }} zijn
 # Handlebars van Proxmox zelf, geen Jinja; vandaar de raw-blokken. Het token
@@ -12,7 +10,7 @@
 # /etc/pve/notifications.cfg.
 pve_notification_webhooks:
   - name: ntfy
-    url: "http://{{ (pve_oci_lxcs | selectattr('hostname', 'eq', 'ntfy') | first).ip | split('/') | first }}/homelab"
+    url: "{{ ntfy_url }}"
     method: post
     headers:
       Authorization: "Bearer {% raw %}{{ secrets.token }}{% endraw %}"

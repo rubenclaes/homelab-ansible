@@ -101,10 +101,10 @@ de taken die iets zouden wijzigen. Verandert zelf niets.
 #### Controleer of elke host bereikt is
 
 Staat er `NIET BEREIKT` in plaats van `gelijk aan de repo`? Dan is er op die
-host **niets gecontroleerd**.
-
-Een host die niet bereikbaar is telt als nul wijzigingen. Een slapende Mac ziet
-er in het totaal uit als een host zonder drift. Lees dus de regel per host.
+host **niets gecontroleerd**. Staat er bovenaan `DE DRY RUN KWAM NIET ROND`,
+dan is er nergens volledig gekeken: een vault-fout, een inventory die niet
+laadt, of een taak die faalde. Met `drift_fail=true` is zo'n run rood, net als
+een run met drift.
 
 #### Lees de echte diffs
 

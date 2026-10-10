@@ -1,11 +1,15 @@
 ---
-- name: Reload caddy
-  ansible.builtin.systemd_service:
-    name: caddy
-    state: reloaded
-
+# Restart first: handlers run in the order they are defined here, not in the
+# order they were notified. When both fire (a new binary or env file plus a new
+# Caddyfile), the reload then lands on the restarted process. The other way
+# round the reload would hit a process that may not know the new config.
 - name: Restart caddy
   ansible.builtin.systemd_service:
     name: caddy
     state: restarted
     daemon_reload: true
+
+- name: Reload caddy
+  ansible.builtin.systemd_service:
+    name: caddy
+    state: reloaded

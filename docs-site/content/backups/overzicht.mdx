@@ -177,10 +177,12 @@ ssh pve01 'sudo pvesm list macmini-backup'
 ssh pve01 'df -h /mnt/pve/macmini-backup'
 ```
 
-### Een nieuwe guest in de wekelijkse
+### Een nieuwe guest zit vanzelf in beide
 
-De dagelijkse naar PBS neemt elke guest vanzelf mee, de wekelijkse niet: die
-heeft een vaste lijst. Zie [Afwerken](/proxmox/afwerken/#zet-hem-in-de-wekelijkse-back-up).
+Beide jobs nemen alle guests behalve één lijst (`pve_backup_exclude` in
+`group_vars/proxmox/backup.yml`): PBS zelf, lancache en de sandboxes. Tot
+10-2026 had de wekelijkse een vaste lijst, en die vergat je bij elke nieuwe
+guest.
 
 ### Waarom R2 zo voorzichtig is
 

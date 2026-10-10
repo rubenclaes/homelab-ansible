@@ -15,55 +15,35 @@
 # In site.yml: ja. Een nieuwe stack komt uit playbooks/new-service.yml; draai
 # daarna caddy.yml voor de route en docs.yml voor de pagina.
 
-- name: Docker engine
+# Eén play, zodat de facts maar één keer per host verzameld worden. De
+# volgorde binnen de play is de volgorde van uitvoeren:
+#   docker_engine   de engine, op elke host in docker_hosts
+#   docker_stacks   de stacks, op elke host met een docker_stacks_list
+#   de rest         instellingen ín een stack, dus na de stacks: de container
+#                   moet bestaan (Audiobookshelf, de arr-apps), of de stack maakt
+#                   de map aan waar de rol in schrijft (Homepage), of de app
+#                   leest zijn config bij het opstarten (RomM)
+- name: Docker
   hosts: docker_hosts
+  vars:
+    stacks_here: "{{ docker_stacks_list | default([]) | map(attribute='name') | list }}"
   roles:
-    - docker_engine
-  tags: [docker]
-
-# Ook de Macs, die niet in docker_hosts zitten: daar komt de engine van de
-# Docker Desktop-cask die de macos-rol installeert, niet uit een apt-repo.
-# Wat erboven draait is verder identiek, en roles/docker_stacks/tasks/linux.yml
-# houdt de Debian-only stukken bij elkaar.
-- name: Docker stacks
-  hosts: docker_hosts:macs
-  roles:
+    - role: docker_engine
     - role: docker_stacks
-      when: docker_stacks_list | default([]) | length > 0
-  tags: [docker]
-
-# Na de stacks, want de homepage-stack maakt de map aan waar dit in schrijft.
-# Ook hier beslist de inventory: de host die de homepage-stack draait.
-- name: Homepage dashboard
-  hosts: docker_hosts
-  roles:
+      when: stacks_here | length > 0
     - role: homepage
-      when: "'homepage' in docker_stacks_list | default([]) | map(attribute='name')"
-  tags: [docker, homepage]
-
-# Na de stacks, want de container moet draaien. Audiobookshelf heeft geen
-# configbestand: de login via Pocket ID gaat over zijn API.
-- name: Audiobookshelf login via Pocket ID
-  hosts: docker_hosts
-  roles:
+      when: "'homepage' in stacks_here"
+      tags: [homepage]
+    # Geen configbestand: de login via Pocket ID gaat over zijn API.
     - role: audiobookshelf
-      when: "'media' in docker_stacks_list | default([]) | map(attribute='name')"
-  tags: [docker, audiobookshelf]
-
-# Na de stacks, want de containers moeten bestaan. Sonarr, Radarr en Prowlarr
-# laten de login aan Caddy over; zie roles/arr_auth voor waarom.
-- name: Arr apps leave the login to Caddy
-  hosts: docker_hosts
-  roles:
+      when: "'media' in stacks_here"
+      tags: [audiobookshelf]
+    # Sonarr, Radarr en Prowlarr laten de login aan Caddy over; zie de rol.
     - role: arr_auth
-      when: "'media' in docker_stacks_list | default([]) | map(attribute='name')"
-  tags: [docker, arr_auth]
-
-# Na de stacks, want RomM leest config.yml bij het opstarten en wordt zo nodig
-# herstart. Alleen netplay staat hier; de rest van dat bestand schrijft RomM.
-- name: RomM settings
-  hosts: docker_hosts
-  roles:
+      when: "'media' in stacks_here"
+      tags: [arr_auth]
+    # Alleen netplay staat hier; de rest van config.yml schrijft RomM zelf.
     - role: romm
-      when: "'romm' in docker_stacks_list | default([]) | map(attribute='name')"
-  tags: [docker, romm]
+      when: "'romm' in stacks_here"
+      tags: [romm]
+  tags: [docker]

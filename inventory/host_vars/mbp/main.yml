@@ -2,10 +2,10 @@
 # Wat deze machine doet, voor de pagina Machines op de docs-site.
 docs_machine_role: Je MacBook, de werkplek waarvan je Ansible en OpenTofu draait.
 
-# Mijn eigen laptop. De Mac mini is de dev-machine; wat hier staat is bewust
-# iets anders. Gelezen van de machine zelf op 22-09.
+# Mijn eigen laptop. Gelezen van de machine zelf op 22-09.
 
 # `brew leaves`: alleen wat ik zelf gevraagd heb, niet de afhankelijkheden.
+# jq, htop, tmux en wget staan hier niet: die zet de macos-rol op elke Mac.
 macos_brew_packages_extra:
   - caddy
   - ffmpeg
@@ -14,9 +14,7 @@ macos_brew_packages_extra:
   - git
   - git-filter-repo
   - gnupg
-  - htop
   - iperf3
-  - jq
   - nicotine-plus
   - nvm
   - ollama
@@ -26,9 +24,7 @@ macos_brew_packages_extra:
   - ripgrep
   - rsync
   - tldr
-  - tmux
   - transmission-cli
-  - wget
   - xcodegen
   - zellij
   - zplug
@@ -68,7 +64,6 @@ dotfiles_git_config:
 
 dotfiles_zsh_block: |-
   export EDITOR="code --wait"
-  export ANSIBLE_VAULT_PASSWORD_FILE=~/.ansible/vault_pass
   # pve01 heeft een zelfondertekend certificaat en de proxmox-inventory staat
   # op validate_certs: false. Zonder dit waarschuwt urllib3 daar bij elke run
   # twee keer over. Weg zodra pve01 een vertrouwd certificaat heeft.

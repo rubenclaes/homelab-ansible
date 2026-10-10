@@ -1,0 +1,11 @@
+---
+# iTerm-tabkleur per host (roles/dotfiles), gegroepeerd naar hoeveel er stuk
+# gaat als je je daar vergist. Een host die hier niet staat, houdt de gewone
+# kleur (hij krijgt wel een badge). De kleuren zelf: dotfiles_color_rgb in de
+# rol.
+dotfiles_host_colors:
+  red: [pve01, pbs]                              # alles, of de back-ups
+  orange: [adguard, caddy, tailscale]            # het netwerk: DNS, de voordeur, de VPN
+  purple: [semaphore]                            # de planner
+  blue: [docker, docker-grafana-stack]           # de apps
+  green: [macmini]                               # de Mac mini: media en de tweede back-upkopie

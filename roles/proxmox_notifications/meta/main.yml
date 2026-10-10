@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: proxmox_notifications
+  author: rubenclaes
+  description: >-
+    Webhook endpoints and matchers of the Proxmox notification system, shared
+    by Proxmox VE (pvesh) and Proxmox Backup Server (proxmox-backup-manager).
+  license: MIT
+  min_ansible_version: "2.17"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - system
+
+# Imported by proxmox_datacenter and pbs, not a dependency of either, so the
+# order stays visible in their tasks/main.yml.
+dependencies: []

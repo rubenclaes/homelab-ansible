@@ -1,10 +1,12 @@
 terraform {
-  required_version = ">= 1.10"
+  # 1.11: tofu/proxmox gebruikt ephemeral variabelen en write-only attributen.
+  required_version = ">= 1.11"
 
   required_providers {
     tailscale = {
-      source  = "tailscale/tailscale"
-      version = "~> 0.29"
+      source = "tailscale/tailscale"
+      # Op de minor vast: voor 1.0 breekt een provider ook in een minor release.
+      version = "~> 0.29.0"
     }
   }
 }

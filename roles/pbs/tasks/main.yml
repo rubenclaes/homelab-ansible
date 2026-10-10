@@ -64,6 +64,13 @@
     - proxmox-backup
     - proxmox-backup-proxy
 
+# Every task file below adds what it would create or correct; verify.yml
+# reports it. `always`, so a run with --tags offsite or oidc has it too.
+- name: Start with an empty missing-objects list
+  ansible.builtin.set_fact:
+    pbs_missing: []
+  tags: [always]
+
 - name: Datastore and job configuration
   ansible.builtin.import_tasks: config.yml
 
@@ -73,7 +80,12 @@
   tags: [offsite]
 
 - name: Notification targets and matchers
-  ansible.builtin.import_tasks: notifications.yml
+  ansible.builtin.import_role:
+    name: proxmox_notifications
+  vars:
+    proxmox_notifications_cli: pbs
+    proxmox_notifications_webhooks: "{{ pbs_notification_webhooks | default([]) }}"
+    proxmox_notifications_matchers: "{{ pbs_notification_matchers | default([]) }}"
 
 - name: Login via Pocket ID
   ansible.builtin.import_tasks: oidc.yml
@@ -82,3 +94,4 @@
 
 - name: Report and verify
   ansible.builtin.import_tasks: verify.yml
+  tags: [always]

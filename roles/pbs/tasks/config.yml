@@ -6,19 +6,14 @@
 # rather than no-ops, so a bare command would report changed on every run and
 # fail on the second.
 #
-# pbs_missing collects what would be created. An absent
-# datastore or job is not an error here: creating it is exactly what this
-# role is for. Reporting and asserting on this list happens in verify.yml,
-# imported last from main.yml, not here.
+# pbs_missing (started empty in main.yml) collects what would be created. An
+# absent datastore or job is not an error here: creating it is exactly what
+# this role is for. verify.yml, imported last, reports the list.
 #
 # Objects that already exist are compared field by field at the end of this
 # file (gc_schedule, schedule, keep_last, outdated_after, ignore_verified) and
 # put back when they differ. Jobs PBS has that the inventory does not declare
 # (offsite-prune, from offsite.yml) are left alone.
-- name: Start with an empty missing-objects list
-  ansible.builtin.set_fact:
-    pbs_missing: []
-
 - name: Read the current PBS datastores
   ansible.builtin.command: proxmox-backup-manager datastore list --output-format json
   register: pbs_datastores_current

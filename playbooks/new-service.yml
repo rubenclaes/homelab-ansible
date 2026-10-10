@@ -80,20 +80,25 @@
 
     # Een botsing hier vangen is veel goedkoper dan na een deploy: een
     # dubbele poort bindt stilletjes niet, een dubbele naam overschrijft.
+    #
+    # Tegen de geparste YAML, niet tegen de tekst: een item over meerdere
+    # regels (outline, romm) gleed zo onder een tekstzoektocht door.
     - name: Refuse to overwrite an existing service
       ansible.builtin.assert:
         that:
           - not stack_exists
-          - "'name: ' ~ svc_name ~ ',' not in docker_vars_text"
-          - "'name: ' ~ svc_subdomain ~ ',' not in caddy_vars_text"
-          - "'port: ' ~ svc_port ~ ',' not in caddy_vars_text"
+          - svc_name not in (docker_vars_data.docker_stacks_list | default([]) | map(attribute='name'))
+          - svc_subdomain not in (caddy_vars_data.caddy_sites | default([]) | map(attribute='name'))
+          - svc_port | int not in (caddy_vars_data.caddy_sites | default([])
+                                   | selectattr('host', 'defined') | selectattr('host', 'eq', svc_host)
+                                   | map(attribute='port') | map('int'))
         fail_msg: >-
           '{{ svc_name }}' of poort {{ svc_port }} is al bezet - kijk naar
           stacks/{{ svc_name }}, docker_stacks_list en caddy_sites.
       vars:
         stack_exists: "{{ (stack_dir ~ '/docker-compose.yml') is exists }}"
-        docker_vars_text: "{{ docker_vars_raw.content | b64decode }}"
-        caddy_vars_text: "{{ caddy_vars_raw.content | b64decode }}"
+        docker_vars_data: "{{ docker_vars_raw.content | b64decode | from_yaml }}"
+        caddy_vars_data: "{{ caddy_vars_raw.content | b64decode | from_yaml }}"
 
     - name: Create the stack folder
       ansible.builtin.file:
@@ -156,7 +161,10 @@
       ansible.builtin.lineinfile:
         path: "{{ caddy_vars }}"
         insertafter: '^caddy_sites:'
-        line: '  - { name: {{ svc_subdomain }}, {{ svc_auth_field }}host: {{ svc_host }}, port: {{ svc_port }}, stack: {{ svc_name }}, desc: "{{ svc_desc }}" }'
+        line: >-
+          {{ '  - { name: ' ~ svc_subdomain ~ ', ' ~ svc_auth_field ~ 'host: ' ~ svc_host
+             ~ ', port: ' ~ svc_port ~ ', stack: ' ~ svc_name
+             ~ ', desc: ' ~ (svc_desc | to_json(ensure_ascii=False)) ~ ' }' }}
 
     # Alleen als de host die lijst al heeft: zonder kop zet lineinfile de
     # regel onderaan het bestand, als los lijstitem, en dat is kapotte YAML.

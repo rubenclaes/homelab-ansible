@@ -10,8 +10,21 @@ data "tailscale_device" "adguard" {
   name = "adguard.brill-atlas.ts.net"
 }
 
-data "tailscale_device" "mac_mini" {
-  name = "mac-mini.brill-atlas.ts.net"
+# Optioneel, en daarom een lijst en geen `tailscale_device`: tussen het wissen
+# van een oude Mini en het aanmelden van de nieuwe staat er geen mac-mini op
+# de tailnet. Een `tailscale_device` faalt dan, en met hem het hele plan
+# (policy, DNS, settings) en dus elke ochtend tofu-drift.yml.
+data "tailscale_devices" "mac_mini" {
+  name_prefix = "mac-mini."
+}
+
+locals {
+  mac_mini = one([for d in data.tailscale_devices.mac_mini.devices : d if d.name == "mac-mini.brill-atlas.ts.net"])
+
+  # Het adres dat de Mini in de console vast krijgt (runbook "Een nieuwe Mac
+  # mini"): Plex en de familie kennen hem zo. Ook zolang hij er niet is,
+  # zodat de regels in de policy geldig blijven.
+  mac_mini_ipv4_reserved = "100.74.124.12"
 }
 
 # ct 108 biedt het thuisnetwerk aan (--advertise-routes in roles/tailscale).
@@ -42,6 +55,12 @@ resource "tailscale_device_tags" "adguard" {
 # na 180 dagen verlopen. Plex voor de familie ligt dan stil tot je opnieuw
 # inlogt.
 resource "tailscale_device_key" "mac_mini" {
-  device_id           = data.tailscale_device.mac_mini.node_id
+  count               = local.mac_mini == null ? 0 : 1
+  device_id           = local.mac_mini.node_id
   key_expiry_disabled = true
+}
+
+moved {
+  from = tailscale_device_key.mac_mini
+  to   = tailscale_device_key.mac_mini[0]
 }

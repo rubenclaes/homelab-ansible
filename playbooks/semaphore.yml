@@ -3,8 +3,9 @@
 #
 #   ansible-playbook playbooks/semaphore.yml
 #
-# De eerste play verzamelt alleen facts en raakt niets aan. Semaphore toont
-# per host wat erop draait, en zonder die facts blijft die lijst leeg.
+# De eerste play verzamelt alleen facts en raakt niets aan: de rol leest er
+# de SSH-hostkey van elke host uit, zodat Semaphore ze vertrouwt. Zonder die
+# facts faalt de rol met een uitleg.
 #
 # De templates en hun schema's staan apart, in
 # playbooks/semaphore-templates.yml.
@@ -12,7 +13,7 @@
 # In site.yml: ja, direct gevolgd door semaphore-templates.yml.
 
 - name: Gather facts from all managed hosts
-  hosts: linux:macmini
+  hosts: linux:macs:!mbp
   gather_facts: true
   tasks: []
 

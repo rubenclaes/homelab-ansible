@@ -59,12 +59,15 @@ def stop(reason):
 
 def bucket_bytes():
     base = "https://%s.r2.cloudflarestorage.com/%s" % (env["CF_ACCOUNT"], env["BUCKET"])
+    # De sleutels via een curl-config op stdin (-K -) en niet met --user op de
+    # commandoregel: die staat voor iedereen leesbaar in ps en /proc.
+    user = (env["R2_ACCESS_KEY"] + ":" + env["R2_SECRET_KEY"]).replace("\\", "\\\\").replace('"', '\\"')
+    cfg = ('user = "%s"\n' % user).encode()
     tok, total = None, 0
     while True:
         q = "list-type=2&max-keys=1000" + ("&continuation-token=" + urllib.parse.quote(tok, safe="") if tok else "")
         x = subprocess.check_output(["curl", "-sS", "--fail", "-m", "60", "--aws-sigv4", "aws:amz:auto:s3",
-                                     "--user", env["R2_ACCESS_KEY"] + ":" + env["R2_SECRET_KEY"],
-                                     base + "?" + q]).decode()
+                                     "-K", "-", base + "?" + q], input=cfg).decode()
         if "<ListBucketResult" not in x:
             raise RuntimeError("onverwacht antwoord van R2 bij het tellen")
         total += sum(int(s) for s in re.findall(r"<Size>(\d+)</Size>", x))

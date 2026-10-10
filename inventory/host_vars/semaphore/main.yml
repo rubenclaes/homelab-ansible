@@ -17,10 +17,11 @@
 semaphore_api_user: "{{ vault_semaphore_api_user }}"
 semaphore_api_password: "{{ vault_semaphore_api_password }}"
 
-# Een rode job wordt een melding (plugins/callback/ntfy_on_failure.py). Het
-# IP en niet ntfy.neodata.be: een melding mag niet van Caddy afhangen.
-semaphore_ntfy_url: http://192.168.0.32/homelab
+# Een rode job wordt een melding (plugins/callback/ntfy_on_failure.py), op
+# het IP (group_vars/all/ntfy.yml).
+semaphore_ntfy_url: "{{ ntfy_url }}"
 semaphore_ntfy_token: "{{ vault_ntfy_semaphore_token }}"
+semaphore_ntfy_click: "https://semaphore.{{ hostvars['caddy'].caddy_domain }}"
 
 # --- Templates ------------------------------------------------------------
 # Welk playbook wanneer draait. Dit was tot nu toe klikwerk in de UI, en dus

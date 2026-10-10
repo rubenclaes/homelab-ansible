@@ -2,11 +2,15 @@
 # in het resource-blok eronder.
 #
 # Een nieuwe container: een regel erbij (volgende vrije vm_id, vast adres,
-# MAC mag weg: Proxmox kiest er dan een), `bin/tofu proxmox apply`, daarna
+# `mac = null`: Proxmox kiest er dan een; weglaten kan niet, elke regel moet
+# dezelfde velden hebben), `bin/tofu proxmox apply`, daarna
 # `ansible-playbook playbooks/new-guest.yml -e guest=<naam>`.
 #
 # ntfy (ct 109) staat hier niet: die maakt roles/proxmox_oci, uit een image.
 locals {
+  # AdGuard (ct 107) is de DNS van het huis; de containers vragen het hem.
+  adguard_ip = "192.168.0.29"
+
   containers = {
     semaphore = {
       vm_id  = 104
@@ -20,7 +24,7 @@ locals {
       ipv6_auto   = false
       mac         = "BC:24:11:C6:BD:4E"
       keyctl      = false
-      dns_servers = ["192.168.0.29"]
+      dns_servers = [local.adguard_ip]
       # Zonder dit erft hij `search neodata.be` van pve01, en praat hij voor
       # zijn eigen publieke naam met zichzelf in plaats van met Caddy.
       searchdomain = local.guest_network.searchdomain
@@ -36,7 +40,7 @@ locals {
       ipv6_auto    = true
       mac          = "BC:24:11:B4:E6:74"
       keyctl       = true
-      dns_servers  = ["192.168.0.29"]
+      dns_servers  = [local.adguard_ip]
       searchdomain = local.guest_network.searchdomain
       tags         = ["community-script", "webserver"]
     }
@@ -46,7 +50,7 @@ locals {
       memory    = 512
       swap      = 512
       disk      = { datastore = "vm-hdd", size = 2 }
-      ip        = "192.168.0.29/24"
+      ip        = "${local.adguard_ip}/24"
       ipv6_auto = true
       mac       = "BC:24:11:46:1E:BC"
       keyctl    = true

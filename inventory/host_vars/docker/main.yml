@@ -70,13 +70,20 @@ docker_stacks_nfs_mounts:
   # gebeurd omdat deze mountlijst pas op 22-09 compleet werd en er daarna geen
   # converge meer over `docker` is gegaan; anders was /mnt/ssdnas na de
   # eerstvolgende herstart weg geweest.
+  #
+  # `server`: de inventory-host achter src. Staat die in `away`
+  # (00-static.yml), dan slaat de rol de mount over: een hard NFS-mount naar
+  # een server die weg is, laat elke stat hangen, en de hele run met hem.
   - src: '192.168.0.26:/Volumes/SSD Nas'
+    server: macmini
     path: /mnt/ssdnas
     opts: 'nfsvers=3,proto=tcp,noresvport,hard,timeo=30,retrans=3,nofail,_netdev'
   - src: '192.168.0.26:/Volumes/media01'
+    server: macmini
     path: /mnt/media01
     opts: 'rw,hard,intr,nofail,_netdev,x-systemd.automount,nfsvers=3,tcp,resvport'
   - src: '192.168.0.26:/Volumes/FastStore'
+    server: macmini
     path: /mnt/faststore
     opts: 'vers=3,hard,noresvport,proto=tcp,timeo=30,retrans=3,_netdev'
 
@@ -242,6 +249,9 @@ pbs_client_extra_archives:
   # eigen DB-back-ups vervangt de dump hieronder.
   - name: photos
     path: /mnt/media01/Photos
+    # Op de NFS-share van de Mini: staat die in `away`, dan gaat dit archief
+    # niet mee (een hard mount naar een server die weg is, hangt de back-up).
+    server: macmini
     excludes:
       - /thumbs
       - /encoded-video
@@ -262,7 +272,7 @@ pbs_client_dumps:
       docker exec romm-db sh -c
       'mariadb-dump -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" --single-transaction "$MARIADB_DATABASE"'
 pbs_client_schedule: "*-*-* 02:00:00"
-pbs_client_ntfy_url: http://192.168.0.32/homelab
+pbs_client_ntfy_url: "{{ ntfy_url }}"
 pbs_client_ntfy_token: "{{ hostvars['pve01'].vault_ntfy_pbs_token }}"
 
 # --- Audiobookshelf: login via Pocket ID (roles/audiobookshelf) ---

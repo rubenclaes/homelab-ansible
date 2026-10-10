@@ -203,26 +203,20 @@
           ansible.builtin.debug:
             var: report_row
 
-# Elke host die containers draait, niet alleen `docker`. Dat stond hier
-# eerder wel zo, en daardoor keek de route-drift-tabel verderop naar één van
-# de drie hosts. Tinyauth, bazarr, jellyfin en expenseowl stonden allemaal op
-# de Mac mini, en zijn daarom nooit gemeld.
-#
-# Via de CLI en niet via community.docker.docker_host_info: die module heeft
-# de Python-SDK op de doelhost nodig. Op Debian zet de docker_stacks-rol die
-# neer, op macOS is er geen apt en ontbreekt zelfs `requests` in de
-# systeem-Python. `docker ps --format json` werkt overal.
+# Elke host die containers draait, niet alleen `docker`: anders kijkt de
+# route-drift-tabel verderop maar naar één host. Op de Macs draait sinds
+# 25-09-2026 geen Docker meer.
 - name: Collect Docker status
-  hosts: docker_hosts:macs
+  hosts: docker_hosts
   gather_facts: false
   tasks:
-    - name: Read all containers
-      ansible.builtin.command: "{{ docker_stacks_docker_cli | default('docker') }} ps --all --format json"
+    - name: Read all containers # noqa: command-instead-of-module
+      ansible.builtin.command: docker ps --all --format json
       register: report_docker
       changed_when: false
       check_mode: false
-      # Een Mac hoeft geen Docker te draaien. De MacBook hoort hier leeg te
-      # blijven, en dat is geen fout.
+      # Het rapport toont wat het vindt; een host waar docker niet antwoordt
+      # blijft leeg in plaats van het hele rapport te laten falen.
       failed_when: false
 
     - name: Parse the container rows
@@ -301,7 +295,8 @@
 
     - name: Read health per disk
       ansible.builtin.command: smartctl -H -i -A -j {{ item.name }}
-      loop: "{{ (report_scan.stdout | from_json).devices }}"
+      # Loop is evaluated before `when`, so it has to survive a skipped scan.
+      loop: "{{ (report_scan.stdout | default('{}', true) | from_json).devices | default([]) }}"
       loop_control:
         label: "{{ item.name }}"
       register: report_smart
@@ -320,8 +315,8 @@
                'temp': j.temperature.current | default('?')
              }] }}
       vars:
-        j: "{{ item.stdout | from_json }}"
-      loop: "{{ report_smart.results | default([]) }}"
+        j: "{{ item.stdout | default('{}', true) | from_json }}"
+      loop: "{{ report_smart.results | default([]) | rejectattr('skipped', 'defined') | list }}"
       loop_control:
         label: "{{ item.item.name }}"
 

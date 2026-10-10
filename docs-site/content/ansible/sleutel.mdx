@@ -10,7 +10,7 @@ De `ansible`-sleutel is weg, en er is nergens nog een kopie: niet op een
 andere Mac, niet in de wachtwoordkluis. Heb je wel een kopie, zet die dan
 gewoon terug op `~/.ssh/ansible_ed25519` (zie [Laptop klaarzetten](/ansible/laptop/)).
 
-`-u root -k` (inloggen met wachtwoord) helpt hier niet: de baseline zet
+`-k` (inloggen met wachtwoord) helpt hier niet: de baseline zet
 `PasswordAuthentication no`, dus elke host weigert wachtwoorden. Je komt er
 alleen nog in via de hypervisor of de console.
 

@@ -9,13 +9,9 @@
 # against the live one, so a string "1" where the API returns an integer 1
 # reports a difference on every run, forever.
 #
-# Two deliberate departures from a plain transcription:
-#   - vmid 109 was dropped from the weekly job, because that guest no longer
-#     existed. The number was later reused for ntfy, which is back in.
-#   - No role here deletes anything in PBS. Orphaned groups (a guest that is
-#     gone) are removed by hand in the PBS UI; the weekly report lists them
-#     under "Back-ups zonder guest". The old ct/109 and vm/110 are gone, and
-#     109 is now ntfy.
+# No role here deletes anything in PBS. Orphaned groups (a guest that is
+# gone) are removed by hand in the PBS UI; the weekly report lists them under
+# "Back-ups zonder guest".
 #
 # On 23-09 the weekly job stopped being a transcription and became a
 # declaration. It had spent months aborting every Sunday on "can't use storage
@@ -24,16 +20,25 @@
 # read the vmid list, and /var/lib/vz/dump stayed empty. It was then deleted
 # from the node, so this file is now the only place it exists. Re-create it
 # with `-e proxmox_datacenter_create=true`; the role will not do it unasked.
+
+# Wat geen enkele job meeneemt. Beide jobs nemen `all` min deze lijst, zodat
+# een nieuwe guest vanzelf in beide back-ups zit.
+#
+# 100 is PBS zelf: zijn schijf is de datastore waar de andere kopie in staat.
+# 110 is lancache: 600 GB cache die je zo weer vult. 900-999 zijn de
+# sandboxes (sandbox.yml): vzdump kent geen reeks of label, dus elk nummer
+# apart. Een nummer zonder guest negeert vzdump.
+#
+# backup-check.yml en het rapport lezen deze lijst ook (report_backup_exclude).
+pve_backup_exclude: >-
+  {{ [100, 110] + range(proxmox_host_sandbox_vmid_first, proxmox_host_sandbox_vmid_last + 1) | list }}
+
 pve_backup_jobs:
   # De tweede kopie, wekelijks naar de Mac mini. De dagelijkse job hieronder
   # naar `pbs` blijft de primaire: die dedupliceert, is incrementeel en houdt
   # zeven snapshots. Deze schrijft volledige zstd-dumps naar een andere
   # machine, zodat een pve01 die sterft niet elke kopie meeneemt. Twee
   # kopieen, twee machines, twee formaten - nog geen off-site.
-  #
-  # 100 blijft erbuiten. Dat is PBS zelf, en zijn schijf is de datastore waar
-  # de andere kopie in staat; die meenemen is een back-up van je back-ups op
-  # de schijf waar je back-ups al niet staan.
   #
   # Retentie hangt niet aan deze job maar aan de storage
   # (`prune-backups keep-last=2` in storage.yml), want dat is waar de ruimte
@@ -42,7 +47,8 @@ pve_backup_jobs:
     params:
       schedule: "sun 01:00"
       storage: macmini-backup
-      vmid: "101,102,103,104,106,107,108,109"
+      all: 1
+      exclude: "{{ pve_backup_exclude | join(',') }}"
       mode: snapshot
       compress: zstd
       # ct 108 staat op een basevol zonder snapshots; vzdump kopieert hem dan
@@ -62,13 +68,7 @@ pve_backup_jobs:
       schedule: "02:30"
       storage: pbs
       all: 1
-      # 100 is PBS zelf (zie de weekjob). 110 is lancache: 600 GB cache die je
-      # zo weer vult. 900-999 zijn de sandboxes (sandbox.yml): vzdump kent
-      # geen reeks of label, dus elk nummer apart. Een nummer zonder guest
-      # negeert vzdump.
-      exclude: >-
-        {{ ([100, 110] + range(proxmox_host_sandbox_vmid_first, proxmox_host_sandbox_vmid_last + 1) | list)
-           | join(',') }}
+      exclude: "{{ pve_backup_exclude | join(',') }}"
       mode: snapshot
       enabled: 1
       notes-template: "{% raw %}{{guestname}}{% endraw %}"

@@ -29,21 +29,12 @@
     enabled: true
   register: caddy_repo
 
-- name: Remove the superseded one-line repository file
-  ansible.builtin.file:
-    path: /etc/apt/sources.list.d/caddy-stable.list
-    state: absent
-  register: caddy_old_repo
-
-- name: Refresh the package list when the repository changed
-  ansible.builtin.apt:
-    update_cache: true
-  when: caddy_repo is changed or caddy_old_repo is changed
-
 - name: Install Caddy
   ansible.builtin.apt:
     name: caddy
     state: present
+    # Only when the repository is new or changed; otherwise the cache is fine.
+    update_cache: "{{ caddy_repo is changed }}"
 
 - name: Read the modules built into the current binary
   ansible.builtin.command: caddy list-modules
@@ -52,9 +43,14 @@
   check_mode: false
 
 # Only when the module is genuinely absent. On a host that already has it this
-# never runs, which matters: add-package downloads a fresh binary and restarts
-# the proxy that fronts every service.
+# never runs, which matters: add-package downloads a fresh binary for the
+# proxy that fronts every service.
+#
+# add-package only swaps the file on disk; the running process is still the
+# stock binary, and a reload would hand it a Caddyfile it cannot parse. Hence
+# a restart, not a reload.
 - name: Add the Cloudflare DNS module
   ansible.builtin.command: caddy add-package {{ caddy_dns_module }}
   when: "'dns.providers.cloudflare' not in caddy_modules.stdout"
   changed_when: true
+  notify: Restart caddy

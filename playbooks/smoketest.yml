@@ -24,13 +24,17 @@
   hosts: caddy
   gather_facts: false
   tags: [caddy]
+  vars:
+    # Zonder de sites op een host in `away` (00-static.yml): die is er
+    # tijdelijk niet, en elke ochtend rood voor iets wat je weet is ruis.
+    smoke_sites: "{{ caddy_sites | rejectattr('host', 'in', groups.get('away', [])) | list }}"
   tasks:
     - name: Request every site
       ansible.builtin.uri:
         url: "https://{{ item.name }}.{{ caddy_domain }}"
         follow_redirects: none
         timeout: 10
-      loop: "{{ caddy_sites }}"
+      loop: "{{ smoke_sites }}"
       loop_control:
         label: "{{ item.name }}"
       register: smoke
@@ -52,7 +56,7 @@
         host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
         port: 443
         server_name: "{{ item.name }}.{{ caddy_domain }}"
-      loop: "{{ caddy_sites }}"
+      loop: "{{ smoke_sites }}"
       loop_control:
         label: "{{ item.name }}"
       register: smoke_certs
@@ -65,7 +69,7 @@
       ansible.builtin.assert:
         that: broken_sites | length == 0
         fail_msg: "Broken sites: {{ broken_sites | join(', ') }}"
-        success_msg: "All {{ caddy_sites | length }} sites respond"
+        success_msg: "All {{ smoke_sites | length }} sites respond"
       vars:
         broken_sites: >-
           {{ (smoke.results | selectattr('status', 'ge', 500) | map(attribute='item.name') | list)

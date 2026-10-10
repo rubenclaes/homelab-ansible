@@ -32,6 +32,8 @@ wsl_services: []
 # Go from the upstream tarball in /usr/local/go; the Ubuntu package lags a
 # year behind. Empty to leave Go alone.
 wsl_go_version: ""
+# Its sha256 from https://go.dev/dl/; required with a version.
+wsl_go_sha256: ""
 
 wsl_brew_prefix: /home/linuxbrew/.linuxbrew
 wsl_brew_packages: []

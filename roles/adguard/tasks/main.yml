@@ -41,6 +41,8 @@
         mode: "0600"
       register: adguard_tarball
 
+    # Not under --check: get_url downloads nothing there, so there is no
+    # tarball to unpack. The download above already shows up as the change.
     - name: Unpack the release
       ansible.builtin.unarchive:
         src: "{{ adguard_tarball.dest }}"
@@ -49,7 +51,13 @@
         extra_opts: [--strip-components=1]
         owner: root
         group: root
+      when: not ansible_check_mode
       notify: Restart AdGuardHome
+
+    - name: Remove the downloaded tarball
+      ansible.builtin.file:
+        path: "{{ adguard_tarball.dest }}"
+        state: absent
 
 - name: Install the systemd unit
   ansible.builtin.copy:

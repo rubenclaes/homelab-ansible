@@ -2,7 +2,7 @@
 # Eerste contact met ÉÉN nieuwe host: maakt het `ansible`-serviceaccount aan,
 # met zijn sleutel en een sudo-regel zonder wachtwoord.
 #
-#   ansible-playbook playbooks/bootstrap.yml --limit newhost -u root -k
+#   ansible-playbook playbooks/bootstrap.yml --limit newhost -k
 #
 # De play richt zich op `linux` zodat --limit gewoon werkt, maar weigert tegen
 # meer dan één host te draaien. Zonder die rem herschrijft een vergeten
@@ -17,6 +17,11 @@
 - name: Bootstrap ansible service account
   hosts: linux
   vars:
+    # Play-vars, geen `-u root`: de inventory zet ansible_user: ansible voor
+    # heel `linux`, en een inventory-variabele wint van -u en remote_user. Zo
+    # logde dit in als een gebruiker die nog niet bestaat.
+    ansible_user: root
+    ansible_become: false
     svc_user: ansible
     svc_pubkey: "{{ lookup('file', '~/.ssh/ansible_ed25519.pub') }}"
 

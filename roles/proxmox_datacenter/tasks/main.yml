@@ -6,7 +6,12 @@
   ansible.builtin.import_tasks: backup_jobs.yml
 
 - name: Notification targets and matchers
-  ansible.builtin.import_tasks: notifications.yml
+  ansible.builtin.import_role:
+    name: proxmox_notifications
+  vars:
+    proxmox_notifications_cli: pve
+    proxmox_notifications_webhooks: "{{ pve_notification_webhooks | default([]) }}"
+    proxmox_notifications_matchers: "{{ pve_notification_matchers | default([]) }}"
 
 # Imported last, deliberately. assert is fatal: asserting at the end of
 # either reconciliation above would halt the play before the other ran,

@@ -12,7 +12,7 @@
     path: "{{ docker_stacks_deploy_key }}"
     type: ed25519
     comment: "docker deploy key (read-only)"
-  become: "{{ docker_stacks_become }}"
+  become: true
   become_user: "{{ docker_stacks_owner }}"
   register: docker_stacks_keypair
   tags: deploy_key
@@ -24,10 +24,10 @@
 
 - name: Trust GitHub's SSH host key
   ansible.builtin.known_hosts:
-    path: "{{ docker_stacks_home }}/.ssh/known_hosts"
+    path: "/home/{{ docker_stacks_owner }}/.ssh/known_hosts"
     name: github.com
     key: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
-  become: "{{ docker_stacks_become }}"
+  become: true
   become_user: "{{ docker_stacks_owner }}"
   tags: deploy_key
 
@@ -38,19 +38,151 @@
     version: "{{ docker_stacks_repo_version }}"
     key_file: "{{ docker_stacks_deploy_key }}"
     accept_hostkey: false
-  become: "{{ docker_stacks_become }}"
+  become: true
   become_user: "{{ docker_stacks_owner }}"
 
-- name: Mounts, drop-in and apt packages (Debian hosts only)
-  ansible.builtin.import_tasks: linux.yml
-  when: ansible_facts['os_family'] != 'Darwin'
+# Mounts first: a stack started on an empty mountpoint keeps looking at it.
+- name: Ensure Python libraries for the Docker modules
+  ansible.builtin.apt:
+    name: [python3-yaml, python3-docker]
+    state: present
+
+# Not the shares of a server in `away` (00-static.yml): a hard NFS mount to a
+# server that is gone hangs every stat, and this task with it, forever.
+- name: Mount the NFS shares the stacks need
+  ansible.posix.mount:
+    src: "{{ item.src }}"
+    path: "{{ item.path }}"
+    fstype: nfs
+    opts: "{{ item.opts | default('vers=3,hard,noresvport,proto=tcp,timeo=30,retrans=3,_netdev') }}"
+    state: mounted
+  loop: "{{ docker_stacks_nfs_mounts | rejectattr('server', 'in', groups.get('away', [])) | list }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+# force is off: a disk that already has a filesystem is left alone, so a
+# mistyped dev cannot wipe data. Only an empty disk gets one.
+- name: Make a filesystem on empty local data disks
+  community.general.filesystem:
+    dev: "{{ item.dev }}"
+    fstype: ext4
+  loop: "{{ docker_stacks_local_disks }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Mount the local data disks
+  ansible.posix.mount:
+    src: "{{ item.dev }}"
+    path: "{{ item.path }}"
+    fstype: ext4
+    opts: defaults,discard
+    state: mounted
+  loop: "{{ docker_stacks_local_disks }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+# systemd-escape and not a replace('/', '-'): a path with a `-` or a space
+# gets escaped (\x2d, \x20), and a hand-built name would point at a unit that
+# does not exist.
+- name: Work out the mount unit names
+  ansible.builtin.command:
+    argv: [systemd-escape, --path, --suffix=mount, "{{ item }}"]
+  loop: "{{ docker_stacks_wait_for_mounts }}"
+  register: docker_stacks_mount_units_raw
+  changed_when: false
+  check_mode: false
+
+- name: Remember the mount unit names
+  ansible.builtin.set_fact:
+    docker_stacks_mount_units: "{{ docker_stacks_mount_units_raw.results | map(attribute='stdout') | list }}"
+
+- name: Verify mount units exist # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl show -p LoadState --value {{ item | quote }}
+  loop: "{{ docker_stacks_mount_units }}"
+  register: docker_stacks_mount_state
+  changed_when: false
+  # Must run under --check too, otherwise stdout is undefined and failed_when
+  # blows up instead of reporting the real mount state.
+  check_mode: false
+  failed_when: docker_stacks_mount_state.stdout != 'loaded'
+
+- name: Ensure Docker drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: "0755"
+  when: docker_stacks_wait_for_mounts | length > 0
+
+- name: Let Docker wait for network mounts at boot
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/10-wait-for-mounts.conf
+    content: |
+      [Unit]
+      {% for unit in docker_stacks_mount_units %}
+      Wants={{ unit }}
+      After={{ unit }}
+      {% endfor %}
+    mode: "0644"
+  when: docker_stacks_wait_for_mounts | length > 0
+  notify: Reload systemd
+
+# Ports that only the reverse proxy may reach (docker_stacks_proxy_only_ports).
+# A systemd unit tied to docker.service, so the rules come back after a
+# reboot or a Docker restart; Docker itself leaves DOCKER-USER empty.
+- name: Proxy-only ports in the DOCKER-USER chain
+  when: docker_stacks_proxy_only_ports | length > 0
+  block:
+    # Without a source the script renders `-s  -j RETURN`, iptables fails
+    # inside the oneshot, and the chain stays flushed: every port open.
+    - name: Require the proxy address
+      ansible.builtin.assert:
+        that: docker_stacks_proxy_source | length > 0
+        fail_msg: docker_stacks_proxy_only_ports is set, so docker_stacks_proxy_source must be too.
+        quiet: true
+
+    - name: Install the DOCKER-USER firewall script
+      ansible.builtin.template:
+        src: docker-user-firewall.sh.j2
+        dest: /usr/local/sbin/docker-user-firewall
+        owner: root
+        group: root
+        mode: "0755"
+      register: docker_stacks_fw_script
+
+    - name: Install the DOCKER-USER firewall unit
+      ansible.builtin.template:
+        src: docker-user-firewall.service.j2
+        dest: /etc/systemd/system/docker-user-firewall.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: docker_stacks_fw_unit
+
+    - name: Enable the DOCKER-USER firewall
+      ansible.builtin.systemd_service:
+        name: docker-user-firewall
+        enabled: true
+        state: started
+        daemon_reload: "{{ docker_stacks_fw_unit is changed }}"
+      # Under --check a new unit was not written, so there is nothing to enable.
+      when: not (ansible_check_mode and docker_stacks_fw_unit is changed)
+
+    # A oneshot that already ran does not run again on `started`, so a new
+    # port list needs an explicit restart to take effect.
+    - name: Apply a changed port list now
+      ansible.builtin.systemd_service:
+        name: docker-user-firewall
+        state: restarted
+      when:
+        - docker_stacks_fw_script is changed or docker_stacks_fw_unit is changed
+        - not ansible_check_mode
 
 - name: Deploy .env from Vault
   ansible.builtin.copy:
     src: "{{ docker_stacks_env_dir }}/{{ item.name }}.env"
     dest: "{{ docker_stacks_root }}/{{ item.path }}/.env"
     owner: "{{ docker_stacks_owner }}"
-    group: "{{ docker_stacks_group }}"
+    group: "{{ docker_stacks_owner }}"
     mode: "0600"
   loop: "{{ docker_stacks_list }}"
   loop_control:
@@ -78,7 +210,6 @@
   community.docker.docker_compose_v2:
     project_src: "{{ docker_stacks_root }}/{{ item.path }}"
     project_name: "{{ item.project | default(omit) }}"
-    docker_cli: "{{ docker_stacks_docker_cli | default(omit, true) }}"
     state: present
     # Without this the role is not actually declarative: deleting a service
     # from a compose file leaves its container running forever, because

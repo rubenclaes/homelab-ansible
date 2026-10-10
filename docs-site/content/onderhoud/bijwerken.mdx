@@ -88,9 +88,7 @@ ansible-playbook playbooks/update.yml --limit macs   # beide Macs
 ansible-playbook playbooks/update.yml --limit mbp    # alleen je MacBook
 ```
 
-Dit is `brew upgrade --formula`: alleen pakketten, geen apps. De Mac mini
-slaat zijn pakketten over ([waarom](#de-mac-mini-en-homebrew)) en zegt dat
-elke run.
+Dit is `brew upgrade --formula`: alleen pakketten, geen apps.
 
 #### Ook de apps: zet de cask-flag aan
 
@@ -231,13 +229,12 @@ Vanuit Semaphore is `mbp` de Semaphore-container, niet je MacBook
 ([uitleg](/semaphore/#de-limits-in-de-templates)). Daarom draait "Update
 guests" met `--limit guests:!semaphore`.
 
-### De Mac mini en Homebrew
+### Wanneer `macos_brew_upgrade: false`
 
-De Mac mini draait macOS 14.6.1, en daarvoor bouwt Homebrew geen kant-en-klare
-pakketten (bottles) meer: alles moet vanaf broncode, uren werk, en een deel
-lukt niet. Daarom staat `macos_brew_upgrade: false` in
-`inventory/host_vars/macmini/main.yml`. Casks werken wel, dat zijn
-kant-en-klare apps. De pakketten komen terug na een nieuwere macOS.
+Op een Mac met een macOS waarvoor Homebrew geen kant-en-klare pakketten
+(bottles) meer bouwt. Dan moet alles vanaf broncode: uren werk, en een deel
+lukt niet. De oude Mac mini (macOS 14) stond zo tot hij in 10-2026 vervangen
+werd. Casks werken dan wel: dat zijn kant-en-klare apps.
 
 ### Casks die root nodig hebben
 

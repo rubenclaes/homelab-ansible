@@ -1,65 +1,46 @@
 ---
-# De Mac mini. Draait Plex als macOS-app, een UTM-VM, en exporteert drie
-# shares over NFS naar de docker-host. Containers draaien hier sinds 25-09
-# niet meer (zie "Docker op deze Mac" onderaan). Alles hieronder is op 22-09
-# van de machine zelf gelezen (brew leaves, docker compose ls, een poortscan
-# en /etc/exports), niet uit het geheugen overgetikt.
+# De Mac mini (M6, 16 GB, sinds 10-2026). Draait Plex als macOS-app, Ollama,
+# en exporteert drie shares over NFS naar de docker-host. Geen containers:
+# de media-apps draaien op `docker` (zie "Docker" onderaan).
+#
+# Staat in de groep `away` (inventory/00-static.yml) zolang hij er niet is.
 
-# `brew leaves`: wat je zelf gevraagd hebt, zonder de afhankelijkheden
-# eronder. Precies de lijst die de macos-rol terugzet.
+# Wat de macos-rol terugzet. Dezelfde lijst als `brew leaves` op de oude
+# Mini, min wat daar alleen voor Kubernetes of Docker stond.
 macos_brew_packages_extra:
   - autojump
   - ffmpeg
   - gh
   - go
-  - htop
   - iperf3
-  - jq
   - kubectx
   - node
+  - node_exporter
+  - ollama
   - pass
   - ripgrep
-  - node_exporter
   - smartmontools   # voor macos_smart, onderaan
   - ssh-copy-id
   - tailscale
   - tldr
-  - tmux
-  - wget
 
-# LET OP bij docker. `brew list --cask` geeft hier `docker` EN
-# `docker-desktop`, maar dat zijn allebei restanten: /Applications/Docker.app
-# bestaat niet meer op deze machine. Wat er echt draait is OrbStack -
-# /usr/local/bin/docker is een symlink naar
-# /Applications/OrbStack.app/Contents/MacOS/xbin/docker en de actieve
-# docker-context heet `orbstack`. Sinds 25-09 staat hij stil; zie onderaan.
-#
-# Daarom staat hier `orbstack` en geen van beide docker-casks: die zouden bij
-# een herbouw Docker Desktop installeren, en dat is niet wat deze machine
-# draait. Dit was het echte antwoord op "dubbele docker-casks" in de TODO -
-# het waren er niet twee, het waren er nul.
-#
-# OrbStack staat hier NIET bij, en dat is geprobeerd en opgegeven. Hij is
-# buiten Homebrew geinstalleerd, dus adopteren moet met `--adopt`, en dat wil
-# `chgrp -hR admin /Applications/OrbStack.app` draaien. Over SSH faalt dat op
-# elk bestand met "Operation not permitted", ook als root: sinds Ventura mag
-# een proces het bundel van een andere app niet aanraken zonder het recht
-# "App-beheer", en sshd heeft dat niet. Het zou dus alleen lukken door met de
-# hand achter de Mini te gaan zitten, en daar staat niets tegenover: OrbStack
-# updatet zichzelf al via Sparkle.
-#
 # Plex staat NIET in deze lijst en dat is met opzet: hij draait als
-# /Applications/Plex Media Server.app, buiten Homebrew om. Zet je hem hier
-# als `plex-media-server`, dan gaat brew over een bestaande installatie heen
-# die hij niet geplaatst heeft. Eerst met de hand overzetten, dan pas hier.
-# De metrics van de Mini voor Prometheus (roles/prometheus_config): vooral
-# zijn schijven. De docker-host ziet ze ook via NFS, maar node_exporter slaat
-# NFS daar over, en terecht: een NFS-mount die hangt, legt hem mee stil.
+# /Applications/Plex Media Server.app, van plex.tv. Zet je hem hier als
+# `plex-media-server`, dan gaat brew over een installatie heen die hij niet
+# geplaatst heeft.
+
+# node_exporter: de metrics van de Mini voor Prometheus (roles/prometheus_config),
+# vooral zijn schijven. De docker-host ziet ze ook via NFS, maar node_exporter
+# slaat NFS daar over, en terecht: een NFS-mount die hangt, legt hem mee stil.
+#
+# ollama: voor NeoGate en Home Assistant. De brew-dienst luistert alleen op
+# localhost; op het LAN is nog een stap (TODO.md).
 macos_brew_services:
   - node_exporter
+  - ollama
 
-# De gezondheid van de vijf schijven in Grafana ("Schijven Mac mini") en in
-# de SMART-alarmen. smartctl leest ze hier zonder root, ook de externe.
+# De gezondheid van de schijven in Grafana ("Schijven Mac mini") en in de
+# SMART-alarmen. smartctl leest ze hier zonder root, ook de externe.
 macos_smart: true
 
 macos_casks:
@@ -67,98 +48,15 @@ macos_casks:
   - iterm2
   - spotify
 
-# Wat hier weg MOET, niet alleen "wat hier niet meer staat". De macos-rol
-# installeerde alleen; iets uit de lijsten hierboven schrappen zorgt er
-# enkel voor dat hij niet terugkomt, niet dat hij verdwijnt.
-#
-# De k8s-spullen gaan eruit omdat er op deze Mac geen cluster meer draait:
-# minikube 266M, k9s 136M, kubernetes-cli 122M. Die laatste stond nooit in
-# de lijst hierboven - `brew leaves` verzweeg hem omdat minikube van hem
-# afhing - maar het INSTALL_RECEIPT zegt installed_on_request, dus hij is
-# wel degelijk zelf geinstalleerd en verdwijnt niet vanzelf met minikube mee.
-#
-# `kubectx` staat nog bij de gewenste pakketten: klein, en niet gevraagd om
-# weg te halen. Zet hem erbij zodra je ook vanaf deze Mac geen enkel cluster
-# meer aanspreekt.
-# Geen brew-upgrades op deze machine, tot macOS bijgewerkt is.
-#
-# Dit is geen voorkeur, het is een muur. Op 22-09 heeft een volledige
-# `brew upgrade --formula` hier 22 minuten gedraaid en daarna gefaald.
-# Homebrew zegt het zelf:
-#
-#   You are using macOS 14. We (and Apple) do not provide support for this
-#   old version. Homebrew no longer builds bottles for this configuration.
-#   This is a Tier 3 configuration.
-#
-# Gevolg: alles wordt vanaf broncode gebouwd. Dertien pakketten blijven
-# daarbij gewoon achter - python@3.12, python@3.14, node, ollama, ffmpeg,
-# wget, tmux, gnupg, sqlite, unbound, merve, libngtcp2, p11-kit - omdat
-# Homebrew ze zonder bottle niet eens probeert. `node` wil er llvm 23.1.1
-# vanaf broncode bij, en dat is uren.
-#
-# De cache liep in die ene run van 321 MB naar 6,5 GB, en er bleven twee
-# niet-gelinkte kegs achter (gh en libvpx). Elke volgende run herhaalt dat.
-#
-# Dit weghalen zodra de Mini op een ondersteunde macOS staat - zie het punt
-# "Mac mini draait macOS 14.6.1" in TODO.md. Casks blijven wel werken: die
-# zijn kant-en-klare apps en hebben geen bottle nodig.
-macos_brew_upgrade: false
-
-macos_brew_packages_absent:
-  - k9s
-  - kubernetes-cli
-  - minikube
-  - ollama
-
-# Casks die hier weg moeten. `docker` en `docker-desktop` zijn dode
-# registraties uit de Caskroom: ze uit macos_casks halen is niet genoeg, dan
-# blijven ze staan en blijft `brew upgrade --cask` proberen Docker Desktop
-# terug te zetten.
-#
-# Een cask met bestanden onder /Library hoort hier niet: brew roept daarvoor
-# zelf sudo aan, dat faalt over SSH, en zolang hij hier staat faalt elke
-# macos-run erop. Hoe en waarom met de hand: docs-site runbook "Updates",
-# kopje "Casks die root nodig hebben".
-macos_casks_absent:
-  - docker
-  - docker-desktop
-
-# --- Docker op deze Mac ---------------------------------------------------
-# Hier draait sinds 25-09 geen enkele container meer, en daarom staat hier
-# geen docker_stacks_list: zonder lijst slaat stacks.yml deze host over.
-#
-# De laatste drie gingen op 25-09 weg, zonder opvolger:
-#   duplicati  maakte sinds 18-02 geen back-up meer, en wat hij bewaakte
-#              (~/Container) waren mappen van diensten die al verhuisd waren
-#   alloy      stuurde alleen de logs van de containers hier naar Loki
-#   portainer  de agent, voor de portainer op docker; niets meer te beheren
-# Hun compose-files staan in github.com/rubenclaes/homelab onder Archive/,
-# hun data in ~/Container/_archief/*-2026-09-25.tar.gz. De oude
-# Duplicati-back-ups staan nog op /Volumes/media01/backups/duplicati-*.
-#
-# OrbStack staat nog geinstalleerd maar draait niet en start niet mee bij
-# het inloggen. Dat scheelt zo'n 1,4 GB RAM op een machine met 8 GB.
-#
-# Daarom ook geen docker_stacks_docker_cli meer. report.yml roept dan een
-# kale `docker` aan, die Ansible hier niet in zijn PATH vindt: dat faalt
-# stil en de Mini blijft leeg in het rapport. Met het pad naar de CLI in het
-# OrbStack-bundel erbij kan een wekelijks rapport OrbStack weer wakker maken.
-#
-# Grimmory, Shelfmark en Recyclarr draaiden hier tot 25-09; ze zitten nu in
-# de media-stack op docker. Expenseowl stond al stil; zijn data en die van de
-# drie staan in ~/Container/_archief/*-2026-09-25.tar.gz.
-
-# Routes waarvan de backend geen container is. Plex draait hier als
-# macOS-app (/Applications/Plex Media Server.app) en verschijnt dus nooit in
-# `docker ps`. Zonder deze regel meldt report.yml hem elke run als dode route.
-docker_routes_without_container:
-  - { port: 32400, why: "Plex is een macOS-app, geen container" }
+# --- Docker ---------------------------------------------------------------
+# Hier draait geen enkele container, en de Mini zit niet in docker_hosts.
+# Docker op macOS kostte op de oude Mini 1,4 GB van de 8 GB RAM; wat er
+# draaide, staat sinds 25-09-2026 op `docker`.
 
 # --- NFS ------------------------------------------------------------------
-# De drie shares die de docker-host mount. Op 22-09 uit /etc/exports en
-# `showmount -e localhost` gelezen; sindsdien beheert roles/nfs_exports ze,
-# dus dit is nu de bron en niet meer de beschrijving. De docker-kant staat in
-# docker_stacks_nfs_mounts in host_vars/docker/main.yml en mount alle drie.
+# De drie shares die de docker-host mount; roles/nfs_exports zet ze in
+# /etc/exports. De docker-kant staat in docker_stacks_nfs_mounts in
+# host_vars/docker/main.yml en mount alle drie.
 #
 # -alldirs, -mapall=1000:1000 en het netwerk zijn voor alle drie hetzelfde en
 # staan als default in roles/nfs_exports/defaults/main.yml.

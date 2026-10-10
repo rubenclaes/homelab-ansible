@@ -25,5 +25,5 @@ caddy_log_mode: "0640"
 # Leeg = geen :2020-blok.
 caddy_neogate_host: ""
 
-# Provides the DNS-01 challenge used for the *.neodata.be wildcard certificate.
-caddy_dns_module: github.com/caddy-dns/cloudflare
+# caddy_dns_module staat in inventory/host_vars/caddy: playbooks/caddy-upgrade.yml
+# past deze rol niet toe en ziet deze defaults dus niet.

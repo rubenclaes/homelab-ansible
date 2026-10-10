@@ -1,6 +1,7 @@
 # Managed by Ansible (dotfiles role), generated from the inventory
 # Don't edit by hand; add hosts to the inventory instead.
-{% for host in groups['linux'] | sort %}
+{# A stopped guest has no ansible_host (the Proxmox inventory gives it no IP). #}
+{% for host in groups['linux'] | sort if hostvars[host].ansible_host is defined %}
 
 Host {{ host }}
     HostName {{ hostvars[host].ansible_host }}

@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.10"
+  # 1.11: tofu/proxmox gebruikt ephemeral variabelen en write-only attributen.
+  required_version = ">= 1.11"
 
   required_providers {
     pocketid = {

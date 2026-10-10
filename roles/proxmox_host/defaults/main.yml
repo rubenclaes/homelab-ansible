@@ -21,3 +21,8 @@ proxmox_host_cpu_epp: balance_performance
 proxmox_host_sandbox_template: local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
 # Een vergeten sandbox is na zoveel uur weg. Draait hij nog, dan ook.
 proxmox_host_sandbox_max_age_hours: 24
+# Waar de schijf van een sandbox komt, en hoe groot (GB).
+proxmox_host_sandbox_storage: local-lvm
+proxmox_host_sandbox_disk_gb: 8
+# Wie erin mag: dezelfde sleutels als de ansible-gebruiker op pve01.
+proxmox_host_sandbox_ssh_keys: /home/ansible/.ssh/authorized_keys

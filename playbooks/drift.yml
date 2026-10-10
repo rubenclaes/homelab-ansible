@@ -15,9 +15,9 @@
 # Het volledige log blijft staan in .drift/site-check.log, gitignored. Dat is
 # waar de diffs staan; deze samenvatting zegt alleen wie en wat, niet hoe.
 #
-# LET OP: een host die niet bereikbaar is telt hier als nul wijzigingen, want
-# er viel niets te controleren. De regel eronder zegt het wel. Een slapende
-# Mac ziet er in een samenvatting uit als een host zonder drift, en dat is
+# Een host die niet bereikbaar is, een gefaalde taak of een dry run die niet
+# eens start (vault, inventory) telt niet als "geen drift": de samenvatting
+# zegt het, en met drift_fail=true wordt de run rood. Een slapende Mac is
 # precies het verschil tussen "niets te doen" en "niet gekeken".
 #
 # In site.yml: nee, het controleert en het convergeert niet.
@@ -113,10 +113,20 @@
       changed_when: false
       check_mode: false
 
+    # ansible-playbook geeft 0 terug ook als er drift is; alles anders betekent
+    # dat de dry run zelf stukging (vault, inventory, een gefaalde taak, een
+    # host die niet bereikt werd). Zonder deze regel telde zo'n run als "geen
+    # drift": geen changed-regels, dus niets te melden.
+    - name: Kijk of de dry run rond kwam
+      ansible.builtin.set_fact:
+        drift_complete: "{{ drift_run.rc == 0 and 'PLAY RECAP' in drift_run.stdout }}"
+
     - name: Samenvatting
       ansible.builtin.debug:
         msg: >-
           {{ ['Drift ten opzichte van de repo:', '']
+             + ([] if drift_complete else
+                ['  DE DRY RUN KWAM NIET ROND (rc=' ~ drift_run.rc ~ '): dit is geen volledige controle.', ''])
              + (drift_hosts.stdout_lines | default([]))
              + ['', 'Wat er zou veranderen:']
              + (drift_tasks.stdout_lines | default(['  niets']))
@@ -127,9 +137,12 @@
     # Op een schema wil je 'm aan; aan je bureau meestal niet.
     - name: Faal als er drift is en daarom gevraagd werd
       ansible.builtin.assert:
-        that: (drift_tasks.stdout_lines | default([]) | length) == 0
+        that:
+          - drift_complete | bool
+          - (drift_tasks.stdout_lines | default([]) | length) == 0
         fail_msg: >-
-          {{ drift_tasks.stdout_lines | length }} taken zouden iets wijzigen.
-          Zie .drift/site-check.log, of draai site.yml.
+          {{ ('De dry run kwam niet rond (rc=' ~ drift_run.rc ~ '). ')
+             if not drift_complete | bool else '' }}{{ drift_tasks.stdout_lines | length }}
+          taken zouden iets wijzigen. Zie .drift/site-check.log, of draai site.yml.
         success_msg: "Geen drift: de estate staat zoals de repo zegt."
       when: drift_fail | default(false) | bool

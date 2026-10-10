@@ -19,7 +19,8 @@
 
 HOMELAB_REPO="{{ dotfiles_homelab_repo | regex_replace('^~', '$HOME') }}"
 {% set mac_hosts = groups['macs'] | sort | select('in', groups['all']) | list %}
-{% set ssh_hosts = (groups['linux'] | sort) + (mac_hosts | map('extract', hostvars) | selectattr('ansible_host', 'defined') | map(attribute='inventory_hostname') | list) %}
+{# A stopped guest has no ansible_host (the Proxmox inventory gives it no IP). #}
+{% set ssh_hosts = ((groups['linux'] | sort) + mac_hosts) | map('extract', hostvars) | selectattr('ansible_host', 'defined') | map(attribute='inventory_hostname') | list %}
 
 # --- Inventory data -----------------------------------------------------------
 typeset -A HOMELAB_HOST_IP HOMELAB_HOST_RGB HOMELAB_DOCKER_CLI
@@ -39,7 +40,7 @@ HOMELAB_HOST_RGB=(
 # the docker group on Linux, but has sudo without a password.
 HOMELAB_DOCKER_CLI=(
 {% for h in groups['all'] | sort if hostvars[h].docker_stacks_list is defined %}
-  {{ h }} "{{ 'sudo -n docker' if h in groups['linux'] else hostvars[h].docker_stacks_docker_cli | default('docker') }}"
+  {{ h }} "{{ 'sudo -n docker' if h in groups['linux'] else 'docker' }}"
 {% endfor %}
 )
 # name <tab> host <tab> url <tab> description, one per caddy_sites route
