@@ -22,6 +22,10 @@ docs. Per punt: wat, en de volgende stap.
       `host_vars/macmini`: `macos_brew_upgrade: false` weg (nieuwe macOS),
       OrbStack/Docker/UTM-uitleg weg, Ollama erbij (luisteren op het LAN,
       `OLLAMA_HOST=0.0.0.0:11434`) voor de Ollama-plugin van NeoGate.
+      Geen Docker op de M6 (voorlopig): de media-apps blijven op `docker`
+      en NFS blijft. Wel NFS robuust maken: automount op `docker`
+      (`x-systemd.automount`) en de media-stack laten wachten op de mounts,
+      zodat een herstart van de Mini geen lege mappen meer geeft.
 
 - [ ] **`work-wsl`**: op de werk-pc SSH aan (alleen sleutels, WSL in
       nat-modus), de `ansible@neodata`-sleutel erop, dan `ansible work-wsl -m

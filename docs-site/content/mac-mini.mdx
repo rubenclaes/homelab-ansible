@@ -220,12 +220,20 @@ ssh rubenclaes@192.168.0.26 "mkdir -p '/Volumes/media01/backups/proxmox'"
 ssh pve01 'sudo pvesm status | grep macmini-backup'    # moet "active" zeggen
 ```
 
+Zet de job weer aan: `enabled: 1` bij `backup-e6cc3e8b-ac39` in
+`inventory/group_vars/proxmox/backup.yml` (hij stond uit zolang er geen Mini
+was), dan:
+
+```bash filename="laptop"
+ansible-playbook playbooks/proxmox-datacenter.yml
+```
+
 Wacht tot zondag 01:00, of start de job met de hand in het Proxmox-scherm:
 Datacenter → Backup → de job naar `macmini-backup` → *Run now*.
 
 #### Commit en push
 
-Het nieuwe MAC-adres in `unifi.yml`.
+Het nieuwe MAC-adres in `unifi.yml` en de back-upjob die weer aan staat.
 
 </Steps>
 

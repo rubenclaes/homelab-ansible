@@ -48,7 +48,10 @@ pve_backup_jobs:
       # ct 108 staat op een basevol zonder snapshots; vzdump kopieert hem dan
       # via een tmpdir, standaard op de NFS-share, en die weigert chown.
       tmpdir: /var/tmp
-      enabled: 1
+      # 0 zolang er geen Mac mini is: de oude is op 09-10-2026 gewist, de
+      # nieuwe (M6) komt nog. Zonder de NFS-share faalt deze job elke zondag.
+      # Terug op 1 is een stap in docs-site, Mac mini -> Een nieuwe Mac mini.
+      enabled: 0
       # {{guestname}} is a Proxmox template, not a Jinja one. Without the raw
       # block Ansible tries to resolve it and fails with an undefined variable.
       notes-template: "{% raw %}{{guestname}}{% endraw %}"
