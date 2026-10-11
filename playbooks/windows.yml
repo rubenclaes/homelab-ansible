@@ -67,12 +67,15 @@
     # altijd in PATH. --disable-interactivity omdat er niemand is om op een
     # vraag te antwoorden.
     #
-    # Gepind en dus overgeslagen door `upgrade --all`: Tailscale (zie hierboven)
-    # en App Installer, dat is winget zelf; de Microsoft Store werkt die bij.
+    # Gepind en dus overgeslagen door `upgrade --all`: Tailscale (zie hierboven),
+    # App Installer (dat is winget zelf; de Microsoft Store werkt die bij), en
+    # de Autodesk Desktop App: zijn installer (8.x, "Autodesk Access") bleef op
+    # 11-10-2026 zonder scherm eindeloos hangen, en daarmee de hele run. Hij
+    # werkt zichzelf bij als iemand Autodesk opent.
     - name: Upgrade apps with winget
       ansible.windows.win_shell: |
         $winget = Join-Path (Get-AppxPackage Microsoft.DesktopAppInstaller).InstallLocation 'winget.exe'
-        foreach ($id in 'Tailscale.Tailscale', 'Microsoft.AppInstaller') {
+        foreach ($id in 'Tailscale.Tailscale', 'Microsoft.AppInstaller', 'Autodesk.DesktopApp') {
           & $winget pin add --id $id --exact --accept-source-agreements --disable-interactivity | Out-Null
         }
         & $winget upgrade --all --silent --include-unknown --accept-package-agreements --accept-source-agreements --disable-interactivity

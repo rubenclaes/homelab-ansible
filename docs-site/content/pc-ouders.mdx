@@ -45,8 +45,19 @@ niets gebeurd.
 | één commando op de pc | `ansible pc-ouders -m ansible.windows.win_shell -a 'Get-Service Alloy'` |
 | een PowerShell op de pc | `ssh peter@claes-swinnen.brill-atlas.ts.net` |
 
-Apps gaan via winget, behalve Tailscale en App Installer
-([waarom](#waarom-tailscale-niet-via-winget)).
+Apps gaan via winget, behalve Tailscale, App Installer
+([waarom](#waarom-tailscale-niet-via-winget)) en de Autodesk Desktop App: die
+installer bleef hangen zonder scherm, en hield de hele run tegen.
+
+Hangt de run toch op **Upgrade apps with winget**? Kijk welke installer
+draait, en stop hem; winget gaat dan door met de volgende app:
+
+```bash filename="laptop"
+ssh peter@claes-swinnen.brill-atlas.ts.net 'Get-CimInstance Win32_Process | ? ParentProcessId -eq (Get-Process winget).Id | select ProcessId, Name'
+ssh peter@claes-swinnen.brill-atlas.ts.net 'taskkill /PID <id> /T /F'
+```
+
+Pin hem daarna in `playbooks/windows.yml`, bij de andere.
 
 ## Een alarm van de pc
 
