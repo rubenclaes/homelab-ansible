@@ -8,8 +8,9 @@ import { Steps } from 'nextra/components'
 
 De pc van je ouders (`claes-swinnen` op Tailscale, `pc-ouders` in Prometheus)
 meldt zelf aan je homelab hoe hij het maakt: schijven, geheugen, updates en
-fouten uit de eventlog. Meekijken doe je met RustDesk, via Tailscale. Updates
-doet Windows Update zelf.
+fouten uit de eventlog. Beheren doe je vanaf je laptop met Ansible over SSH,
+meekijken met RustDesk; allebei via Tailscale. Updates doet Windows Update
+ook zelf.
 
 Voorbeeld: ntfy meldt `pc-ouders: blauw scherm vóór de laatste opstart`.
 
@@ -30,6 +31,23 @@ typt. Log in met het wachtwoord uit de Vault.
 Rechtstreeks via het Tailscale-adres, niet via je RustDesk-server: geen
 poorten in de router, geen ID-server nodig.
 
+## Bijwerken en beheren vanaf je laptop
+
+De pc moet aanstaan. Staat hij uit, dan zegt de run `UNREACHABLE` en is er
+niets gebeurd.
+
+| Wil je | Draai |
+| --- | --- |
+| Windows-updates en apps bijwerken (geen herstart) | `ansible-playbook playbooks/windows.yml --tags updates` |
+| hetzelfde, en herstarten als het moet | `ansible-playbook playbooks/windows.yml --tags updates -e allow_reboot=true` |
+| eerst zien wat er openstaat | `ansible-playbook playbooks/windows.yml --tags updates --check` |
+| de Alloy-config of het schijfscript uitrollen | `ansible-playbook playbooks/windows.yml --tags alloy` |
+| één commando op de pc | `ansible pc-ouders -m ansible.windows.win_shell -a 'Get-Service Alloy'` |
+| een PowerShell op de pc | `ssh peter@claes-swinnen.brill-atlas.ts.net` |
+
+Apps gaan via winget, behalve Tailscale en App Installer
+([waarom](#waarom-tailscale-niet-via-winget)).
+
 ## Een alarm van de pc
 
 | Alarm | Wat er is | Doe |
@@ -41,7 +59,7 @@ poorten in de router, geen ID-server nodig.
 | `WindowsDiskUnhealthy` | Windows noemt de SSD niet meer gezond | backup, vervangen |
 | `WindowsSsdWearing` | meer dan 80% van de levensduur gebruikt | vervanging plannen |
 | `WindowsDiskAlmostFull` | minder dan 10% vrij op een station | opruimen via RustDesk |
-| `WindowsUpdatesPending` | echte updates (geen optionele drivers) staan al twee weken open | Windows Update via RustDesk |
+| `WindowsUpdatesPending` | echte updates (geen optionele drivers) staan al twee weken open | `windows.yml --tags updates` |
 | `WindowsUpdateFailed` | een Windows-update is mislukt | Updategeschiedenis via RustDesk |
 | `WindowsDiskHealthStale` | de schijfcontrole draait al 3 uur niet | Taakplanner → `Homelab disk health` |
 | `WindowsNotSeen` | een week geen teken van leven | bellen; daarna RustDesk |
@@ -84,22 +102,47 @@ Test-NetConnection 192.168.0.17 -Port 9090 | Select TcpTestSucceeded
 
 Twee keer `True`.
 
-#### Alloy
+#### SSH, voor Ansible
 
-Installeer `alloy-installer-windows-amd64.exe` van
-[github.com/grafana/alloy/releases](https://github.com/grafana/alloy/releases),
-en zet de config erop:
+Eerst OpenSSH zelf. `Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0`
+faalde hier stil (via Windows Update); winget werkt wel:
 
 ```powershell filename="pc-ouders"
-Invoke-WebRequest https://raw.githubusercontent.com/rubenclaes/homelab-ansible/master/files/alloy/windows-family.alloy -OutFile "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
-Restart-Service Alloy; Get-Service Alloy
+winget install --id Microsoft.OpenSSH.Preview -e --accept-package-agreements --accept-source-agreements
+Set-Service sshd -StartupType Automatic; Start-Service sshd
+Get-NetFirewallRule -DisplayName "*OpenSSH*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+New-NetFirewallRule -Name OpenSSH-Server-In-TCP -DisplayName "Homelab: OpenSSH" -Direction Inbound -Protocol TCP -LocalPort 22 -RemoteAddress 100.64.0.0/10 -Profile Any -Action Allow
+New-ItemProperty -Path HKLM:\SOFTWARE\OpenSSH -Name DefaultShell -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
+Set-Content -Path C:\ProgramData\ssh\administrators_authorized_keys -Value '<inhoud van ~/.ssh/ansible_ed25519.pub>' -Encoding ascii
+icacls C:\ProgramData\ssh\administrators_authorized_keys /inheritance:r /grant "*S-1-5-32-544:F" /grant "SYSTEM:F"
+(Get-Content C:\ProgramData\ssh\sshd_config) -replace '^#?PasswordAuthentication .*','PasswordAuthentication no' | Set-Content C:\ProgramData\ssh\sshd_config
+Restart-Service sshd
 ```
 
-#### De schijfcontrole
+`-Profile Any` op de firewallregel is nodig: Tailscale telt als openbaar
+netwerk. Dan op je laptop de host key, onder de naam die de inventory
+gebruikt:
+
+```bash filename="laptop"
+ssh-keyscan -t ed25519 claes-swinnen.brill-atlas.ts.net >> ~/.ssh/known_hosts
+ansible pc-ouders -m ansible.windows.win_ping
+```
+
+`pong` is goed.
+
+#### Alloy en de schijfcontrole
+
+Installeer `alloy-installer-windows-amd64.exe` van
+[github.com/grafana/alloy/releases](https://github.com/grafana/alloy/releases).
+Dan zet Ansible de config en het script erop:
+
+```bash filename="laptop"
+ansible-playbook playbooks/windows.yml --tags alloy
+```
+
+En de geplande taak die het script elk uur draait, op de pc:
 
 ```powershell filename="pc-ouders"
-New-Item -ItemType Directory -Force C:\ProgramData\homelab | Out-Null
-Invoke-WebRequest https://raw.githubusercontent.com/rubenclaes/homelab-ansible/master/files/alloy/disk-health.ps1 -OutFile C:\ProgramData\homelab\disk-health.ps1
 $a  = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\ProgramData\homelab\disk-health.ps1'
 $t1 = New-ScheduledTaskTrigger -AtStartup
 $t2 = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1)
@@ -132,20 +175,47 @@ Prometheus: `up{instance="pc-ouders"}` is `1`.
 
 ## De config van Alloy aanpassen
 
-Pas `files/alloy/windows-family.alloy` aan, commit en push, en haal hem op de
-pc opnieuw op met het `Invoke-WebRequest`-commando uit [Alloy](#alloy),
-gevolgd door `Restart-Service Alloy`. Ansible beheert de pc niet.
+Pas `files/alloy/windows-family.alloy` of `disk-health.ps1` aan, dan:
+
+```bash filename="laptop"
+ansible-playbook playbooks/windows.yml --tags alloy
+```
+
+Alloy herstart alleen als de config echt veranderde.
 
 ## Goed om te weten
 
-### Waarom pushen, en geen Ansible of Action1
+### Waarom de monitoring pusht
 
-De pc staat meestal uit. Prometheus die hem ophaalt, of Ansible via WinRM die
-iets wil doen, faalt dan gewoon. Alloy op de pc stuurt zelf, zodra hij aangaat:
-metrics naar Prometheus (remote write, `--web.enable-remote-write-receiver`
-in `monitoring-stack`) en de eventlog naar Loki. Action1 (beheer in de cloud)
-was het plan in de TODO; niet gedaan, want updates doet Windows Update al, en
-opvolgen kan je homelab zelf.
+De pc staat meestal uit. Prometheus die hem ophaalt, faalt dan gewoon. Alloy
+op de pc stuurt zelf, zodra hij aangaat: metrics naar Prometheus (remote
+write, `--web.enable-remote-write-receiver` in `monitoring-stack`) en de
+eventlog naar Loki. Ansible is voor als jij iets wil doen terwijl hij aanstaat;
+daarom niet in `site.yml` en niet op schema.
+
+### Waarom SSH, en geen WinRM of Action1
+
+OpenSSH zit in Windows, praat met dezelfde sleutel als de rest van de homelab
+(`ansible_ed25519`), en Ansible ondersteunt het voor Windows. WinRM vraagt
+certificaten of NTLM en een eigen listener. Poort 22 staat alleen open voor
+Tailscale, en inloggen met een wachtwoord staat uit. Action1 (beheer in de
+cloud) was het plan in de TODO: een derde partij met SYSTEM-rechten op de pc,
+voor wat je homelab nu zelf doet.
+
+### Waarom Tailscale niet via winget
+
+`windows.yml` loopt óver Tailscale. Een update die Tailscale herstart,
+verbreekt de verbinding midden in de run, en een update die dan mislukt laat
+een pc achter die je niet meer bereikt. Tailscale werkt zichzelf bij
+(`tailscale set --auto-update`, het playbook zet dat aan) en is in winget
+gepind. App Installer ook: dat is winget zelf, en de Microsoft Store werkt het
+bij.
+
+### Waarom standaard geen herstart
+
+Je ouders kunnen aan de pc zitten terwijl jij het playbook draait. Het
+rapport onderaan de run zegt of er een herstart nodig is; dan draai je met
+`-e allow_reboot=true` op een moment dat het past, of vraag je het hen.
 
 ### Waarom `tag:family`
 
@@ -183,7 +253,7 @@ SMART-timer op pve01, en geeft er slijtage en temperatuur bij.
 | --- | --- |
 | Windows | 11 Home (25H2) |
 | Cpu, moederbord | AMD Ryzen 5 3600, Gigabyte B550 AORUS ELITE (BIOS F2 op 11-10-2026) |
-| RAM | 4 × 8 GB Corsair Vengeance LPX `CMK16GX4M2B3200C16`: twee kits van 2, op 2133 (XMP uit) |
+| RAM | 2 × 8 GB Corsair Vengeance LPX `CMK16GX4M2B3200C16`, op 2133 (XMP uit). Er zaten twee kits in (32 GB); één eruit gehaald op 11-10-2026 na een reeks blauwe schermen (`0x1A`, `0x12B`, `0xDA`), en apart gelegd |
 | Schijf | Samsung SSD 970 EVO Plus 500 GB (NVMe) |
 | Tailscale | `claes-swinnen`, `100.124.225.1` |
 | Lokaal netwerk ouders | `192.168.1.0/24`: botst niet met de subnet-route `192.168.0.0/24` |

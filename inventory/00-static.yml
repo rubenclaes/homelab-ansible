@@ -75,3 +75,15 @@ all:
     workstations:
       hosts:
         work-wsl: { ansible_host: work-wsl.brill-atlas.ts.net, ansible_user: rubenclaes }
+
+    # Windows-pc's van de familie, via Tailscale (tag:family). Over SSH en niet
+    # WinRM: OpenSSH zit in Windows, poort 22 staat alleen open voor
+    # 100.64.0.0/10, en alleen de sleutel ansible_ed25519 mag binnen. Ze staan
+    # vaak uit, dus geen nachtelijke run en niet in site.yml: alleen
+    # playbooks/windows.yml, met de hand. Zie docs-site, Pc van de ouders.
+    windows:
+      vars:
+        ansible_connection: ssh
+        ansible_shell_type: powershell
+      hosts:
+        pc-ouders: { ansible_host: claes-swinnen.brill-atlas.ts.net, ansible_user: peter }

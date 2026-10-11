@@ -1,0 +1,96 @@
+---
+# Beheer van de Windows-pc's van de familie (groep `windows`): de Alloy-config
+# en het schijfscript uitrollen, en Windows en de apps bijwerken.
+#
+#   ansible-playbook playbooks/windows.yml                    # alles
+#   ansible-playbook playbooks/windows.yml --tags alloy       # alleen de config
+#   ansible-playbook playbooks/windows.yml --tags updates     # alleen bijwerken
+#   ansible-playbook playbooks/windows.yml -e allow_reboot=true
+#
+# De flag:
+#   allow_reboot  herstart na de updates als Windows dat vraagt  (standaard false)
+#
+# Standaard geen herstart: je ouders kunnen op dat moment aan de pc zitten, en
+# een pc die zonder waarschuwing herstart is precies wat je bij hen niet wil.
+# De run zegt wel of er een herstart nodig is.
+#
+# Over SSH (OpenSSH op de pc, alleen via Tailscale), niet WinRM. De pc staat
+# vaak uit; staat hij uit, dan faalt de run met "unreachable" en is er niets
+# gebeurd. Daarom niet in site.yml en niet op schema.
+#
+# Windows Update doet zichzelf ook al. Dit playbook is voor als je het nu wil,
+# of als WindowsUpdatesPending afgaat.
+
+- name: Windows-pc's van de familie
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Write the Alloy config
+      ansible.windows.win_copy:
+        src: ../files/alloy/windows-family.alloy
+        dest: C:\Program Files\GrafanaLabs\Alloy\config.alloy
+      notify: Restart Alloy
+      tags: [alloy]
+
+    # De geplande taak zelf staat er al (docs-site, Pc van de ouders); die
+    # roept dit bestand op. Een nieuwe versie hier is dus genoeg.
+    - name: Write the disk health script
+      ansible.windows.win_copy:
+        src: ../files/alloy/disk-health.ps1
+        dest: C:\ProgramData\homelab\disk-health.ps1
+      tags: [alloy]
+
+    # Optionele drivers (category Drivers) niet: Windows biedt er hier 17 aan,
+    # uit 2020, en installeert ze zelf ook nooit. Een oude Realtek-driver
+    # erop zetten is een risico zonder reden.
+    - name: Install Windows updates
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - UpdateRollups
+          - DefinitionUpdates
+          - Updates
+        reboot: "{{ allow_reboot | default(false) | bool }}"
+      register: windows_updates
+      tags: [updates]
+
+    # Tailscale werkt zichzelf bij, niet via winget: deze run loopt óver
+    # Tailscale, en een update die halverwege de verbinding verbreekt kan de
+    # pc onbereikbaar achterlaten. Zelf bijwerken doet Tailscale wel netjes.
+    - name: Let Tailscale update itself
+      ansible.windows.win_command: '"C:\Program Files\Tailscale\tailscale.exe" set --auto-update'
+      changed_when: false
+      tags: [updates]
+
+    # Via het volle pad: in een SSH-sessie staat de alias van winget niet
+    # altijd in PATH. --disable-interactivity omdat er niemand is om op een
+    # vraag te antwoorden.
+    #
+    # Gepind en dus overgeslagen door `upgrade --all`: Tailscale (zie hierboven)
+    # en App Installer, dat is winget zelf; de Microsoft Store werkt die bij.
+    - name: Upgrade apps with winget
+      ansible.windows.win_shell: |
+        $winget = Join-Path (Get-AppxPackage Microsoft.DesktopAppInstaller).InstallLocation 'winget.exe'
+        foreach ($id in 'Tailscale.Tailscale', 'Microsoft.AppInstaller') {
+          & $winget pin add --id $id --exact --accept-source-agreements --disable-interactivity | Out-Null
+        }
+        & $winget upgrade --all --silent --include-unknown --accept-package-agreements --accept-source-agreements --disable-interactivity
+      register: windows_winget
+      changed_when: windows_winget.stdout is search('Successfully installed')
+      failed_when: false
+      tags: [updates]
+
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          - "Windows-updates geïnstalleerd: {{ windows_updates.installed_update_count | default('-') }}"
+          - "Herstart nodig: {{ windows_updates.reboot_required | default('-') }}"
+          - "winget: {{ windows_winget.stdout_lines | default([]) | select('search', 'Successfully installed|No installed package|No available upgrade') | list | join(' / ') or '-' }}"
+      tags: [updates]
+
+  handlers:
+    - name: Restart Alloy
+      ansible.windows.win_service:
+        name: Alloy
+        state: restarted
