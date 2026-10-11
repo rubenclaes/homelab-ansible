@@ -44,6 +44,10 @@ schijven in pve01, en de ZFS-pool. Daaronder:
 
 Met **Host** bovenaan kies je één of meer hosts.
 
+De pc van je ouders staat er niet op: hij heeft geen node_exporter maar Alloy,
+met andere metrics. Hij heeft een eigen dashboard,
+[Pc van de ouders](/pc-ouders/#kijken-hoe-hij-het-maakt).
+
 Het dashboard en de databronnen staan in git (`roles/prometheus_config`,
 `files/grafana/` en `templates/grafana-datasources.yml.j2`) en komen mee met
 `playbooks/monitoring.yml`. In Grafana zelf kun je ze niet opslaan: pas het

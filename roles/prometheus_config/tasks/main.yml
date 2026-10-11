@@ -98,3 +98,4 @@
     mode: "0644"
   loop:
     - homelab-hosts.json
+    - pc-ouders.json

@@ -13,6 +13,13 @@ doet Windows Update zelf.
 
 Voorbeeld: ntfy meldt `pc-ouders: blauw scherm vóór de laatste opstart`.
 
+## Kijken hoe hij het maakt
+
+Grafana → map **Homelab** → **Pc van de ouders**. Bovenaan: laatst gezien,
+blauwe schermen, hardware- en schijffouten, updates en de SSD. Onderaan de
+eventlog, met de meldingen per bron. Het dashboard staat in git:
+`roles/prometheus_config/files/grafana/pc-ouders.json`.
+
 ## Meekijken met RustDesk
 
 Open RustDesk op je laptop en typ `100.124.225.1` waar je normaal een ID
@@ -166,7 +173,8 @@ SMART-timer op pve01, en geeft er slijtage en temperatuur bij.
 | | |
 | --- | --- |
 | Windows | 11 Home (25H2) |
-| RAM | 32 GB |
+| Cpu, moederbord | AMD Ryzen 5 3600, Gigabyte B550 AORUS ELITE (BIOS F2 op 11-10-2026) |
+| RAM | 4 × 8 GB Corsair Vengeance LPX `CMK16GX4M2B3200C16`: twee kits van 2, op 2133 (XMP uit) |
 | Schijf | Samsung SSD 970 EVO Plus 500 GB (NVMe) |
 | Tailscale | `claes-swinnen`, `100.124.225.1` |
 | Lokaal netwerk ouders | `192.168.1.0/24`: botst niet met de subnet-route `192.168.0.0/24` |
