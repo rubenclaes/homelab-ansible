@@ -164,3 +164,121 @@ groups:
         annotations:
           summary: "{{ $labels.instance }}: Tailscale-metrics zijn oud of ontbreken"
           description: "systemctl status tailscale-metrics.timer tailscale-metrics.service"
+
+  # De pc van je ouders (kind="windows"). Hij wordt niet gescrapet: Alloy op
+  # de pc pusht via remote write (files/alloy/windows-family.alloy). Staat hij
+  # uit, dan is er gewoon geen data, en gaat geen enkel alarm hieronder af
+  # behalve WindowsNotSeen. Daarom ook geen HostDown voor deze pc.
+  - name: windows
+    rules:
+      # De tellers uit de eventlog beginnen op nul bij elke start van Alloy,
+      # dus bij elke opstart. Boven nul = sinds deze opstart gezien. Het alarm
+      # blijft staan tot de volgende opstart zonder nieuwe fout; elke 12 uur
+      # hoor je het opnieuw zolang de pc aanstaat. Wat er precies gebeurde,
+      # staat in Loki: {job="windows-events"}.
+      - alert: WindowsBlueScreen
+        expr: loki_process_custom_windows_bugcheck_total > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}: blauw scherm vóór de laatste opstart"
+          description: >-
+            Windows logde een BugCheck (1001) bij het opstarten. Stopcode in Grafana:
+            {job="windows-events", source="Microsoft-Windows-WER-SystemErrorReporting"}.
+
+      - alert: WindowsHardwareErrors
+        expr: loki_process_custom_windows_hardware_errors_total > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}: de hardware meldt fouten (WHEA)"
+          description: >-
+            Cpu, geheugen of chipset. Bij blauwe schermen bijna altijd het RAM:
+            MemTest86. Details: {job="windows-events", source="Microsoft-Windows-WHEA-Logger"}.
+
+      - alert: WindowsUnexpectedShutdown
+        expr: loki_process_custom_windows_unexpected_shutdown_total > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: onverwacht uitgevallen vóór de laatste opstart"
+          description: >-
+            Kernel-Power 41: crash, stroom weg of de aan-knop ingedrukt gehouden.
+            Samen met WindowsBlueScreen: een crash.
+
+      - alert: WindowsDiskErrors
+        expr: loki_process_custom_windows_disk_errors_total > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: fouten van de schijf of het bestandssysteem"
+          description: >-
+            {{ $value }} sinds de opstart. Details: {job="windows-events", source=~"disk|Ntfs|stornvme|storahci|volmgr|Microsoft-Windows-Ntfs"}.
+
+      - alert: WindowsUpdateFailed
+        expr: loki_process_custom_windows_update_failed_total > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: een Windows-update is mislukt"
+          description: "Instellingen → Windows Update → Updategeschiedenis, via RustDesk."
+
+      # Uit disk-health.ps1 (geplande taak op de pc): Get-PhysicalDisk en
+      # Get-StorageReliabilityCounter.
+      - alert: WindowsDiskUnhealthy
+        expr: windows_disk_healthy == 0
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }}: schijf {{ $labels.disk }} is niet gezond"
+          description: "Windows noemt de schijf niet meer Healthy. Maak een backup en vervang hem."
+
+      - alert: WindowsSsdWearing
+        expr: windows_disk_wear_percent > 80
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: SSD {{ $labels.disk }} raakt versleten"
+          description: "{{ $value }}% van de levensduur gebruikt. Plan een vervanging."
+
+      # Zonder dit merk je niet dat de geplande taak stil ligt: dan blijft het
+      # oude disk.prom staan en ziet alles er gezond uit.
+      - alert: WindowsDiskHealthStale
+        expr: time() - windows_disk_health_last_run_timestamp_seconds > 3 * 3600
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: de schijfcontrole draait niet meer"
+          description: >-
+            Taakplanner → "Homelab disk health". Script:
+            C:\ProgramData\homelab\disk-health.ps1.
+
+      - alert: WindowsDiskAlmostFull
+        expr: |
+          windows_logical_disk_free_bytes{volume=~"[A-Z]:"}
+            / windows_logical_disk_size_bytes < 0.10
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: {{ $labels.volume }} bijna vol"
+          description: "Nog {{ $value | humanizePercentage }} vrij."
+
+      # Optionele drivers (category="Drivers") installeert Windows nooit zelf;
+      # die staan er jaren. Alleen echte updates die al twee weken uit zijn.
+      - alert: WindowsUpdatesPending
+        expr: |
+          count by (instance) (
+            time() - windows_update_pending_published_timestamp > 14 * 86400
+            and on (instance, id) windows_update_pending_info{category!="Drivers"}
+          ) > 0
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: {{ $value }} Windows-updates staan al twee weken open"
+          description: "Instellingen → Windows Update, via RustDesk. Lukt het niet: zie WindowsUpdateFailed."
+
+      # Een pc bij je ouders staat vaak dagen uit; een week is wel vreemd. Het
+      # instance-label staat er met de hand: absent_over_time kent alleen de
+      # labels uit de selector.
+      - alert: WindowsNotSeen
+        expr: absent_over_time(up{instance="pc-ouders", job="integrations/windows"}[7d])
+        labels: { severity: warning }
+        annotations:
+          summary: "pc-ouders is al een week niet gezien"
+          description: >-
+            Uit, of Tailscale of Alloy draait niet. Bel even; daarna RustDesk
+            naar 100.124.225.1.

@@ -8,6 +8,7 @@ export default {
   netwerk: 'Netwerk',
   mensen: 'Mensen',
   'mac-mini': 'Mac mini',
+  'pc-ouders': 'Pc van de ouders',
   onderhoud: 'Onderhoud',
   backups: 'Back-ups',
   '-- gereedschap': { type: 'separator', title: 'Gereedschap' },

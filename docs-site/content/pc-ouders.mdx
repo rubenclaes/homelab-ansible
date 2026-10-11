@@ -1,0 +1,172 @@
+---
+title: Pc van de ouders
+---
+
+import { Steps } from 'nextra/components'
+
+# Pc van de ouders
+
+De pc van je ouders (`claes-swinnen` op Tailscale, `pc-ouders` in Prometheus)
+meldt zelf aan je homelab hoe hij het maakt: schijven, geheugen, updates en
+fouten uit de eventlog. Meekijken doe je met RustDesk, via Tailscale. Updates
+doet Windows Update zelf.
+
+Voorbeeld: ntfy meldt `pc-ouders: blauw scherm vóór de laatste opstart`.
+
+## Meekijken met RustDesk
+
+Open RustDesk op je laptop en typ `100.124.225.1` waar je normaal een ID
+typt. Log in met het wachtwoord uit de Vault.
+
+Rechtstreeks via het Tailscale-adres, niet via je RustDesk-server: geen
+poorten in de router, geen ID-server nodig.
+
+## Een alarm van de pc
+
+| Alarm | Wat er is | Doe |
+| --- | --- | --- |
+| `WindowsBlueScreen` | blauw scherm vóór de laatste opstart | stopcode in Grafana → Explore → Loki: `{job="windows-events", source="Microsoft-Windows-WER-SystemErrorReporting"}` |
+| `WindowsHardwareErrors` | cpu, geheugen of chipset meldt een fout (WHEA) | bij blauwe schermen bijna altijd het RAM: MemTest86 |
+| `WindowsUnexpectedShutdown` | onverwacht uitgevallen (Kernel-Power 41) | samen met `WindowsBlueScreen`: een crash. Alleen: stroom weg of aan-knop |
+| `WindowsDiskErrors` | fouten van de schijf of NTFS | `{job="windows-events", source=~"disk\|Ntfs\|stornvme"}` |
+| `WindowsDiskUnhealthy` | Windows noemt de SSD niet meer gezond | backup, vervangen |
+| `WindowsSsdWearing` | meer dan 80% van de levensduur gebruikt | vervanging plannen |
+| `WindowsDiskAlmostFull` | minder dan 10% vrij op een station | opruimen via RustDesk |
+| `WindowsUpdatesPending` | echte updates (geen optionele drivers) staan al twee weken open | Windows Update via RustDesk |
+| `WindowsUpdateFailed` | een Windows-update is mislukt | Updategeschiedenis via RustDesk |
+| `WindowsDiskHealthStale` | de schijfcontrole draait al 3 uur niet | Taakplanner → `Homelab disk health` |
+| `WindowsNotSeen` | een week geen teken van leven | bellen; daarna RustDesk |
+
+De regels staan bij de andere in `roles/prometheus_config/files/homelab.rules.yml`
+(groep `windows`).
+
+## De pc opnieuw instellen
+
+Na een herinstallatie van Windows, of op een nieuwe pc. Alles in een
+**Terminal (Admin)** op de pc.
+
+<Steps>
+
+#### Tailscale
+
+Installeer Tailscale en log in. Zet daarna de subnets aan, zodat de pc bij
+de monitoring komt:
+
+```powershell filename="pc-ouders"
+& "C:\Program Files\Tailscale\tailscale.exe" set --accept-routes
+```
+
+#### Tag hem `tag:family`
+
+Een nieuwe naam? Pas `claes-swinnen` aan in `tofu/tailscale/devices.tf`. Dan:
+
+```bash filename="laptop"
+bin/tofu tailscale apply
+```
+
+Zonder tag hangt de pc aan jouw account, en jouw account mag overal bij.
+
+#### Test of de monitoring bereikbaar is
+
+```powershell filename="pc-ouders"
+Test-NetConnection 192.168.0.17 -Port 3100 | Select TcpTestSucceeded
+Test-NetConnection 192.168.0.17 -Port 9090 | Select TcpTestSucceeded
+```
+
+Twee keer `True`.
+
+#### Alloy
+
+Installeer `alloy-installer-windows-amd64.exe` van
+[github.com/grafana/alloy/releases](https://github.com/grafana/alloy/releases),
+en zet de config erop:
+
+```powershell filename="pc-ouders"
+Invoke-WebRequest https://raw.githubusercontent.com/rubenclaes/homelab-ansible/master/files/alloy/windows-family.alloy -OutFile "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
+Restart-Service Alloy; Get-Service Alloy
+```
+
+#### De schijfcontrole
+
+```powershell filename="pc-ouders"
+New-Item -ItemType Directory -Force C:\ProgramData\homelab | Out-Null
+Invoke-WebRequest https://raw.githubusercontent.com/rubenclaes/homelab-ansible/master/files/alloy/disk-health.ps1 -OutFile C:\ProgramData\homelab\disk-health.ps1
+$a  = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\ProgramData\homelab\disk-health.ps1'
+$t1 = New-ScheduledTaskTrigger -AtStartup
+$t2 = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1)
+Register-ScheduledTask -TaskName 'Homelab disk health' -Action $a -Trigger $t1,$t2 -User SYSTEM -RunLevel Highest -Force
+Start-ScheduledTask 'Homelab disk health'
+```
+
+`C:\ProgramData\homelab\textfile\disk.prom` toont daarna `windows_disk_healthy … 1`.
+
+#### RustDesk
+
+Installeer de client. Bij *Instellingen → Beveiliging*: **Directe
+IP-toegang** aan, en een **permanent wachtwoord** (in de Vault). Dan de
+firewall, alleen voor Tailscale:
+
+```powershell filename="pc-ouders"
+New-NetFirewallRule -DisplayName "Homelab: RustDesk direct" -Direction Inbound -Protocol TCP -LocalPort 21118 -RemoteAddress 100.64.0.0/10 -Action Allow
+```
+
+#### Test of alles binnenkomt
+
+```powershell filename="pc-ouders"
+eventcreate /T WARNING /ID 999 /L SYSTEM /SO HomelabTest /D "Test vanaf de homelab"
+```
+
+In Grafana → Explore → Loki: `{host="pc-ouders"}` toont het test-event. In
+Prometheus: `up{instance="pc-ouders"}` is `1`.
+
+</Steps>
+
+## De config van Alloy aanpassen
+
+Pas `files/alloy/windows-family.alloy` aan, commit en push, en haal hem op de
+pc opnieuw op met het `Invoke-WebRequest`-commando uit [Alloy](#alloy),
+gevolgd door `Restart-Service Alloy`. Ansible beheert de pc niet.
+
+## Goed om te weten
+
+### Waarom pushen, en geen Ansible of Action1
+
+De pc staat meestal uit. Prometheus die hem ophaalt, of Ansible via WinRM die
+iets wil doen, faalt dan gewoon. Alloy op de pc stuurt zelf, zodra hij aangaat:
+metrics naar Prometheus (remote write, `--web.enable-remote-write-receiver`
+in `monitoring-stack`) en de eventlog naar Loki. Action1 (beheer in de cloud)
+was het plan in de TODO; niet gedaan, want updates doet Windows Update al, en
+opvolgen kan je homelab zelf.
+
+### Waarom `tag:family`
+
+De pc logde in met jouw account, en jouw account mag op de tailnet alles: ook
+pve01 en SSH. Met de tag mag hij alleen DNS, de diensten via Caddy en poort
+3100 en 9090 op `docker-grafana-stack` (`files/tailscale/policy.hujson`). Een
+getagde pc hangt aan niemand; `tailscale_device_key` in `devices.tf` zet het
+verlopen van zijn sleutel uit. `tag:homelab` is mede-eigenaar van de tag,
+anders mag de OAuth-client van OpenTofu hem niet zetten.
+
+### Waarom een alarm blijft staan tot de volgende opstart
+
+Een blauw scherm wordt pas bij de volgende opstart in de eventlog gezet. Alloy
+telt het dan, en die teller begint bij elke opstart op nul. Boven nul betekent
+dus "sinds deze opstart gezien". Fouten van vóór de installatie van Alloy
+leest hij niet: hij begint bij de eventlog van dat moment.
+
+### Waarom een eigen schijfscript
+
+Alloy's Windows-collector kan geen schijfgezondheid lezen (`diskdrive`
+ontbreekt). `disk-health.ps1` vraagt het aan Windows zelf
+(`Get-PhysicalDisk`, `Get-StorageReliabilityCounter`), net zoals de
+SMART-timer op pve01, en geeft er slijtage en temperatuur bij.
+
+### De pc zelf
+
+| | |
+| --- | --- |
+| Windows | 11 Home (25H2) |
+| RAM | 32 GB |
+| Schijf | Samsung SSD 970 EVO Plus 500 GB (NVMe) |
+| Tailscale | `claes-swinnen`, `100.124.225.1` |
+| Lokaal netwerk ouders | `192.168.1.0/24`: botst niet met de subnet-route `192.168.0.0/24` |

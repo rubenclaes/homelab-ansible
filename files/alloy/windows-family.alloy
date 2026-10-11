@@ -106,24 +106,26 @@ loki.process "events" {
 	// Tellers per soort fout. Ze starten op nul bij elke start van Alloy, dus
 	// bij elke opstart van de pc: een waarde boven nul betekent "sinds deze
 	// opstart gezien". Een blauw scherm wordt pas bij de volgende opstart
-	// gelogd, en telt dus mee in de sessie erna.
+	// gelogd, en telt dus mee in de sessie erna. In Prometheus heten ze
+	// loki_process_custom_<name>; `_total` staat er zelf al aan, zodat de
+	// naam niet verandert met het formaat waarin Alloy ze aanbiedt.
 	stage.metrics {
 		metric.counter {
-			name        = "windows_bugcheck"
+			name        = "windows_bugcheck_total"
 			description = "Blauwe schermen (1001), gelogd bij de opstart erna"
 			source      = "evt"
 			value       = "Microsoft-Windows-WER-SystemErrorReporting/1001"
 			action      = "inc"
 		}
 		metric.counter {
-			name        = "windows_unexpected_shutdown"
+			name        = "windows_unexpected_shutdown_total"
 			description = "Onverwacht uitgevallen (Kernel-Power 41)"
 			source      = "evt"
 			value       = "Microsoft-Windows-Kernel-Power/41"
 			action      = "inc"
 		}
 		metric.counter {
-			name        = "windows_update_failed"
+			name        = "windows_update_failed_total"
 			description = "Mislukte Windows-updates (WindowsUpdateClient 20)"
 			source      = "evt"
 			value       = "Microsoft-Windows-WindowsUpdateClient/20"
@@ -136,7 +138,7 @@ loki.process "events" {
 
 		stage.metrics {
 			metric.counter {
-				name        = "windows_hardware_errors"
+				name        = "windows_hardware_errors_total"
 				description = "Hardwarefouten die de cpu, het geheugen of de chipset meldt (WHEA)"
 				match_all   = true
 				action      = "inc"
@@ -149,7 +151,7 @@ loki.process "events" {
 
 		stage.metrics {
 			metric.counter {
-				name        = "windows_disk_errors"
+				name        = "windows_disk_errors_total"
 				description = "Fouten en waarschuwingen van de schijf- en bestandssysteemdrivers"
 				match_all   = true
 				action      = "inc"

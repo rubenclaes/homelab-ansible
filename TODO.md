@@ -48,7 +48,8 @@ docs. Per punt: wat, en de volgende stap.
       `tofu-drift.yml`.
 - [ ] **Home Assistant in Prometheus** (de prometheus-integratie van HA): nu
       ziet alleen de Smoketest dat `haos` wegvalt.
-- [ ] **Action1** voor de pc van de ouders en de Macs.
+- [ ] **Pc van de ouders op het Grafana-dashboard**: hij stuurt al alles
+      (`kind="windows"`), maar `homelab-hosts.json` kent alleen node_exporter.
 - [ ] **Gastennetwerk in UniFi**: nu zit een gast op hetzelfde wifi als pve01
       en de Macs.
 - [ ] **Plex op de Mac mini in Homebrew** (cask `plex-media-server`), zodat

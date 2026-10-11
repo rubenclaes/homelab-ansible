@@ -82,3 +82,12 @@ resource "tailscale_device_tags" "pc_ouders" {
   # De tag moet eerst in tagOwners staan, anders weigert Tailscale hem.
   depends_on = [tailscale_acl.this]
 }
+
+# Taggen zet het verlopen van een sleutel niet altijd uit: bij een toestel dat
+# eerst op jouw account stond, bleef zijn vervaldatum staan. Na die datum
+# valt de monitoring en RustDesk weg tot iemand bij je ouders opnieuw inlogt.
+resource "tailscale_device_key" "pc_ouders" {
+  for_each            = tailscale_device_tags.pc_ouders
+  device_id           = each.value.device_id
+  key_expiry_disabled = true
+}
