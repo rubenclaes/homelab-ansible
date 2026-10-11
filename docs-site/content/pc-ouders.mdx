@@ -42,6 +42,7 @@ niets gebeurd.
 | hetzelfde, en herstarten als het moet | `ansible-playbook playbooks/windows.yml --tags updates -e allow_reboot=true` |
 | eerst zien wat er openstaat | `ansible-playbook playbooks/windows.yml --tags updates --check` |
 | de Alloy-config of het schijfscript uitrollen | `ansible-playbook playbooks/windows.yml --tags alloy` |
+| de verplichte apps, weg met ongewenste, zelfherstel | `ansible-playbook playbooks/windows.yml --tags apps` |
 | één commando op de pc | `ansible pc-ouders -m ansible.windows.win_shell -a 'Get-Service Alloy'` |
 | een PowerShell op de pc | `ssh peter@claes-swinnen.brill-atlas.ts.net` |
 
@@ -58,6 +59,21 @@ ssh peter@claes-swinnen.brill-atlas.ts.net 'taskkill /PID <id> /T /F'
 ```
 
 Pin hem daarna in `playbooks/windows.yml`, bij de andere.
+
+## Welke apps erop moeten, en welke niet
+
+Staat in `inventory/group_vars/windows/main.yml`, en `--tags apps` dwingt het
+af:
+
+| Lijst | Nu | Doet |
+| --- | --- | --- |
+| `windows_apps_required` | RustDesk, Alloy | installeren via winget als hun service ontbreekt |
+| `windows_apps_absent` | AnyDesk, TeamViewer, UltraViewer, Splashtop, HP PC Hardware Diagnostics, Logi Download Assistant | verwijderen, op de naam die winget toont |
+| `windows_services_required` | sshd, Tailscale, Alloy, RustDesk | de zelfherstel-taak houdt ze op automatisch en draaiend |
+
+De zelfherstel-taak (`Homelab self-heal` in Taakplanner,
+`C:\ProgramData\homelab\self-heal.ps1`) draait bij elke opstart en elk
+kwartier, ook als Ansible er niet bij kan.
 
 ## Een alarm van de pc
 
@@ -221,6 +237,17 @@ een pc achter die je niet meer bereikt. Tailscale werkt zichzelf bij
 (`tailscale set --auto-update`, het playbook zet dat aan) en is in winget
 gepind. App Installer ook: dat is winget zelf, en de Microsoft Store werkt het
 bij.
+
+### Twee keer OpenSSH
+
+`Add-WindowsCapability` leek te falen, maar ging op de achtergrond door
+(`InstallPending`). Ondertussen kwam OpenSSH ook via winget erop. De versie van
+Windows nam de service `sshd` over, op Manual, en de winget-versie werd
+gemarkeerd voor verwijdering: na een herstart was SSH weg geweest. De
+zelfherstel-taak zet `sshd` bij elke opstart weer op automatisch, welke
+versie het ook is, en de winget-versie is gepind zodat een upgrade de service
+niet opnieuw overneemt. Haal de winget-versie niet weg met winget: zijn
+uninstaller verwijdert de service met de naam `sshd`, en dat kan die van Windows zijn.
 
 ### Waarom standaard geen herstart
 

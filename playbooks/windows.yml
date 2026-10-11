@@ -40,6 +40,82 @@
         dest: C:\ProgramData\homelab\disk-health.ps1
       tags: [alloy]
 
+    # --- Apps en diensten (inventory/group_vars/windows/main.yml) ---------
+
+    - name: Install the required apps
+      ansible.windows.win_shell: |
+        $winget = Join-Path (Get-AppxPackage Microsoft.DesktopAppInstaller).InstallLocation 'winget.exe'
+        $apps = '{{ windows_apps_required | to_json }}' | ConvertFrom-Json
+        foreach ($app in $apps) {
+          if (Get-Service -Name $app.service -ErrorAction SilentlyContinue) { continue }
+          & $winget install --id $app.id --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
+          "installed $($app.id): $LASTEXITCODE"
+        }
+      register: windows_apps_installed
+      changed_when: windows_apps_installed.stdout is search('installed')
+      tags: [apps]
+
+    # Zelfherstel: een geplande taak die bij elke opstart en elk kwartier de
+    # diensten op automatisch zet en start. Geen win_service vanuit Ansible:
+    # dat werkt alleen als Ansible er al bij kan, en het ging net mis ná een
+    # herstart. Op 11-10-2026 stond sshd na een uitgestelde installatie
+    # (Add-WindowsCapability, InstallPending) op Manual; zonder deze taak was
+    # de pc na de volgende herstart onbereikbaar geweest.
+    - name: Write the self-heal script
+      ansible.windows.win_copy:
+        dest: C:\ProgramData\homelab\self-heal.ps1
+        content: |
+          # Beheerd door Ansible (playbooks/windows.yml). Houdt de diensten
+          # draaiende waarmee je de pc beheert en opvolgt.
+          foreach ($s in '{{ windows_services_required | join("','") }}') {
+            $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
+            if (-not $svc) { continue }
+            if ($svc.StartType -ne 'Automatic') { Set-Service -Name $s -StartupType Automatic -ErrorAction SilentlyContinue; "start type ${s}" }
+            if ($svc.Status -ne 'Running') { Start-Service -Name $s -ErrorAction SilentlyContinue; "started ${s}" }
+          }
+      tags: [apps]
+
+    - name: Schedule the self-heal script
+      ansible.windows.win_shell: |
+        $name = 'Homelab self-heal'
+        if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) { exit 0 }
+        $a  = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\ProgramData\homelab\self-heal.ps1'
+        $t1 = New-ScheduledTaskTrigger -AtStartup
+        $t2 = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15)
+        Register-ScheduledTask -TaskName $name -Action $a -Trigger $t1,$t2 -User SYSTEM -RunLevel Highest -Force | Out-Null
+        'created'
+      register: windows_selfheal_task
+      changed_when: windows_selfheal_task.stdout is search('created')
+      tags: [apps]
+
+    - name: Run the self-heal script now
+      ansible.windows.win_shell: C:\ProgramData\homelab\self-heal.ps1
+      register: windows_selfheal
+      changed_when: windows_selfheal.stdout | length > 0
+      tags: [apps]
+
+    # winget list geeft 0 als hij de naam vindt, ook bij apps die niet uit
+    # winget komen. Meerdere treffers (TeamViewer + TeamViewer Host) laat
+    # uninstall weigeren; dat staat dan in de uitvoer, en de run gaat door.
+    - name: Remove the unwanted apps
+      ansible.windows.win_shell: |
+        $winget = Join-Path (Get-AppxPackage Microsoft.DesktopAppInstaller).InstallLocation 'winget.exe'
+        $names = '{{ windows_apps_absent | to_json }}' | ConvertFrom-Json
+        foreach ($name in $names) {
+          & $winget list --name $name --accept-source-agreements --disable-interactivity | Out-Null
+          if ($LASTEXITCODE -ne 0) { continue }
+          & $winget uninstall --name $name --silent --accept-source-agreements --disable-interactivity | Out-Null
+          if ($LASTEXITCODE -eq 0) { "removed ${name}" } else { "COULD NOT REMOVE ${name}: $LASTEXITCODE" }
+        }
+      register: windows_apps_removed
+      changed_when: windows_apps_removed.stdout is search('removed')
+      tags: [apps]
+
+    - name: Report the apps
+      ansible.builtin.debug:
+        msg: "{{ (windows_apps_installed.stdout_lines | default([]) + windows_apps_removed.stdout_lines | default([])) or ['niets te doen'] }}"
+      tags: [apps]
+
     # Optionele drivers (category Drivers) niet: Windows biedt er hier 17 aan,
     # uit 2020, en installeert ze zelf ook nooit. Een oude Realtek-driver
     # erop zetten is een risico zonder reden.
@@ -71,11 +147,14 @@
     # App Installer (dat is winget zelf; de Microsoft Store werkt die bij), en
     # de Autodesk Desktop App: zijn installer (8.x, "Autodesk Access") bleef op
     # 11-10-2026 zonder scherm eindeloos hangen, en daarmee de hele run. Hij
-    # werkt zichzelf bij als iemand Autodesk opent.
+    # werkt zichzelf bij als iemand Autodesk opent. En OpenSSH uit winget: de
+    # pc heeft ook de OpenSSH van Windows zelf (Add-WindowsCapability), en een
+    # upgrade van de winget-versie neemt de service `sshd` weer over, over de
+    # verbinding waarover deze run loopt.
     - name: Upgrade apps with winget
       ansible.windows.win_shell: |
         $winget = Join-Path (Get-AppxPackage Microsoft.DesktopAppInstaller).InstallLocation 'winget.exe'
-        foreach ($id in 'Tailscale.Tailscale', 'Microsoft.AppInstaller', 'Autodesk.DesktopApp') {
+        foreach ($id in 'Tailscale.Tailscale', 'Microsoft.AppInstaller', 'Autodesk.DesktopApp', 'Microsoft.OpenSSH.Preview') {
           & $winget pin add --id $id --exact --accept-source-agreements --disable-interactivity | Out-Null
         }
         & $winget upgrade --all --silent --include-unknown --accept-package-agreements --accept-source-agreements --disable-interactivity

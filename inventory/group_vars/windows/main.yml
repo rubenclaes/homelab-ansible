@@ -1,0 +1,37 @@
+---
+# Wat op elke Windows-pc van de familie moet staan, en wat er niet op mag.
+# playbooks/windows.yml dwingt het af (--tags apps); een kleine MDM. Zie
+# docs-site, Pc van de ouders.
+
+# Diensten die altijd moeten draaien: zonder sshd en Tailscale kan Ansible
+# niet meer bij de pc, zonder Alloy zie je niets, zonder RustDesk kan je niet
+# meekijken. sshd stond na de installatie via winget op Manual: na een
+# herstart was hij weg geweest.
+windows_services_required:
+  - sshd
+  - Tailscale
+  - Alloy
+  - RustDesk
+
+# Apps die er moeten zijn. `service` is hoe het playbook ziet of ze er al
+# zijn: winget herkent niet elke app die buiten winget om geïnstalleerd werd
+# (RustDesk kwam van GitHub), en zou ze anders elke run opnieuw installeren.
+# OpenSSH en Tailscale staan hier niet: ontbreken die, dan bereikt Ansible de
+# pc niet eens.
+windows_apps_required:
+  - { id: RustDesk.RustDesk, service: RustDesk }
+  - { id: GrafanaLabs.Alloy, service: Alloy }
+
+# Apps die weg moeten, op naam zoals winget ze toont (ook apps die niet uit
+# winget komen). Een naam die niet voorkomt, is geen fout.
+windows_apps_absent:
+  # Tools om een pc op afstand over te nemen. Oplichters ("Microsoft belt u")
+  # laten je ouders er een installeren. Jij gebruikt RustDesk via Tailscale.
+  - AnyDesk
+  - TeamViewer
+  - UltraViewer
+  - Splashtop
+  # Bloatware: een HP-tool op een Gigabyte-pc, en een Logitech-updater die
+  # om aandacht vraagt.
+  - HP PC Hardware Diagnostics Windows
+  - Logi Download Assistant
