@@ -27,8 +27,10 @@
 		"tag:work":    ["rubes.claes@gmail.com"],
 		// Pc's van de familie die jij beheert (de pc van je ouders). Getagd en
 		// niet op jouw account: jouw account mag alles, en een pc bij je ouders
-		// hoort niet bij pve01 of SSH te kunnen.
-		"tag:family":  ["rubes.claes@gmail.com"],
+		// hoort niet bij pve01 of SSH te kunnen. tag:homelab als eigenaar voor
+		// de OAuth-client `opentofu`: die mag alleen zijn eigen tags zetten, en
+		// tags waarvan die eigenaar zijn (tofu/tailscale/devices.tf).
+		"tag:family":  ["rubes.claes@gmail.com", "tag:homelab"],
 	},
 
 	// Namen voor adressen, zodat de regels leesbaar blijven.
