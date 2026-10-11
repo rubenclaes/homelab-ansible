@@ -1,0 +1,167 @@
+// Grafana Alloy op de pc van je ouders (Windows). Niet beheerd door Ansible:
+// kopieer dit bestand naar C:\Program Files\GrafanaLabs\Alloy\config.alloy en
+// herstart de service (Restart-Service Alloy). Zie docs-site, "Pc van de
+// ouders".
+//
+// Alloy pusht, niemand haalt op: de pc staat vaak uit, en zo levert hij zodra
+// hij aangaat. Beide adressen gaan via de subnet-route van ct 108; de
+// Tailscale-policy laat tag:family alleen bij 3100 en 9090 van deze host.
+
+logging {
+	level  = "warn"
+	format = "logfmt"
+}
+
+// --- Metrics: CPU, geheugen, schijven, updates ------------------------------
+
+prometheus.exporter.windows "default" {
+	enabled_collectors = ["cpu", "logical_disk", "memory", "net", "os", "physical_disk", "system", "textfile", "update"]
+
+	// De schijfgezondheid komt uit disk-health.ps1 (een geplande taak), niet
+	// uit een collector: Alloy heeft geen diskdrive-collector.
+	textfile {
+		directories = ["C:\\ProgramData\\homelab\\textfile"]
+	}
+
+	// Alleen wat Windows Update zelf al weet; niet online zoeken.
+	update {
+		online          = false
+		scrape_interval = "6h"
+	}
+}
+
+prometheus.scrape "windows" {
+	targets         = prometheus.exporter.windows.default.targets
+	job_name        = "windows"
+	scrape_interval = "60s"
+	forward_to      = [prometheus.relabel.pc.receiver]
+}
+
+// Alloy's eigen metrics, alleen voor de tellers uit loki.process hieronder
+// (blauwe schermen, uitval, hardware- en schijffouten).
+prometheus.exporter.self "alloy" { }
+
+prometheus.scrape "alloy" {
+	targets         = prometheus.exporter.self.alloy.targets
+	job_name        = "windows"
+	scrape_interval = "60s"
+	forward_to      = [prometheus.relabel.events.receiver]
+}
+
+prometheus.relabel "events" {
+	rule {
+		source_labels = ["__name__"]
+		regex         = "loki_process_custom_.*|up"
+		action        = "keep"
+	}
+	forward_to = [prometheus.relabel.pc.receiver]
+}
+
+// `instance` is de naam in je homelab, niet de computernaam: zo staat er
+// "pc-ouders" in een melding. `kind` laat het dashboard hem herkennen.
+prometheus.relabel "pc" {
+	rule {
+		target_label = "instance"
+		replacement  = "pc-ouders"
+	}
+	rule {
+		target_label = "kind"
+		replacement  = "windows"
+	}
+	forward_to = [prometheus.remote_write.homelab.receiver]
+}
+
+prometheus.remote_write "homelab" {
+	endpoint {
+		url = "http://192.168.0.17:9090/api/v1/write"
+	}
+}
+
+// --- Logs: de System-eventlog, alleen kritiek, fout en waarschuwing --------
+
+loki.source.windowsevent "system" {
+	eventlog_name          = "System"
+	xpath_query            = "*[System[(Level=1 or Level=2 or Level=3)]]"
+	use_incoming_timestamp = true
+	labels                 = {job = "windows-events", host = "pc-ouders"}
+	forward_to             = [loki.process.events.receiver]
+}
+
+loki.process "events" {
+	stage.json {
+		expressions = {source = "source", event_id = "event_id", level = "level"}
+	}
+
+	// Een paar tientallen bronnen op één pc: als label te doen, en zo zoek je
+	// in Grafana op {job="windows-events", source="disk"}.
+	stage.labels {
+		values = {source = "", level = ""}
+	}
+
+	stage.template {
+		source   = "evt"
+		template = "{{ .source }}/{{ .event_id }}"
+	}
+
+	// Tellers per soort fout. Ze starten op nul bij elke start van Alloy, dus
+	// bij elke opstart van de pc: een waarde boven nul betekent "sinds deze
+	// opstart gezien". Een blauw scherm wordt pas bij de volgende opstart
+	// gelogd, en telt dus mee in de sessie erna.
+	stage.metrics {
+		metric.counter {
+			name        = "windows_bugcheck"
+			description = "Blauwe schermen (1001), gelogd bij de opstart erna"
+			source      = "evt"
+			value       = "Microsoft-Windows-WER-SystemErrorReporting/1001"
+			action      = "inc"
+		}
+		metric.counter {
+			name        = "windows_unexpected_shutdown"
+			description = "Onverwacht uitgevallen (Kernel-Power 41)"
+			source      = "evt"
+			value       = "Microsoft-Windows-Kernel-Power/41"
+			action      = "inc"
+		}
+		metric.counter {
+			name        = "windows_update_failed"
+			description = "Mislukte Windows-updates (WindowsUpdateClient 20)"
+			source      = "evt"
+			value       = "Microsoft-Windows-WindowsUpdateClient/20"
+			action      = "inc"
+		}
+	}
+
+	stage.match {
+		selector = "{source=\"Microsoft-Windows-WHEA-Logger\"}"
+
+		stage.metrics {
+			metric.counter {
+				name        = "windows_hardware_errors"
+				description = "Hardwarefouten die de cpu, het geheugen of de chipset meldt (WHEA)"
+				match_all   = true
+				action      = "inc"
+			}
+		}
+	}
+
+	stage.match {
+		selector = "{source=~\"disk|Ntfs|stornvme|storahci|volmgr|Microsoft-Windows-Ntfs\"}"
+
+		stage.metrics {
+			metric.counter {
+				name        = "windows_disk_errors"
+				description = "Fouten en waarschuwingen van de schijf- en bestandssysteemdrivers"
+				match_all   = true
+				action      = "inc"
+			}
+		}
+	}
+
+	forward_to = [loki.write.homelab.receiver]
+}
+
+loki.write "homelab" {
+	endpoint {
+		url = "http://192.168.0.17:3100/loki/api/v1/push"
+	}
+}

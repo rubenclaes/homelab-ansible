@@ -25,12 +25,18 @@
 		"tag:ci":      [],
 		"tag:homelab": ["rubes.claes@gmail.com"],
 		"tag:work":    ["rubes.claes@gmail.com"],
+		// Pc's van de familie die jij beheert (de pc van je ouders). Getagd en
+		// niet op jouw account: jouw account mag alles, en een pc bij je ouders
+		// hoort niet bij pve01 of SSH te kunnen.
+		"tag:family":  ["rubes.claes@gmail.com"],
 	},
 
 	// Namen voor adressen, zodat de regels leesbaar blijven.
 	"hosts": {
 		"caddy":    "192.168.0.25",
 		"mac-mini": "${mac_mini}",
+		// docker-grafana-stack: Loki (3100) en Prometheus (9090).
+		"monitoring": "192.168.0.17",
 	},
 
 	// Een poort zonder protocol ("443") is TCP én UDP: UDP 443 is HTTP/3 bij Caddy.
@@ -42,16 +48,20 @@
 			"ip":  ["*"],
 		},
 		// Iedereen op de tailnet: de diensten, en die gaan allemaal via Caddy.
+		// tag:family ook: een getagde pc is geen member, maar je ouders openen
+		// er Immich en de rest op.
 		{
-			"src": ["autogroup:member"],
+			"src": ["autogroup:member", "tag:family"],
 			"dst": ["caddy"],
 			"ip":  ["80", "443"],
 		},
 		// En DNS bij adguard, anders lost *.neodata.be niet op. tag:homelab staat
 		// erbij voor ct 108 en wat met tailscale-key.yml binnenkomt: een getagd
-		// toestel is geen member. tag:work niet: die heeft zijn eigen DNS.
+		// toestel is geen member. tag:family net zo: zonder DNS heeft de pc
+		// geen internet, want de tailnet neemt zijn DNS over. tag:work niet: die
+		// heeft zijn eigen DNS.
 		{
-			"src": ["autogroup:member", "tag:homelab"],
+			"src": ["autogroup:member", "tag:homelab", "tag:family"],
 			"dst": ["tag:homelab"],
 			"ip":  ["53"],
 		},
@@ -61,6 +71,14 @@
 			"src": ["autogroup:member"],
 			"dst": ["mac-mini"],
 			"ip":  ["32400"],
+		},
+		// Alloy op de familie-pc's pusht naar de monitoring: logs naar Loki,
+		// metrics naar Prometheus (remote write). Pushen en niet ophalen: zo'n
+		// pc staat vaak uit, en levert zodra hij aangaat.
+		{
+			"src": ["tag:family"],
+			"dst": ["monitoring"],
+			"ip":  ["tcp:3100", "tcp:9090"],
 		},
 	],
 
@@ -94,6 +112,12 @@
 			"src":    "tag:homelab",
 			"accept": ["${adguard}:53"],
 			"deny":   ["192.168.0.10:8006", "192.168.0.25:443", "${mac_mini}:32400", "rubes.claes@gmail.com:22"],
+		},
+		// De pc van je ouders: DNS, de diensten en de monitoring, verder niets.
+		{
+			"src":    "tag:family",
+			"accept": ["${adguard}:53", "192.168.0.25:443", "192.168.0.17:3100", "192.168.0.17:9090"],
+			"deny":   ["192.168.0.10:8006", "192.168.0.10:22", "192.168.0.17:22", "192.168.0.17:3001", "rubes.claes@gmail.com:22"],
 		},
 	],
 }

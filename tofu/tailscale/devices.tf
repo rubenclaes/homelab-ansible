@@ -64,3 +64,21 @@ moved {
   from = tailscale_device_key.mac_mini
   to   = tailscale_device_key.mac_mini[0]
 }
+
+# De pc van je ouders. Aangemeld met jouw account, en jouw account mag alles:
+# zonder tag kon die pc dus bij pve01 en SSH. Met tag:family mag hij alleen
+# wat de policy die tag geeft (DNS, Caddy, de monitoring), en verloopt zijn
+# sleutel niet meer. Optioneel zoals de Mac mini: is de pc ooit weg of
+# opnieuw aangemeld onder een andere naam, dan faalt het plan niet.
+data "tailscale_devices" "pc_ouders" {
+  name_prefix = "claes-swinnen."
+}
+
+resource "tailscale_device_tags" "pc_ouders" {
+  for_each  = { for d in data.tailscale_devices.pc_ouders.devices : d.name => d if d.name == "claes-swinnen.brill-atlas.ts.net" }
+  device_id = each.value.node_id
+  tags      = ["tag:family"]
+
+  # De tag moet eerst in tagOwners staan, anders weigert Tailscale hem.
+  depends_on = [tailscale_acl.this]
+}
