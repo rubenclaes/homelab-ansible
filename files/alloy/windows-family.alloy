@@ -15,7 +15,7 @@ logging {
 // --- Metrics: CPU, geheugen, schijven, updates ------------------------------
 
 prometheus.exporter.windows "default" {
-	enabled_collectors = ["cpu", "logical_disk", "memory", "net", "os", "physical_disk", "system", "textfile", "update"]
+	enabled_collectors = ["cpu", "logical_disk", "memory", "net", "os", "physical_disk", "system", "textfile", "thermalzone", "update"]
 
 	// De schijfgezondheid komt uit disk-health.ps1 (een geplande taak), niet
 	// uit een collector: Alloy heeft geen diskdrive-collector.

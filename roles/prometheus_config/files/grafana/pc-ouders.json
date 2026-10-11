@@ -924,6 +924,215 @@
     },
     {
       "type": "timeseries",
+      "title": "CPU-kloksnelheid",
+      "description": "Gemiddeld over de kernen. Een Ryzen 5 3600 draait 3,6 GHz basis en tot 4,2 GHz boost; zakt hij ver onder de basis onder belasting, dan is hij te warm.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bffp6ddhc3oqoc"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "A",
+          "expr": "avg(windows_cpu_core_frequency_mhz{instance=\"pc-ouders\"})",
+          "legendFormat": "MHz"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "MHz",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Temperatuur",
+      "description": "De SSD (disk-health.ps1, elk uur) en de ACPI-thermal zone van het moederbord als Windows die kent. De echte cpu-temperatuur van een Ryzen leest Windows niet zonder extra driver.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bffp6ddhc3oqoc"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "A",
+          "expr": "max(windows_disk_temperature_celsius{instance=\"pc-ouders\"})",
+          "legendFormat": "SSD"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "B",
+          "expr": "windows_thermalzone_temperature_celsius{instance=\"pc-ouders\"}",
+          "legendFormat": "{{{{name}}}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "Netwerk",
+      "description": "Ontvangen en verstuurd, per netwerkkaart (wifi of kabel).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bffp6ddhc3oqoc"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "A",
+          "expr": "sum by (nic) (rate(windows_net_bytes_received_total{instance=\"pc-ouders\"}[5m])) > 0",
+          "legendFormat": "in: {{{{nic}}}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "B",
+          "expr": "-sum by (nic) (rate(windows_net_bytes_sent_total{instance=\"pc-ouders\"}[5m])) < 0",
+          "legendFormat": "uit: {{{{nic}}}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "id": 17
+    },
+    {
+      "type": "timeseries",
+      "title": "Processen",
+      "description": "Aantal draaiende processen. Een trage stijging over dagen: iets dat lekt.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "bffp6ddhc3oqoc"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "A",
+          "expr": "windows_system_processes{instance=\"pc-ouders\"}",
+          "legendFormat": "processen"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 16,
+        "w": 6,
+        "h": 8
+      },
+      "id": 18
+    },
+    {
+      "type": "timeseries",
       "title": "Eventlog: meldingen per bron",
       "description": "Fouten en waarschuwingen uit de System-eventlog, per bron. Een piek bij WER-SystemErrorReporting is een blauw scherm.",
       "datasource": {
@@ -965,11 +1174,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 16,
+        "y": 24,
         "w": 24,
         "h": 7
       },
-      "id": 15
+      "id": 19
     },
     {
       "type": "logs",
@@ -997,11 +1206,11 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 31,
         "w": 24,
         "h": 12
       },
-      "id": 16
+      "id": 20
     }
   ]
 }
