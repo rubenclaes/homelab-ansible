@@ -12,7 +12,7 @@
   "refresh": "1m",
   "schemaVersion": 39,
   "time": {
-    "from": "now-7d",
+    "from": "now-24h",
     "to": "now"
   },
   "annotations": {

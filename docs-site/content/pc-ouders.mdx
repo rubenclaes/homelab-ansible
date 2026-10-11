@@ -16,8 +16,10 @@ Voorbeeld: ntfy meldt `pc-ouders: blauw scherm vóór de laatste opstart`.
 ## Kijken hoe hij het maakt
 
 Grafana → map **Homelab** → **Pc van de ouders**. Bovenaan: laatst gezien,
-blauwe schermen, hardware- en schijffouten, updates en de SSD. Onderaan de
-eventlog, met de meldingen per bron. Het dashboard staat in git:
+blauwe schermen, hardware- en schijffouten, updates en de SSD. In het midden
+CPU, geheugen, kloksnelheid, temperatuur, netwerk en processen. Onderaan de
+eventlog, met de meldingen per bron. Standaard de laatste 24 uur: de pc staat
+vaak uit, en over een week is een avond een smal streepje. Het dashboard staat in git:
 `roles/prometheus_config/files/grafana/pc-ouders.json`.
 
 ## Meekijken met RustDesk
@@ -160,6 +162,13 @@ Een blauw scherm wordt pas bij de volgende opstart in de eventlog gezet. Alloy
 telt het dan, en die teller begint bij elke opstart op nul. Boven nul betekent
 dus "sinds deze opstart gezien". Fouten van vóór de installatie van Alloy
 leest hij niet: hij begint bij de eventlog van dat moment.
+
+### Geen echte cpu-temperatuur
+
+Windows leest de temperatuur van een Ryzen niet zonder extra driver (zoals
+die van LibreHardwareMonitor), en die wil je niet op de pc van je ouders. Het
+dashboard toont alleen de ACPI-thermal zone van het bord, als Windows die
+kent, en de temperatuur van de SSD.
 
 ### Waarom een eigen schijfscript
 
