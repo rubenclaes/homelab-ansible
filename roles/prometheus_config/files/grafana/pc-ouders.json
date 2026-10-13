@@ -23,6 +23,19 @@
   },
   "panels": [
     {
+      "type": "row",
+      "title": "Nu",
+      "id": 30,
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
       "type": "stat",
       "title": "Laatst gezien",
       "description": "Wanneer de pc voor het laatst iets stuurde. Staat hij uit, dan is er geen data; alarm na 7 dagen (WindowsNotSeen).",
@@ -51,11 +64,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "none",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -78,7 +93,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 1,
         "w": 4,
         "h": 4
       },
@@ -113,11 +128,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "none",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -140,7 +157,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 0,
+        "y": 1,
         "w": 4,
         "h": 4
       },
@@ -175,11 +192,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -188,7 +207,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "text",
                 "value": null
               },
               {
@@ -206,8 +225,8 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 0,
-        "w": 3,
+        "y": 1,
+        "w": 4,
         "h": 4
       },
       "id": 3
@@ -241,11 +260,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -254,7 +275,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "text",
                 "value": null
               },
               {
@@ -271,9 +292,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 11,
-        "y": 0,
-        "w": 3,
+        "x": 12,
+        "y": 1,
+        "w": 4,
         "h": 4
       },
       "id": 4
@@ -307,11 +328,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -320,7 +343,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "text",
                 "value": null
               },
               {
@@ -337,9 +360,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 14,
-        "y": 0,
-        "w": 3,
+        "x": 16,
+        "y": 1,
+        "w": 4,
         "h": 4
       },
       "id": 5
@@ -373,11 +396,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -386,7 +411,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "text",
                 "value": null
               },
               {
@@ -403,9 +428,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 17,
-        "y": 0,
-        "w": 3,
+        "x": 20,
+        "y": 1,
+        "w": 4,
         "h": 4
       },
       "id": 6
@@ -439,11 +464,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -481,9 +508,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 20,
-        "y": 0,
-        "w": 4,
+        "x": 0,
+        "y": 5,
+        "w": 6,
         "h": 4
       },
       "id": 7
@@ -517,11 +544,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -552,9 +581,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 4,
+        "x": 6,
+        "y": 5,
+        "w": 6,
         "h": 4
       },
       "id": 8
@@ -588,11 +617,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -622,9 +653,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 4,
-        "y": 4,
-        "w": 4,
+        "x": 12,
+        "y": 5,
+        "w": 6,
         "h": 4
       },
       "id": 9
@@ -658,11 +689,13 @@
           "fields": "",
           "values": false
         },
-        "colorMode": "background",
+        "colorMode": "value",
         "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
-        "orientation": "auto"
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
       },
       "fieldConfig": {
         "defaults": {
@@ -692,137 +725,226 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 8,
-        "y": 4,
-        "w": 4,
+        "x": 18,
+        "y": 5,
+        "w": 6,
         "h": 4
       },
       "id": 10
     },
     {
-      "type": "stat",
-      "title": "Geheugen",
-      "description": "Hoeveel RAM Windows ziet. Een latje dat wegvalt, zie je hier.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "bffp6ddhc3oqoc"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "bffp6ddhc3oqoc"
-          },
-          "expr": "windows_memory_physical_total_bytes{instance=\"pc-ouders\"}",
-          "legendFormat": "",
-          "refId": "A",
-          "instant": true,
-          "range": false
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center",
-        "orientation": "auto"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [],
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0
-        },
-        "overrides": []
-      },
+      "type": "row",
+      "title": "Wanneer staat hij aan",
+      "id": 31,
+      "collapsed": false,
       "gridPos": {
-        "x": 12,
-        "y": 4,
-        "w": 4,
-        "h": 4
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
       },
-      "id": 11
+      "panels": []
     },
     {
-      "type": "stat",
-      "title": "Windows",
-      "description": "Versie en build.",
+      "type": "table",
+      "title": "Minuten aan per uur, laatste 14 dagen",
+      "description": "Minuten aan per uur, de laatste 14 dagen. Een rij per dag, een kolom per uur. Donkerder groen is langer aan. Handig om te zien wanneer je ouders achter de pc zitten.",
       "datasource": {
         "type": "prometheus",
         "uid": "bffp6ddhc3oqoc"
       },
+      "timeFrom": "14d",
+      "hideTimeOverride": true,
+      "interval": "1h",
+      "maxDataPoints": 1000,
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "bffp6ddhc3oqoc"
           },
-          "expr": "windows_os_info{instance=\"pc-ouders\"}",
-          "legendFormat": "{{product}} {{version}}.{{revision}}",
           "refId": "A",
-          "instant": true,
-          "range": false
+          "expr": "sum(count_over_time(up{instance=\"pc-ouders\", job=\"integrations/windows\"}[1h] offset -1h)) or vector(0)",
+          "legendFormat": "Minuten",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "refId": "B",
+          "expr": "timestamp(vector(0)) * 1000",
+          "legendFormat": "Uur",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "Time",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Uur",
+                "destinationType": "time"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "formatTime",
+          "options": {
+            "timeField": "Time",
+            "outputFormat": "ddd D MMM",
+            "useTimezone": true
+          }
+        },
+        {
+          "id": "formatTime",
+          "options": {
+            "timeField": "Uur",
+            "outputFormat": "HH",
+            "useTimezone": true
+          }
+        },
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "Uur",
+            "rowField": "Time",
+            "valueField": "Minuten",
+            "emptyValue": "null"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "Time\\Uur": 0,
+              "00": 1,
+              "01": 2,
+              "02": 3,
+              "03": 4,
+              "04": 5,
+              "05": 6,
+              "06": 7,
+              "07": 8,
+              "08": 9,
+              "09": 10,
+              "10": 11,
+              "11": 12,
+              "12": 13,
+              "13": 14,
+              "14": 15,
+              "15": 16,
+              "16": 17,
+              "17": 18,
+              "18": 19,
+              "19": 20,
+              "20": 21,
+              "21": 22,
+              "22": 23,
+              "23": 24
+            },
+            "renameByName": {
+              "Time\\Uur": "Dag"
+            },
+            "excludeByName": {}
+          }
         }
       ],
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "name",
-        "justifyMode": "center",
-        "orientation": "auto"
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+          "decimals": 0,
+          "min": 0,
+          "max": 60,
+          "color": {
+            "mode": "continuous-greens"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-background",
+              "mode": "basic"
+            },
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": " ",
+                  "color": "transparent",
+                  "index": 0
+                }
+              }
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Dag"
+            },
+            "properties": [
               {
-                "color": "blue",
-                "value": null
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "left"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
               }
             ]
-          },
-          "mappings": [],
-          "color": {
-            "mode": "thresholds"
           }
-        },
-        "overrides": []
+        ]
       },
       "gridPos": {
-        "x": 16,
-        "y": 4,
-        "w": 8,
-        "h": 4
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 12
       },
-      "id": 12
+      "id": 21
+    },
+    {
+      "type": "row",
+      "title": "Prestaties",
+      "id": 32,
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
     },
     {
       "type": "timeseries",
@@ -846,7 +968,8 @@
       "options": {
         "legend": {
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi"
@@ -857,9 +980,12 @@
           "unit": "percent",
           "min": 0,
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "spanNulls": false
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "spanNulls": false,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "showPoints": "never"
           },
           "max": 100
         },
@@ -867,7 +993,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 23,
         "w": 12,
         "h": 8
       },
@@ -895,7 +1021,8 @@
       "options": {
         "legend": {
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi"
@@ -906,9 +1033,12 @@
           "unit": "percent",
           "min": 0,
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "spanNulls": false
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "spanNulls": false,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "showPoints": "never"
           },
           "max": 100
         },
@@ -916,7 +1046,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 8,
+        "y": 23,
         "w": 12,
         "h": 8
       },
@@ -944,7 +1074,8 @@
       "options": {
         "legend": {
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi"
@@ -955,18 +1086,21 @@
           "unit": "MHz",
           "min": 0,
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "spanNulls": false
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "spanNulls": false,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "showPoints": "never"
           }
         },
         "overrides": []
       },
       "gridPos": {
         "x": 0,
-        "y": 16,
+        "y": 31,
         "w": 6,
-        "h": 8
+        "h": 7
       },
       "id": 15
     },
@@ -1001,7 +1135,8 @@
       "options": {
         "legend": {
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi"
@@ -1012,18 +1147,21 @@
           "unit": "celsius",
           "min": 0,
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "spanNulls": false
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "spanNulls": false,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "showPoints": "never"
           }
         },
         "overrides": []
       },
       "gridPos": {
         "x": 6,
-        "y": 16,
+        "y": 31,
         "w": 6,
-        "h": 8
+        "h": 7
       },
       "id": 16
     },
@@ -1058,7 +1196,8 @@
       "options": {
         "legend": {
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi"
@@ -1068,18 +1207,21 @@
         "defaults": {
           "unit": "Bps",
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "spanNulls": false
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "spanNulls": false,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "showPoints": "never"
           }
         },
         "overrides": []
       },
       "gridPos": {
         "x": 12,
-        "y": 16,
+        "y": 31,
         "w": 6,
-        "h": 8
+        "h": 7
       },
       "id": 17
     },
@@ -1105,7 +1247,8 @@
       "options": {
         "legend": {
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": false
         },
         "tooltip": {
           "mode": "multi"
@@ -1116,101 +1259,267 @@
           "unit": "none",
           "min": 0,
           "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "spanNulls": false
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "spanNulls": false,
+            "gradientMode": "opacity",
+            "lineInterpolation": "smooth",
+            "showPoints": "never"
           }
         },
         "overrides": []
       },
       "gridPos": {
         "x": 18,
-        "y": 16,
+        "y": 31,
         "w": 6,
-        "h": 8
+        "h": 7
       },
       "id": 18
     },
     {
-      "type": "timeseries",
-      "title": "Eventlog: meldingen per bron",
-      "description": "Fouten en waarschuwingen uit de System-eventlog, per bron. Een piek bij WER-SystemErrorReporting is een blauw scherm.",
-      "datasource": {
-        "type": "loki",
-        "uid": "effp6gq275czka"
+      "type": "row",
+      "title": "Eventlog",
+      "id": 33,
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 1
       },
-      "targets": [
+      "panels": [
         {
+          "type": "timeseries",
+          "title": "Eventlog: meldingen per bron",
+          "description": "Fouten en waarschuwingen uit de System-eventlog, per bron. Een piek bij WER-SystemErrorReporting is een blauw scherm.",
           "datasource": {
             "type": "loki",
             "uid": "effp6gq275czka"
           },
-          "refId": "A",
-          "expr": "sum by (source) (count_over_time({host=\"pc-ouders\"} [$__interval]))",
-          "legendFormat": "{{source}}"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "right"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 80,
-            "stacking": {
-              "mode": "normal"
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "effp6gq275czka"
+              },
+              "refId": "A",
+              "expr": "sum by (source) (count_over_time({host=\"pc-ouders\"} [$__interval]))",
+              "legendFormat": "{{source}}"
             }
-          }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 80,
+                "stacking": {
+                  "mode": "normal"
+                },
+                "lineWidth": 2,
+                "gradientMode": "none",
+                "lineInterpolation": "smooth",
+                "showPoints": "never",
+                "spanNulls": false
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 39,
+            "w": 24,
+            "h": 7
+          },
+          "id": 19
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 24,
-        "w": 24,
-        "h": 7
-      },
-      "id": 19
+        {
+          "type": "logs",
+          "title": "Eventlog",
+          "description": "De System-eventlog van de pc: kritiek, fout en waarschuwing. Alleen vanaf de installatie van Alloy.",
+          "datasource": {
+            "type": "loki",
+            "uid": "effp6gq275czka"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "effp6gq275czka"
+              },
+              "refId": "A",
+              "expr": "{host=\"pc-ouders\"} | json | line_format \"{{.source}} {{.event_id}}: {{.message}}\""
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 46,
+            "w": 24,
+            "h": 12
+          },
+          "id": 20
+        }
+      ]
     },
     {
-      "type": "logs",
-      "title": "Eventlog",
-      "description": "De System-eventlog van de pc: kritiek, fout en waarschuwing. Alleen vanaf de installatie van Alloy.",
-      "datasource": {
-        "type": "loki",
-        "uid": "effp6gq275czka"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "effp6gq275czka"
-          },
-          "refId": "A",
-          "expr": "{host=\"pc-ouders\"} | json | line_format \"{{.source}} {{.event_id}}: {{.message}}\""
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "wrapLogMessage": true,
-        "sortOrder": "Descending",
-        "enableLogDetails": true
-      },
+      "type": "row",
+      "title": "Over de pc",
+      "id": 34,
+      "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 31,
+        "y": 39,
         "w": 24,
-        "h": 12
+        "h": 1
       },
-      "id": 20
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Geheugen",
+          "description": "Hoeveel RAM Windows ziet. Een latje dat wegvalt, zie je hier.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "bffp6ddhc3oqoc"
+              },
+              "expr": "windows_memory_physical_total_bytes{instance=\"pc-ouders\"}",
+              "legendFormat": "",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "none",
+            "graphMode": "none",
+            "textMode": "value",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "wideLayout": true,
+            "showPercentChange": false
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [],
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 40,
+            "w": 8,
+            "h": 4
+          },
+          "id": 11
+        },
+        {
+          "type": "stat",
+          "title": "Windows",
+          "description": "Versie en build.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "bffp6ddhc3oqoc"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "bffp6ddhc3oqoc"
+              },
+              "expr": "windows_os_info{instance=\"pc-ouders\"}",
+              "legendFormat": "{{product}} {{version}}.{{revision}}",
+              "refId": "A",
+              "instant": true,
+              "range": false
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "none",
+            "graphMode": "none",
+            "textMode": "name",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "wideLayout": true,
+            "showPercentChange": false
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              },
+              "mappings": [],
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "x": 8,
+            "y": 40,
+            "w": 16,
+            "h": 4
+          },
+          "id": 12
+        }
+      ]
     }
   ]
 }
