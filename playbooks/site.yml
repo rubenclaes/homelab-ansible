@@ -18,6 +18,7 @@
 #   cleanup.yml            verwijdert: caches, oude images, losse pakketten
 #   nfs.yml                sudo op de Mini vraagt een wachtwoord, dus -K
 #   wsl.yml                de werklaptop: vaak uit, en sudo vraagt -K
+#   windows.yml            de pc van de ouders: vaak uit, en kan herstarten
 #   report.yml             leest alleen, maar is traag; staat apart op schema
 #   smoketest.yml          controleert, convergeert niet
 #   drift.yml              controleert, convergeert niet

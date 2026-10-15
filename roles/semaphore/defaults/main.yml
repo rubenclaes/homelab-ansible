@@ -23,9 +23,9 @@ semaphore_apt_packages:
 
 # For playbooks/tofu-drift.yml. Same version as on the laptop, so the plan
 # here reads the state the laptop wrote.
-semaphore_tofu_version: "1.12.6"
+semaphore_tofu_version: "1.13.1"
 # The line for _amd64.deb in tofu_<version>_SHA256SUMS on the GitHub release.
-semaphore_tofu_sha256: 345e556f8902dde941305bf59075cf37b0d108cdb25bcc884439eec9a869c4f7
+semaphore_tofu_sha256: 1cc324c6193dbc0fad98548eb8f6829a96416493425ca46bc70a291290780b32
 
 # Ansible itself comes from the same two files the laptop and CI install
 # from, so a scheduled run here uses exactly the versions lint passed on.

@@ -130,7 +130,7 @@ jobs:
       - name: Set up OpenTofu
         uses: opentofu/setup-opentofu@v2
         with:
-          tofu_version: "1.12.6"
+          tofu_version: "1.13.1"
 
       # De providers uit de cache in plaats van elke run van GitHub: op 05-10
       # werd een run rood omdat die download drie keer mislukte, zonder dat er
