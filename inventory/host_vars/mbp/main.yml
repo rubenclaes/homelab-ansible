@@ -21,14 +21,16 @@ macos_brew_packages_extra:
   - opentofu
   - pnpm
   - postgresql@14
+  - pure             # de prompt; ~/.zshrc
   - ripgrep
   - rsync
   - tldr
   - transmission-cli
   - xcodegen
   - zellij
-  - zplug
   - zsh
+  - zsh-autosuggestions
+  - zsh-syntax-highlighting
 
 # Ansible en ansible-lint komen niet uit brew: brew geeft de nieuwste versie,
 # CI die uit requirements.txt. Ze komen uit `uv tool install` met dat bestand,
@@ -37,6 +39,7 @@ macos_brew_packages_extra:
 macos_brew_packages_absent:
   - ansible
   - ansible-lint
+  - zplug            # vervangen door de pure-formule
 
 # Docker Desktop staat hier bewust niet meer bij: op deze laptop draait
 # OrbStack, net als op de Mini. OrbStack zelf is met de hand geinstalleerd en
