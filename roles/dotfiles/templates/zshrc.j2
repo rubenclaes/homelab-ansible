@@ -28,7 +28,12 @@ if (( $+commands[eza] )); then
   alias ll='ls -l --git'
   alias la='ll -a'
 fi
-(( $+commands[bat] )) && alias cat='bat'
+if (( $+commands[bat] )); then
+  alias cat='bat'
+  # man pages in color; MANROFFOPT keeps macOS man from writing its own escapes
+  export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+  export MANROFFOPT="-c"
+fi
 
 # 3. Prompt
 autoload -U promptinit && promptinit
@@ -43,6 +48,11 @@ nvm() { unfunction nvm; source $BREW/opt/nvm/nvm.sh; nvm "$@"; }
 
 # 5. fzf: Ctrl-R history, Ctrl-T files, Alt-C cd. Autosuggestions: grey hint
 # from history, right arrow takes it.
+# Files via ripgrep: skips .git and whatever .gitignore lists.
+export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git"'
+export FZF_CTRL_T_COMMAND=$FZF_DEFAULT_COMMAND
+export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers --line-range=:200 {}'"
+export FZF_ALT_C_OPTS="--preview 'eza --tree --level=2 --icons --color=always {}'"
 (( $+commands[fzf] )) && source <(fzf --zsh)
 [[ -f $BREW/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
   source $BREW/share/zsh-autosuggestions/zsh-autosuggestions.zsh

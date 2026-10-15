@@ -187,6 +187,38 @@ hl() {
   esac
 }
 
+_hl() {
+  local -a items f
+  local r
+  if (( CURRENT == 2 )); then
+    items=(
+      'go:open a service in the browser'
+      'ssh:ssh to a host'
+      'logs:follow the logs of a container'
+      'yt:send a video to MeTube'
+      'vault:edit a vaulted file'
+      'status:alerts, late backups, fullest disks'
+      'new:a new Docker service'
+      'check:what CI checks'
+      'sandbox:a throwaway Debian on pve01'
+    )
+    _describe command items
+  elif (( CURRENT == 3 )); then
+    case $words[2] in
+      go)
+        for r in $HOMELAB_ROUTES; do
+          f=("${(@ps:\t:)r}")
+          items+=("$f[1]:$f[4]")
+        done
+        _describe service items ;;
+      ssh) compadd -- ${(k)HOMELAB_HOST_IP} ;;
+      yt) compadd -- audio ;;
+      sandbox) compadd -- --keep ls rm ;;
+    esac
+  fi
+}
+(( $+functions[compdef] )) && compdef _hl hl
+
 _hl_go() {  # open a route in the browser
   local r name host url desc pick
   pick=$(for r in $HOMELAB_ROUTES; do
