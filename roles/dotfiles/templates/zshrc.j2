@@ -16,6 +16,20 @@ ZSH_THEME=""
 plugins=(docker)
 [[ -f $ZSH/oh-my-zsh.sh ]] && source $ZSH/oh-my-zsh.sh
 
+# History, on top of what Oh My Zsh sets (share between tabs, skip lines that
+# start with a space). HISTSIZE above SAVEHIST leaves room to drop duplicates.
+HISTSIZE=110000
+SAVEHIST=100000
+setopt hist_ignore_all_dups hist_find_no_dups hist_reduce_blanks
+
+# eza's icons need the Meslo Nerd Font as the iTerm font
+if (( $+commands[eza] )); then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='ls -l --git'
+  alias la='ll -a'
+fi
+(( $+commands[bat] )) && alias cat='bat'
+
 # 3. Prompt
 autoload -U promptinit && promptinit
 [[ -f $BREW/share/zsh/site-functions/prompt_pure_setup ]] && prompt pure

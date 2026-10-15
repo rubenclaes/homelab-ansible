@@ -7,7 +7,9 @@ docs_machine_role: Je MacBook, de werkplek waarvan je Ansible en OpenTofu draait
 # `brew leaves`: alleen wat ik zelf gevraagd heb, niet de afhankelijkheden.
 # jq, htop, tmux en wget staan hier niet: die zet de macos-rol op elke Mac.
 macos_brew_packages_extra:
+  - bat              # cat; ~/.zshrc
   - caddy
+  - eza              # ls; ~/.zshrc
   - ffmpeg
   - fzf              # het menu van `ap`
   - gh
