@@ -50,6 +50,7 @@ macos_brew_packages_absent:
 macos_casks:
   - claude-code
   - firefox
+  - font-jetbrains-mono-nerd-font   # de iTerm-font, met de iconen van eza
   - font-meslo-lg-nerd-font
   - google-chrome
   - rectangle
@@ -66,6 +67,13 @@ dotfiles_git_config:
   commit.gpgsign: "true"
   core.editor: code --wait
   push.autoSetupRemote: "true"
+
+# Mijn iTerm-profiel "Ruben", met de Nerd-versie van dezelfde font en de
+# linker Option-toets als Esc+ (Alt-C van fzf, Alt-pijl van autosuggestions).
+dotfiles_iterm_parent: Ruben
+dotfiles_iterm_profile:
+  Normal Font: JetBrainsMonoNLNFM-Regular 12
+  Option Key Sends: 2
 
 dotfiles_zsh_block: |-
   export EDITOR="code --wait"

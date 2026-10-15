@@ -19,3 +19,10 @@ dotfiles_color_rgb:
   purple: "140 80 200"
   blue: "40 110 220"
   green: "40 160 80"
+
+# iTerm2: a dynamic profile that inherits from the profile named here, with
+# dotfiles_iterm_profile on top, and becomes the default. Edits to it in the
+# iTerm UI do not stick: change the parent or these vars. Empty = leave iTerm
+# alone (WSL).
+dotfiles_iterm_parent: ""
+dotfiles_iterm_profile: {}

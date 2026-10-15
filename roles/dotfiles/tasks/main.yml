@@ -77,3 +77,30 @@
     dest: ~/.zshrc
     mode: "0644"
     backup: true
+
+- name: Configure the iTerm2 profile
+  when: dotfiles_iterm_parent | length > 0
+  block:
+    - name: Ensure the iTerm2 DynamicProfiles folder exists
+      ansible.builtin.file:
+        path: ~/Library/Application Support/iTerm2/DynamicProfiles
+        state: directory
+        mode: "0755"
+
+    # iTerm picks up a change to this file while it runs.
+    - name: Deploy the iTerm2 profile
+      ansible.builtin.copy:
+        dest: ~/Library/Application Support/iTerm2/DynamicProfiles/homelab-ansible.json
+        content: >-
+          {{ {'Profiles': [{'Name': dotfiles_iterm_parent ~ ' (Ansible)',
+                            'Guid': 'homelab-ansible',
+                            'Dynamic Profile Parent Name': dotfiles_iterm_parent}
+                           | combine(dotfiles_iterm_profile)]} | to_nice_json }}
+        mode: "0644"
+
+    - name: Make it the default iTerm2 profile
+      community.general.osx_defaults:
+        domain: com.googlecode.iterm2
+        key: Default Bookmark Guid
+        type: string
+        value: homelab-ansible
